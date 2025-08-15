@@ -1,0 +1,112 @@
+import { z } from 'zod';
+
+/**
+ * Schémas de validation communs réutilisables dans toute l'application
+ * Ces schémas sont utilisés côté client ET serveur pour la cohérence
+ */
+
+// ===== CHAMPS DE BASE =====
+
+// Email - utilisé partout (auth, contact, commandes)
+export const emailSchema = z
+    .string()
+    .min(1, 'L\'email est requis')
+    .email('Format d\'email invalide');
+
+// Mot de passe - avec validation de sécurité renforcée
+export const passwordSchema = z
+    .string()
+    .min(8, 'Le mot de passe doit faire au moins 8 caractères')
+    .max(128, 'Le mot de passe ne peut pas dépasser 128 caractères')
+    .regex(/[A-Z]/, 'Le mot de passe doit contenir au moins une majuscule')
+    .regex(/[a-z]/, 'Le mot de passe doit contenir au moins une minuscule')
+    .regex(/[0-9]/, 'Le mot de passe doit contenir au moins un chiffre')
+    .regex(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, 'Le mot de passe doit contenir au moins un caractère spécial');
+
+// Nom - pour les personnes (lettres et espaces uniquement)
+export const nameSchema = z
+    .string()
+    .min(2, 'Le nom doit faire au moins 2 caractères')
+    .max(50, 'Le nom ne peut pas dépasser 50 caractères')
+    .regex(/^[A-Za-zÀ-ÿ]+(\s[A-Za-zÀ-ÿ]+)*$/, 'Le nom ne peut contenir que des lettres et espaces, avec un seul espace entre chaque mot')
+    .trim();
+
+// Nom de boutique - pour les entités commerciales
+export const shopNameSchema = z
+    .string()
+    .min(2, 'Le nom de boutique doit faire au moins 2 caractères')
+    .max(50, 'Le nom de boutique ne peut pas dépasser 50 caractères')
+    .regex(/^[A-Za-zÀ-ÿ0-9'-]+(\s[A-Za-zÀ-ÿ0-9'-]+)*$/, 'Le nom de boutique ne peut contenir que des lettres, chiffres, tirets, apostrophes et espaces, avec un seul espace entre chaque mot')
+    .trim();
+
+// Nom de produit - pour les produits de pâtisserie (sans chiffres)
+export const productNameSchema = z
+    .string()
+    .min(2, 'Le nom du produit doit faire au moins 2 caractères')
+    .max(50, 'Le nom du produit ne peut pas dépasser 50 caractères')
+    .regex(/^[A-Za-zÀ-ÿ'-]+(\s[A-Za-zÀ-ÿ'-]+)*$/, 'Le nom du produit ne peut contenir que des lettres, tirets, apostrophes et espaces, avec un seul espace entre chaque mot')
+    .trim();
+
+// Description - pour les textes longs optionnels
+export const descriptionSchema = z
+    .string()
+    .max(1000, 'La description ne peut pas dépasser 1000 caractères')
+    .trim()
+    .optional();
+
+// Message - pour les communications
+export const messageSchema = z
+    .string()
+    .max(500, 'Le message ne peut pas dépasser 500 caractères')
+    .trim()
+    .optional();
+
+// ===== CHAMPS SPÉCIALISÉS =====
+
+// Slug - pour les URLs de boutique
+export const slugSchema = z
+    .string()
+    .min(3, 'Le slug doit faire au moins 3 caractères')
+    .max(50, 'Le slug ne peut pas dépasser 50 caractères')
+    .regex(/^[a-z0-9-]+$/, 'Le slug ne peut contenir que des lettres minuscules, chiffres et tirets')
+    .transform(val => val.toLowerCase());
+
+// Prix - pour les montants monétaires
+export const priceSchema = z
+    .number()
+    .min(0, 'Le prix doit être positif')
+    .max(10000, 'Le prix ne peut pas dépasser 10 000€');
+
+// URL - pour les liens et images
+export const urlSchema = z
+    .string()
+    .url('Format d\'URL invalide')
+    .optional();
+
+// UUID - pour les identifiants
+export const uuidSchema = z
+    .string()
+    .uuid('Format d\'UUID invalide');
+
+// Date future uniquement
+export const futureDateSchema = z
+    .date()
+    .refine(
+        (date) => date > new Date(),
+        'La date doit être dans le futur'
+    );
+
+// ===== TYPES EXPORTÉS =====
+
+export type Email = z.infer<typeof emailSchema>;
+export type Password = z.infer<typeof passwordSchema>;
+export type Name = z.infer<typeof nameSchema>;
+export type ShopName = z.infer<typeof shopNameSchema>;
+export type ProductName = z.infer<typeof productNameSchema>;
+export type Description = z.infer<typeof descriptionSchema>;
+export type Message = z.infer<typeof messageSchema>;
+export type Slug = z.infer<typeof slugSchema>;
+export type Price = z.infer<typeof priceSchema>;
+export type URL = z.infer<typeof urlSchema>;
+export type UUID = z.infer<typeof uuidSchema>;
+export type FutureDate = z.infer<typeof futureDateSchema>;

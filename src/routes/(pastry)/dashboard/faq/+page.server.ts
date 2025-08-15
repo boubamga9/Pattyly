@@ -1,0 +1,147 @@
+import { error, redirect } from '@sveltejs/kit';
+import type { PageServerLoad, Actions } from './$types';
+import { getUserPermissions } from '$lib/permissions';
+
+export const load: PageServerLoad = async ({ locals }) => {
+    const { data: { user } } = await locals.supabase.auth.getUser();
+
+    if (!user) {
+        throw redirect(302, '/login');
+    }
+
+    // Vérifier les permissions
+    const permissions = await getUserPermissions(user.id, locals.supabase);
+
+    if (!permissions.canAccessDashboard) {
+        throw redirect(302, '/onboarding');
+    }
+
+    // Récupérer les FAQ de la boutique
+    const { data: faqs, error: faqsError } = await locals.supabase
+        .from('faq')
+        .select('*')
+        .eq('shop_id', permissions.shopId)
+        .order('created_at', { ascending: false });
+
+    if (faqsError) {
+        console.error('Error fetching FAQs:', faqsError);
+        throw error(500, 'Erreur lors du chargement des FAQ');
+    }
+
+    return {
+        faqs: faqs || []
+    };
+};
+
+export const actions: Actions = {
+    create: async ({ request, locals }) => {
+        const { data: { user } } = await locals.supabase.auth.getUser();
+
+        if (!user) {
+            throw error(401, 'Non autorisé');
+        }
+
+        const permissions = await getUserPermissions(user.id, locals.supabase);
+
+        if (!permissions.canAccessDashboard) {
+            throw error(403, 'Accès refusé');
+        }
+
+        const formData = await request.formData();
+        const question = formData.get('question') as string;
+        const answer = formData.get('answer') as string;
+
+        if (!question || !answer) {
+            throw error(400, 'Question et réponse requises');
+        }
+
+        const { error: createError } = await locals.supabase
+            .from('faq')
+            .insert({
+                shop_id: permissions.shopId,
+                question,
+                answer
+            });
+
+        if (createError) {
+            console.error('Error creating FAQ:', createError);
+            throw error(500, 'Erreur lors de la création de la FAQ');
+        }
+
+        return { success: true };
+    },
+
+    update: async ({ request, locals }) => {
+        const { data: { user } } = await locals.supabase.auth.getUser();
+
+        if (!user) {
+            throw error(401, 'Non autorisé');
+        }
+
+        const permissions = await getUserPermissions(user.id, locals.supabase);
+
+        if (!permissions.canAccessDashboard) {
+            throw error(403, 'Accès refusé');
+        }
+
+        const formData = await request.formData();
+        const id = formData.get('id') as string;
+        const question = formData.get('question') as string;
+        const answer = formData.get('answer') as string;
+
+        if (!id || !question || !answer) {
+            throw error(400, 'ID, question et réponse requises');
+        }
+
+        const { error: updateError } = await locals.supabase
+            .from('faq')
+            .update({
+                question,
+                answer,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', id)
+            .eq('shop_id', permissions.shopId);
+
+        if (updateError) {
+            console.error('Error updating FAQ:', updateError);
+            throw error(500, 'Erreur lors de la mise à jour de la FAQ');
+        }
+
+        return { success: true };
+    },
+
+    delete: async ({ request, locals }) => {
+        const { data: { user } } = await locals.supabase.auth.getUser();
+
+        if (!user) {
+            throw error(401, 'Non autorisé');
+        }
+
+        const permissions = await getUserPermissions(user.id, locals.supabase);
+
+        if (!permissions.canAccessDashboard) {
+            throw error(403, 'Accès refusé');
+        }
+
+        const formData = await request.formData();
+        const id = formData.get('id') as string;
+
+        if (!id) {
+            throw error(400, 'ID requis');
+        }
+
+        const { error: deleteError } = await locals.supabase
+            .from('faq')
+            .delete()
+            .eq('id', id)
+            .eq('shop_id', permissions.shopId);
+
+        if (deleteError) {
+            console.error('Error deleting FAQ:', deleteError);
+            throw error(500, 'Erreur lors de la suppression de la FAQ');
+        }
+
+        return { success: true };
+    }
+}; 

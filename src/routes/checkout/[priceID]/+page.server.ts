@@ -6,7 +6,7 @@ import type { PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({
 	params,
 	url,
-	locals: { safeGetSession, supabaseServiceRole, stripe },
+	locals: { safeGetSession, supabaseServiceRole: _supabaseServiceRole, stripe },
 }) => {
 	const { session, user } = await safeGetSession();
 	if (!session || !user) {
@@ -15,7 +15,17 @@ export const load: PageServerLoad = async ({
 		return redirect(303, `/register?${search.toString()}`);
 	}
 
-	const price = await stripe.prices.retrieve(params.priceID);
+	let price;
+	try {
+		price = await stripe.prices.retrieve(params.priceID);
+	} catch (stripeError: unknown) {
+		console.error('Stripe price not found:', params.priceID, stripeError);
+		error(404, `Price ID "${params.priceID}" not found in Stripe. Please configure your Stripe products and prices.`);
+	}
+
+	if (!price) {
+		error(404, `Price ID "${params.priceID}" not found in Stripe. Please configure your Stripe products and prices.`);
+	}
 
 	const customAmount = price.custom_unit_amount
 		? url.searchParams.has('customAmount')
@@ -31,74 +41,83 @@ export const load: PageServerLoad = async ({
 		return redirect(303, '/dashboard');
 	}
 
-	const { data: results } = await supabaseServiceRole
+	// Vérifier si l'utilisateur a déjà un customer Stripe
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const { data: existingCustomer } = await (_supabaseServiceRole as any)
 		.from('stripe_customers')
 		.select('stripe_customer_id')
-		.eq('user_id', user.id);
+		.eq('profile_id', user.id)
+		.single();
 
 	let customer: string;
-	if (results && results.length > 0) {
-		customer = results[0].stripe_customer_id;
+	if (existingCustomer) {
+		// Utiliser le customer existant
+		customer = existingCustomer.stripe_customer_id;
 	} else {
-		const { id } = await stripe.customers.create({
-			email: user.email,
-			metadata: {
-				user_id: user.id,
-			},
-		});
-
-		customer = id;
-
-		const { error: upsertError } = await supabaseServiceRole
-			.from('stripe_customers')
-			.upsert(
-				{ user_id: user.id, stripe_customer_id: customer },
-				{ onConflict: 'user_id' },
-			);
-
-		if (upsertError) {
-			console.error(upsertError);
-			error(500, 'Unknown Error: If issue persists please contact us.');
+		// Créer un nouveau customer Stripe
+		try {
+			const { id } = await stripe.customers.create({
+				email: user.email,
+				metadata: {
+					user_id: user.id,
+				},
+			});
+			customer = id;
+		} catch (customerError) {
+			console.error('Error creating Stripe customer:', customerError);
+			error(500, 'Error creating customer. Please try again.');
 		}
 	}
+
+	// Récupérer TOUS les abonnements (actifs, annulés, expirés)
+	const { data: allSubscriptions } = await stripe.subscriptions.list({
+		customer,
+		limit: 100,
+	});
 
 	const currentSubscriptions = await fetchCurrentUsersSubscription(
 		stripe,
 		customer,
 	);
 
-	// const activeProductId = currentSubscriptions.map(
-	// 	(sub) => sub.items.data[0].price.product as string,
-	// )[0]; // force string as we don't expand
-	// const sortedProductIds = products.map((product) => product.id);
+	// Vérifier si l'utilisateur a déjà eu un abonnement (actif, annulé, ou expiré)
+	const hasHadSubscription = allSubscriptions.length > 0;
 
-	// const comparison =
-	// 	sortedProductIds.indexOf(activeProductId) -
-	// 	sortedProductIds.indexOf(price.product as string);
-
-	if (currentSubscriptions.length > 0) {
-		await stripe.subscriptions.update(currentSubscriptions[0].id, {
-			items: [
-				{
-					id: currentSubscriptions[0].items.data[0].id,
-					price: price.id,
-				},
-			],
-		});
-		return redirect(303, '/settings/billing');
+	// Si l'utilisateur a déjà eu un abonnement, pas d'essai gratuit
+	if (hasHadSubscription) {
+		// Vérifier qu'il y a un abonnement actif à modifier
+		if (currentSubscriptions.length > 0 && currentSubscriptions[0]) {
+			try {
+				await stripe.subscriptions.update(currentSubscriptions[0].id, {
+					items: [
+						{
+							id: currentSubscriptions[0].items.data[0].id,
+							price: price.id,
+						},
+					],
+				});
+				return redirect(303, '/subscription');
+			} catch (updateError) {
+				console.error('Error updating subscription:', updateError);
+				error(500, 'Error updating subscription. Please try again.');
+			}
+		} else {
+			// Pas d'abonnement actif, créer un nouveau
+			console.log('User had subscription before but none active, creating new one');
+		}
 	}
 
 	const lineItems: Stripe.Checkout.SessionCreateParams['line_items'] = [
 		{
 			...(price.custom_unit_amount
 				? {
-						price_data: {
-							unit_amount:
-								customAmount != null && !isNaN(customAmount) ? customAmount : 0,
-							currency: price.currency,
-							product: price.product as string,
-						},
-					}
+					price_data: {
+						unit_amount:
+							customAmount != null && !isNaN(customAmount) ? customAmount : 0,
+						currency: price.currency,
+						product: price.product as string,
+					},
+				}
 				: { price: price.id }),
 			quantity: 1,
 		},
@@ -111,20 +130,28 @@ export const load: PageServerLoad = async ({
 			customer,
 			mode: price.type === 'recurring' ? 'subscription' : 'payment',
 			success_url: `${url.origin}/dashboard`,
-			cancel_url: `${url.origin}/settings/billing`,
-			// recurring prices have invoice creation enabled automatically
+			cancel_url: `${url.origin}/subscription`,
+			// Ajouter un essai de 7 jours seulement pour les nouveaux abonnements
 			...(price.type === 'recurring'
-				? {}
+				? {
+					subscription_data: {
+						...(hasHadSubscription ? {} : { trial_period_days: 7 }),
+					},
+				}
 				: {
-						invoice_creation: {
-							enabled: true,
-						},
-					}),
+					invoice_creation: {
+						enabled: true,
+					},
+				}),
 		});
 		checkoutUrl = checkoutSession.url;
 	} catch (e) {
-		console.error(e);
-		error(500, 'Unknown Error: If issue persists please contact us.');
+		console.error('Error creating checkout session:', e);
+		if (e instanceof Stripe.errors.StripeError) {
+			error(500, `Stripe Error: ${e.message}`);
+		} else {
+			error(500, 'Unknown Error: If issue persists please contact us.');
+		}
 	}
 
 	redirect(303, checkoutUrl ?? '/pricing');

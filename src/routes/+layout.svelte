@@ -16,11 +16,18 @@
 	$: ({ supabase, session } = data);
 
 	onMount(() => {
-		const { data } = supabase.auth.onAuthStateChange((event, _session) => {
-			if (_session?.expires_at !== session?.expires_at) {
-				invalidate('supabase:auth');
-			}
-		});
+		const { data } = supabase.auth.onAuthStateChange(
+			async (event, _session) => {
+				// Invalider pour forcer une nouvelle vérification côté serveur
+				if (
+					event === 'SIGNED_IN' ||
+					event === 'SIGNED_OUT' ||
+					event === 'TOKEN_REFRESHED'
+				) {
+					invalidate('supabase:auth');
+				}
+			},
+		);
 
 		return () => data.subscription.unsubscribe();
 	});

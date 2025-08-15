@@ -1,6 +1,5 @@
 <script>
 	import { onNavigate } from '$app/navigation';
-	import PersonalMenu from '$lib/components/personal-menu.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Collapsible from '$lib/components/ui/collapsible';
 	import * as Drawer from '$lib/components/ui/drawer';
@@ -12,7 +11,7 @@
 	import '../../app.css';
 	import { WebsiteName } from '../../config';
 	import HomeButton from './components/HomeButton.svelte';
-	import ThemeSwitchButton from './components/ThemeSwitchButton.svelte';
+	import ThemeSwitchButton from '$lib/components/ThemeSwitchButton.svelte';
 
 	const menuItems = {
 		'/': 'Home',
@@ -51,7 +50,6 @@
 			{:else}
 				<Button href="/login">Get Started Now</Button>
 			{/if}
-			<PersonalMenu user={data.user} />
 		</div>
 
 		<div class="justify-self-end sm:hidden">

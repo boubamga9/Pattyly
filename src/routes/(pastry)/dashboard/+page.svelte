@@ -1,0 +1,377 @@
+<script lang="ts">
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
+	import { Button } from '$lib/components/ui/button';
+	import {
+		Card,
+		CardContent,
+		CardDescription,
+		CardHeader,
+		CardTitle,
+	} from '$lib/components/ui/card';
+	import { Badge } from '$lib/components/ui/badge';
+	import {
+		Cake,
+		ShoppingCart,
+		Euro,
+		TrendingUp,
+		Plus,
+		Calendar,
+		FileText,
+		Settings,
+		ArrowUpRight,
+		ArrowDownRight,
+		Minus,
+	} from 'lucide-svelte';
+
+	// Données de la page
+	$: ({ user, shop, permissions, metrics } = $page.data);
+
+	// État pour le filtre de revenus
+	let selectedRevenuePeriod: 'weekly' | 'monthly' | 'threeMonths' | 'yearly' =
+		'monthly';
+
+	// Fonction pour formater le prix
+	function formatPrice(price: number): string {
+		return new Intl.NumberFormat('fr-FR', {
+			style: 'currency',
+			currency: 'EUR',
+		}).format(price);
+	}
+
+	// Fonction pour formater la date
+	function formatDate(dateString: string): string {
+		return new Date(dateString).toLocaleDateString('fr-FR', {
+			day: 'numeric',
+			month: 'short',
+			hour: '2-digit',
+			minute: '2-digit',
+		});
+	}
+
+	// Fonction pour obtenir le statut de la commande
+	function getOrderStatus(status: string): {
+		label: string;
+		variant: 'default' | 'secondary' | 'destructive' | 'outline';
+	} {
+		switch (status) {
+			case 'pending':
+				return { label: 'En attente', variant: 'secondary' };
+			case 'confirmed':
+				return { label: 'Confirmée', variant: 'default' };
+			case 'completed':
+				return { label: 'Terminée', variant: 'outline' };
+			case 'cancelled':
+				return { label: 'Annulée', variant: 'destructive' };
+			default:
+				return { label: status, variant: 'outline' };
+		}
+	}
+
+	// Fonction pour obtenir le revenu actuel
+	$: currentRevenue = metrics.revenue[selectedRevenuePeriod];
+
+	// Fonction pour calculer la variation (simulation)
+	$: revenueVariation = 0; // À implémenter avec les données historiques
+
+	// Actions rapides
+	function goToAddProduct() {
+		goto('/dashboard/products/new');
+	}
+
+	function goToOrders() {
+		goto('/dashboard/orders');
+	}
+
+	function goToAvailability() {
+		goto('/dashboard/availability');
+	}
+
+	function goToCustomForm() {
+		goto('/dashboard/custom-form');
+	}
+</script>
+
+<svelte:head>
+	<title>Tableau de bord - Pattyly</title>
+</svelte:head>
+
+<div class="container mx-auto space-y-6 p-3 md:p-6">
+	<!-- En-tête -->
+	<div class="mb-8">
+		<h1 class="text-3xl font-bold">Tableau de bord</h1>
+		<p class="mt-2 text-muted-foreground">
+			Bienvenue {shop?.name || 'Pâtissier'}, voici un aperçu de votre activité
+		</p>
+	</div>
+
+	<!-- Métriques principales -->
+	<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+		<!-- Nombre de gâteaux -->
+		<Card>
+			<CardHeader
+				class="flex flex-row items-center justify-between space-y-0 pb-2"
+			>
+				<CardTitle class="text-sm font-medium">Gâteaux en vente</CardTitle>
+				<Cake class="h-4 w-4 text-muted-foreground" />
+			</CardHeader>
+			<CardContent>
+				<div class="text-2xl font-bold">{metrics.productsCount}</div>
+				<p class="text-xs text-muted-foreground">
+					{metrics.productsCount === 0 ? 'Aucun gâteau' : 'gâteaux actifs'}
+				</p>
+			</CardContent>
+		</Card>
+
+		<!-- Commandes récentes -->
+		<Card>
+			<CardHeader
+				class="flex flex-row items-center justify-between space-y-0 pb-2"
+			>
+				<CardTitle class="text-sm font-medium">Commandes récentes</CardTitle>
+				<ShoppingCart class="h-4 w-4 text-muted-foreground" />
+			</CardHeader>
+			<CardContent>
+				<div class="text-2xl font-bold">{metrics.recentOrders.length}</div>
+				<p class="text-xs text-muted-foreground">
+					{metrics.recentOrders.length === 0
+						? 'Aucune commande'
+						: 'dernières commandes'}
+				</p>
+			</CardContent>
+		</Card>
+
+		<!-- Chiffre d'affaires -->
+		<Card>
+			<CardHeader
+				class="flex flex-row items-center justify-between space-y-0 pb-2"
+			>
+				<CardTitle class="text-sm font-medium">Chiffre d'affaires</CardTitle>
+				<Euro class="h-4 w-4 text-muted-foreground" />
+			</CardHeader>
+			<CardContent>
+				<div class="text-2xl font-bold">{formatPrice(currentRevenue)}</div>
+				<div class="flex items-center text-xs text-muted-foreground">
+					{#if revenueVariation > 0}
+						<ArrowUpRight class="mr-1 h-3 w-3 text-green-500" />
+						<span class="text-green-500">+{revenueVariation}%</span>
+					{:else if revenueVariation < 0}
+						<ArrowDownRight class="mr-1 h-3 w-3 text-red-500" />
+						<span class="text-red-500">{revenueVariation}%</span>
+					{:else}
+						<Minus class="mr-1 h-3 w-3 text-muted-foreground" />
+						<span>0%</span>
+					{/if}
+					<span class="ml-1">vs période précédente</span>
+				</div>
+			</CardContent>
+		</Card>
+
+		<!-- Gâteaux populaires -->
+		<Card>
+			<CardHeader
+				class="flex flex-row items-center justify-between space-y-0 pb-2"
+			>
+				<CardTitle class="text-sm font-medium">Gâteaux populaires</CardTitle>
+				<TrendingUp class="h-4 w-4 text-muted-foreground" />
+			</CardHeader>
+			<CardContent>
+				<div class="text-2xl font-bold">{metrics.popularProducts.length}</div>
+				<p class="text-xs text-muted-foreground">
+					{metrics.popularProducts.length === 0
+						? 'Aucune vente'
+						: 'gâteaux vendus'}
+				</p>
+			</CardContent>
+		</Card>
+	</div>
+
+	<!-- Filtres de revenus -->
+	<div class="flex justify-center">
+		<div class="flex space-x-1 rounded-lg bg-muted p-1">
+			<Button
+				variant={selectedRevenuePeriod === 'weekly' ? 'default' : 'ghost'}
+				size="sm"
+				on:click={() => (selectedRevenuePeriod = 'weekly')}
+			>
+				Semaine
+			</Button>
+			<Button
+				variant={selectedRevenuePeriod === 'monthly' ? 'default' : 'ghost'}
+				size="sm"
+				on:click={() => (selectedRevenuePeriod = 'monthly')}
+			>
+				Mois
+			</Button>
+			<Button
+				variant={selectedRevenuePeriod === 'threeMonths' ? 'default' : 'ghost'}
+				size="sm"
+				on:click={() => (selectedRevenuePeriod = 'threeMonths')}
+			>
+				3 mois
+			</Button>
+			<Button
+				variant={selectedRevenuePeriod === 'yearly' ? 'default' : 'ghost'}
+				size="sm"
+				on:click={() => (selectedRevenuePeriod = 'yearly')}
+			>
+				Année
+			</Button>
+		</div>
+	</div>
+
+	<!-- Actions rapides -->
+	<Card>
+		<CardHeader>
+			<CardTitle>Actions rapides</CardTitle>
+			<CardDescription>
+				Accédez rapidement aux fonctionnalités principales
+			</CardDescription>
+		</CardHeader>
+		<CardContent>
+			<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+				<Button
+					variant="outline"
+					class="h-auto flex-col space-y-2 p-4"
+					on:click={goToAddProduct}
+				>
+					<Plus class="h-6 w-6" />
+					<span>Ajouter un gâteau</span>
+				</Button>
+				<Button
+					variant="outline"
+					class="h-auto flex-col space-y-2 p-4"
+					on:click={goToOrders}
+				>
+					<ShoppingCart class="h-6 w-6" />
+					<span>Voir les commandes</span>
+				</Button>
+				<Button
+					variant="outline"
+					class="h-auto flex-col space-y-2 p-4"
+					on:click={goToAvailability}
+				>
+					<Calendar class="h-6 w-6" />
+					<span>Gérer les disponibilités</span>
+				</Button>
+				<Button
+					variant="outline"
+					class="h-auto flex-col space-y-2 p-4"
+					on:click={goToCustomForm}
+				>
+					<FileText class="h-6 w-6" />
+					<span>Formulaire personnalisé</span>
+				</Button>
+			</div>
+		</CardContent>
+	</Card>
+
+	<!-- Contenu principal -->
+	<div class="grid gap-6 lg:grid-cols-2">
+		<!-- Commandes récentes -->
+		<Card>
+			<CardHeader>
+				<CardTitle>Commandes récentes</CardTitle>
+				<CardDescription>Les dernières commandes reçues</CardDescription>
+			</CardHeader>
+			<CardContent>
+				{#if metrics.recentOrders.length === 0}
+					<div class="py-8 text-center text-muted-foreground">
+						<ShoppingCart class="mx-auto mb-4 h-12 w-12 opacity-50" />
+						<p>Aucune commande récente</p>
+					</div>
+				{:else}
+					<div class="space-y-4">
+						{#each metrics.recentOrders as order}
+							<div
+								class="flex items-center justify-between rounded-lg border p-3"
+							>
+								<div class="flex-1">
+									<div class="flex items-center space-x-2">
+										<p class="font-medium">
+											{order.customer_name || order.customer_email}
+										</p>
+										<Badge variant={getOrderStatus(order.status).variant}>
+											{getOrderStatus(order.status).label}
+										</Badge>
+									</div>
+									<p class="text-sm text-muted-foreground">
+										{formatDate(order.created_at)}
+									</p>
+									{#if order.products && order.products.length > 0}
+										<p class="text-xs text-muted-foreground">
+											{order.products.length} article(s)
+										</p>
+									{/if}
+								</div>
+								<div class="text-right">
+									<p class="font-medium">
+										{formatPrice(order.total_amount || 0)}
+									</p>
+								</div>
+							</div>
+						{/each}
+					</div>
+					<div class="mt-4">
+						<Button variant="outline" class="w-full" on:click={goToOrders}>
+							Voir toutes les commandes
+							<ArrowUpRight class="ml-2 h-4 w-4" />
+						</Button>
+					</div>
+				{/if}
+			</CardContent>
+		</Card>
+
+		<!-- Gâteaux populaires -->
+		<Card>
+			<CardHeader>
+				<CardTitle>Gâteaux populaires</CardTitle>
+				<CardDescription>Vos gâteaux les plus vendus</CardDescription>
+			</CardHeader>
+			<CardContent>
+				{#if metrics.popularProducts.length === 0}
+					<div class="py-8 text-center text-muted-foreground">
+						<Cake class="mx-auto mb-4 h-12 w-12 opacity-50" />
+						<p>Aucune vente enregistrée</p>
+					</div>
+				{:else}
+					<div class="space-y-4">
+						{#each metrics.popularProducts as item, index}
+							<div class="flex items-center space-x-4 rounded-lg border p-3">
+								<div
+									class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary/10"
+								>
+									<span class="text-sm font-medium text-primary"
+										>#{index + 1}</span
+									>
+								</div>
+								<div class="min-w-0 flex-1">
+									<p class="truncate font-medium">{item.product.name}</p>
+									<p class="text-sm text-muted-foreground">
+										{item.totalQuantity} vendu(s)
+									</p>
+								</div>
+								<div class="text-right">
+									<p class="font-medium">{formatPrice(item.totalRevenue)}</p>
+									<p class="text-xs text-muted-foreground">
+										{formatPrice(item.product.price || 0)} l'unité
+									</p>
+								</div>
+							</div>
+						{/each}
+					</div>
+					<div class="mt-4">
+						<Button
+							variant="outline"
+							class="w-full"
+							on:click={() => goto('/dashboard/products')}
+						>
+							Voir tous les gâteaux
+							<ArrowUpRight class="ml-2 h-4 w-4" />
+						</Button>
+					</div>
+				{/if}
+			</CardContent>
+		</Card>
+	</div>
+</div>

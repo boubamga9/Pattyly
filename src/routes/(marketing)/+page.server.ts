@@ -17,6 +17,15 @@ export const load: PageServerLoad = async ({ locals: { stripe } }) => {
 		),
 	);
 
+	// Vérifier qu'on a au moins 3 prix configurés
+	if (sortedPrices.length < 3) {
+		console.warn(`Only ${sortedPrices.length} Stripe prices found. Need at least 3 for marketing page.`);
+		// Retourner des données par défaut pour éviter l'erreur
+		return {
+			prices: [] as const,
+		};
+	}
+
 	const price1 = {
 		...sortedPrices[0],
 		product: sortedPrices[0].product as Stripe.Product,

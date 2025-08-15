@@ -1,0 +1,179 @@
+---
+description: This file defines the complete database schema for a micro-SaaS platform built for pastry chefs. It covers all necessary tables and relationships for shop configuration, cake products, custom forms (including per-product fields with optional paid options), order flows (standard and custom), availability and unavailability management, and user authentication. It also includes logic for handling Stripe subscriptions, with support for exempting selected users, custom product categories per chef, quote messaging, and configurable preparation delays for each cake. Use this file to reference the core structure of the backend and business logic.
+globs:
+alwaysApply: false
+---
+
+### profiles
+| Column           | Type     | Description                                               |
+|------------------|----------|-----------------------------------------------------------|
+| id               | UUID     | FK to users.id                                            |
+| email            | Text     | Email address                                             |
+| role             | Enum     | 'pastry_chef','admin'                                     |
+| is_stripe_free   | Boolean  | True if user is exempt from Stripe subscription           |
+
+---
+
+### stripe_customers
+| Column                  | Type     | Description                              |
+|-------------------------|----------|------------------------------------------|
+| profile_id              | UUID     | FK to profiles.id                        |
+| stripe_customer_id      | Text     | Stripe customer id                       |
+
+---
+
+### user_products
+| Column                   | Type     | Description                                               |
+|--------------------------|----------|-----------------------------------------------------------|
+| profile_id               | UUID     | FK to profiles.id                                         |
+| stripe_product_id        | Text     | Stripe product id                                         |
+| stripe_subscription_id   | Text     | Stripe subscription id                                    |
+| subscription_status      | Enum     | 'active', 'unactive'                                      |
+
+---
+
+### stripe_connect_accounts
+| Column                | Type     | Description                                   |
+|-----------------------|----------|-----------------------------------------------|
+| id                    | UUID     | Primary key                                   |
+| profile_id            | UUID     | FK to profiles.id                             |
+| stripe_account_id     | Text     | Stripe Connect account ID                     |
+| is_active             | Boolean  | Can receive payments                          |
+
+---
+
+### shops
+| Column                   | Type     | Description                                               |
+|--------------------------|----------|-----------------------------------------------------------|
+| id                       | UUID     | Shop ID                                                   |
+| profile_id               | UUID     | FK to profiles.id                                         |
+| name                     | Text     | Shop name                                                 |
+| slug                     | Text     | URL-friendly name (e.g., /[slug])                         |
+| bio                      | Text     | Short description                                         |
+| logo_url                 | Text     | Logo image URL                                            |
+| is_custom_accepted       | Boolean  | Whether the shop currently allow custom request           |
+| is_active                | Boolean  | Whether the shop is publicly visible                      |
+
+---
+
+### categories
+| Column     | Type     | Description                                              |
+|------------|----------|----------------------------------------------------------|
+| id         | UUID     | Category ID                                              |
+| name       | Text     | Name of the category                                     |
+| shop_id    | UUID     | Nullable FK to shops.id → allows chef-created categories |
+
+---
+
+### products
+| Column             | Type     | Description                                    |
+|--------------------|----------|------------------------------------------------|
+| id                 | UUID     | Product ID                                     |
+| shop_id            | UUID     | FK to shops.id                                 |
+| name               | Text     | Product name                                   |
+| description        | Text     | Description                                    |
+| image_url          | Text     | Product photo                                  |
+| base_price         | Numeric  | Base price before customization                |
+| category_id        | UUID     | FK to categories.id                            |
+| form_id            | UUID     | FK to forms.id (customization form)            |
+| min_days_notice    | Integer  | Minimum delay (in days) before the order date  |
+
+---
+
+### forms
+| Column               | Type     | Description                       |
+|----------------------|----------|-----------------------------------|
+| id                   | UUID     | Form ID                           |
+| shop_id              | UUID     | FK to shops.id                    |
+| is_custom_form       | Boolean  | True if is it custom form         |
+| title                | Text     | Custom form title (optional)      |
+| description          | Text     | Custom form description (optional)|
+
+---
+
+### form_fields
+| Column        | Type     | Description                                                             |
+|---------------|----------|-------------------------------------------------------------------------|
+| id            | UUID     | Field ID                                                                |
+| form_id       | UUID     | FK to forms.id                                                          |
+| label         | Text     | Label shown to the user                                                 |
+| type          | Enum     | 'short-text','long-text', 'number', 'single-select', 'multi-select'     |
+| options       | JSONB    | Array of options (if applicable) — each option can include price, label |
+| required      | Boolean  | Whether the field is required                                           |
+| order         | Integer  | Order of appearance in the form                                         |
+
+> ✅ Using `JSONB` for `options` is **ideal** here because:
+> - You can store both label and optional price.
+> - Easily editable per field.
+> - Avoids the overhead of creating an extra table + join logic.
+> 
+> Example:
+> ```json
+> [
+>   { "label": "Gold", "price": 5 },
+>   { "label": "Silver", "price": 2 },
+>   { "label": "None", "price": 0 }
+> ]
+> ```
+
+---
+
+### orders
+| Column               | Type     | Description                                                   |
+|----------------------|----------|---------------------------------------------------------------|
+| id                   | UUID     | Order ID                                                      |
+| shop_id              | UUID     | FK to shops.id                                                |
+| product_id           | UUID     | FK to products.id (null for custom requests)                  |
+| customer_name        | Text     | Client name                                                   |
+| customer_email       | Text     | Client email                                                  |
+| pickup_date          | Date     | Date requested by customer                                    |
+| message              | Text     | Optional message from customer                                |
+| customization_data   | JSONB    | Answers to the customization form                             |
+| status               | Enum     | 'pending','quoted','confirmed', 'ready','refused','completed' |
+| refused_by           | Enum     | 'pastry_chef','client'                                        |
+| price                | Numeric  | Final price (null if not quoted yet)                          |
+| chef_message         | Text     | Custom message from chef (quoted orders)                      |
+| stripe_payment_id    | Text     | Stripe payment ID (nullable)                                  |
+
+---
+
+### availabilities
+| Column     | Type     | Description                                         |
+|------------|----------|-----------------------------------------------------|
+| id         | UUID     | Availability ID                                     |
+| shop_id    | UUID     | FK to shops.id                                      |
+| day        | Integer  | Day of week (0 = Sunday, 6 = Saturday)              |
+| is_open    | Boolean  | Whether the chef accepts orders on that day         |
+
+---
+
+### unavailabilities
+| Column     | Type     | Description                          |
+|------------|----------|--------------------------------------|
+| id         | UUID     | ID                                   |
+| shop_id    | UUID     | FK to shops.id                       |
+| start_date | Date     | Start of unavailability period       |
+| end_date   | Date     | End of unavailability period         |
+
+---
+
+### contact_messages
+| Column                   | Type     | Description                                               |
+|--------------------------|----------|-----------------------------------------------------------|
+| id                       | UUID     | ID                                                        |
+| name                     | Text     | Sender name                                               |
+| email                    | Text     | Sender email                                              |
+| subject                  | Text     | Subject of the message                                    |
+| body                     | Text     | Message                                                   |
+
+---
+
+### faq
+| Column     | Type     | Description                                    |
+|------------|----------|------------------------------------------------|
+| id         | UUID     | FAQ ID                                        |
+| shop_id    | UUID     | FK to shops.id                                |
+| question   | Text     | Question text                                 |
+| answer     | Text     | Answer text                                   |
+| created_at | Timestamp| Creation timestamp                            |
+| updated_at | Timestamp| Last update timestamp                         |

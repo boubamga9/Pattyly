@@ -1,0 +1,64 @@
+---
+description: This file defines the high-level project rules and specifications for a Micro-SaaS platform tailored for independent pastry chefs. It includes the product objectives, target user profile, key features, technology stack, UI and validation conventions, and the organization of detailed rule files. Use this as the main reference to align development, design, and business logic decisions for the SaaS project.
+
+globs:
+alwaysApply: false
+---
+
+
+# Project Rules – Micro-SaaS for Pastry Chefs
+
+## 🔍 Product Objective
+
+Create a simple, turnkey platform for independent pastry chefs to:
+
+- Showcase their products via a public online store
+- Receive online orders
+- Accept payments via Stripe (with 3D Secure)
+- Manage their products and orders from a personal dashboard
+
+## 👤 Target User
+
+Independent or semi-professional pastry chefs, mostly selling via Instagram / word-of-mouth.  
+Not necessarily very comfortable with traditional tech / e-commerce tools.
+
+Key needs:
+
+- Not losing orders
+- Reducing manual exchanges
+- Having an up-to-date storefront
+- Easy online payments
+
+## 🔧 Main Features
+
+- Supabase authentication (email/password)
+- Creation of a personalized store (name, logo, bio, slug)
+- Stripe Express connection for payments
+- Management interface: products (CRUD), orders, custom questionnaire
+- Public pastry chef page (`/[slug]`) with cart and checkout
+
+## 🧱 Tech Stack
+
+- Frontend: SvelteKit + Tailwind CSS + Shadcn-svelte  
+- Backend: SvelteKit + Supabase (Postgres, Auth, Storage)  
+- Payment: Stripe Connect + Stripe Checkout  
+- Validation: Zod  
+- Emails: Resend  
+- Deployment: Cloudflare
+
+## 📐 Conventions & Rules
+
+- Use reusable UI components (`Button`, `Card`, `Form`)  
+- Client- and server-side validation with Zod  
+- Private routes protected by Supabase Auth  
+- Redirect to onboarding if Stripe is not connected  
+- Use clear and friendly error messages  
+- Simple, minimalist, mobile-first responsive UI
+
+## 📁 Rules Organization
+
+See detailed rule files:  
+- `routes.mdc` (pages)  
+- `pain-point.mdc` (user needs)  
+- `ui.mdc` (design and styles)  
+- `stripe.mdc`, `dashboard.mdc`, `userflow.mdc`, `auth.mdc`, `onboarding.mdc`, `admin.mdc`, `validation.mdc`, `emails.mdc` (business logic)

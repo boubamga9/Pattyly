@@ -1,0 +1,241 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+
+## Général
+
+- pour les updates et les suppressions il faudra vérifier que la donnée appartient bien au patissier voulant effectuer l’action
+- pour les créations, il faudra bien associer la donnée au bon patissier
+
+## lib/actions/forms-actions.ts
+
+### Base de données:
+
+- chaque création de champs de formulaire (nouvelle ligne dans la table “form_fields”) doit prendre la valeur du dernier champs + 1
+- la suppression d’un champs de formulaire ( ligne dans la table “form_fields”) doit mettre à jour la colonne “order” des autres champs (table “form_fields”) pour garder une cohérence
+
+### Fonctions à exporter:
+
+- getFormById: récupérer un formulaire (table “forms”) via son id et tous ses champs associés (table “form-fields”) triés sous forme de json
+- getCustomRequestForm: récupérer le formulaire personnalisé (table  “forms” où la la colonne “is_custom_form” = true) et tous ses champs associés (table “form-fields”) triés sous forme de json
+- createForm: créer un nouveau formulaire ( nouvelle ligne dans la table “forms”) associé à un patissier via la colonne “shop_id”
+- *deleteForm: prend un id et supprime le formulaire associé  (une ligne dans la table “forms”) et tous les champs associés (table “form_fields”)*
+- createNumberField: créer un champs formulaire de type “number” (nouvelle ligne dans la table “form_fields” avec colonne “type” = “number”)  ⇒ les colonnes “label” et “required” à fournir
+- createShortTextField: créer un champs formulaire de type “short-text” (nouvelle ligne dans la table “form_fields” avec colonne “type” = “short_text”)  ⇒ les colonnes “label” et “required” à fournir
+- createLongTextField: créer un champs formulaire de type “long-text” (nouvelle ligne dans la table “form_fields” avec colonne “type” = “long-text”)  ⇒ les colonnes “label” et “required” à fournir
+- createSingleSelectField: créer un champs formulaire de type “single-select” (nouvelle ligne dans la table “form_fields” avec colonne “type” = “single-select”)  ⇒ les colonnes “label”, “required” et “options” à fournir
+- createMultiSelectField: créer un champs formulaire de type “multi-select” (nouvelle ligne dans la table “form_fields” avec colonne “type” = “multi-select”)  ⇒ les colonnes “label”, “required” et “options” à fournir
+- updateShortTextField: mettre à jour le champs de formulaire grace à l’id en fournissant le “label” et “required”
+- updateLongTextField: mettre à jour le champs de formulaire grace à l’id en fournissant le “label” et “required”
+- updateSingleSelectField: mettre à jour le champs de formulaire grace à l’id en fournissant le “label”, “required” et “options”
+- updateMultiSelectField: mettre à jour le champs de formulaire grace à l’id en fournissant le “label”, “required” et “options”
+- updateNumberField: mettre à jour le champs de formulaire grace à l’id en fournissant le “label” et “required”
+- deleteFormField: supprimer le champs de formulaire
+- AddFormFieldOption: ajouter une option à un multi-select ou un single-select
+- removeFormFieldOption: supprimer une option
+
+## lib/actions/products-actions.ts
+
+### Fonctions à exporter:
+
+- getCategories: récupérer la liste des categories du patissier (table “categories)
+- getCategoryById: récupérer le nom d’une categorie du pastissier à l’aide de l’id
+- getProducts: récupérer la liste de 10 produits du patissier (table “products”)
+- getMoreProduct: récupérer les 10 produits suivants (table “products”) toutes categories confondus si statut = all sinon categorie specifique
+- getProductsByCategories: récupérer la liste des produits d’une categorie spécifique d’un patissier
+- getProductbyId: récupérer le produit du patissier à l’aide de son id
+
+## lib/actions/orders-actions.ts
+
+### Fonctions à exporter:
+
+- getOrderById: récupérer une commande à l’aide de l’id
+
+## (app)/+layout.server.ts
+
+### Load:
+
+- si le patissier n’a pas de shop créé ou stripe connect non connecté, renvoyer vers ⇒ (app)/dashboard/onboarding
+- si l’onboarding est complété mais pas le paiement de l’abonnement et que le patissier n’est pas exempté de paiement (shop.is_stripe_free) ⇒ renvoyer vers la page d’abonnement
+
+## (app)/dashboard/+page.server.ts
+
+### Load:
+
+- Si le patissier à au moins 1 commande ⇒ renvoyer vers (app)/dashboard/orders sinon renvoyer vers (app)/dashboard/products
+
+## (app)/dashboard/availability/+page.server.ts
+
+### Load:
+
+- availabilities: récupérer la liste des dispo (table “availabilities”) du patissier en format json {id, day, is_open}
+- unavailabilities: récupérer la liste des indispo (table “unavailabilities”) du patissier en format json {id, start_date, end_date}
+
+### Actions:
+
+- updateAvailability: mettre à jour l’ouverture (“is_open” de la table “availabilities”) ⇒ false si c’est true et true si c’est false
+- createUnavailability: créer une indisponibilité (table “unavailabilities”) avec la date de début et de fin de la période (les deux memes dates si c’est un seul jour)
+- deleteUnavailability: supprimer une indisponibilité (table “unavailabilities”)
+
+## (app)/dashboard/custom-form/+page.server.ts
+
+### Load:
+
+- customForm: récupérer le formulaire personnalisé ainsi que les différents champs à l’iade de getCustomRequestForm (de lib/actions/forms-actions.ts)
+
+### Actions:
+
+- Toutes les actions de lib/actions/forms-actions.ts
+- toggleFormStatus: mettre à jour la colonne “is_custom_accepted” dans la table “shops” ⇒ si false , il passe à true et inversement
+
+## (app)/dashboard/products/+page.server.ts
+
+### Load:
+
+- categories : getCategories, products: getProducts de lib/actions/products-actions.ts
+
+### Action:
+
+- getMoreProduct, getProductsByCategories de lib/actions/products-actions.ts
+- duplicateProduct : dupliquer un produit du patissier ainsi que le formulaire et les champs associé.
+
+## (app)/dashboard/products/[id]/+page.server.ts
+
+### Load:
+
+- product : getProductById,  category : getCategoryById de lib/actions/products-actions.ts
+- form : getFormById de lib/actions/forms-actions.ts
+
+## (app)/dashboard/products/new/+page.server.ts
+
+### Actions:
+
+- createProduct : ajouter un produit (table “products”)
+- categories : getCategories de lib/actions/products-actions.ts
+- toutes les actions de lib/actions/forms-actions.ts
+
+## (app)/dashboard/products/[id]/edit/+page.server.ts
+
+### Load:
+
+- product: getProductbyId  de lib/actions/form-actions.ts
+
+### Actions:
+
+- updateProduct : ajouter un produit (table “products”)
+- deleteProduct: supprimer un produit (table “products”) et le formulaire associé (table “forms”) ainsi que les champs (table “form_fields”)
+- toutes les actions de lib/actions/forms-actions.ts
+
+## (app)/dashboard/onboarding/+page.server.ts
+
+### Actions:
+
+- createShop: créer une nouvelle ligne dans la table “shops” associé en récupérant l’id de l’utilisateur, le nom de la boutique, slug, la bio, la photo..
+- updateShop: mettre à jour uniquement les informations visibles du shop en utilisant l’id: photo, bio, nom, slug
+- *completeStripeSetup: redirige vers stripe connect pour que le patissier puisse inscrire son compte*
+
+### Load:
+
+- Vérifier que l’utilisateur revient de stripe et mettre à jour la colonne “stripe_id” dans la table “shops”
+
+## (app)/dashboard/shop/+page.server.ts
+
+### Actions:
+
+- updateShop: mettre à jour uniquement les informations visibles du shop en utilisant l’id: photo, bio, nom, slug
+- *updateStripeSetup: redirige vers stripe connect pour que le patissier puisse mettre à jour son compte*
+
+### Load:
+
+- shop: récupérer le shop (table “shop”) du patissier sous format json
+- Vérifier que l’utilisateur revient de stripe et mettre à jour la ligne “stripe_id” dans la table “shops”
+
+## (app)/dashboard/orders/+page.server.ts
+
+### Load:
+
+- status: récupérer la liste des status possibles
+- orders: récupérer les 10 premières commandes du patissier peut importe le statut
+
+### Action:
+
+- getOrdersByStatus: récupérer 10 commandes filtrées par statut
+- getMoreOrders: récupérer 10 commandes supplémentaires (tout status confondu si fltre = all, ou statut specifique si statut sélectionné)
+
+## (app)/dashboard/orders/[id]/+page.server.ts
+
+### Load:
+
+- order: getOrderById de lib/actions/orders-actions.ts
+
+### Actions:
+
+- makeQuote: mettre à jour les colonnes “chef_message” (optionnel), “price” et “status” ( qui passe en “quoted”) de la commande (table “orders”)
+- rejectOrder: mettre à jour les colonnes “chef_message” (optionnel), “status” ( qui passe en “refused”) et “rejected_by” (qui passe à “pastry_chef” de la commande (table “orders”)
+- makeOrderReady: mettre à jour la colonne “status” ( qui passe en “ready”) de la commande (table “orders”)
+- makeOrderFinished: mettre à jour la colonne “status” ( qui passe en “finished”) de la commande (table “orders”)
+
+## [slug]/+page.server.ts
+
+### Actions:
+
+- getProductsByCategories: depuis “lib/actions/products-actions.ts
+- getMoreProduct: depuis “lib/actions/products-actions.ts
+
+### Load:
+
+- shop: récupérer le shop (table “shop”) du patissier via slug sous format json
+- categories: récupérer la liste de catégories du patissier depuis “lib/actions/products-actions.ts avec la fonction getCategories
+- products: récupérer la liste de gateaux du patissier (table “products”) depuis “lib/actions/products-actions.ts avec la fonction getProducts
+
+## [slug]/product/[id]/+layout.server.ts
+
+### Load:
+
+- product: fonction getProductbyId depuis “lib/actions/products-actions.ts
+- category: fonction getCategoryById depuis “lib/actions/products-actions.ts
+
+## [slug]/product/[id]/order
+
+### Load:
+
+- form: fonction getFormById de lib/actions/forms-actions.ts
+
+### Actions:
+
+- processPayment: créer une session stripe checkout avec les informations de la commande stockés en metadata et renvoyer vers la page de paiement stripe
+
+## [slug]/success
+
+### Load:
+
+- récupérer l’id de la session stripe et créer la commande à l’aide des données stockées en metadata stripe
+
+## [slug]/custom
+
+### Load:
+
+- customForm: fonction getCustomRequestForm de lib/actions/forms-actions.ts
+
+### Actions:
+
+- submitOrder: créer la commande (table “order”) et renvoyer vers [slug]/custom/success
+
+## [slug]/custom/[id]/success
+
+### Load:
+
+- order: function getOrderById de lib/actions/orders-actions.ts
+
+## [slug]/orders/[id]
+
+### Load:
+
+- order: function getOrderById de lib/actions/orders-actions.ts
+
+### Actions:
+
+- acceptQuoteAndPay:  renvoyer l’utilisateur vers la page de paiement stripe
+- refused: refuser la commande (table “order” colonne “status” passer à “refused” et “refused_by” passer à “client”)

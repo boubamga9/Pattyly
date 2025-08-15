@@ -1,0 +1,662 @@
+<script lang="ts">
+	import { enhance } from '$app/forms';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
+	import { Button } from '$lib/components/ui/button';
+	import {
+		Card,
+		CardContent,
+		CardDescription,
+		CardHeader,
+		CardTitle,
+	} from '$lib/components/ui/card';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Alert, AlertDescription } from '$lib/components/ui/alert';
+	import { Switch } from '$lib/components/ui/switch';
+	import {
+		Plus,
+		Trash2,
+		Copy,
+		Edit,
+		Eye,
+		Crown,
+		Check,
+		X,
+		Pencil,
+	} from 'lucide-svelte';
+
+	// Données de la page
+	$: ({
+		products,
+		categories,
+		currentProductCount,
+		canAddProducts,
+		permissions,
+		shopSlug,
+	} = $page.data);
+
+	// État du filtre
+	let selectedCategory: string | null = null;
+	let filteredProducts = products;
+
+	// État pour l'ajout de catégorie
+	let isAddingCategory = false;
+	let newCategoryName = '';
+	let categoryInputElement: HTMLInputElement | undefined;
+	let categoryError = '';
+
+	// État pour l'édition de catégorie
+	let editingCategoryId: string | null = null;
+	let editingCategoryName = '';
+	let editingCategoryInputElement: HTMLInputElement | undefined;
+	let editingCategoryError = '';
+
+	// Classes CSS réactives pour les erreurs
+	$: editingCategoryInputClass = editingCategoryError ? 'border-red-500' : '';
+	$: categoryInputClass = categoryError ? 'border-red-500' : '';
+
+	// État pour la confirmation de suppression
+	let confirmingDeleteId: string | null = null;
+
+	// Filtrer les produits quand la catégorie change
+	$: filteredProducts =
+		selectedCategory === null
+			? products
+			: products.filter(
+					(product: (typeof products)[0]) =>
+						product.category_id === selectedCategory,
+				);
+	$: form = $page.form;
+
+	// Messages d'erreur/succès
+	$: errorMessage = form?.error;
+	$: successMessage = form?.message;
+
+	// Fonction pour formater le prix
+	function formatPrice(price: number): string {
+		return new Intl.NumberFormat('fr-FR', {
+			style: 'currency',
+			currency: 'EUR',
+		}).format(price);
+	}
+
+	// Fonction pour tronquer le texte
+	function truncateText(text: string, maxLength: number = 100): string {
+		if (!text) return '';
+		if (text.length <= maxLength) return text;
+		return text.substring(0, maxLength) + '...';
+	}
+
+	// Fonction pour rediriger vers la création
+	function goToNewProduct() {
+		goto('/dashboard/products/new');
+	}
+
+	// Fonction pour rediriger vers la vue d'un produit
+	function viewProduct(productId: string) {
+		// Rediriger vers la page publique du produit
+		if (shopSlug) {
+			goto(`/${shopSlug}/product/${productId}`);
+		} else {
+			console.error('Shop slug not available');
+		}
+	}
+
+	// Fonction pour rediriger vers l'édition d'un produit
+	function editProduct(productId: string) {
+		goto(`/dashboard/products/${productId}`);
+	}
+
+	// Fonctions pour l'ajout de catégorie
+	function startAddingCategory() {
+		isAddingCategory = true;
+		newCategoryName = '';
+		categoryError = '';
+		// Focus automatique sur l'input après le rendu
+		setTimeout(() => {
+			categoryInputElement?.focus();
+		}, 0);
+	}
+
+	function cancelAddingCategory() {
+		isAddingCategory = false;
+		newCategoryName = '';
+		categoryError = '';
+	}
+
+	function validateCategoryName(name: string): string | null {
+		if (!name.trim()) {
+			return 'Le nom de la catégorie est obligatoire';
+		}
+		if (name.trim().length < 2) {
+			return 'Le nom doit contenir au moins 2 caractères';
+		}
+		if (name.trim().length > 50) {
+			return 'Le nom ne peut pas dépasser 50 caractères';
+		}
+		// Vérifier si la catégorie existe déjà
+		const existingCategory = categories?.find(
+			(cat: any) => cat.name.toLowerCase() === name.trim().toLowerCase(),
+		);
+		if (existingCategory) {
+			return 'Cette catégorie existe déjà';
+		}
+		return null;
+	}
+
+	// Fonctions pour l'édition de catégorie
+	function startEditingCategory(categoryId: string, categoryName: string) {
+		editingCategoryId = categoryId;
+		editingCategoryName = categoryName;
+		editingCategoryError = '';
+		// Focus automatique sur l'input après le rendu
+		setTimeout(() => {
+			editingCategoryInputElement?.focus();
+		}, 0);
+	}
+
+	function cancelEditingCategory() {
+		editingCategoryId = null;
+		editingCategoryName = '';
+		editingCategoryError = '';
+	}
+
+	function validateEditingCategoryName(
+		name: string,
+		currentCategoryId: string,
+	): string | null {
+		if (!name.trim()) {
+			return 'Le nom de la catégorie est obligatoire';
+		}
+		if (name.trim().length < 2) {
+			return 'Le nom doit contenir au moins 2 caractères';
+		}
+		if (name.trim().length > 50) {
+			return 'Le nom ne peut pas dépasser 50 caractères';
+		}
+		// Vérifier si la catégorie existe déjà (en excluant la catégorie actuelle)
+		const existingCategory = categories?.find(
+			(cat: any) =>
+				cat.id !== currentCategoryId &&
+				cat.name.toLowerCase() === name.trim().toLowerCase(),
+		);
+		if (existingCategory) {
+			return 'Cette catégorie existe déjà';
+		}
+		return null;
+	}
+
+	// Fonctions pour la confirmation de suppression
+	function startDeleteConfirmation(productId: string) {
+		confirmingDeleteId = productId;
+	}
+
+	function cancelDeleteConfirmation() {
+		confirmingDeleteId = null;
+	}
+</script>
+
+<svelte:head>
+	<title>Mes Gâteaux - Dashboard</title>
+</svelte:head>
+
+<div class="container mx-auto space-y-6 p-3 md:p-6">
+	<!-- En-tête avec informations du plan -->
+	<div
+		class="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0"
+	>
+		<div>
+			<h1 class="text-3xl font-bold">Mes Gâteaux</h1>
+			<p class="text-muted-foreground">Gérez votre catalogue de gâteaux</p>
+		</div>
+
+		<div
+			class="flex flex-col space-y-2 sm:flex-row sm:items-center sm:gap-4 sm:space-y-0"
+		>
+			<!-- Compteur de produits -->
+			<div class="text-sm text-muted-foreground">
+				{currentProductCount} / {permissions.productLimit === Infinity
+					? '∞'
+					: permissions.productLimit} gâteaux
+			</div>
+
+			<!-- Bouton d'ajout -->
+			{#if canAddProducts}
+				<Button on:click={goToNewProduct} class="w-full sm:w-auto">
+					<Plus class="mr-2 h-4 w-4" />
+					Ajouter un Gâteau
+				</Button>
+			{:else}
+				<Button variant="outline" disabled class="w-full sm:w-auto">
+					<Plus class="mr-2 h-4 w-4" />
+					Limite Atteinte
+				</Button>
+			{/if}
+		</div>
+	</div>
+
+	<!-- Messages d'erreur/succès -->
+	{#if errorMessage}
+		<Alert variant="destructive">
+			<AlertDescription>{errorMessage}</AlertDescription>
+		</Alert>
+	{/if}
+
+	{#if successMessage}
+		<Alert>
+			<AlertDescription>{successMessage}</AlertDescription>
+		</Alert>
+	{/if}
+
+	<!-- Alerte de limite atteinte -->
+	{#if !canAddProducts}
+		<Alert>
+			<Crown class="h-4 w-4" />
+			<AlertDescription>
+				<strong>Limite de gâteaux atteinte !</strong>
+				Vous avez atteint la limite de {permissions.productLimit} gâteaux du plan
+				Basic.
+				<a href="/subscription" class="font-medium underline"
+					>Passez au plan Premium</a
+				>
+				pour ajouter autant de gâteaux que vous voulez !
+			</AlertDescription>
+		</Alert>
+	{/if}
+
+	<!-- Section de filtres -->
+	<div class="space-y-4">
+		<div class="overflow-x-auto">
+			<div class="flex min-w-max gap-2 py-2 pb-4">
+				<!-- Filtre "Tout" -->
+				<Button
+					variant={selectedCategory === null ? 'default' : 'outline'}
+					size="sm"
+					on:click={() => (selectedCategory = null)}
+					class="whitespace-nowrap"
+				>
+					Tout
+				</Button>
+
+				<!-- Filtres par catégorie -->
+				{#each categories || [] as category}
+					{#if editingCategoryId === category.id}
+						<!-- Interface d'édition de catégorie -->
+						<div class="flex items-center gap-1">
+							<form
+								method="POST"
+								action="?/updateCategory"
+								use:enhance={() => {
+									return async ({ result }) => {
+										if (result.type === 'success') {
+											editingCategoryId = null;
+											editingCategoryName = '';
+											editingCategoryError = '';
+											window.location.reload();
+										} else if (result.type === 'failure') {
+											editingCategoryError =
+												result.data?.error || 'Erreur lors de la modification';
+										}
+									};
+								}}
+								class="flex items-center gap-1"
+							>
+								<input
+									bind:this={editingCategoryInputElement}
+									bind:value={editingCategoryName}
+									type="text"
+									name="categoryName"
+									class="h-9 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 {editingCategoryInputClass}"
+									on:input={() => {
+										// Effacer l'erreur quand l'utilisateur tape
+										if (editingCategoryError) {
+											editingCategoryError = '';
+										}
+									}}
+								/>
+								<input type="hidden" name="categoryId" value={category.id} />
+								<Button
+									type="submit"
+									variant="outline"
+									size="sm"
+									class="h-9 w-9 p-0"
+									title="Valider"
+								>
+									<Check class="h-4 w-4" />
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									class="h-9 w-9 p-0"
+									on:click={cancelEditingCategory}
+									title="Annuler"
+								>
+									<X class="h-4 w-4" />
+								</Button>
+							</form>
+							<form
+								method="POST"
+								action="?/deleteCategory"
+								use:enhance={() => {
+									return async ({ result }) => {
+										if (result.type === 'success') {
+											editingCategoryId = null;
+											editingCategoryName = '';
+											editingCategoryError = '';
+											window.location.reload();
+										} else if (result.type === 'failure') {
+											editingCategoryError =
+												result.data?.error || 'Erreur lors de la suppression';
+										}
+									};
+								}}
+							>
+								<input type="hidden" name="categoryId" value={category.id} />
+								<Button
+									type="submit"
+									variant="outline"
+									size="sm"
+									class="h-9 w-9 p-0 text-red-600 hover:bg-red-50 hover:text-red-700"
+									title="Supprimer"
+								>
+									<Trash2 class="h-4 w-4" />
+								</Button>
+							</form>
+						</div>
+						{#if editingCategoryError}
+							<div class="text-xs text-red-500">{editingCategoryError}</div>
+						{/if}
+					{:else}
+						<!-- Bouton de catégorie avec icône d'édition -->
+						<Button
+							variant={selectedCategory === category.id ? 'default' : 'outline'}
+							size="sm"
+							on:click={() => (selectedCategory = category.id)}
+							class="group relative whitespace-nowrap pr-8"
+						>
+							{category.name}
+							<Button
+								variant="ghost"
+								size="sm"
+								class="absolute right-1 top-1/2 h-6 w-6 -translate-y-1/2 p-0 opacity-60 hover:opacity-100"
+								on:click={(e) => {
+									e.stopPropagation();
+									startEditingCategory(category.id, category.name);
+								}}
+								title="Modifier la catégorie"
+							>
+								<Pencil class="h-3 w-3" />
+							</Button>
+						</Button>
+					{/if}
+				{/each}
+
+				<!-- Interface d'ajout de catégorie -->
+				{#if isAddingCategory}
+					<div class="flex flex-col gap-2">
+						<form
+							method="POST"
+							action="?/createCategory"
+							use:enhance={() => {
+								return async ({ result }) => {
+									if (result.type === 'success') {
+										isAddingCategory = false;
+										newCategoryName = '';
+										categoryError = '';
+										window.location.reload();
+									} else if (result.type === 'failure') {
+										categoryError =
+											result.data?.error || 'Erreur lors de la création';
+									}
+								};
+							}}
+							class="flex items-center gap-1"
+						>
+							<input
+								bind:this={categoryInputElement}
+								bind:value={newCategoryName}
+								type="text"
+								name="categoryName"
+								placeholder="Nom de la catégorie"
+								class="h-9 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 {categoryInputClass}"
+								on:input={() => {
+									// Effacer l'erreur quand l'utilisateur tape
+									if (categoryError) {
+										categoryError = '';
+									}
+								}}
+							/>
+							<Button
+								type="submit"
+								variant="outline"
+								size="sm"
+								class="h-9 w-9 p-0"
+								title="Valider"
+							>
+								<Check class="h-4 w-4" />
+							</Button>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								class="h-9 w-9 p-0"
+								on:click={cancelAddingCategory}
+								title="Annuler"
+							>
+								<X class="h-4 w-4" />
+							</Button>
+						</form>
+						{#if categoryError}
+							<div class="text-xs text-red-500">{categoryError}</div>
+						{/if}
+					</div>
+				{:else}
+					<Button
+						variant="outline"
+						size="sm"
+						class="whitespace-nowrap border-dashed"
+						on:click={startAddingCategory}
+					>
+						<Plus class="mr-1 h-3 w-3" />
+						Ajouter une catégorie
+					</Button>
+				{/if}
+			</div>
+		</div>
+	</div>
+
+	<!-- Liste des gâteaux -->
+	<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+		{#if filteredProducts && filteredProducts.length > 0}
+			{#each filteredProducts as product}
+				<Card class={product.is_active ? '' : 'bg-muted/50'}>
+					<CardHeader>
+						<div class="flex items-start justify-between">
+							<div>
+								<CardTitle class="text-lg">{product.name}</CardTitle>
+								<CardDescription class="mt-1">
+									{truncateText(
+										product.description || 'Aucune description',
+										50,
+									)}
+								</CardDescription>
+							</div>
+
+							<span class="text-sm text-muted-foreground">
+								{formatPrice(product.base_price)}
+							</span>
+						</div>
+					</CardHeader>
+
+					<CardContent>
+						<div class="space-y-3">
+							<div class="flex items-center justify-start">
+								<Badge variant="outline">
+									{product.categories?.name || 'Général'}
+								</Badge>
+							</div>
+
+							<!-- Menu d'actions -->
+							<div class="flex gap-1">
+								<!-- Toggle d'activation -->
+								<div class="mr-2 flex items-center">
+									<Switch
+										id={`active-${product.id}`}
+										checked={product.is_active}
+										on:change={async (event) => {
+											const checked = event.detail;
+											// Mise à jour optimiste immédiate
+											product.is_active = checked;
+
+											try {
+												// Envoi de la requête au serveur
+												const formData = new FormData();
+												formData.append('productId', product.id);
+												formData.append('isActive', checked.toString());
+
+												const response = await fetch('?/toggleProductActive', {
+													method: 'POST',
+													body: formData,
+												});
+
+												if (!response.ok) {
+													// En cas d'erreur, remettre l'état précédent
+													product.is_active = !checked;
+													console.error('Erreur lors de la mise à jour');
+												}
+											} catch (error) {
+												// En cas d'erreur, remettre l'état précédent
+												product.is_active = !checked;
+												console.error('Erreur lors de la mise à jour:', error);
+											}
+										}}
+									/>
+								</div>
+								<!-- Bouton Voir -->
+								<Button
+									variant="ghost"
+									size="sm"
+									on:click={() => viewProduct(product.id)}
+									title="Voir le gâteau"
+									disabled={!product.is_active}
+									class={!product.is_active
+										? 'cursor-not-allowed opacity-50'
+										: ''}
+								>
+									<Eye class="h-4 w-4" />
+								</Button>
+
+								<!-- Bouton Modifier -->
+								<Button
+									variant="ghost"
+									size="sm"
+									on:click={() => editProduct(product.id)}
+									title="Modifier le gâteau"
+								>
+									<Edit class="h-4 w-4" />
+								</Button>
+
+								<!-- Bouton Dupliquer -->
+								<form
+									method="POST"
+									action="?/duplicateProduct"
+									use:enhance={() => {
+										return async ({ result }) => {
+											if (result.type === 'success') {
+												window.location.reload();
+											}
+										};
+									}}
+								>
+									<input type="hidden" name="productId" value={product.id} />
+									<Button
+										type="submit"
+										variant="ghost"
+										size="sm"
+										title="Dupliquer le gâteau"
+									>
+										<Copy class="h-4 w-4" />
+									</Button>
+								</form>
+
+								<!-- Bouton Supprimer avec confirmation -->
+								{#if confirmingDeleteId === product.id}
+									<form
+										method="POST"
+										action="?/deleteProduct"
+										use:enhance={() => {
+											return async ({ result }) => {
+												if (result.type === 'success') {
+													confirmingDeleteId = null;
+													window.location.reload();
+												}
+											};
+										}}
+									>
+										<input type="hidden" name="productId" value={product.id} />
+										<Button
+											type="submit"
+											variant="ghost"
+											size="sm"
+											class="bg-red-600 text-white hover:bg-red-700 hover:text-white"
+											title="Confirmer la suppression"
+										>
+											<Check class="h-4 w-4" />
+										</Button>
+									</form>
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										on:click={cancelDeleteConfirmation}
+										title="Annuler la suppression"
+									>
+										<X class="h-4 w-4" />
+									</Button>
+								{:else}
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										class="text-red-600 hover:bg-red-50 hover:text-red-700"
+										on:click={() => startDeleteConfirmation(product.id)}
+										title="Supprimer le gâteau"
+									>
+										<Trash2 class="h-4 w-4" />
+									</Button>
+								{/if}
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+			{/each}
+		{:else}
+			<div class="col-span-full">
+				<Card>
+					<CardContent class="flex flex-col items-center justify-center py-12">
+						<div class="text-center">
+							<div
+								class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100"
+							>
+								<Plus class="h-8 w-8 text-gray-400" />
+							</div>
+							<h3 class="mb-2 text-lg font-medium">Aucun gâteau</h3>
+							<p class="mb-4 text-muted-foreground">
+								Commencez par ajouter votre premier gâteau à votre catalogue.
+							</p>
+							{#if canAddProducts}
+								<Button on:click={goToNewProduct}>
+									<Plus class="mr-2 h-4 w-4" />
+									Ajouter un Gâteau
+								</Button>
+							{:else}
+								<Button variant="outline" disabled>Limite Atteinte</Button>
+							{/if}
+						</div>
+					</CardContent>
+				</Card>
+			</div>
+		{/if}
+	</div>
+</div>
