@@ -18,18 +18,22 @@
 		Plus,
 		Calendar,
 		FileText,
-		Settings,
 		ArrowUpRight,
 		ArrowDownRight,
 		Minus,
+		Copy,
+		CheckCircle,
 	} from 'lucide-svelte';
 
 	// Données de la page
-	$: ({ user, shop, permissions, metrics } = $page.data);
+	$: ({ shop, metrics } = $page.data);
 
 	// État pour le filtre de revenus
 	let selectedRevenuePeriod: 'weekly' | 'monthly' | 'threeMonths' | 'yearly' =
 		'monthly';
+
+	// État pour le feedback de copie
+	let copySuccess = false;
 
 	// Fonction pour formater le prix
 	function formatPrice(price: number): string {
@@ -90,6 +94,21 @@
 	function goToCustomForm() {
 		goto('/dashboard/custom-form');
 	}
+
+	// Fonction pour copier l'URL du shop
+	async function copyShopUrl() {
+		const fullUrl = `https://pattyly.com/${shop?.slug}`;
+		try {
+			await navigator.clipboard.writeText(fullUrl);
+			copySuccess = true;
+			// Reset after 2 seconds
+			setTimeout(() => {
+				copySuccess = false;
+			}, 2000);
+		} catch (err) {
+			console.error('Error copying URL:', err);
+		}
+	}
 </script>
 
 <svelte:head>
@@ -104,6 +123,42 @@
 			Bienvenue {shop?.name || 'Pâtissier'}, voici un aperçu de votre activité
 		</p>
 	</div>
+
+	<!-- URL du shop -->
+	{#if shop?.slug}
+		<Card>
+			<CardContent class="pt-6">
+				<div class="flex items-center justify-between">
+					<div>
+						<h3 class="text-sm font-medium text-muted-foreground">
+							URL de votre boutique
+						</h3>
+						<p class="font-mono text-lg text-foreground">
+							https://pattyly.com/{shop.slug}
+						</p>
+					</div>
+					<Button
+						type="button"
+						size="sm"
+						on:click={copyShopUrl}
+						title="Copier l'URL complète"
+						disabled={!shop?.slug}
+						class={copySuccess
+							? 'border-green-300 bg-green-100 text-green-700 hover:border-green-400 hover:bg-green-200'
+							: 'border border-input bg-background text-black hover:bg-accent hover:text-accent-foreground'}
+					>
+						{#if copySuccess}
+							<CheckCircle class="mr-2 h-4 w-4" />
+							Copiée
+						{:else}
+							<Copy class="mr-2 h-4 w-4" />
+							Copier
+						{/if}
+					</Button>
+				</div>
+			</CardContent>
+		</Card>
+	{/if}
 
 	<!-- Métriques principales -->
 	<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

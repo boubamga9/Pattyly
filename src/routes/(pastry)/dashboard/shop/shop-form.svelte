@@ -12,9 +12,10 @@
 	} from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import LoaderCircle from '~icons/lucide/loader-circle';
-	import { Upload, X, Copy } from 'lucide-svelte';
+	import { Upload, X, Copy, CheckCircle } from 'lucide-svelte';
 	import { formSchema, type FormSchema } from './schema';
 	import { createEventDispatcher } from 'svelte';
+	import { tick } from 'svelte';
 
 	export let data: SuperValidated<Infer<FormSchema>>;
 	const dispatch = createEventDispatcher();
@@ -27,6 +28,8 @@
 
 	let logoFile: File | null = null;
 	let logoPreview: string | null = $formData.logo_url || null;
+	let copySuccess = false;
+	let submitted = false;
 
 	// Handle file selection
 	function handleFileSelect(event: Event) {
@@ -34,22 +37,12 @@
 		const file = target.files?.[0];
 
 		if (file) {
-			// Validate file type
-			if (!file.type.startsWith('image/')) {
-				// Handle error through form
-				return;
-			}
-
-			// Validate file size (1MB)
-			if (file.size > 1 * 1024 * 1024) {
-				// Handle error through form
-				return;
-			}
+			if (!file.type.startsWith('image/')) return;
+			if (file.size > 1 * 1024 * 1024) return;
 
 			logoFile = file;
 			$formData.logo = file;
 
-			// Create preview
 			const reader = new FileReader();
 			reader.onload = (e) => {
 				logoPreview = e.target?.result as string;
@@ -58,22 +51,30 @@
 		}
 	}
 
-	// Remove logo
 	function removeLogo() {
 		logoFile = null;
 		logoPreview = null;
 		$formData.logo = undefined;
 	}
 
-	// Copy shop URL to clipboard
 	async function copyShopUrl() {
 		const fullUrl = `https://pattyly.com/${$formData.slug}`;
 		try {
 			await navigator.clipboard.writeText(fullUrl);
-			// You can add a success message here if needed
+			copySuccess = true;
+			// Reset after 2 seconds
+			setTimeout(() => {
+				copySuccess = false;
+			}, 2000);
 		} catch (err) {
 			console.error('Error copying URL:', err);
 		}
+	}
+
+	async function handleSubmit() {
+		submitted = true;
+		await tick();
+		setTimeout(() => (submitted = false), 2000);
 	}
 </script>
 
@@ -83,13 +84,14 @@
 	use:enhance
 	enctype="multipart/form-data"
 	class="space-y-6"
+	on:submit|preventDefault={handleSubmit}
 >
 	<Form.Errors {form} />
+
 	<div>
 		<Label for="logo">Logo de la boutique</Label>
 
 		{#if logoPreview}
-			<!-- Logo preview -->
 			<div class="mb-4 flex justify-center">
 				<div class="relative">
 					<img
@@ -107,7 +109,6 @@
 				</div>
 			</div>
 		{:else}
-			<!-- File upload area -->
 			<div class="mb-4 flex justify-center">
 				<div
 					class="flex h-32 w-32 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/20 transition-colors hover:border-primary"
@@ -162,13 +163,21 @@
 				/>
 				<Button
 					type="button"
-					variant="outline"
-					size="icon"
+					size="sm"
 					on:click={copyShopUrl}
 					title="Copier l'URL complète"
 					disabled={!$formData.slug}
+					class={copySuccess
+						? 'border-green-300 bg-green-100 text-green-700 hover:border-green-400 hover:bg-green-200'
+						: 'border border-input bg-background text-black hover:bg-accent hover:text-accent-foreground'}
 				>
-					<Copy class="h-4 w-4" />
+					{#if copySuccess}
+						<CheckCircle class="mr-2 h-4 w-4" />
+						Copiée
+					{:else}
+						<Copy class="mr-2 h-4 w-4" />
+						Copier
+					{/if}
 				</Button>
 			</div>
 		</Form.Control>
@@ -191,7 +200,6 @@
 
 	<Separator />
 
-	<!-- Social Media -->
 	<div class="space-y-4">
 		<h4 class="text-lg font-medium text-foreground">Réseaux sociaux</h4>
 
@@ -233,12 +241,26 @@
 		</Form.Field>
 	</div>
 
-	<Form.Button type="submit" disabled={$submitting}>
+	<!-- Bouton de soumission -->
+	<Button
+		type="submit"
+		disabled={$submitting}
+		class={`w-full ${
+			$submitting
+				? 'bg-gray-300'
+				: submitted
+					? 'bg-green-700 hover:bg-green-800'
+					: 'bg-primary'
+		}`}
+	>
 		{#if $submitting}
 			<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 			Mise à jour...
+		{:else if submitted}
+			<CheckCircle class="mr-2 h-4 w-4" />
+			Mis à jour
 		{:else}
 			Mettre à jour la boutique
 		{/if}
-	</Form.Button>
+	</Button>
 </form>

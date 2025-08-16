@@ -19,6 +19,7 @@
 		AlertCircle,
 		Crown,
 	} from 'lucide-svelte';
+	import LoaderCircle from '~icons/lucide/loader-circle';
 
 	export let data: {
 		shop: {
@@ -39,7 +40,9 @@
 		form: SuperValidated<Infer<typeof formSchema>>;
 	};
 
-	let loading = false;
+	let stripeLoading = false;
+	let billingLoading = false;
+	let copySuccess = false;
 	let error = '';
 	let success = '';
 
@@ -169,13 +172,25 @@
 					method="POST"
 					action="?/connectStripe"
 					use:enhance={() => {
+						stripeLoading = true;
 						return async ({ result }) => {
 							handleStripeResult(result);
+							stripeLoading = false;
 						};
 					}}
 				>
-					<Button type="submit" variant="outline" disabled={loading}>
-						<CreditCard class="mr-2 h-4 w-4" />
+					<Button
+						type="submit"
+						disabled={stripeLoading}
+						class={stripeLoading
+							? 'bg-gray-400 hover:bg-gray-500'
+							: 'bg-black text-white hover:bg-gray-800'}
+					>
+						{#if stripeLoading}
+							<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+						{:else}
+							<CreditCard class="mr-2 h-4 w-4" />
+						{/if}
 						{data.stripeAccount?.is_active
 							? 'Gérer mon compte Stripe'
 							: data.stripeAccount
@@ -214,13 +229,25 @@
 						method="POST"
 						action="?/accessStripeBilling"
 						use:enhance={() => {
+							billingLoading = true;
 							return async ({ result }) => {
 								handleBillingResult(result);
+								billingLoading = false;
 							};
 						}}
 					>
-						<Button type="submit" variant="outline" disabled={loading}>
-							<Crown class="mr-2 h-4 w-4" />
+						<Button
+							type="submit"
+							disabled={billingLoading}
+							class={billingLoading
+								? 'bg-gray-400 hover:bg-gray-500'
+								: 'bg-black text-white hover:bg-gray-800'}
+						>
+							{#if billingLoading}
+								<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+							{:else}
+								<Crown class="mr-2 h-4 w-4" />
+							{/if}
 							Gérer votre abonnement
 						</Button>
 					</form>
