@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { uuidSchema, shopNameSchema, slugSchema, descriptionSchema, urlSchema } from './common';
+import { uuidSchema, shopNameSchema, slugSchema, descriptionSchema, urlSchema, socialUsernameSchema } from './common';
 
 /**
  * Schémas de validation pour la configuration des boutiques
@@ -16,8 +16,8 @@ export const shopBaseSchema = z.object({
     slug: slugSchema,                 // URL-friendly (ex: /ma-boutique)
     bio: descriptionSchema,           // Description courte (optionnelle)
     logo_url: urlSchema,              // Logo (optionnel)
-    instagram: z.string().max(30, 'Le nom d\'utilisateur ne peut pas dépasser 30 caractères').optional().or(z.literal('')),  // Username Instagram (optionnel)
-    tiktok: z.string().max(30, 'Le nom d\'utilisateur ne peut pas dépasser 30 caractères').optional().or(z.literal('')),     // Username TikTok (optionnel)
+    instagram: socialUsernameSchema,  // Username Instagram (optionnel)
+    tiktok: socialUsernameSchema,     // Username TikTok (optionnel)
     website: urlSchema,               // Site web (optionnel)
     is_custom_accepted: z.boolean().default(false), // Accepte les demandes sur mesure
     is_active: z.boolean().default(true)            // Boutique visible publiquement

@@ -1,16 +1,11 @@
 import { z } from 'zod';
-import { nameSchema, slugSchema, bioSchema } from '$lib/validations';
+import { updateShopSchema } from '$lib/validations';
 
-export const updateShopSchema = z.object({
-    name: nameSchema,
-    bio: bioSchema.optional(),
-    slug: slugSchema,
-    instagram: z.string().optional(),
-    tiktok: z.string().optional(),
-    website: z.string().url('Format d\'URL invalide').optional().or(z.literal('')),
+// Étendre le schéma pour inclure les champs manquants
+export const shopFormSchema = updateShopSchema.extend({
     logo: z.instanceof(File).optional(),
-    logoUrl: z.string().optional()
+    logo_url: z.string().optional()
 });
 
-export const formSchema = updateShopSchema;
+export const formSchema = shopFormSchema;
 export type FormSchema = typeof formSchema;

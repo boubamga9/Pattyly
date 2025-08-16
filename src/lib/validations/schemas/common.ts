@@ -96,6 +96,14 @@ export const futureDateSchema = z
         'La date doit être dans le futur'
     );
 
+// Username pour réseaux sociaux (Instagram, TikTok)
+export const socialUsernameSchema = z
+    .string()
+    .min(1, 'Le nom d\'utilisateur est requis')
+    .max(30, 'Le nom d\'utilisateur ne peut pas dépasser 30 caractères')
+    .regex(/^[a-zA-Z0-9._]+$/, 'Le nom d\'utilisateur ne peut contenir que des lettres, chiffres, points et tirets de soulignement')
+    .optional();
+
 // ===== TYPES EXPORTÉS =====
 
 export type Email = z.infer<typeof emailSchema>;

@@ -3,6 +3,9 @@ import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
 import type { PageServerLoad, Actions } from './$types';
 import Stripe from 'stripe';
 import { deleteShopLogo } from '$lib/storage-utils';
+import { superValidate } from 'sveltekit-superforms';
+import { zod } from 'sveltekit-superforms/adapters';
+import { formSchema } from './schema';
 
 const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
     apiVersion: '2023-10-16'
@@ -45,7 +48,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 
     return {
         shop,
-        stripeAccount: stripeAccount || null
+        stripeAccount: stripeAccount || null,
+        form: await superValidate(zod(formSchema), {
+            defaults: {
+                name: shop.name,
+                bio: shop.bio || '',
+                slug: shop.slug,
+                logo_url: shop.logo_url || '',
+                instagram: shop.instagram || '',
+                tiktok: shop.tiktok || '',
+                website: shop.website || ''
+            }
+        })
     };
 };
 
@@ -55,18 +69,18 @@ export const actions: Actions = {
         if (!session) {
             return { success: false, error: 'Non autorisé' };
         }
-
+        console.log("🚀 Action updateShop appelée !");
         const userId = session.user.id;
 
-        const formData = await request.formData();
-        const name = formData.get('name') as string;
-        const bio = formData.get('bio') as string;
-        const slug = formData.get('slug') as string;
-        const instagram = formData.get('instagram') as string;
-        const tiktok = formData.get('tiktok') as string;
-        const website = formData.get('website') as string;
-        const logoFile = formData.get('logo') as File;
-        const currentLogoUrl = formData.get('logoUrl') as string;
+        const form = await superValidate(request, zod(formSchema));
+
+        if (!form.valid) {
+            return form;
+        }
+
+        const { name, bio, slug, instagram, tiktok, website, logo } = form.data;
+        const logoFile = logo;
+        const currentLogoUrl = form.data.logo_url;
 
         // Get shop ID
         const { data: shop } = await locals.supabase
@@ -164,7 +178,20 @@ export const actions: Actions = {
             await deleteShopLogo(locals.supabase, currentLogoUrl);
         }
 
-        return { success: true };
+        // Return form data for Superforms compatibility with updated data
+        const updatedForm = await superValidate(zod(formSchema), {
+            defaults: {
+                name,
+                bio: bio || '',
+                slug,
+                logo_url: logoUrl || '',
+                instagram: instagram || '',
+                tiktok: tiktok || '',
+                website: website || ''
+            }
+        });
+        updatedForm.message = 'Boutique mise à jour avec succès !';
+        return { form: updatedForm };
     },
 
     connectStripe: async ({ locals }) => {

@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { Button } from '$lib/components/ui/button';
+	import ShopForm from './shop-form.svelte';
+	import type { SuperValidated, Infer } from 'sveltekit-superforms';
+	import { formSchema } from './schema';
 	import {
 		Card,
 		CardContent,
@@ -8,20 +11,13 @@
 		CardHeader,
 		CardTitle,
 	} from '$lib/components/ui/card';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Separator } from '$lib/components/ui/separator';
-	import { Textarea } from '$lib/components/ui/textarea';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
 	import {
 		Store,
 		CreditCard,
-		Upload,
-		X,
 		CheckCircle,
 		AlertCircle,
 		Crown,
-		Copy,
 	} from 'lucide-svelte';
 
 	export let data: {
@@ -40,85 +36,12 @@
 			stripe_account_id: string;
 			is_active: boolean;
 		} | null;
+		form: SuperValidated<Infer<typeof formSchema>>;
 	};
 
 	let loading = false;
 	let error = '';
 	let success = '';
-
-	// Form data
-	let name = data.shop.name;
-	let bio = data.shop.bio;
-	let slug = data.shop.slug;
-	let logoPreview: string | null = data.shop.logo_url;
-	let instagram = data.shop.instagram || '';
-	let tiktok = data.shop.tiktok || '';
-	let website = data.shop.website || '';
-
-	// Handle file selection
-	function handleFileSelect(event: Event) {
-		const target = event.target as HTMLInputElement;
-		const file = target.files?.[0];
-
-		if (file) {
-			// Validate file type
-			if (!file.type.startsWith('image/')) {
-				error = 'Veuillez sélectionner une image';
-				return;
-			}
-
-			// Validate file size (1MB)
-			if (file.size > 1 * 1024 * 1024) {
-				error = "L'image ne doit pas dépasser 1MB";
-				return;
-			}
-
-			error = '';
-
-			// Create preview
-			const reader = new FileReader();
-			reader.onload = (e) => {
-				logoPreview = e.target?.result as string;
-			};
-			reader.readAsDataURL(file);
-		}
-	}
-
-	// Remove logo
-	function removeLogo() {
-		logoPreview = null;
-	}
-
-	// Copy shop URL to clipboard
-	async function copyShopUrl() {
-		const fullUrl = `https://pattyly.com/${slug}`;
-		try {
-			await navigator.clipboard.writeText(fullUrl);
-			success = 'URL copiée dans le presse-papiers !';
-			setTimeout(() => {
-				success = '';
-			}, 3000);
-		} catch (err) {
-			error = "Erreur lors de la copie de l'URL";
-			setTimeout(() => {
-				error = '';
-			}, 3000);
-		}
-	}
-
-	// Handle form result
-	function handleResult(result: { type: string; data?: { error?: string } }) {
-		if (result.type === 'success') {
-			success = 'Mise à jour réussie';
-			error = '';
-			setTimeout(() => {
-				success = '';
-			}, 3000);
-		} else if (result.type === 'failure') {
-			error = result.data?.error || 'Une erreur est survenue';
-			success = '';
-		}
-	}
 
 	// Handle Stripe Connect result
 	function handleStripeResult(result: {
@@ -197,162 +120,7 @@
 			</div>
 		</CardHeader>
 		<CardContent>
-			<form
-				method="POST"
-				action="?/updateShop"
-				use:enhance={() => {
-					return async ({ result }) => {
-						handleResult(result);
-					};
-				}}
-				enctype="multipart/form-data"
-			>
-				<div class="space-y-6">
-					<!-- Logo Upload -->
-					<div class="space-y-2">
-						<Label for="logo">Logo de la boutique</Label>
-
-						{#if logoPreview}
-							<!-- Logo preview -->
-							<div class="mb-4 flex justify-center">
-								<div class="relative">
-									<img
-										src={logoPreview}
-										alt="Aperçu du logo"
-										class="h-32 w-32 rounded-lg border-2 border-border object-cover"
-									/>
-									<button
-										type="button"
-										on:click={removeLogo}
-										class="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-destructive-foreground transition-colors hover:bg-destructive/90"
-									>
-										<X class="h-4 w-4" />
-									</button>
-								</div>
-							</div>
-						{:else}
-							<!-- File upload area -->
-							<div class="mb-4 flex justify-center">
-								<div
-									class="flex h-32 w-32 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/20 transition-colors hover:border-primary"
-									on:click={() => document.getElementById('logo')?.click()}
-								>
-									<Upload class="mb-2 h-8 w-8 text-muted-foreground" />
-									<p class="text-center text-xs text-muted-foreground">
-										Cliquez pour sélectionner votre logo
-									</p>
-								</div>
-							</div>
-						{/if}
-
-						<input
-							id="logo"
-							name="logo"
-							type="file"
-							accept="image/*"
-							on:change={handleFileSelect}
-							class="hidden"
-							disabled={loading}
-						/>
-						<input type="hidden" name="logoUrl" value={logoPreview || ''} />
-					</div>
-
-					<!-- Shop Name -->
-					<div class="space-y-2">
-						<Label for="name">Nom de la boutique</Label>
-						<Input
-							id="name"
-							name="name"
-							bind:value={name}
-							placeholder="Ma Pâtisserie"
-							required
-						/>
-					</div>
-
-					<!-- Shop Slug -->
-					<div class="space-y-2">
-						<Label for="slug">URL de la boutique</Label>
-						<div class="flex items-center space-x-2">
-							<span class="text-sm text-muted-foreground">pattyly.com/</span>
-							<Input
-								id="slug"
-								name="slug"
-								bind:value={slug}
-								placeholder="ma-patisserie"
-								required
-								class="flex-1"
-							/>
-							<Button
-								type="button"
-								variant="outline"
-								size="icon"
-								on:click={copyShopUrl}
-								title="Copier l'URL complète"
-								disabled={!slug}
-							>
-								<Copy class="h-4 w-4" />
-							</Button>
-						</div>
-						<p class="mt-1 text-sm text-muted-foreground">
-							L'URL de votre boutique publique
-						</p>
-					</div>
-
-					<!-- Shop Description -->
-					<div class="space-y-2">
-						<Label for="bio">Description (optionnel)</Label>
-						<Textarea
-							id="bio"
-							name="bio"
-							bind:value={bio}
-							placeholder="Décrivez votre boutique, vos spécialités..."
-							rows={4}
-						/>
-					</div>
-
-					<Separator />
-
-					<!-- Social Media -->
-					<div class="space-y-4">
-						<h4 class="text-lg font-medium text-foreground">Réseaux sociaux</h4>
-
-						<div class="space-y-2">
-							<Label for="instagram">Instagram (optionnel)</Label>
-							<Input
-								id="instagram"
-								name="instagram"
-								bind:value={instagram}
-								placeholder="@votre_compte"
-							/>
-						</div>
-
-						<div class="space-y-2">
-							<Label for="tiktok">TikTok (optionnel)</Label>
-							<Input
-								id="tiktok"
-								name="tiktok"
-								bind:value={tiktok}
-								placeholder="@votre_compte"
-							/>
-						</div>
-
-						<div class="space-y-2">
-							<Label for="website">Site internet (optionnel)</Label>
-							<Input
-								id="website"
-								name="website"
-								bind:value={website}
-								placeholder="https://votre-site.com"
-								type="url"
-							/>
-						</div>
-					</div>
-
-					<Button type="submit" disabled={loading}>
-						{loading ? 'Mise à jour...' : 'Mettre à jour la boutique'}
-					</Button>
-				</div>
-			</form>
+			<ShopForm data={data.form} />
 		</CardContent>
 	</Card>
 
