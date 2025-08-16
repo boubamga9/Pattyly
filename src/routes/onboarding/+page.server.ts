@@ -149,6 +149,30 @@ export const actions: Actions = {
             // Return form data for Superforms compatibility with success indicator
             const form = await superValidate(zod(formSchema));
             form.message = 'Boutique créée avec succès !';
+
+
+            // Create default availabilities for the shop (Monday to Friday)
+            const availabilities = [];
+            for (let day = 0; day < 7; day++) {
+                availabilities.push({
+                    shop_id: shop.id,
+                    day,
+                    is_open: day >= 1 && day <= 5 // Monday (1) to Friday (5) = true, Saturday (6) and Sunday (0) = false
+                });
+            }
+
+            const { error: availabilitiesError } = await locals.supabase
+                .from('availabilities')
+                .insert(availabilities);
+
+            if (availabilitiesError) {
+                console.error('Error creating default availabilities:', availabilitiesError);
+                // Don't fail the shop creation, just log the error
+            } else {
+                console.log('✅ Default availabilities created for shop:', shop.id);
+            }
+
+
             return {
                 form,
                 success: true,
