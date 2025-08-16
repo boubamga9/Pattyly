@@ -1,10 +1,4 @@
-import { z } from 'zod';
+import { contactSchema } from '$lib/validations';
 
-export const formSchema = z.object({
-	email: z.string().email(),
-	name: z.string().trim(),
-	subject: z.string().trim(),
-	body: z.string().trim(),
-});
-
+export const formSchema = contactSchema;
 export type FormSchema = typeof formSchema;

@@ -1,8 +1,4 @@
-import { z } from 'zod';
+import { loginSchema } from '$lib/validations';
 
-export const formSchema = z.object({
-	email: z.string().email(),
-	password: z.string(),
-});
-
+export const formSchema = loginSchema;
 export type FormSchema = typeof formSchema;

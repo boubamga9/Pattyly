@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { uuidSchema, shopNameSchema, slugSchema, descriptionSchema, urlSchema, socialUsernameSchema } from './common';
+import { uuidSchema, shopNameSchema, slugSchema, descriptionSchema, urlSchema } from './common';
 
 /**
  * Schémas de validation pour la configuration des boutiques
