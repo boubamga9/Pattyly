@@ -12,18 +12,10 @@
 		CardHeader,
 		CardTitle,
 	} from '$lib/components/ui/card';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Textarea } from '$lib/components/ui/textarea';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import {
-		CheckCircle,
-		Store,
-		CreditCard,
-		ArrowRight,
-		Upload,
-		X,
-	} from 'lucide-svelte';
+	import { CheckCircle, Store, CreditCard, ArrowRight } from 'lucide-svelte';
+	import LoaderCircle from '~icons/lucide/loader-circle';
+	import OnboardingForm from './onboarding-form.svelte';
 
 	export let data: {
 		step: number;
@@ -34,60 +26,20 @@
 			slug: string;
 			logo_url: string;
 		} | null;
+		form: any;
 	};
+
+	export let form: any;
 
 	let step = data.step;
 	let shop = data.shop;
 	let loading = false;
 	let error = '';
 
-	// Form data for step 1
-	let name = '';
-	let bio = '';
-	let slug = '';
-	let logoFile: File | null = null;
-	let logoPreview: string | null = null;
-
-	// Handle file selection
-	function handleFileSelect(event: Event) {
-		const target = event.target as HTMLInputElement;
-		const file = target.files?.[0];
-
-		if (file) {
-			// Validate file type
-			if (!file.type.startsWith('image/')) {
-				error = 'Veuillez sélectionner une image';
-				return;
-			}
-
-			// Validate file size (1MB)
-			if (file.size > 1 * 1024 * 1024) {
-				error = "L'image ne doit pas dépasser 1MB";
-				return;
-			}
-
-			logoFile = file;
-			error = '';
-
-			// Create preview
-			const reader = new FileReader();
-			reader.onload = (e) => {
-				logoPreview = e.target?.result as string;
-			};
-			reader.readAsDataURL(file);
-		}
-	}
-
-	// Remove logo
-	function removeLogo() {
-		logoFile = null;
-		logoPreview = null;
-	}
-
-	// Handle form submission for step 1
-	function handleCreateShop() {
-		loading = true;
-		error = '';
+	// Watch for successful shop creation
+	$: if (form?.success && form?.shop) {
+		step = 2;
+		shop = form.shop;
 	}
 
 	// Handle Stripe Connect
@@ -97,48 +49,36 @@
 	}
 
 	// Handle form result
-	function handleResult(result: {
-		type: string;
-		data?: {
-			shop?: {
-				id: string;
-				name: string;
-				bio: string;
-				slug: string;
-				logo_url: string;
-			};
-			url?: string;
-			error?: string;
-		};
-	}) {
+	function handleResult(result: any) {
+		if (result.type === 'success') {
+			step = 2;
+		} else if (result.type === 'failure') {
+			error = result.data?.error || 'Une erreur est survenue';
+		}
 		loading = false;
+	}
+
+	// Handle Stripe Connect result
+	function handleStripeResult(result: any) {
+		loading = false; // Always reset loading state
 
 		if (result.type === 'success') {
-			if (result.data?.shop) {
-				// Shop created successfully, move to step 2
-				step = 2;
-				shop = result.data.shop;
-			} else if (result.data?.url) {
-				// Redirect to Stripe Connect
+			if (result.data?.url) {
+				// Redirect to Stripe Connect onboarding
 				console.log('🔄 Redirecting to Stripe Connect:', result.data.url);
 				window.location.href = result.data.url;
+			} else {
+				// No URL, redirect to dashboard
+				goto('/dashboard');
 			}
 		} else if (result.type === 'failure') {
 			error = result.data?.error || 'Une erreur est survenue';
 		}
 	}
-
-	// Check URL parameters for Stripe return
-	onMount(() => {
-		if ($page.url.searchParams.get('success') === 'true') {
-			// Stripe Connect completed successfully
-			goto('/dashboard');
-		}
-	});
 </script>
 
 <svelte:head>
-	<title>Configuration de votre boutique - Pattyly</title>
+	<title>Onboarding - Pattyly</title>
 </svelte:head>
 
 <div class="min-h-screen bg-gradient-to-br from-secondary to-background py-12">
@@ -193,6 +133,13 @@
 			</div>
 		</div>
 
+		<!-- Error Alert -->
+		{#if error}
+			<Alert class="mb-6" variant="destructive">
+				<AlertDescription>{error}</AlertDescription>
+			</Alert>
+		{/if}
+
 		<!-- Step 1: Shop Creation -->
 		{#if step === 1}
 			<Card class="w-full">
@@ -209,123 +156,7 @@
 					</div>
 				</CardHeader>
 				<CardContent>
-					{#if error}
-						<Alert class="mb-4">
-							<AlertDescription>{error}</AlertDescription>
-						</Alert>
-					{/if}
-
-					<form
-						method="POST"
-						action="?/createShop"
-						use:enhance={() => {
-							handleCreateShop();
-							return async ({ result }) => {
-								handleResult(result);
-							};
-						}}
-						enctype="multipart/form-data"
-					>
-						<div class="space-y-4">
-							<div>
-								<Label for="logo">Logo</Label>
-
-								{#if logoPreview}
-									<!-- Logo preview -->
-									<div class="mb-4 flex justify-center">
-										<div class="relative">
-											<img
-												src={logoPreview}
-												alt="Aperçu du logo"
-												class="h-32 w-32 rounded-lg border-2 border-border object-cover"
-											/>
-											<button
-												type="button"
-												on:click={removeLogo}
-												class="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-destructive-foreground transition-colors hover:bg-destructive/90"
-											>
-												<X class="h-4 w-4" />
-											</button>
-										</div>
-									</div>
-								{:else}
-									<!-- File upload area -->
-									<div class="mb-4 flex justify-center">
-										<div
-											class="flex h-32 w-32 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/20 transition-colors hover:border-primary"
-											on:click={() => document.getElementById('logo')?.click()}
-										>
-											<Upload class="mb-2 h-8 w-8 text-muted-foreground" />
-											<p class="text-center text-xs text-muted-foreground">
-												Cliquez pour sélectionner votre logo
-											</p>
-										</div>
-									</div>
-								{/if}
-
-								<input
-									id="logo"
-									name="logo"
-									type="file"
-									accept="image/*"
-									on:change={handleFileSelect}
-									class="hidden"
-									disabled={loading}
-								/>
-							</div>
-
-							<div>
-								<Label for="name">Nom de la boutique *</Label>
-								<Input
-									id="name"
-									name="name"
-									bind:value={name}
-									placeholder="Ex: Pâtisserie du Bonheur"
-									required
-									disabled={loading}
-								/>
-							</div>
-
-							<div>
-								<Label for="slug">URL de votre boutique *</Label>
-								<div class="flex items-center space-x-2">
-									<span class="text-muted-foreground">pattyly.com/</span>
-									<Input
-										id="slug"
-										name="slug"
-										bind:value={slug}
-										placeholder="ma-boutique"
-										required
-										disabled={loading}
-										class="flex-1"
-									/>
-								</div>
-								<p class="mt-1 text-sm text-muted-foreground">
-									Seulement des lettres minuscules, chiffres et tirets
-								</p>
-							</div>
-
-							<div>
-								<Label for="bio">Description</Label>
-								<Textarea
-									id="bio"
-									name="bio"
-									bind:value={bio}
-									placeholder="Décrivez votre boutique, vos spécialités..."
-									rows={3}
-									disabled={loading}
-								/>
-							</div>
-
-							<Button type="submit" class="w-full" disabled={loading}>
-								{#if loading}
-									Configuration...
-								{:else}
-									Créer ma boutique
-								{/if}
-							</Button>
-						</div>
-					</form>
+					<OnboardingForm data={data.form} />
 				</CardContent>
 			</Card>
 		{/if}
@@ -361,12 +192,6 @@
 						</div>
 					{/if}
 
-					{#if error}
-						<Alert class="mb-4">
-							<AlertDescription>{error}</AlertDescription>
-						</Alert>
-					{/if}
-
 					<div class="space-y-4">
 						<div class="text-center">
 							<p class="mb-4 text-muted-foreground">
@@ -379,9 +204,11 @@
 							method="POST"
 							action="?/connectStripe"
 							use:enhance={() => {
-								handleConnectStripe();
+								loading = true; // Activate loading state
+								error = ''; // Clear any previous errors
+
 								return async ({ result }) => {
-									handleResult(result);
+									handleStripeResult(result);
 								};
 							}}
 						>

@@ -1,6 +1,9 @@
 import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { getShopId } from '$lib/permissions';
+import { superValidate } from 'sveltekit-superforms';
+import { zod } from 'sveltekit-superforms/adapters';
+import { formSchema } from './schema';
 
 export const load: PageServerLoad = async ({ locals }) => {
     const { session } = await locals.safeGetSession();
@@ -46,14 +49,16 @@ export const load: PageServerLoad = async ({ locals }) => {
         // If shop exists but no Stripe Connect, show step 2
         return {
             step: 2,
-            shop
+            shop,
+            form: await superValidate(zod(formSchema))
         };
     }
 
     // No shop exists, show step 1
     return {
         step: 1,
-        shop: null
+        shop: null,
+        form: await superValidate(zod(formSchema))
     };
 };
 
@@ -66,49 +71,30 @@ export const actions: Actions = {
         }
 
         const userId = session.user.id;
-        const formData = await request.formData();
+        const form = await superValidate(request, zod(formSchema));
 
-        const name = formData.get('name') as string;
-        const bio = formData.get('bio') as string;
-        const slug = formData.get('slug') as string;
-        const logoFile = formData.get('logo') as File;
-
-        // Validation
-        if (!name || !slug) {
-            return { success: false, error: 'Nom et slug sont obligatoires' };
+        if (!form.valid) {
+            return form;
         }
 
-        // Validate slug format (only lowercase letters, numbers, hyphens)
-        if (!/^[a-z0-9-]+$/.test(slug)) {
-            return { success: false, error: 'Le slug doit contenir seulement des lettres minuscules, chiffres et tirets' };
-        }
+        const { name, bio, slug, logo } = form.data;
 
-        // Validate logo file if provided
+        // Handle logo upload if provided
         let logoUrl = null;
-        if (logoFile && logoFile.size > 0) {
-            // Check file type
-            if (!logoFile.type.startsWith('image/')) {
-                return { success: false, error: 'Le logo doit être une image' };
-            }
-
-            // Check file size (max 1MB)
-            if (logoFile.size > 1 * 1024 * 1024) {
-                return { success: false, error: 'Le logo ne doit pas dépasser 1MB' };
-            }
-
+        if (logo && logo.size > 0) {
             try {
                 // Upload to Supabase Storage
-                const fileName = `${userId}/${Date.now()}-${logoFile.name}`;
-                const { error: uploadError } = await locals.supabase.storage
+                const fileName = `logos/${userId}/${Date.now()}_${logo.name}`;
+                const { data: uploadData, error: uploadError } = await locals.supabase.storage
                     .from('shop-logos')
-                    .upload(fileName, logoFile, {
+                    .upload(fileName, logo, {
                         cacheControl: '3600',
                         upsert: false
                     });
 
                 if (uploadError) {
-                    console.error('Error uploading logo:', uploadError);
-                    return { success: false, error: 'Erreur lors de l\'upload du logo' };
+                    console.error('Logo upload error:', uploadError);
+                    return { success: false, error: 'Erreur lors du téléchargement du logo' };
                 }
 
                 // Get public URL
@@ -117,67 +103,60 @@ export const actions: Actions = {
                     .getPublicUrl(fileName);
 
                 logoUrl = urlData.publicUrl;
-            } catch (err) {
-                console.error('Error processing logo upload:', err);
-                return { success: false, error: 'Erreur lors du traitement du logo' };
+            } catch (uploadError) {
+                console.error('Logo upload error:', uploadError);
+                return { success: false, error: 'Erreur lors du téléchargement du logo' };
             }
         }
 
         try {
-            // Check if slug is already taken
-            const { data: existingShop } = await locals.supabase
+            // Check if slug already exists
+            const { data: existingShop, error: slugCheckError } = await locals.supabase
                 .from('shops')
                 .select('id')
                 .eq('slug', slug)
                 .single();
 
-            if (existingShop) {
-                return { success: false, error: 'Ce slug est déjà utilisé' };
+            if (slugCheckError && slugCheckError.code !== 'PGRST116') {
+                console.error('Error checking slug:', slugCheckError);
+                return { success: false, error: 'Erreur lors de la vérification du slug' };
             }
 
+            if (existingShop) {
+                return { success: false, error: 'Ce nom d\'URL est déjà pris. Veuillez en choisir un autre.' };
+            }
+
+
+
             // Create shop
-            const { data: newShop, error: createError } = await locals.supabase
+            const { data: shop, error: createError } = await locals.supabase
                 .from('shops')
                 .insert({
-                    profile_id: userId,
                     name,
-                    bio,
+                    bio: bio || null,
                     slug,
-                    logo_url: logoUrl
+                    logo_url: logoUrl,
+                    profile_id: userId
                 })
-                .select()
+                .select('id, name, bio, slug, logo_url')
                 .single();
 
             if (createError) {
-                console.error('Error creating shop:', createError);
+                console.error('Shop creation error:', createError);
                 return { success: false, error: 'Erreur lors de la création de la boutique' };
             }
 
-            // Create default availabilities for the shop (Monday to Friday)
-            const availabilities = [];
-            for (let day = 0; day < 7; day++) {
-                availabilities.push({
-                    shop_id: newShop.id,
-                    day,
-                    is_open: day >= 1 && day <= 5 // Monday (1) to Friday (5) = true, Saturday (6) and Sunday (0) = false
-                });
-            }
-
-            const { error: availabilitiesError } = await locals.supabase
-                .from('availabilities')
-                .insert(availabilities);
-
-            if (availabilitiesError) {
-                console.error('Error creating default availabilities:', availabilitiesError);
-                // Don't fail the shop creation, just log the error
-            } else {
-                console.log('✅ Default availabilities created for shop:', newShop.id);
-            }
-
-            return { success: true, shop: newShop };
-        } catch (err) {
-            console.error('Unexpected error:', err);
-            return { success: false, error: 'Erreur inattendue' };
+            // Return form data for Superforms compatibility with success indicator
+            const form = await superValidate(zod(formSchema));
+            form.message = 'Boutique créée avec succès !';
+            return {
+                form,
+                success: true,
+                shop
+            };
+        } catch (error) {
+            console.error('Unexpected error:', error);
+            return { success: false, error: 'Une erreur inattendue est survenue' };
         }
     },
 
@@ -191,34 +170,61 @@ export const actions: Actions = {
         const userId = session.user.id;
 
         try {
-            // Create Stripe Connect account
-            const account = await locals.stripe.accounts.create({
-                type: 'express',
-                country: 'FR', // Default to France, can be made configurable
-                email: session.user.email,
-                capabilities: {
-                    card_payments: { requested: true },
-                    transfers: { requested: true }
-                }
-            });
-
-            // Save Stripe Connect account to database
-            const { error: insertError } = await locals.supabase
+            // Check if Stripe Connect account already exists
+            const { data: existingAccount, error: fetchError } = await locals.supabase
                 .from('stripe_connect_accounts')
-                .insert({
-                    profile_id: userId,
-                    stripe_account_id: account.id,
-                    is_active: false // Will be set to true after onboarding completion
+                .select('id, stripe_account_id, is_active')
+                .eq('profile_id', userId)
+                .single();
+
+            if (fetchError && fetchError.code !== 'PGRST116') {
+                console.error('Error fetching existing Stripe account:', fetchError);
+                return { success: false, error: 'Erreur lors de la vérification du compte Stripe' };
+            }
+
+            let stripeAccountId: string;
+
+            if (!existingAccount) {
+                // Create new Stripe Connect account
+                console.log('🆕 Creating new Stripe Connect account for user:', userId);
+                const account = await locals.stripe.accounts.create({
+                    type: 'express',
+                    country: 'FR', // Default to France, can be made configurable
+                    email: session.user.email,
+                    capabilities: {
+                        card_payments: { requested: true },
+                        transfers: { requested: true }
+                    }
                 });
 
-            if (insertError) {
-                console.error('Error saving Stripe account:', insertError);
-                return { success: false, error: 'Erreur lors de la sauvegarde du compte Stripe' };
+                stripeAccountId = account.id;
+
+                // Save new Stripe Connect account to database
+                const { error: insertError } = await locals.supabase
+                    .from('stripe_connect_accounts')
+                    .insert({
+                        profile_id: userId,
+                        stripe_account_id: account.id,
+                        is_active: false // Will be set to true after onboarding completion
+                    });
+
+                if (insertError) {
+                    console.error('Error saving new Stripe account:', insertError);
+                    return { success: false, error: 'Erreur lors de la sauvegarde du compte Stripe' };
+                }
+
+                console.log('✅ New Stripe account created and saved:', account.id);
+            } else {
+                // Account exists, use it but don't change is_active yet
+                // is_active will be set to true by Stripe webhook after onboarding completion
+                console.log('🔄 Using existing Stripe account:', existingAccount.stripe_account_id);
+                stripeAccountId = existingAccount.stripe_account_id;
+                console.log('✅ Existing Stripe account will be used');
             }
 
             // Create Stripe Connect account link
             const accountLink = await locals.stripe.accountLinks.create({
-                account: account.id,
+                account: stripeAccountId,
                 refresh_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/onboarding?refresh=true`,
                 return_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/onboarding?success=true`,
                 type: 'account_onboarding',
@@ -227,7 +233,7 @@ export const actions: Actions = {
             console.log('🔗 Stripe Connect URL created:', accountLink.url);
             return { success: true, url: accountLink.url };
         } catch (err) {
-            console.error('Error creating Stripe Connect account:', err);
+            console.error('Error in Stripe Connect process:', err);
             return { success: false, error: 'Erreur lors de la connexion Stripe' };
         }
     }
