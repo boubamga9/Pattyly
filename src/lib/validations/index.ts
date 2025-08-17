@@ -31,3 +31,6 @@ export * from './schemas/contact';
 
 // ===== GESTION DES DISPONIBILITÉS =====
 export * from './schemas/availability';
+
+// ===== FAQ =====
+export * from './schemas/faq';

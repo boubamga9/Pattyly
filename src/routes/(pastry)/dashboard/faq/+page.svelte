@@ -1,10 +1,6 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import { page } from '$app/stores';
 	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Textarea } from '$lib/components/ui/textarea';
 	import {
 		Card,
 		CardContent,
@@ -13,48 +9,46 @@
 		CardTitle,
 	} from '$lib/components/ui/card';
 	import { Separator } from '$lib/components/ui/separator';
-	import { Plus, Edit, Trash2, Save, X, Check } from 'lucide-svelte';
-	import { createEventDispatcher } from 'svelte';
+	import { Plus, Edit, Trash2, X, Check } from 'lucide-svelte';
+	// import { createEventDispatcher } from 'svelte';
+	import FaqForm from './faq-form.svelte';
+	import { writable } from 'svelte/store';
 
 	// Données de la page
-	$: ({ faqs } = $page.data);
+	$: ({ faqs, form } = $page.data);
+
+	// Store local pour les FAQ (permet la mise à jour de l'interface)
+	const localFaqs = writable(faqs || []);
+
+	// Synchroniser le store local avec les données de la page
+	$: if (faqs) {
+		localFaqs.set(faqs);
+	}
 
 	// État local
 	let showCreateForm = false;
 	let editingFaq: string | null = null;
-	let newQuestion = '';
-	let newAnswer = '';
-	let editQuestion = '';
-	let editAnswer = '';
 
 	// État pour la confirmation de suppression
 	let confirmingDeleteId: string | null = null;
 
-	const dispatch = createEventDispatcher();
+	// const dispatch = createEventDispatcher();
 
 	// Fonctions
 	function startCreate() {
 		showCreateForm = true;
-		newQuestion = '';
-		newAnswer = '';
 	}
 
 	function cancelCreate() {
 		showCreateForm = false;
-		newQuestion = '';
-		newAnswer = '';
 	}
 
-	function startEdit(faq: any) {
+	function startEdit(faq: { id: string; question: string; answer: string }) {
 		editingFaq = faq.id;
-		editQuestion = faq.question;
-		editAnswer = faq.answer;
 	}
 
 	function cancelEdit() {
 		editingFaq = null;
-		editQuestion = '';
-		editAnswer = '';
 	}
 
 	function startDeleteConfirmation(id: string) {
@@ -63,6 +57,30 @@
 
 	function cancelDeleteConfirmation() {
 		confirmingDeleteId = null;
+	}
+
+	// Fonction de suppression avec enhance
+	async function handleDelete(faqId: string) {
+		const formData = new FormData();
+		formData.append('id', faqId);
+
+		try {
+			const response = await fetch('?/delete', {
+				method: 'POST',
+				body: formData,
+			});
+
+			if (response.ok) {
+				// Supprimer la FAQ de la liste locale
+				localFaqs.update((faqs) => faqs.filter((faq) => faq.id !== faqId));
+				// Fermer la confirmation
+				confirmingDeleteId = null;
+			} else {
+				console.error('Erreur lors de la suppression');
+			}
+		} catch (error) {
+			console.error('Erreur lors de la suppression:', error);
+		}
 	}
 </script>
 
@@ -99,48 +117,14 @@
 				</CardDescription>
 			</CardHeader>
 			<CardContent>
-				<form method="POST" action="?/create" use:enhance>
-					<div class="space-y-4">
-						<div class="space-y-2">
-							<Label for="question">Question *</Label>
-							<Input
-								id="question"
-								name="question"
-								bind:value={newQuestion}
-								placeholder="Votre question..."
-								required
-							/>
-						</div>
-						<div class="space-y-2">
-							<Label for="answer">Réponse *</Label>
-							<Textarea
-								id="answer"
-								name="answer"
-								bind:value={newAnswer}
-								placeholder="Votre réponse..."
-								rows={4}
-								required
-							/>
-						</div>
-						<div class="flex gap-2">
-							<Button type="submit" disabled={!newQuestion || !newAnswer}>
-								<Save class="mr-2 h-4 w-4" />
-								Créer
-							</Button>
-							<Button type="button" variant="outline" on:click={cancelCreate}>
-								<X class="mr-2 h-4 w-4" />
-								Annuler
-							</Button>
-						</div>
-					</div>
-				</form>
+				<FaqForm data={form} onCancel={cancelCreate} />
 			</CardContent>
 		</Card>
 	{/if}
 
 	<!-- Liste des FAQ -->
 	<div class="space-y-4">
-		{#if faqs.length === 0}
+		{#if $localFaqs.length === 0}
 			<Card>
 				<CardContent class="flex flex-col items-center justify-center py-12">
 					<div class="text-center">
@@ -156,54 +140,17 @@
 				</CardContent>
 			</Card>
 		{:else}
-			{#each faqs as faq}
+			{#each $localFaqs as faq}
 				<Card>
 					<CardContent class="p-6">
 						{#if editingFaq === faq.id}
 							<!-- Mode édition -->
-							<form method="POST" action="?/update" use:enhance>
-								<input type="hidden" name="id" value={faq.id} />
-								<div class="space-y-4">
-									<div class="space-y-2">
-										<Label for="edit-question-{faq.id}">Question *</Label>
-										<Input
-											id="edit-question-{faq.id}"
-											name="question"
-											bind:value={editQuestion}
-											placeholder="Votre question..."
-											required
-										/>
-									</div>
-									<div class="space-y-2">
-										<Label for="edit-answer-{faq.id}">Réponse *</Label>
-										<Textarea
-											id="edit-answer-{faq.id}"
-											name="answer"
-											bind:value={editAnswer}
-											placeholder="Votre réponse..."
-											rows={4}
-											required
-										/>
-									</div>
-									<div class="flex gap-2">
-										<Button
-											type="submit"
-											disabled={!editQuestion || !editAnswer}
-										>
-											<Save class="mr-2 h-4 w-4" />
-											Sauvegarder
-										</Button>
-										<Button
-											type="button"
-											variant="outline"
-											on:click={cancelEdit}
-										>
-											<X class="mr-2 h-4 w-4" />
-											Annuler
-										</Button>
-									</div>
-								</div>
-							</form>
+							<FaqForm
+								data={form}
+								faqId={faq.id}
+								initialData={{ question: faq.question, answer: faq.answer }}
+								onCancel={cancelEdit}
+							/>
 						{:else}
 							<!-- Mode affichage -->
 							<div class="space-y-4">
@@ -226,29 +173,16 @@
 										</Button>
 
 										{#if confirmingDeleteId === faq.id}
-											<form
-												method="POST"
-												action="?/delete"
-												use:enhance={() => {
-													return async ({ result }) => {
-														if (result.type === 'success') {
-															confirmingDeleteId = null;
-															window.location.reload();
-														}
-													};
-												}}
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												class="bg-red-600 text-white hover:bg-red-700 hover:text-white"
+												title="Confirmer la suppression"
+												on:click={() => handleDelete(faq.id)}
 											>
-												<input type="hidden" name="id" value={faq.id} />
-												<Button
-													type="submit"
-													variant="ghost"
-													size="sm"
-													class="bg-red-600 text-white hover:bg-red-700 hover:text-white"
-													title="Confirmer la suppression"
-												>
-													<Check class="h-4 w-4" />
-												</Button>
-											</form>
+												<Check class="h-4 w-4" />
+											</Button>
 											<Button
 												type="button"
 												variant="ghost"

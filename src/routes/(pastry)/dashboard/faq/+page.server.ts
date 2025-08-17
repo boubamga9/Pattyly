@@ -1,6 +1,9 @@
 import { error, redirect } from '@sveltejs/kit';
+import { superValidate } from 'sveltekit-superforms';
+import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad, Actions } from './$types';
 import { getUserPermissions } from '$lib/permissions';
+import { formSchema } from './schema';
 
 export const load: PageServerLoad = async ({ locals }) => {
     const { data: { user } } = await locals.supabase.auth.getUser();
@@ -17,6 +20,10 @@ export const load: PageServerLoad = async ({ locals }) => {
     }
 
     // Récupérer les FAQ de la boutique
+    if (!permissions.shopId) {
+        throw error(400, 'Boutique non trouvée');
+    }
+
     const { data: faqs, error: faqsError } = await locals.supabase
         .from('faq')
         .select('*')
@@ -29,7 +36,13 @@ export const load: PageServerLoad = async ({ locals }) => {
     }
 
     return {
-        faqs: faqs || []
+        faqs: faqs || [],
+        form: await superValidate(zod(formSchema), {
+            defaults: {
+                question: '',
+                answer: ''
+            }
+        })
     };
 };
 
@@ -45,6 +58,10 @@ export const actions: Actions = {
 
         if (!permissions.canAccessDashboard) {
             throw error(403, 'Accès refusé');
+        }
+
+        if (!permissions.shopId) {
+            throw error(400, 'Boutique non trouvée');
         }
 
         const formData = await request.formData();
@@ -68,7 +85,10 @@ export const actions: Actions = {
             throw error(500, 'Erreur lors de la création de la FAQ');
         }
 
-        return { success: true };
+        // Retourner le formulaire pour Superforms
+        const form = await superValidate(zod(formSchema));
+        form.message = 'FAQ créée avec succès !';
+        return { form };
     },
 
     update: async ({ request, locals }) => {
@@ -82,6 +102,10 @@ export const actions: Actions = {
 
         if (!permissions.canAccessDashboard) {
             throw error(403, 'Accès refusé');
+        }
+
+        if (!permissions.shopId) {
+            throw error(400, 'Boutique non trouvée');
         }
 
         const formData = await request.formData();
@@ -108,7 +132,10 @@ export const actions: Actions = {
             throw error(500, 'Erreur lors de la mise à jour de la FAQ');
         }
 
-        return { success: true };
+        // Retourner le formulaire pour Superforms
+        const form = await superValidate(zod(formSchema));
+        form.message = 'FAQ mise à jour avec succès !';
+        return { form };
     },
 
     delete: async ({ request, locals }) => {
@@ -122,6 +149,10 @@ export const actions: Actions = {
 
         if (!permissions.canAccessDashboard) {
             throw error(403, 'Accès refusé');
+        }
+
+        if (!permissions.shopId) {
+            throw error(400, 'Boutique non trouvée');
         }
 
         const formData = await request.formData();
@@ -142,6 +173,9 @@ export const actions: Actions = {
             throw error(500, 'Erreur lors de la suppression de la FAQ');
         }
 
-        return { success: true };
+        // Retourner le formulaire pour Superforms
+        const form = await superValidate(zod(formSchema));
+        form.message = 'FAQ supprimée avec succès !';
+        return { form };
     }
 }; 
