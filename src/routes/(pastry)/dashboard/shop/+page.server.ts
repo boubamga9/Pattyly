@@ -7,9 +7,7 @@ import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { formSchema } from './schema';
 
-const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
-    apiVersion: '2023-10-16'
-});
+
 
 export const load: PageServerLoad = async ({ locals }) => {
     const { session } = await locals.safeGetSession();
@@ -35,20 +33,9 @@ export const load: PageServerLoad = async ({ locals }) => {
         error(404, 'Boutique non trouvée');
     }
 
-    // Get Stripe Connect account status
-    const { data: stripeAccount, error: stripeError } = await locals.supabase
-        .from('stripe_connect_accounts')
-        .select('*')
-        .eq('profile_id', userId)
-        .single();
-
-    if (stripeError && stripeError.code !== 'PGRST116') {
-        console.error('Error loading Stripe account:', stripeError);
-    }
 
     return {
         shop,
-        stripeAccount: stripeAccount || null,
         form: await superValidate(zod(formSchema), {
             defaults: {
                 name: shop.name,
@@ -192,145 +179,5 @@ export const actions: Actions = {
         });
         updatedForm.message = 'Boutique mise à jour avec succès !';
         return { form: updatedForm };
-    },
-
-    connectStripe: async ({ locals }) => {
-        const { session } = await locals.safeGetSession();
-        if (!session) {
-            return { success: false, error: 'Non autorisé' };
-        }
-
-        const userId = session.user.id;
-
-        // Get shop ID
-        const { data: shop } = await locals.supabase
-            .from('shops')
-            .select('id')
-            .eq('profile_id', userId)
-            .single();
-
-        if (!shop) {
-            return { success: false, error: 'Boutique non trouvée' };
-        }
-
-        // Check if Stripe Connect account already exists
-        const { data: existingAccount } = await locals.supabase
-            .from('stripe_connect_accounts')
-            .select('*')
-            .eq('profile_id', userId)
-            .single();
-
-        if (existingAccount) {
-            // Redirect to Stripe Connect dashboard
-            const stripe = new (await import('stripe')).default(PRIVATE_STRIPE_SECRET_KEY);
-
-            const accountLink = await stripe.accountLinks.create({
-                account: existingAccount.stripe_account_id,
-                refresh_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard/shop`,
-                return_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard/shop`,
-                type: 'account_onboarding',
-            });
-
-            return { success: true, redirectUrl: accountLink.url };
-        }
-
-        // Create new Stripe Connect account
-        const stripe = new (await import('stripe')).default(PRIVATE_STRIPE_SECRET_KEY);
-
-        const account = await stripe.accounts.create({
-            type: 'express',
-            country: 'FR',
-            email: session.user.email,
-            capabilities: {
-                card_payments: { requested: true },
-                transfers: { requested: true },
-            },
-            business_type: 'individual',
-        });
-
-        // Save account to database
-        const { error: insertError } = await locals.supabase
-            .from('stripe_connect_accounts')
-            .insert({
-                profile_id: userId,
-                stripe_account_id: account.id,
-                is_active: false
-            });
-
-        if (insertError) {
-            console.error('Error saving Stripe account:', insertError);
-            return { success: false, error: 'Erreur lors de la création du compte Stripe' };
-        }
-
-        // Create account link
-        const accountLink = await stripe.accountLinks.create({
-            account: account.id,
-            refresh_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard/shop`,
-            return_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard/shop`,
-            type: 'account_onboarding',
-        });
-
-        return { success: true, redirectUrl: accountLink.url };
-    },
-
-    accessStripeBilling: async ({ locals }) => {
-        const { session } = await locals.safeGetSession();
-        if (!session) {
-            console.log('❌ Pas de session');
-            return { success: false, error: 'Non autorisé' };
-        }
-
-        const userId = session.user.id;
-        console.log('🔍 User ID:', userId);
-
-        try {
-            console.log('🔍 Recherche du customer Stripe pour userId:', userId);
-
-            // Vérifier d'abord si la table existe et a des données
-            const { data: allCustomers, error: listError } = await locals.supabase
-                .from('stripe_customers')
-                .select('*');
-
-            console.log('🔍 Tous les customers dans la DB:', allCustomers);
-            console.log('🔍 Erreur liste:', listError);
-
-            // Récupérer le customer Stripe de l'utilisateur
-            const { data: customer, error: customerError } = await locals.supabase
-                .from('stripe_customers')
-                .select('*')
-                .eq('profile_id', userId)
-                .single();
-
-            console.log('🔍 Résultat recherche customer:', { customer, customerError });
-
-            if (customerError) {
-                console.log('❌ Erreur lors de la recherche du customer:', customerError);
-                if (customerError.code === 'PGRST116') {
-                    return { success: false, error: 'Aucun compte client Stripe trouvé. Veuillez d\'abord souscrire à un abonnement.' };
-                }
-                return { success: false, error: 'Erreur lors de la recherche du compte client' };
-            }
-
-            if (!customer?.stripe_customer_id) {
-                console.log('❌ Aucun stripe_customer_id trouvé');
-                return { success: false, error: 'Aucun compte client Stripe trouvé. Veuillez d\'abord souscrire à un abonnement.' };
-            }
-
-            console.log('✅ Customer Stripe trouvé:', customer);
-            console.log('✅ stripe_customer_id:', customer.stripe_customer_id);
-
-            // Créer un lien de billing Stripe avec configuration par défaut
-            const billingLink = await stripe.billingPortal.sessions.create({
-                customer: customer.stripe_customer_id,
-                return_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard/shop`,
-                configuration: undefined // Utilise la configuration par défaut
-            });
-
-            console.log('✅ Lien de billing créé:', billingLink.url);
-            return { success: true, redirectUrl: billingLink.url };
-        } catch (err) {
-            console.error('❌ Error creating billing link:', err);
-            return { success: false, error: 'Erreur lors de la création du lien de billing' };
-        }
     }
 };

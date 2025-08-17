@@ -1,49 +1,53 @@
 import { fetchCurrentUsersSubscription } from '$lib/stripe/client-helpers';
-import { fail, redirect } from '@sveltejs/kit';
+import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
+import Stripe from 'stripe';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { message, setError, superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad } from './$types';
 import {
     deleteAccountFormSchema,
-    emailFormSchema,
     infoFormSchema,
     changePasswordFormSchema,
     createPasswordFormSchema,
 } from './schema';
 import { deleteAllShopImages } from '$lib/storage-utils';
 
-export const load: PageServerLoad = async ({ locals }) => {
-    const { user } = await locals.safeGetSession();
 
-    // let's not check for session here as it prevents us to show alert after sign out post-account deletion
-    // everything is handled in the action
-    // if (!session || !user) {
-    // 	throw redirect(303, '/login');
-    // }
+const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
+    apiVersion: '2023-10-16'
+});
+
+export const load: PageServerLoad = async ({ locals }) => {
+    const { session } = await locals.safeGetSession();
+    if (!session) {
+        error(401, 'Non autorisé');
+    }
+
+    const userId = session.user.id;
 
     // get profile info
     let info;
-    if (user) {
-        const { data, error } = await locals.supabase
-            .from('profiles')
-            .select('email, role, is_stripe_free')
-            .eq('id', user.id)
-            .single();
-        if (error) {
-            console.error('Error getting profile info:', error.message);
-            throw fail(500, { error: 'Could not get profile info.' });
-        }
 
-        info = data;
-    }
 
     const { data: passwordSet } = await locals.supabase.rpc('user_password_set');
 
     const { amr } = await locals.safeGetSession();
     const recoveryAmr = amr?.find((x) => x.method === 'recovery');
 
+    // Get Stripe Connect account status
+    const { data: stripeAccount, error: stripeError } = await locals.supabase
+        .from('stripe_connect_accounts')
+        .select('*')
+        .eq('profile_id', userId)
+        .single();
+
+    if (stripeError && stripeError.code !== 'PGRST116') {
+        console.error('Error loading Stripe account:', stripeError);
+    }
+
+
     return {
-        emailForm: await superValidate(user, zod(emailFormSchema)),
         infoForm: await superValidate(info, zod(infoFormSchema)),
         deleteAccountForm:
             passwordSet && (await superValidate(zod(deleteAccountFormSchema))),
@@ -51,40 +55,11 @@ export const load: PageServerLoad = async ({ locals }) => {
         createPasswordForm: await superValidate(zod(createPasswordFormSchema)),
         recoverySession: Boolean(recoveryAmr),
         createPassword: !passwordSet,
+        stripeAccount: stripeAccount || null,
     };
 };
 
 export const actions = {
-    updateEmail: async (event) => {
-        const { safeGetSession, supabase } = event.locals;
-        const { session } = await safeGetSession();
-        if (!session) {
-            redirect(303, '/login');
-        }
-
-        const form = await superValidate(event, zod(emailFormSchema));
-        if (!form.valid) {
-            return fail(400, {
-                emailForm: form,
-            });
-        }
-
-        const { email } = form.data;
-
-        // Supabase does not change the email until the user verifies both
-        // if 'Secure email change' is enabled in the Supabase dashboard
-        const { error } = await supabase.auth.updateUser({ email });
-
-        if (error) {
-            console.error(error);
-            return setError(form, '', 'Could not sign up. Please try again.');
-        }
-
-        return message(form, {
-            success:
-                'An email has been sent to both your old and new email addresses. Please follow instructions in both.',
-        });
-    },
     updateProfile: async (event) => {
         const { safeGetSession, supabase } = event.locals;
         const { session, user } = await safeGetSession();
@@ -287,4 +262,143 @@ export const actions = {
                 success: 'Password set',
             };
     },
+    connectStripe: async ({ locals }) => {
+        const { session } = await locals.safeGetSession();
+        if (!session) {
+            return { success: false, error: 'Non autorisé' };
+        }
+
+        const userId = session.user.id;
+
+        // Get shop ID
+        const { data: shop } = await locals.supabase
+            .from('shops')
+            .select('id')
+            .eq('profile_id', userId)
+            .single();
+
+        if (!shop) {
+            return { success: false, error: 'Boutique non trouvée' };
+        }
+
+        // Check if Stripe Connect account already exists
+        const { data: existingAccount } = await locals.supabase
+            .from('stripe_connect_accounts')
+            .select('*')
+            .eq('profile_id', userId)
+            .single();
+
+        if (existingAccount) {
+            // Redirect to Stripe Connect dashboard
+            const stripe = new (await import('stripe')).default(PRIVATE_STRIPE_SECRET_KEY);
+
+            const accountLink = await stripe.accountLinks.create({
+                account: existingAccount.stripe_account_id,
+                refresh_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard/shop`,
+                return_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard/shop`,
+                type: 'account_onboarding',
+            });
+
+            return { success: true, redirectUrl: accountLink.url };
+        }
+
+        // Create new Stripe Connect account
+        const stripe = new (await import('stripe')).default(PRIVATE_STRIPE_SECRET_KEY);
+
+        const account = await stripe.accounts.create({
+            type: 'express',
+            country: 'FR',
+            email: session.user.email,
+            capabilities: {
+                card_payments: { requested: true },
+                transfers: { requested: true },
+            },
+            business_type: 'individual',
+        });
+
+        // Save account to database
+        const { error: insertError } = await locals.supabase
+            .from('stripe_connect_accounts')
+            .insert({
+                profile_id: userId,
+                stripe_account_id: account.id,
+                is_active: false
+            });
+
+        if (insertError) {
+            console.error('Error saving Stripe account:', insertError);
+            return { success: false, error: 'Erreur lors de la création du compte Stripe' };
+        }
+
+        // Create account link
+        const accountLink = await stripe.accountLinks.create({
+            account: account.id,
+            refresh_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard/shop`,
+            return_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard/shop`,
+            type: 'account_onboarding',
+        });
+
+        return { success: true, redirectUrl: accountLink.url };
+    },
+
+    accessStripeBilling: async ({ locals }) => {
+        const { session } = await locals.safeGetSession();
+        if (!session) {
+            console.log('❌ Pas de session');
+            return { success: false, error: 'Non autorisé' };
+        }
+
+        const userId = session.user.id;
+        console.log('🔍 User ID:', userId);
+
+        try {
+            console.log('🔍 Recherche du customer Stripe pour userId:', userId);
+
+            // Vérifier d'abord si la table existe et a des données
+            const { data: allCustomers, error: listError } = await locals.supabase
+                .from('stripe_customers')
+                .select('*');
+
+            console.log('🔍 Tous les customers dans la DB:', allCustomers);
+            console.log('🔍 Erreur liste:', listError);
+
+            // Récupérer le customer Stripe de l'utilisateur
+            const { data: customer, error: customerError } = await locals.supabase
+                .from('stripe_customers')
+                .select('*')
+                .eq('profile_id', userId)
+                .single();
+
+            console.log('🔍 Résultat recherche customer:', { customer, customerError });
+
+            if (customerError) {
+                console.log('❌ Erreur lors de la recherche du customer:', customerError);
+                if (customerError.code === 'PGRST116') {
+                    return { success: false, error: 'Aucun compte client Stripe trouvé. Veuillez d\'abord souscrire à un abonnement.' };
+                }
+                return { success: false, error: 'Erreur lors de la recherche du compte client' };
+            }
+
+            if (!customer?.stripe_customer_id) {
+                console.log('❌ Aucun stripe_customer_id trouvé');
+                return { success: false, error: 'Aucun compte client Stripe trouvé. Veuillez d\'abord souscrire à un abonnement.' };
+            }
+
+            console.log('✅ Customer Stripe trouvé:', customer);
+            console.log('✅ stripe_customer_id:', customer.stripe_customer_id);
+
+            // Créer un lien de billing Stripe avec configuration par défaut
+            const billingLink = await stripe.billingPortal.sessions.create({
+                customer: customer.stripe_customer_id,
+                return_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard/shop`,
+                configuration: undefined // Utilise la configuration par défaut
+            });
+
+            console.log('✅ Lien de billing créé:', billingLink.url);
+            return { success: true, redirectUrl: billingLink.url };
+        } catch (err) {
+            console.error('❌ Error creating billing link:', err);
+            return { success: false, error: 'Erreur lors de la création du lien de billing' };
+        }
+    }
 }; 

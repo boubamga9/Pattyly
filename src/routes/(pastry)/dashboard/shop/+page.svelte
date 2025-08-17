@@ -1,6 +1,4 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import { Button } from '$lib/components/ui/button';
 	import ShopForm from './shop-form.svelte';
 	import type { SuperValidated, Infer } from 'sveltekit-superforms';
 	import { formSchema } from './schema';
@@ -12,14 +10,7 @@
 		CardTitle,
 	} from '$lib/components/ui/card';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import {
-		Store,
-		CreditCard,
-		CheckCircle,
-		AlertCircle,
-		Crown,
-	} from 'lucide-svelte';
-	import LoaderCircle from '~icons/lucide/loader-circle';
+	import { Store } from 'lucide-svelte';
 
 	export let data: {
 		shop: {
@@ -40,47 +31,8 @@
 		form: SuperValidated<Infer<typeof formSchema>>;
 	};
 
-	let stripeLoading = false;
-	let billingLoading = false;
-	let copySuccess = false;
 	let error = '';
 	let success = '';
-
-	// Handle Stripe Connect result
-	function handleStripeResult(result: {
-		type: string;
-		data?: { error?: string; redirectUrl?: string };
-	}) {
-		if (result.type === 'success' && result.data?.redirectUrl) {
-			window.location.href = result.data.redirectUrl;
-		} else if (result.type === 'failure') {
-			error = result.data?.error || 'Une erreur est survenue';
-		}
-	}
-
-	// Handle Stripe Billing result
-	function handleBillingResult(result: {
-		type: string;
-		data?: { error?: string; redirectUrl?: string; success?: boolean };
-	}) {
-		console.log('📋 Résultat billing:', result);
-
-		// Vérifier si c'est un succès avec une URL de redirection
-		if (
-			result.type === 'success' &&
-			result.data?.success === true &&
-			result.data?.redirectUrl
-		) {
-			console.log('🔄 Redirection vers:', result.data.redirectUrl);
-			window.location.href = result.data.redirectUrl;
-		}
-		// Vérifier s'il y a une erreur (même avec type 'success' mais success: false)
-		else if (result.data?.success === false || result.type === 'failure') {
-			console.log('❌ Erreur billing:', result.data?.error);
-			error = result.data?.error || 'Une erreur est survenue';
-			success = '';
-		}
-	}
 </script>
 
 <svelte:head>
@@ -124,135 +76,6 @@
 		</CardHeader>
 		<CardContent>
 			<ShopForm data={data.form} />
-		</CardContent>
-	</Card>
-
-	<!-- Stripe Connect -->
-	<Card>
-		<CardHeader>
-			<div class="flex items-center justify-between">
-				<div class="flex items-center space-x-3">
-					<CreditCard class="h-6 w-6 text-primary" />
-					<div>
-						<CardTitle>Paiements Stripe</CardTitle>
-						<CardDescription>
-							Configurez votre compte Stripe pour recevoir les paiements
-						</CardDescription>
-					</div>
-				</div>
-				{#if data.stripeAccount?.is_active}
-					<div class="flex items-center space-x-2 text-green-600">
-						<CheckCircle class="h-4 w-4" />
-						<span class="text-sm font-medium">Compte activé</span>
-					</div>
-				{:else if data.stripeAccount}
-					<div class="flex items-center space-x-2 text-orange-600">
-						<AlertCircle class="h-4 w-4" />
-						<span class="text-sm font-medium">En attente d'activation</span>
-					</div>
-				{/if}
-			</div>
-		</CardHeader>
-		<CardContent>
-			<div class="space-y-4">
-				<p class="text-sm text-muted-foreground">
-					{#if data.stripeAccount?.is_active}
-						Votre compte Stripe est activé et vous pouvez recevoir des
-						paiements.
-					{:else if data.stripeAccount}
-						Votre compte Stripe est en cours de configuration. Complétez
-						l'activation pour recevoir des paiements.
-					{:else}
-						Connectez votre compte Stripe pour recevoir les paiements de vos
-						clients.
-					{/if}
-				</p>
-
-				<form
-					method="POST"
-					action="?/connectStripe"
-					use:enhance={() => {
-						stripeLoading = true;
-						return async ({ result }) => {
-							handleStripeResult(result);
-							stripeLoading = false;
-						};
-					}}
-				>
-					<Button
-						type="submit"
-						disabled={stripeLoading}
-						class={stripeLoading
-							? 'bg-gray-400 hover:bg-gray-500'
-							: 'bg-black text-white hover:bg-gray-800'}
-					>
-						{#if stripeLoading}
-							<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-						{:else}
-							<CreditCard class="mr-2 h-4 w-4" />
-						{/if}
-						{data.stripeAccount?.is_active
-							? 'Gérer mon compte Stripe'
-							: data.stripeAccount
-								? "Compléter l'activation"
-								: 'Connecter Stripe'}
-					</Button>
-				</form>
-			</div>
-		</CardContent>
-	</Card>
-
-	<!-- Gestion de l'abonnement -->
-	<Card>
-		<CardHeader>
-			<div class="flex items-center justify-between">
-				<div class="flex items-center space-x-3">
-					<Crown class="h-6 w-6 text-primary" />
-					<div>
-						<CardTitle>Gérer votre abonnement</CardTitle>
-						<CardDescription>
-							Accédez à votre espace abonnement pour modifier votre plan
-						</CardDescription>
-					</div>
-				</div>
-			</div>
-		</CardHeader>
-		<CardContent>
-			<div class="space-y-4">
-				<p class="text-sm text-muted-foreground">
-					Modifiez votre plan d'abonnement, gérez vos factures et accédez à
-					toutes les fonctionnalités de votre compte.
-				</p>
-
-				<div class="flex gap-2">
-					<form
-						method="POST"
-						action="?/accessStripeBilling"
-						use:enhance={() => {
-							billingLoading = true;
-							return async ({ result }) => {
-								handleBillingResult(result);
-								billingLoading = false;
-							};
-						}}
-					>
-						<Button
-							type="submit"
-							disabled={billingLoading}
-							class={billingLoading
-								? 'bg-gray-400 hover:bg-gray-500'
-								: 'bg-black text-white hover:bg-gray-800'}
-						>
-							{#if billingLoading}
-								<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-							{:else}
-								<Crown class="mr-2 h-4 w-4" />
-							{/if}
-							Gérer votre abonnement
-						</Button>
-					</form>
-				</div>
-			</div>
 		</CardContent>
 	</Card>
 </div>
