@@ -12,6 +12,7 @@
 	import UnavailabilityForm from './unavailability-form.svelte';
 	import AvailabilityList from './availability-list.svelte';
 	import { writable } from 'svelte/store';
+	import { enhance } from '$app/forms';
 
 	// Données de la page
 	$: ({ availabilities, unavailabilities, form } = $page.data);
@@ -27,6 +28,9 @@
 	// État local
 	let showUnavailabilityForm = false;
 
+	// État pour la confirmation de suppression
+	let confirmingDeleteId: string | null = null;
+
 	// Get today's date for min date
 	const today = new Date().toISOString().split('T')[0];
 
@@ -39,11 +43,12 @@
 		showUnavailabilityForm = false;
 	}
 
-	// Remove unavailability from local data
-	function removeUnavailability(id: string) {
-		localUnavailabilities.update((unavailabilities) =>
-			unavailabilities.filter((u) => u.id !== id),
-		);
+	function startDeleteConfirmation(id: string) {
+		confirmingDeleteId = id;
+	}
+
+	function cancelDeleteConfirmation() {
+		confirmingDeleteId = null;
 	}
 
 	// Format date for display
@@ -53,6 +58,13 @@
 			month: 'long',
 			year: 'numeric',
 		});
+	}
+
+	// Handle successful deletion
+	function handleDeleteSuccess(unavailabilityId: string) {
+		localUnavailabilities.update((unavailabilities) =>
+			unavailabilities.filter((u: { id: string }) => u.id !== unavailabilityId),
+		);
 	}
 </script>
 
@@ -118,7 +130,7 @@
 			{#if showUnavailabilityForm}
 				<div class="mb-6 rounded-lg border bg-muted/50 p-4">
 					<h3 class="mb-4 font-medium">Nouvelle indisponibilité</h3>
-					<UnavailabilityForm {form} {today} onCancel={cancelCreate} />
+					<UnavailabilityForm data={form} {today} onCancel={cancelCreate} />
 				</div>
 			{/if}
 
@@ -141,16 +153,82 @@
 									{/if}
 								</div>
 							</div>
-							<Button
-								type="button"
-								variant="ghost"
-								size="sm"
-								class="text-red-600 hover:bg-red-50 hover:text-red-700"
-								on:click={() => removeUnavailability(unavailability.id)}
-								title="Supprimer l'indisponibilité"
-							>
-								<Trash2 class="h-4 w-4" />
-							</Button>
+							{#if confirmingDeleteId === unavailability.id}
+								<div class="flex gap-2">
+									<form
+										method="POST"
+										action="?/deleteUnavailability"
+										use:enhance={() => {
+											return async ({ result }) => {
+												if (result.type === 'success') {
+													handleDeleteSuccess(unavailability.id);
+													confirmingDeleteId = null;
+												}
+											};
+										}}
+										class="inline"
+									>
+										<input
+											type="hidden"
+											name="unavailabilityId"
+											value={unavailability.id}
+										/>
+										<Button
+											type="submit"
+											variant="ghost"
+											size="sm"
+											class="bg-red-600 text-white hover:bg-red-700 hover:text-white"
+											title="Confirmer la suppression"
+										>
+											<svg
+												class="h-4 w-4"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+											>
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M5 13l4 4L19 7"
+												/>
+											</svg>
+										</Button>
+									</form>
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										on:click={cancelDeleteConfirmation}
+										title="Annuler la suppression"
+									>
+										<svg
+											class="h-4 w-4"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M6 18L18 6M6 6l12 12"
+											/>
+										</svg>
+									</Button>
+								</div>
+							{:else}
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									class="text-red-600 hover:bg-red-50 hover:text-red-700"
+									on:click={() => startDeleteConfirmation(unavailability.id)}
+									title="Supprimer l'indisponibilité"
+								>
+									<Trash2 class="h-4 w-4" />
+								</Button>
+							{/if}
 						</div>
 					{/each}
 				</div>

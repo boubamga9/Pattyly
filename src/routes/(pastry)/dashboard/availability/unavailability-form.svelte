@@ -11,15 +11,15 @@
 		type AddUnavailabilityForm,
 	} from './schema';
 
-	export let form: SuperValidated<Infer<AddUnavailabilityForm>>;
+	export let data: SuperValidated<Infer<AddUnavailabilityForm>>;
 	export let onCancel: () => void;
 	export let today: string; // Date minimale pour les inputs
 
-	const formInstance = superForm(form, {
+	const form = superForm(data, {
 		validators: zodClient(addUnavailabilityFormSchema),
 	});
 
-	const { form: formData, enhance, submitting, message } = formInstance;
+	const { form: formData, enhance, submitting, message } = form;
 
 	$: if ($message) {
 		console.log('✅ Indisponibilité ajoutée -> fermeture du formulaire');
