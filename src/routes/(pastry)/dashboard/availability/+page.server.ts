@@ -82,7 +82,13 @@ export const actions: Actions = {
 
         const formData = await request.formData();
         const availabilityId = formData.get('availabilityId') as string;
-        const isAvailable = formData.get('isAvailable') === 'true';
+        const isAvailableRaw = formData.get('isAvailable') as string;
+        const isAvailable = isAvailableRaw === 'true';
+
+        console.log('🔍 DEBUG updateAvailability:');
+        console.log('  - availabilityId:', availabilityId);
+        console.log('  - isAvailableRaw:', isAvailableRaw);
+        console.log('  - isAvailable parsed:', isAvailable);
 
         if (!availabilityId) {
             throw error(400, 'ID de disponibilité requis');
@@ -91,13 +97,16 @@ export const actions: Actions = {
         // Verify the availability belongs to this shop
         const { data: availability } = await locals.supabase
             .from('availabilities')
-            .select('shop_id')
+            .select('shop_id, is_open')
             .eq('id', availabilityId)
             .single();
 
         if (!availability || availability.shop_id !== permissions.shopId) {
             throw error(404, 'Disponibilité non trouvée');
         }
+
+        console.log('  - Current DB value:', availability.is_open);
+        console.log('  - New value to set:', isAvailable);
 
         // Update availability
         const { error: updateError } = await locals.supabase
@@ -111,6 +120,8 @@ export const actions: Actions = {
             console.error('Error updating availability:', updateError);
             throw error(500, 'Erreur lors de la mise à jour');
         }
+
+        console.log('✅ Availability updated successfully in DB');
 
         // Retourner le formulaire pour Superforms
         const form = await superValidate(zod(addUnavailabilityFormSchema));

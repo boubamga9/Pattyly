@@ -8,6 +8,9 @@
 		is_open: boolean;
 	}>;
 
+	// Refs pour les boutons de soumission
+	let submitButtons: Record<string, HTMLButtonElement> = {};
+
 	const dayNames = [
 		'Lundi', // 0 (mais correspond à DB day = 1)
 		'Mardi', // 1 (mais correspond à DB day = 2)
@@ -23,17 +26,23 @@
 	// DB: 0=Dimanche, 1=Lundi, 2=Mardi, 3=Mercredi, 4=Jeudi, 5=Vendredi, 6=Samedi
 	const interfaceToDbDay = [1, 2, 3, 4, 5, 6, 0];
 
-	// Handle availability toggle with auto-save
-	async function handleAvailabilityToggle(availability: {
+	// Handle availability toggle
+	function handleAvailabilityToggle(availability: {
 		id: string;
 		is_open: boolean;
 	}) {
 		const newValue = !availability.is_open;
 
-		// Force Svelte reactivity by creating a new array
+		// Mettre à jour l'état local immédiatement
 		availabilities = availabilities.map((a) =>
 			a.id === availability.id ? { ...a, is_open: newValue } : a,
 		);
+
+		// Déclencher la soumission du formulaire via la ref Svelte
+		const submitButton = submitButtons[availability.id];
+		if (submitButton) {
+			submitButton.click();
+		}
 	}
 </script>
 
@@ -50,7 +59,6 @@
 						use:enhance={() => {
 							return async ({ result }) => {
 								if (result.type === 'success') {
-									// Mise à jour locale déjà faite dans handleAvailabilityToggle
 									console.log('✅ Disponibilité mise à jour avec succès !');
 								} else {
 									// En cas d'erreur, remettre l'ancienne valeur
@@ -72,13 +80,22 @@
 						<input
 							type="hidden"
 							name="isAvailable"
-							value={availability.is_open.toString()}
+							value={(!availability.is_open).toString()}
 						/>
 
 						<Switch
 							checked={availability.is_open}
 							on:change={() => handleAvailabilityToggle(availability)}
 						/>
+
+						<!-- Bouton caché pour déclencher la soumission -->
+						<button
+							type="submit"
+							bind:this={submitButtons[availability.id]}
+							class="hidden"
+						>
+							Soumettre
+						</button>
 					</form>
 					<div>
 						<h3 class="font-medium">{dayName}</h3>
