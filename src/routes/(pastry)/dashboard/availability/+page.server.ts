@@ -1,79 +1,91 @@
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
+import { superValidate } from 'sveltekit-superforms';
+import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad, Actions } from './$types';
+import { getUserPermissions } from '$lib/permissions';
+import { addUnavailabilityFormSchema } from './schema';
 
 export const load: PageServerLoad = async ({ locals }) => {
-    const { session } = await locals.safeGetSession();
-    if (!session) {
-        error(401, 'Non autorisé');
+    const { data: { user } } = await locals.supabase.auth.getUser();
+
+    if (!user) {
+        throw redirect(302, '/login');
     }
 
-    const userId = session.user.id;
+    // Vérifier les permissions
+    const permissions = await getUserPermissions(user.id, locals.supabase);
 
-    // Get shop ID
-    const { data: shop } = await locals.supabase
-        .from('shops')
-        .select('id')
-        .eq('profile_id', userId)
-        .single();
+    if (!permissions.canAccessDashboard) {
+        throw redirect(302, '/onboarding');
+    }
 
-    if (!shop) {
-        error(404, 'Boutique non trouvée');
+    // Récupérer l'ID de la boutique
+    if (!permissions.shopId) {
+        throw error(400, 'Boutique non trouvée');
     }
 
     // Load availabilities
     let { data: availabilities, error: availabilitiesError } = await locals.supabase
         .from('availabilities')
         .select('*')
-        .eq('shop_id', shop.id)
+        .eq('shop_id', permissions.shopId)
         .order('day');
 
     if (availabilitiesError) {
         console.error('Error loading availabilities:', availabilitiesError);
-        error(500, 'Erreur lors du chargement des disponibilités');
+        throw error(500, 'Erreur lors du chargement des disponibilités');
     }
 
     // Load unavailabilities
     const { data: unavailabilities, error: unavailabilitiesError } = await locals.supabase
         .from('unavailabilities')
         .select('*')
-        .eq('shop_id', shop.id)
+        .eq('shop_id', permissions.shopId)
         .gte('end_date', new Date().toISOString().split('T')[0]) // Only future dates
         .order('start_date');
 
     if (unavailabilitiesError) {
         console.error('Error loading unavailabilities:', unavailabilitiesError);
-        error(500, 'Erreur lors du chargement des indisponibilités');
+        throw error(500, 'Erreur lors du chargement des indisponibilités');
     }
 
     return {
         availabilities: availabilities || [],
         unavailabilities: unavailabilities || [],
-        shopId: shop.id
+        shopId: permissions.shopId,
+        form: await superValidate(zod(addUnavailabilityFormSchema), {
+            defaults: {
+                startDate: '',
+                endDate: ''
+            }
+        })
     };
 };
 
 export const actions: Actions = {
     updateAvailability: async ({ request, locals }) => {
-        const { session } = await locals.safeGetSession();
-        if (!session) {
-            return { success: false, error: 'Non autorisé' };
+        const { data: { user } } = await locals.supabase.auth.getUser();
+
+        if (!user) {
+            throw error(401, 'Non autorisé');
         }
 
-        const userId = session.user.id;
+        const permissions = await getUserPermissions(user.id, locals.supabase);
+
+        if (!permissions.canAccessDashboard) {
+            throw error(403, 'Accès refusé');
+        }
+
+        if (!permissions.shopId) {
+            throw error(400, 'Boutique non trouvée');
+        }
 
         const formData = await request.formData();
         const availabilityId = formData.get('availabilityId') as string;
         const isAvailable = formData.get('isAvailable') === 'true';
 
-        // Get shop ID for security
-        const { data: shop } = await locals.supabase
-            .from('shops')
-            .select('id')
-            .eq('profile_id', userId)
-            .single();
-
-        if (!shop) {
-            return { success: false, error: 'Boutique non trouvée' };
+        if (!availabilityId) {
+            throw error(400, 'ID de disponibilité requis');
         }
 
         // Verify the availability belongs to this shop
@@ -83,8 +95,8 @@ export const actions: Actions = {
             .eq('id', availabilityId)
             .single();
 
-        if (!availability || availability.shop_id !== shop.id) {
-            return { success: false, error: 'Disponibilité non trouvée' };
+        if (!availability || availability.shop_id !== permissions.shopId) {
+            throw error(404, 'Disponibilité non trouvée');
         }
 
         // Update availability
@@ -97,103 +109,96 @@ export const actions: Actions = {
 
         if (updateError) {
             console.error('Error updating availability:', updateError);
-            return { success: false, error: 'Erreur lors de la mise à jour' };
+            throw error(500, 'Erreur lors de la mise à jour');
         }
 
-        return { success: true };
+        // Retourner le formulaire pour Superforms
+        const form = await superValidate(zod(addUnavailabilityFormSchema));
+        form.message = 'Disponibilité mise à jour avec succès !';
+        return { form };
     },
 
     addUnavailability: async ({ request, locals }) => {
-        const { session } = await locals.safeGetSession();
-        if (!session) {
-            return { success: false, error: 'Non autorisé' };
+        const { data: { user } } = await locals.supabase.auth.getUser();
+
+        if (!user) {
+            throw error(401, 'Non autorisé');
         }
 
-        const userId = session.user.id;
+        const permissions = await getUserPermissions(user.id, locals.supabase);
 
-        const formData = await request.formData();
-        const startDate = formData.get('startDate') as string;
-        const endDate = formData.get('endDate') as string;
-
-        // Get shop ID
-        const { data: shop } = await locals.supabase
-            .from('shops')
-            .select('id')
-            .eq('profile_id', userId)
-            .single();
-
-        if (!shop) {
-            return { success: false, error: 'Boutique non trouvée' };
+        if (!permissions.canAccessDashboard) {
+            throw error(403, 'Accès refusé');
         }
 
-        // Validate dates
-        if (!startDate || !endDate) {
-            return { success: false, error: 'Dates requises' };
+        if (!permissions.shopId) {
+            throw error(400, 'Boutique non trouvée');
         }
 
-        if (new Date(startDate) > new Date(endDate)) {
-            return { success: false, error: 'La date de début doit être antérieure à la date de fin' };
+        // Valider le formulaire avec Superforms
+        const form = await superValidate(request, zod(addUnavailabilityFormSchema));
+
+        if (!form.valid) {
+            return { form };
         }
 
-        // Check for overlapping dates
+        // Récupérer les périodes existantes pour la validation des chevauchements
         const { data: existingUnavailabilities } = await locals.supabase
             .from('unavailabilities')
             .select('start_date, end_date')
-            .eq('shop_id', shop.id);
+            .eq('shop_id', permissions.shopId);
 
-        if (existingUnavailabilities) {
-            const start = new Date(startDate);
-            const end = new Date(endDate);
+        // Valider avec le schéma étendu (incluant les chevauchements)
+        const validationForm = await superValidate(
+            { ...form.data, existingUnavailabilities: existingUnavailabilities || [] },
+            zod(addUnavailabilityFormSchema)
+        );
 
-            const hasOverlap = existingUnavailabilities.some(unavailability => {
-                const existingStart = new Date(unavailability.start_date);
-                const existingEnd = new Date(unavailability.end_date);
-
-                return (start <= existingEnd && end >= existingStart);
-            });
-
-            if (hasOverlap) {
-                return { success: false, error: 'Période non disponible' };
-            }
+        if (!validationForm.valid) {
+            return { form: validationForm };
         }
 
         // Add unavailability
         const { error: insertError } = await locals.supabase
             .from('unavailabilities')
             .insert({
-                shop_id: shop.id,
-                start_date: startDate,
-                end_date: endDate
+                shop_id: permissions.shopId,
+                start_date: form.data.startDate,
+                end_date: form.data.endDate
             });
 
         if (insertError) {
             console.error('Error adding unavailability:', insertError);
-            return { success: false, error: 'Erreur lors de l\'ajout de l\'indisponibilité' };
+            throw error(500, 'Erreur lors de l\'ajout de l\'indisponibilité');
         }
 
-        return { success: true };
+        // Retourner le formulaire pour Superforms
+        form.message = 'Indisponibilité ajoutée avec succès !';
+        return { form };
     },
 
     deleteUnavailability: async ({ request, locals }) => {
-        const { session } = await locals.safeGetSession();
-        if (!session) {
-            return { success: false, error: 'Non autorisé' };
+        const { data: { user } } = await locals.supabase.auth.getUser();
+
+        if (!user) {
+            throw error(401, 'Non autorisé');
         }
 
-        const userId = session.user.id;
+        const permissions = await getUserPermissions(user.id, locals.supabase);
+
+        if (!permissions.canAccessDashboard) {
+            throw error(403, 'Accès refusé');
+        }
+
+        if (!permissions.shopId) {
+            throw error(400, 'Boutique non trouvée');
+        }
 
         const formData = await request.formData();
         const unavailabilityId = formData.get('unavailabilityId') as string;
 
-        // Get shop ID for security
-        const { data: shop } = await locals.supabase
-            .from('shops')
-            .select('id')
-            .eq('profile_id', userId)
-            .single();
-
-        if (!shop) {
-            return { success: false, error: 'Boutique non trouvée' };
+        if (!unavailabilityId) {
+            throw error(400, 'ID d\'indisponibilité requis');
         }
 
         // Verify the unavailability belongs to this shop
@@ -203,8 +208,8 @@ export const actions: Actions = {
             .eq('id', unavailabilityId)
             .single();
 
-        if (!unavailability || unavailability.shop_id !== shop.id) {
-            return { success: false, error: 'Indisponibilité non trouvée' };
+        if (!unavailability || unavailability.shop_id !== permissions.shopId) {
+            throw error(404, 'Indisponibilité non trouvée');
         }
 
         // Delete unavailability
@@ -215,9 +220,12 @@ export const actions: Actions = {
 
         if (deleteError) {
             console.error('Error deleting unavailability:', deleteError);
-            return { success: false, error: 'Erreur lors de la suppression' };
+            throw error(500, 'Erreur lors de la suppression');
         }
 
-        return { success: true };
+        // Retourner le formulaire pour Superforms
+        const form = await superValidate(zod(addUnavailabilityFormSchema));
+        form.message = 'Indisponibilité supprimée avec succès !';
+        return { form };
     }
 };

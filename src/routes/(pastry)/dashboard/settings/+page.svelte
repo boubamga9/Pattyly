@@ -3,7 +3,6 @@
 	import * as Card from '$lib/components/ui/card';
 	import { enhance } from '$app/forms';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import Trash from '~icons/lucide/trash-2';
 	import DeleteAccountForm from './delete-account-form.svelte';
 	import ChangePasswordForm from './change-password-form.svelte';
 	import CreatePasswordForm from './create-password-form.svelte';
@@ -201,37 +200,67 @@
 	<ChangePasswordForm data={data.changePasswordForm} user={data.user} />
 {/if}
 
-<!-- Section séparée pour la suppression de compte - moins évidente -->
-{#if data.deleteAccountForm}
-	<Dialog.Root>
-		<Dialog.Trigger asChild let:builder>
+<!-- Section séparée pour la déconnexion et suppression de compte -->
+<div class="mt-8 border-t pt-8">
+	<!-- Bouton Se déconnecter -->
+	<div class="mb-6">
+		<form method="POST" action="/log-out">
 			<Button
-				variant="ghost"
+				type="submit"
+				variant="outline"
 				size="sm"
-				class="flex flex-nowrap items-center gap-2 text-muted-foreground"
-				builders={[builder]}
+				class="flex w-full flex-nowrap items-center justify-center gap-2"
 			>
-				<Trash class="h-4 w-4" />
-				Supprimer le compte
+				<svg
+					class="h-4 w-4"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+					/>
+				</svg>
+				Se déconnecter
 			</Button>
-		</Dialog.Trigger>
-		<Dialog.Content class="border-destructive">
-			<Dialog.Header>
-				<Dialog.Title>Êtes-vous absolument sûr ?</Dialog.Title>
-				<Dialog.Description>
-					Cette action ne peut pas être annulée. Cela supprimera définitivement
-					votre compte et supprimera vos données de nos serveurs. Tous vos
-					abonnements actifs seront annulés automatiquement.
-				</Dialog.Description>
-			</Dialog.Header>
+		</form>
+	</div>
 
-			<DeleteAccountForm data={data.deleteAccountForm} />
-		</Dialog.Content>
-	</Dialog.Root>
-{:else}
-	<p class="text-sm text-muted-foreground">
-		Pour pouvoir supprimer votre compte, vous devez avoir un mot de passe
-		configuré. Vous pouvez configurer votre mot de passe dans les paramètres de
-		sécurité ci-dessus.
-	</p>
-{/if}
+	<!-- Section suppression de compte -->
+	{#if data.deleteAccountForm}
+		<Dialog.Root>
+			<Dialog.Trigger asChild let:builder>
+				<Button
+					variant="ghost"
+					size="sm"
+					class="mx-auto mt-12 block text-xs text-muted-foreground/40"
+					builders={[builder]}
+				>
+					Supprimer le compte
+				</Button>
+			</Dialog.Trigger>
+			<Dialog.Content class="border-destructive">
+				<Dialog.Header>
+					<Dialog.Title>Êtes-vous absolument sûr ?</Dialog.Title>
+					<Dialog.Description>
+						Cette action ne peut pas être annulée. Cela supprimera
+						définitivement votre compte et supprimera vos données de nos
+						serveurs. Tous vos abonnements actifs seront annulés
+						automatiquement.
+					</Dialog.Description>
+				</Dialog.Header>
+
+				<DeleteAccountForm data={data.deleteAccountForm} />
+			</Dialog.Content>
+		</Dialog.Root>
+	{:else}
+		<p class="text-sm text-muted-foreground">
+			Pour pouvoir supprimer votre compte, vous devez avoir un mot de passe
+			configuré. Vous pouvez configurer votre mot de passe dans les paramètres
+			de sécurité ci-dessus.
+		</p>
+	{/if}
+</div>

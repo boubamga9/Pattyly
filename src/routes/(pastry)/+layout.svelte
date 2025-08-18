@@ -10,12 +10,10 @@
 	import HelpCircle from '~icons/lucide/help-circle';
 	import MenuIcon from '~icons/lucide/menu';
 	import XIcon from '~icons/lucide/x';
-	import ChevronsUpDown from '~icons/lucide/chevrons-up-down';
 
 	import Logo from '$lib/components/Logo.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Drawer from '$lib/components/ui/drawer';
-	import * as Collapsible from '$lib/components/ui/collapsible';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { Separator } from '$lib/components/ui/separator';
 
@@ -204,21 +202,6 @@
 								</Button>
 							</Drawer.Close>
 						</Drawer.Header>
-						<Collapsible.Root>
-							<Collapsible.Trigger asChild let:builder>
-								<div class="p-2">
-									<Button
-										variant="ghost"
-										class="flex w-full flex-nowrap gap-2 text-base"
-										builders={[builder]}
-									>
-										Switch theme
-										<ChevronsUpDown class="size-4" />
-									</Button>
-								</div>
-							</Collapsible.Trigger>
-						</Collapsible.Root>
-						<Separator />
 						<nav class="[&_ul]:flex [&_ul]:flex-col [&_ul]:p-2">
 							<ul>
 								<li>
