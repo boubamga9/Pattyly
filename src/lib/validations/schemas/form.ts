@@ -79,6 +79,28 @@ export const customizationResponseSchema = z.record(
     ])
 );
 
+// ===== 6. SCHÉMAS D'ACTION POUR LES FORMULAIRES PERSONNALISÉS =====
+
+// Action pour activer/désactiver les demandes personnalisées
+export const toggleCustomRequestsSchema = z.object({
+    isCustomAccepted: z.string().transform((val) => val === 'true')
+});
+
+// Action pour mettre à jour le formulaire personnalisé
+export const updateCustomFormSchema = z.object({
+    title: z.string().max(200, 'Le titre ne peut pas dépasser 200 caractères').optional(),
+    description: z.string().max(500, 'La description ne peut pas dépasser 500 caractères').optional(),
+    customFields: z.string().transform((val) => {
+        try {
+            return JSON.parse(val);
+        } catch {
+            throw new Error('Format des champs invalide');
+        }
+    }).refine((val) => Array.isArray(val), {
+        message: 'Les champs doivent être un tableau'
+    })
+});
+
 // ===== TYPES EXPORTÉS =====
 
 export type FieldType = z.infer<typeof fieldTypeSchema>;
@@ -88,3 +110,5 @@ export type ProductForm = z.infer<typeof productFormSchema>;
 export type CustomForm = z.infer<typeof customFormSchema>;
 export type Form = z.infer<typeof formSchema>;
 export type CustomizationResponse = z.infer<typeof customizationResponseSchema>;
+export type ToggleCustomRequests = z.infer<typeof toggleCustomRequestsSchema>;
+export type UpdateCustomForm = z.infer<typeof updateCustomFormSchema>;

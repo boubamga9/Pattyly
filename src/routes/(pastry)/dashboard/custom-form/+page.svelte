@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import { page } from '$app/stores';
 	import { Button } from '$lib/components/ui/button';
 	import {
@@ -11,57 +10,54 @@
 	} from '$lib/components/ui/card';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Switch } from '$lib/components/ui/switch';
-	import { Save, Info } from 'lucide-svelte';
-	import {
-		CustomizationFormBuilder,
-		type CustomizationField,
-	} from '$lib/components/CustomizationFormBuilder';
+
+	import { Info } from 'lucide-svelte';
+	import type { CustomizationField } from '$lib/components/CustomizationFormBuilder';
+	import ToggleForm from './toggle-form.svelte';
+	import UpdateForm from './update-form.svelte';
 
 	// Données de la page
 	$: ({
 		shop,
-		customForm,
+		customForm: _customForm,
 		customFields: initialCustomFields,
-		permissions,
 		needsUpgrade,
+		toggleForm,
+		updateForm,
+		// Compat temporaire
+		form,
 	} = $page.data);
 
 	// Variables pour les champs de personnalisation
 	let customFields: CustomizationField[] = [];
-	let formTitle = '';
-	let formDescription = '';
+
+	// Fonction pour gérer le changement de toggle
+	function handleToggle(newValue: boolean) {
+		console.log('✅ Toggle mis à jour localement:', newValue);
+		// Pas besoin de stocker localement, on laisse Svelte gérer la réactivité
+	}
 
 	// Initialiser les champs de personnalisation
 	$: if (initialCustomFields && initialCustomFields.length > 0) {
-		customFields = initialCustomFields.map((field: any) => ({
-			id: field.id,
-			label: field.label,
-			type: field.type,
-			required: field.required,
-			options: field.options
-				? typeof field.options === 'string'
-					? JSON.parse(field.options)
-					: field.options
-				: [],
-		}));
-	}
-
-	// Initialiser le titre et la description du formulaire
-	$: if (customForm) {
-		formTitle = customForm.title || '';
-		formDescription = customForm.description || '';
-	}
-
-	$: form = $page.form;
-
-	// Messages d'erreur/succès
-	$: errorMessage = form?.error;
-	$: successMessage = form?.message;
-
-	// Gestionnaire pour les changements de champs
-	function handleFieldsChange(event: CustomEvent<CustomizationField[]>) {
-		customFields = event.detail;
+		customFields = initialCustomFields.map(
+			(field: {
+				id: string;
+				label: string;
+				type: string;
+				required: boolean;
+				options: string | Array<{ label: string; price: number }>;
+			}) => ({
+				id: field.id,
+				label: field.label,
+				type: field.type,
+				required: field.required,
+				options: field.options
+					? typeof field.options === 'string'
+						? JSON.parse(field.options)
+						: field.options
+					: [],
+			}),
+		);
 	}
 </script>
 
@@ -247,15 +243,15 @@
 		</Card>
 	{:else}
 		<!-- Messages d'erreur/succès -->
-		{#if errorMessage}
+		{#if form?.error}
 			<Alert variant="destructive">
-				<AlertDescription>{errorMessage}</AlertDescription>
+				<AlertDescription>{form.error}</AlertDescription>
 			</Alert>
 		{/if}
 
-		{#if successMessage}
+		{#if form?.message}
 			<Alert>
-				<AlertDescription>{successMessage}</AlertDescription>
+				<AlertDescription>{form.message}</AlertDescription>
 			</Alert>
 		{/if}
 
@@ -269,130 +265,23 @@
 				</CardDescription>
 			</CardHeader>
 			<CardContent>
-				<form
-					method="POST"
-					action="?/toggleCustomRequests"
-					use:enhance={() => {
-						return async ({ result }) => {
-							if (result.type === 'success') {
-								// Recharger la page pour mettre à jour l'état
-								window.location.reload();
-							}
-						};
-					}}
-					class="flex items-center justify-between"
-				>
-					<div class="space-y-1">
-						<p class="text-sm font-medium">
-							Accepter les demandes personnalisées
-						</p>
-						<p class="text-sm text-muted-foreground">
-							Permettre aux clients de vous contacter pour des demandes
-							spéciales
-						</p>
+				{#if shop}
+					<ToggleForm
+						data={toggleForm}
+						isCustomAccepted={shop.is_custom_accepted}
+						onToggle={handleToggle}
+					/>
+				{:else}
+					<div class="py-4 text-center text-muted-foreground">
+						Chargement...
 					</div>
-					<div class="flex items-center space-x-2">
-						<input
-							type="hidden"
-							name="isCustomAccepted"
-							value={!shop.is_custom_accepted}
-						/>
-						<Button
-							type="submit"
-							variant={shop.is_custom_accepted ? 'outline' : 'default'}
-						>
-							{shop.is_custom_accepted ? 'Désactiver' : 'Activer'}
-						</Button>
-					</div>
-				</form>
+				{/if}
 			</CardContent>
 		</Card>
 
 		<!-- Section Formulaire Personnalisé -->
-		{#if shop.is_custom_accepted}
-			<form
-				method="POST"
-				action="?/updateCustomForm"
-				use:enhance={() => {
-					return async ({ formData, result }) => {
-						// Ajouter les champs de personnalisation
-						formData.append('customFields', JSON.stringify(customFields));
-
-						if (result.type === 'success') {
-							// Recharger la page pour mettre à jour les données
-							window.location.reload();
-						}
-					};
-				}}
-			>
-				<!-- Champ caché pour les données -->
-				<input
-					type="hidden"
-					name="customFields"
-					value={JSON.stringify(customFields)}
-				/>
-
-				<!-- Section Titre et Description -->
-				<Card class="mb-6">
-					<CardHeader>
-						<CardTitle>Informations du Formulaire</CardTitle>
-						<CardDescription>
-							Personnalisez le titre et la description affichés à vos clients
-						</CardDescription>
-					</CardHeader>
-					<CardContent class="space-y-4">
-						<div class="space-y-2">
-							<label for="title" class="text-sm font-medium">
-								Titre du formulaire (optionnel)
-							</label>
-							<input
-								id="title"
-								name="title"
-								type="text"
-								bind:value={formTitle}
-								placeholder="Ex: Votre Gâteau Sur Mesure"
-								class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-							/>
-							<p class="text-xs text-muted-foreground">
-								Si laissé vide, un titre par défaut sera affiché
-							</p>
-						</div>
-						<div class="space-y-2">
-							<label for="description" class="text-sm font-medium">
-								Description du formulaire (optionnel)
-							</label>
-							<textarea
-								id="description"
-								name="description"
-								bind:value={formDescription}
-								placeholder="Ex: Décrivez votre gâteau idéal et nous vous proposerons une estimation personnalisée"
-								rows={3}
-								class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-							/>
-							<p class="text-xs text-muted-foreground">
-								Si laissée vide, une description par défaut sera affichée
-							</p>
-						</div>
-					</CardContent>
-				</Card>
-
-				<CustomizationFormBuilder
-					fields={customFields}
-					title="Configuration du Formulaire"
-					description="Personnalisez les champs que vos clients devront remplir pour leurs demandes spéciales"
-					containerClass="custom-fields-container"
-					isCustomForm={true}
-					on:fieldsChange={handleFieldsChange}
-				/>
-
-				<!-- Boutons d'action -->
-				<div class="flex gap-4 pt-6">
-					<Button type="submit" class="flex-1">
-						<Save class="mr-2 h-4 w-4" />
-						Sauvegarder le Formulaire
-					</Button>
-				</div>
-			</form>
+		{#if shop?.is_custom_accepted}
+			<UpdateForm data={updateForm} {customFields} />
 		{:else}
 			<!-- Message quand les demandes sont désactivées -->
 			<Card>

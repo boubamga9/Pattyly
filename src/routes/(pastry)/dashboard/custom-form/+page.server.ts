@@ -1,46 +1,60 @@
-import { error, fail } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
+import { superValidate } from 'sveltekit-superforms';
+import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad, Actions } from './$types';
-import { getShopId } from '$lib/permissions';
+import { getUserPermissions } from '$lib/permissions';
+import { toggleCustomRequestsFormSchema, updateCustomFormFormSchema } from './schema';
 
-export const load: PageServerLoad = async ({ locals, parent }) => {
-    const { userId, permissions } = await parent();
+export const load: PageServerLoad = async ({ locals }) => {
+    const { data: { user } } = await locals.supabase.auth.getUser();
+
+    if (!user) {
+        throw error(401, 'Non autorisé');
+    }
+
+    // Vérifier les permissions
+    const permissions = await getUserPermissions(user.id, locals.supabase);
+
+    if (!permissions.canAccessDashboard) {
+        throw error(403, 'Accès refusé');
+    }
 
     // Debug: Afficher les permissions pour comprendre le problème
     console.log('🔧 Debug permissions:', {
-        userId,
+        userId: user.id,
         plan: permissions.plan,
         canManageCustomForms: permissions.canManageCustomForms,
         canHandleCustomRequests: permissions.canHandleCustomRequests,
         allPermissions: permissions
     });
 
-    // Vérifier si l'utilisateur peut gérer les formulaires personnalisés
+    // Préparer un formulaire de toggle par défaut (toujours présent)
+    const toggleForm = await superValidate(zod(toggleCustomRequestsFormSchema));
+
+    // Si l'utilisateur ne peut pas gérer, on retourne la page d'upgrade avec le toggleForm
     if (!permissions.canManageCustomForms) {
-        console.log('❌ Accès refusé - canManageCustomForms:', permissions.canManageCustomForms);
-        console.log('🔍 Plan actuel:', permissions.plan);
-        console.log('🔍 Permissions complètes:', permissions);
-        // Au lieu d'une erreur 403, on retourne les données pour afficher la page d'upgrade
         return {
             shop: null,
             customForm: null,
             customFields: [],
             permissions,
-            needsUpgrade: true
+            needsUpgrade: true,
+            toggleForm,
+            // Compat temporaire
+            form: toggleForm
         };
     }
 
     // Get shop_id for this user
-    const shopId = await getShopId(userId, locals.supabase);
-
-    if (!shopId) {
-        throw error(500, 'Erreur lors du chargement de la boutique');
+    if (!permissions.shopId) {
+        throw error(400, 'Boutique non trouvée');
     }
 
     // Récupérer les informations de la boutique
     const { data: shop, error: shopError } = await locals.supabase
         .from('shops')
         .select('id, is_custom_accepted')
-        .eq('id', shopId)
+        .eq('id', permissions.shopId)
         .single();
 
     if (shopError) {
@@ -52,7 +66,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
     const { data: customForm, error: formError } = await locals.supabase
         .from('forms')
         .select('id, is_custom_form, title, description')
-        .eq('shop_id', shopId)
+        .eq('shop_id', permissions.shopId)
         .eq('is_custom_form', true)
         .single();
 
@@ -78,92 +92,135 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
         customFields = formFields || [];
     }
 
+    // Formulaire de mise à jour: pré-remplir avec title/description et champs
+    const updateForm = await superValidate(zod(updateCustomFormFormSchema), {
+        defaults: {
+            title: customForm?.title ?? '',
+            description: customForm?.description ?? '',
+            // Defaults doivent correspondre au type de sortie (array)
+            customFields: customFields ?? []
+        }
+    });
+
     return {
         shop,
         customForm,
         customFields,
         permissions,
-        needsUpgrade: false
+        needsUpgrade: false,
+        toggleForm,
+        updateForm,
+        // Compat temporaire pour l'UI actuelle (utilise encore `form`)
+        form: toggleForm
     };
 };
 
 export const actions: Actions = {
     toggleCustomRequests: async ({ request, locals }) => {
-        const { session } = await locals.safeGetSession();
-        const userId = session?.user.id;
+        const { data: { user } } = await locals.supabase.auth.getUser();
+        const userId = user?.id;
 
         if (!userId) {
-            return fail(401, { error: 'Non autorisé' });
+            throw error(401, 'Non autorisé');
+        }
+
+        // Vérifier les permissions
+        const permissions = await getUserPermissions(userId, locals.supabase);
+
+        if (!permissions.canAccessDashboard) {
+            throw error(403, 'Accès refusé');
+        }
+
+        if (!permissions.canManageCustomForms) {
+            throw error(403, 'Accès refusé - canManageCustomForms');
         }
 
         // Get shop_id for this user
-        const shopId = await getShopId(userId, locals.supabase);
-
-        if (!shopId) {
-            return fail(500, { error: 'Boutique non trouvée' });
+        if (!permissions.shopId) {
+            throw error(400, 'Boutique non trouvée');
         }
 
-        const formData = await request.formData();
-        const isCustomAccepted = formData.get('isCustomAccepted') === 'true';
+        const toggleFormData = await superValidate(request, zod(toggleCustomRequestsFormSchema));
+
+        if (!toggleFormData.valid) {
+            return { toggleForm: toggleFormData, form: toggleFormData };
+        }
+
+        const isCustomAccepted = toggleFormData.data.isCustomAccepted;
 
         try {
             const { error: updateError } = await locals.supabase
                 .from('shops')
                 .update({ is_custom_accepted: isCustomAccepted })
-                .eq('id', shopId);
+                .eq('id', permissions.shopId);
 
             if (updateError) {
                 console.error('Error updating shop:', updateError);
-                return fail(500, {
-                    error: 'Erreur lors de la mise à jour des paramètres'
-                });
+                const toggleForm = await superValidate(zod(toggleCustomRequestsFormSchema));
+                toggleForm.message = 'Erreur lors de la mise à jour des paramètres';
+                return { toggleForm, form: toggleForm };
             }
 
-            return {
-                message: isCustomAccepted
-                    ? 'Demandes personnalisées activées'
-                    : 'Demandes personnalisées désactivées'
-            };
+            // Retourner le formulaire pour Superforms
+            const toggleForm = await superValidate(zod(toggleCustomRequestsFormSchema));
+            toggleForm.message = isCustomAccepted
+                ? 'Demandes personnalisées activées'
+                : 'Demandes personnalisées désactivées';
+            return { toggleForm, form: toggleForm };
         } catch (err) {
             console.error('Unexpected error:', err);
-            return fail(500, {
-                error: 'Erreur inattendue lors de la mise à jour'
-            });
+            const toggleForm = await superValidate(zod(toggleCustomRequestsFormSchema));
+            toggleForm.message = 'Erreur inattendue lors de la mise à jour';
+            return { toggleForm, form: toggleForm };
         }
     },
 
     updateCustomForm: async ({ request, locals }) => {
-        const { session } = await locals.safeGetSession();
-        const userId = session?.user.id;
+        const { data: { user } } = await locals.supabase.auth.getUser();
+        const userId = user?.id;
 
         if (!userId) {
-            return fail(401, { error: 'Non autorisé' });
+            throw error(401, 'Non autorisé');
+        }
+
+        // Vérifier les permissions
+        const permissions = await getUserPermissions(userId, locals.supabase);
+
+        if (!permissions.canAccessDashboard) {
+            throw error(403, 'Accès refusé');
+        }
+
+        if (!permissions.canManageCustomForms) {
+            throw error(403, 'Accès refusé - canManageCustomForms');
         }
 
         // Get shop_id for this user
-        const shopId = await getShopId(userId, locals.supabase);
-
-        if (!shopId) {
-            return fail(500, { error: 'Boutique non trouvée' });
+        if (!permissions.shopId) {
+            throw error(400, 'Boutique non trouvée');
         }
 
-        const formData = await request.formData();
-        const customFieldsJson = formData.get('customFields') as string;
-        const title = formData.get('title') as string;
-        const description = formData.get('description') as string;
+        const updateFormData = await superValidate(request, zod(updateCustomFormFormSchema));
 
-        if (!customFieldsJson) {
-            return fail(400, { error: 'Données du formulaire manquantes' });
+        if (!updateFormData.valid) {
+            return { updateForm: updateFormData, form: updateFormData };
+        }
+
+        const customFields = updateFormData.data.customFields;
+        const title = updateFormData.data.title;
+        const description = updateFormData.data.description;
+
+        if (!customFields || !Array.isArray(customFields)) {
+            const updateForm = await superValidate(zod(updateCustomFormFormSchema));
+            updateForm.message = 'Données du formulaire manquantes';
+            return { updateForm, form: updateForm };
         }
 
         try {
-            const customFields = JSON.parse(customFieldsJson);
-
             // Récupérer le formulaire personnalisé existant ou en créer un nouveau
             const { data: existingForm, error: formCheckError } = await locals.supabase
                 .from('forms')
                 .select('id')
-                .eq('shop_id', shopId)
+                .eq('shop_id', permissions.shopId)
                 .eq('is_custom_form', true)
                 .single();
 
@@ -174,7 +231,7 @@ export const actions: Actions = {
                 const { data: newForm, error: createError } = await locals.supabase
                     .from('forms')
                     .insert({
-                        shop_id: shopId,
+                        shop_id: permissions.shopId,
                         is_custom_form: true,
                         title: title || null,
                         description: description || null
@@ -184,9 +241,9 @@ export const actions: Actions = {
 
                 if (createError) {
                     console.error('Error creating form:', createError);
-                    return fail(500, {
-                        error: 'Erreur lors de la création du formulaire'
-                    });
+                    const updateForm = await superValidate(zod(updateCustomFormFormSchema));
+                    updateForm.message = 'Erreur lors de la création du formulaire';
+                    return { updateForm, form: updateForm };
                 }
 
                 formId = newForm.id;
@@ -204,10 +261,14 @@ export const actions: Actions = {
 
                 if (updateFormError) {
                     console.error('Error updating form title/description:', updateFormError);
-                    return fail(500, { error: 'Erreur lors de la mise à jour du formulaire' });
+                    const updateForm = await superValidate(zod(updateCustomFormFormSchema));
+                    updateForm.message = 'Erreur lors de la mise à jour du formulaire';
+                    return { updateForm, form: updateForm };
                 }
             } else {
-                return fail(500, { error: 'Erreur lors de la récupération du formulaire' });
+                const updateForm = await superValidate(zod(updateCustomFormFormSchema));
+                updateForm.message = 'Erreur lors de la récupération du formulaire';
+                return { updateForm, form: updateForm };
             }
 
             // Supprimer les anciens champs
@@ -233,18 +294,21 @@ export const actions: Actions = {
 
                 if (fieldsError) {
                     console.error('Error updating form fields:', fieldsError);
-                    return fail(500, {
-                        error: 'Erreur lors de la mise à jour des champs'
-                    });
+                    const updateForm = await superValidate(zod(updateCustomFormFormSchema));
+                    updateForm.message = 'Erreur lors de la mise à jour des champs';
+                    return { updateForm, form: updateForm };
                 }
             }
 
-            return { message: 'Formulaire personnalisé mis à jour avec succès' };
+            // Retourner le formulaire pour Superforms
+            const updateForm = await superValidate(zod(updateCustomFormFormSchema));
+            updateForm.message = 'Formulaire personnalisé mis à jour avec succès';
+            return { updateForm, form: updateForm };
         } catch (parseError) {
             console.error('Error parsing custom fields:', parseError);
-            return fail(400, {
-                error: 'Erreur lors du traitement des données du formulaire'
-            });
+            const updateForm = await superValidate(zod(updateCustomFormFormSchema));
+            updateForm.message = 'Erreur lors du traitement des données du formulaire';
+            return { updateForm, form: updateForm };
         }
     }
 };
