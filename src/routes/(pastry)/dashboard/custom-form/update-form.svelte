@@ -18,28 +18,61 @@
 
 	export let data: SuperValidated<Infer<UpdateCustomFormForm>>;
 	export let customFields: CustomizationField[];
+	export let onSuccess: () => void = () => {}; // Callback pour notifier le succès
+
+	console.log('🔧 UpdateForm initialisé avec data:', data);
+	console.log('🔧 customFields:', customFields);
 
 	const form = superForm(data, {
 		validators: zodClient(updateCustomFormFormSchema),
+		dataType: 'json', // Permet d'envoyer des structures de données imbriquées
+		onSubmit: ({ formData, cancel: _cancel }) => {
+			console.log('📤 Soumission du formulaire update commencée');
+			console.log('📤 FormData:', Object.fromEntries(formData.entries()));
+		},
+		onResult: ({ result }) => {
+			console.log('📥 Résultat reçu:', result);
+		},
+		onUpdated: ({ form }) => {
+			console.log('🔄 Formulaire mis à jour:', form);
+		},
+		onError: ({ result }) => {
+			console.error('❌ Erreur du formulaire:', result);
+		},
 	});
 
 	const { form: formData, enhance, submitting, message } = form;
 
 	$: if ($message) {
-		console.log('✅ Formulaire mis à jour -> rechargement de la page');
-		window.location.reload();
+		console.log('✅ Message reçu:', $message);
+		// Pas de rechargement de page, juste notifier le succès
+		onSuccess();
 	}
+
+	// Log des changements d'état
+	$: console.log('🔄 $submitting:', $submitting);
+	$: console.log('🔄 $formData:', $formData);
 
 	// Gestionnaire pour les changements de champs
 	function handleFieldsChange(event: CustomEvent<CustomizationField[]>) {
+		console.log('🔄 Champs personnalisés mis à jour:', event.detail);
 		customFields = event.detail;
+		// Synchroniser avec le formulaire Superforms
+		$formData.customFields = event.detail;
+	}
+
+	// Synchroniser customFields avec le formulaire au chargement
+	$: if (customFields && customFields.length > 0) {
+		$formData.customFields = customFields;
 	}
 
 	// Initialiser les valeurs par défaut si elles sont undefined
 	$: if ($formData.title === undefined) {
+		console.log('🔧 Initialisation title par défaut');
 		$formData.title = '';
 	}
 	$: if ($formData.description === undefined) {
+		console.log('🔧 Initialisation description par défaut');
 		$formData.description = '';
 	}
 </script>
@@ -47,12 +80,8 @@
 <form method="POST" action="?/updateCustomForm" use:enhance>
 	<Form.Errors {form} />
 
-	<!-- Champ caché pour les données -->
-	<input
-		type="hidden"
-		name="customFields"
-		value={JSON.stringify(customFields)}
-	/>
+	<!-- Les données customFields seront envoyées automatiquement par Superforms -->
+	<!-- grâce à dataType: 'json' et la liaison avec $formData.customFields -->
 
 	<!-- Section Titre et Description -->
 	<div class="mb-6 space-y-4">

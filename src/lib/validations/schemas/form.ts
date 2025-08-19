@@ -90,15 +90,18 @@ export const toggleCustomRequestsSchema = z.object({
 export const updateCustomFormSchema = z.object({
     title: z.string().max(200, 'Le titre ne peut pas dépasser 200 caractères').optional(),
     description: z.string().max(500, 'La description ne peut pas dépasser 500 caractères').optional(),
-    customFields: z.string().transform((val) => {
-        try {
-            return JSON.parse(val);
-        } catch {
-            throw new Error('Format des champs invalide');
-        }
-    }).refine((val) => Array.isArray(val), {
-        message: 'Les champs doivent être un tableau'
-    })
+    customFields:
+        // Accepter directement un array
+        z.array(z.object({
+            id: z.string().optional(),
+            label: z.string().min(1, 'Le libellé est requis').max(100, 'Max 100 caractères'),
+            type: z.enum(['short-text', 'long-text', 'number', 'single-select', 'multi-select']),
+            required: z.boolean().default(false),
+            options: z.array(z.object({
+                label: z.string().min(1, 'Le libellé est requis').max(50, 'Max 50 caractères'),
+                price: z.number().min(0, 'Le prix doit être positif').optional()
+            })).optional().default([])
+        }))
 });
 
 // ===== TYPES EXPORTÉS =====

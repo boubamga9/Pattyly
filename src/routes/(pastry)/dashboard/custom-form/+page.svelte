@@ -37,6 +37,12 @@
 		// Pas besoin de stocker localement, on laisse Svelte gérer la réactivité
 	}
 
+	// Fonction pour gérer le succès du formulaire de mise à jour
+	function handleUpdateSuccess() {
+		console.log('✅ Formulaire personnalisé mis à jour avec succès !');
+		// Optionnel : afficher une notification ou mettre à jour l'interface
+	}
+
 	// Initialiser les champs de personnalisation
 	$: if (initialCustomFields && initialCustomFields.length > 0) {
 		customFields = initialCustomFields.map(
@@ -281,7 +287,11 @@
 
 		<!-- Section Formulaire Personnalisé -->
 		{#if shop?.is_custom_accepted}
-			<UpdateForm data={updateForm} {customFields} />
+			<UpdateForm
+				data={updateForm}
+				{customFields}
+				onSuccess={handleUpdateSuccess}
+			/>
 		{:else}
 			<!-- Message quand les demandes sont désactivées -->
 			<Card>
