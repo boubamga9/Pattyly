@@ -11,14 +11,17 @@
 		type SuperValidated,
 	} from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
-	import LoaderCircle from '~icons/lucide/loader-circle';
-	import { Upload, X, Copy, CheckCircle } from 'lucide-svelte';
+
+	import { Upload, X, Copy, CheckCircle, LoaderCircle } from 'lucide-svelte';
 	import { formSchema, type FormSchema } from './schema';
-	import { createEventDispatcher } from 'svelte';
-	import { tick } from 'svelte';
+	import { createEventDispatcher, tick } from 'svelte';
+	import {
+		compressLogo,
+		formatCompressionInfo,
+	} from '$lib/utils/image-compression';
 
 	export let data: SuperValidated<Infer<FormSchema>>;
-	const dispatch = createEventDispatcher();
+	const _dispatch = createEventDispatcher();
 
 	const form = superForm(data, {
 		validators: zodClient(formSchema),
@@ -26,35 +29,69 @@
 
 	const { form: formData, enhance, submitting } = form;
 
-	let logoFile: File | null = null;
+	let _logoFile: File | null = null;
 	let logoPreview: string | null = $formData.logo_url || null;
 	let copySuccess = false;
+	let logoInputElement: HTMLInputElement;
 	let submitted = false;
+	let compressionInfo: string | null = null;
+	let isCompressing = false;
 
-	// Handle file selection
-	function handleFileSelect(event: Event) {
+	// Handle file selection with compression
+	async function handleFileSelect(event: Event) {
 		const target = event.target as HTMLInputElement;
 		const file = target.files?.[0];
 
-		if (file) {
-			if (!file.type.startsWith('image/')) return;
-			if (file.size > 1 * 1024 * 1024) return;
+		if (!file) return;
 
-			logoFile = file;
-			$formData.logo = file;
+		try {
+			isCompressing = true;
+			compressionInfo = null;
 
+			// Validate file type
+			if (!file.type.startsWith('image/')) {
+				console.error('Veuillez sélectionner une image');
+				return;
+			}
+
+			// Validate file size before compression (max 5MB pour éviter les abus)
+			if (file.size > 5 * 1024 * 1024) {
+				console.error("L'image ne doit pas dépasser 5MB");
+				return;
+			}
+
+			// Compresser et redimensionner le logo
+			const compressionResult = await compressLogo(file);
+
+			// Utiliser l'image compressée
+			_logoFile = compressionResult.file;
+			$formData.logo = compressionResult.file;
+			compressionInfo = formatCompressionInfo(compressionResult);
+
+			// 🔄 Synchroniser l'input file avec l'image compressée
+			// Créer un nouveau FileList avec l'image compressée
+			const dataTransfer = new DataTransfer();
+			dataTransfer.items.add(compressionResult.file);
+			logoInputElement.files = dataTransfer.files;
+
+			// Create preview
 			const reader = new FileReader();
 			reader.onload = (e) => {
 				logoPreview = e.target?.result as string;
 			};
-			reader.readAsDataURL(file);
+			reader.readAsDataURL(compressionResult.file);
+		} catch (error) {
+			console.error('Erreur lors de la compression:', error);
+		} finally {
+			isCompressing = false;
 		}
 	}
 
 	function removeLogo() {
-		logoFile = null;
+		_logoFile = null;
 		logoPreview = null;
 		$formData.logo = undefined;
+		compressionInfo = null;
 	}
 
 	async function copyShopUrl() {
@@ -130,137 +167,138 @@
 			on:change={handleFileSelect}
 			class="hidden"
 			disabled={$submitting}
+			bind:this={logoInputElement}
 		/>
 		<input type="hidden" name="logo_url" value={logoPreview || ''} />
-	</div>
 
-	<Form.Field {form} name="name">
-		<Form.Control let:attrs>
-			<Form.Label>Nom de la boutique</Form.Label>
-			<Input
-				{...attrs}
-				type="text"
-				placeholder="Ma Pâtisserie"
-				required
-				bind:value={$formData.name}
-			/>
-		</Form.Control>
-		<Form.FieldErrors />
-	</Form.Field>
-
-	<Form.Field {form} name="slug">
-		<Form.Control let:attrs>
-			<Form.Label>URL de la boutique</Form.Label>
-			<div class="flex items-center space-x-2">
-				<span class="text-sm text-muted-foreground">pattyly.com/</span>
+		<Form.Field {form} name="name">
+			<Form.Control let:attrs>
+				<Form.Label>Nom de la boutique</Form.Label>
 				<Input
 					{...attrs}
 					type="text"
-					placeholder="ma-patisserie"
+					placeholder="Ma Pâtisserie"
 					required
-					bind:value={$formData.slug}
-					class="flex-1"
-				/>
-				<Button
-					type="button"
-					size="sm"
-					on:click={copyShopUrl}
-					title="Copier l'URL complète"
-					disabled={!$formData.slug}
-					class={copySuccess
-						? 'border-green-300 bg-green-100 text-green-700 hover:border-green-400 hover:bg-green-200'
-						: 'border border-input bg-background text-black hover:bg-accent hover:text-accent-foreground'}
-				>
-					{#if copySuccess}
-						<CheckCircle class="mr-2 h-4 w-4" />
-						Copiée
-					{:else}
-						<Copy class="mr-2 h-4 w-4" />
-						Copier
-					{/if}
-				</Button>
-			</div>
-		</Form.Control>
-		<Form.FieldErrors />
-		<Form.Description>L'URL de votre boutique publique</Form.Description>
-	</Form.Field>
-
-	<Form.Field {form} name="bio">
-		<Form.Control let:attrs>
-			<Form.Label>Description (optionnel)</Form.Label>
-			<Textarea
-				{...attrs}
-				placeholder="Décrivez votre boutique, vos spécialités..."
-				rows={4}
-				bind:value={$formData.bio}
-			/>
-		</Form.Control>
-		<Form.FieldErrors />
-	</Form.Field>
-
-	<Separator />
-
-	<div class="space-y-4">
-		<h4 class="text-lg font-medium text-foreground">Réseaux sociaux</h4>
-
-		<Form.Field {form} name="instagram">
-			<Form.Control let:attrs>
-				<Form.Label>Instagram (optionnel)</Form.Label>
-				<Input
-					{...attrs}
-					placeholder="@votre_compte"
-					bind:value={$formData.instagram}
+					bind:value={$formData.name}
 				/>
 			</Form.Control>
 			<Form.FieldErrors />
 		</Form.Field>
 
-		<Form.Field {form} name="tiktok">
+		<Form.Field {form} name="slug">
 			<Form.Control let:attrs>
-				<Form.Label>TikTok (optionnel)</Form.Label>
-				<Input
+				<Form.Label>URL de la boutique</Form.Label>
+				<div class="flex items-center space-x-2">
+					<span class="text-sm text-muted-foreground">pattyly.com/</span>
+					<Input
+						{...attrs}
+						type="text"
+						placeholder="ma-patisserie"
+						required
+						bind:value={$formData.slug}
+						class="flex-1"
+					/>
+					<Button
+						type="button"
+						size="sm"
+						on:click={copyShopUrl}
+						title="Copier l'URL complète"
+						disabled={!$formData.slug}
+						class={copySuccess
+							? 'border-green-300 bg-green-100 text-green-700 hover:border-green-400 hover:bg-green-200'
+							: 'border border-input bg-background text-black hover:bg-accent hover:text-accent-foreground'}
+					>
+						{#if copySuccess}
+							<CheckCircle class="mr-2 h-4 w-4" />
+							Copiée
+						{:else}
+							<Copy class="mr-2 h-4 w-4" />
+							Copier
+						{/if}
+					</Button>
+				</div>
+			</Form.Control>
+			<Form.FieldErrors />
+			<Form.Description>L'URL de votre boutique publique</Form.Description>
+		</Form.Field>
+
+		<Form.Field {form} name="bio">
+			<Form.Control let:attrs>
+				<Form.Label>Description (optionnel)</Form.Label>
+				<Textarea
 					{...attrs}
-					placeholder="@votre_compte"
-					bind:value={$formData.tiktok}
+					placeholder="Décrivez votre boutique, vos spécialités..."
+					rows={4}
+					bind:value={$formData.bio}
 				/>
 			</Form.Control>
 			<Form.FieldErrors />
 		</Form.Field>
 
-		<Form.Field {form} name="website">
-			<Form.Control let:attrs>
-				<Form.Label>Site internet (optionnel)</Form.Label>
-				<Input
-					{...attrs}
-					placeholder="https://votre-site.com"
-					type="url"
-					bind:value={$formData.website}
-				/>
-			</Form.Control>
-			<Form.FieldErrors />
-		</Form.Field>
+		<Separator />
+
+		<div class="space-y-4">
+			<h4 class="text-lg font-medium text-foreground">Réseaux sociaux</h4>
+
+			<Form.Field {form} name="instagram">
+				<Form.Control let:attrs>
+					<Form.Label>Instagram (optionnel)</Form.Label>
+					<Input
+						{...attrs}
+						placeholder="@votre_compte"
+						bind:value={$formData.instagram}
+					/>
+				</Form.Control>
+				<Form.FieldErrors />
+			</Form.Field>
+
+			<Form.Field {form} name="tiktok">
+				<Form.Control let:attrs>
+					<Form.Label>TikTok (optionnel)</Form.Label>
+					<Input
+						{...attrs}
+						placeholder="@votre_compte"
+						bind:value={$formData.tiktok}
+					/>
+				</Form.Control>
+				<Form.FieldErrors />
+			</Form.Field>
+
+			<Form.Field {form} name="website">
+				<Form.Control let:attrs>
+					<Form.Label>Site internet (optionnel)</Form.Label>
+					<Input
+						{...attrs}
+						placeholder="https://votre-site.com"
+						type="url"
+						bind:value={$formData.website}
+					/>
+				</Form.Control>
+				<Form.FieldErrors />
+			</Form.Field>
+		</div>
+
+		<!-- Bouton de soumission -->
+		<Button
+			type="submit"
+			disabled={$submitting}
+			class={`w-full ${
+				$submitting
+					? 'bg-gray-300'
+					: submitted
+						? 'bg-green-700 hover:bg-green-800'
+						: 'bg-primary'
+			}`}
+		>
+			{#if $submitting}
+				<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+				Mise à jour...
+			{:else if submitted}
+				<CheckCircle class="mr-2 h-4 w-4" />
+				Mis à jour
+			{:else}
+				Mettre à jour la boutique
+			{/if}
+		</Button>
 	</div>
-
-	<!-- Bouton de soumission -->
-	<Button
-		type="submit"
-		disabled={$submitting}
-		class={`w-full ${
-			$submitting
-				? 'bg-gray-300'
-				: submitted
-					? 'bg-green-700 hover:bg-green-800'
-					: 'bg-primary'
-		}`}
-	>
-		{#if $submitting}
-			<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-			Mise à jour...
-		{:else if submitted}
-			<CheckCircle class="mr-2 h-4 w-4" />
-			Mis à jour
-		{:else}
-			Mettre à jour la boutique
-		{/if}
-	</Button>
 </form>

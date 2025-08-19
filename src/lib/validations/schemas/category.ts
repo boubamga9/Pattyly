@@ -30,8 +30,14 @@ export const updateCategorySchema = categorySchema.pick({
     name: true
 });
 
+// Suppression d'une catégorie
+export const deleteCategorySchema = categorySchema.pick({
+    id: true
+});
+
 // ===== TYPES EXPORTÉS =====
 
 export type Category = z.infer<typeof categorySchema>;
 export type CreateCategory = z.infer<typeof createCategorySchema>;
 export type UpdateCategory = z.infer<typeof updateCategorySchema>;
+export type DeleteCategory = z.infer<typeof deleteCategorySchema>;

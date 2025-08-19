@@ -55,6 +55,7 @@
 		"formsnap": "^1.0.0",
 		"lucide-svelte": "^0.379.0",
 		"mode-watcher": "^0.3.0",
+		"sharp": "^0.34.3",
 		"sortablejs": "^1.15.6",
 		"stripe": "^15.8.0",
 		"sveltekit-superforms": "^2.13.1",

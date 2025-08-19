@@ -14,6 +14,10 @@
 	import { Upload, X } from 'lucide-svelte';
 	import { formSchema, type FormSchema } from './schema';
 	import { createEventDispatcher } from 'svelte';
+	import {
+		compressLogo,
+		formatCompressionInfo,
+	} from '$lib/utils/image-compression';
 
 	export let data: SuperValidated<Infer<FormSchema>>;
 	const dispatch = createEventDispatcher();
@@ -26,34 +30,57 @@
 
 	let logoFile: File | null = null;
 	let logoPreview: string | null = null;
+	let compressionInfo: string | null = null;
+	let isCompressing = false;
+	let logoInputElement: HTMLInputElement;
 
-	// Handle file selection
-	function handleFileSelect(event: Event) {
+	// Handle file selection with compression
+	async function handleFileSelect(event: Event) {
 		const target = event.target as HTMLInputElement;
 		const file = target.files?.[0];
 
-		if (file) {
+		if (!file) return;
+
+		try {
+			isCompressing = true;
+			compressionInfo = null;
+
 			// Validate file type
 			if (!file.type.startsWith('image/')) {
-				// Handle error through form
+				console.error('Veuillez sélectionner une image');
 				return;
 			}
 
-			// Validate file size (1MB)
-			if (file.size > 1 * 1024 * 1024) {
-				// Handle error through form
+			// Validate file size before compression (max 5MB pour éviter les abus)
+			if (file.size > 5 * 1024 * 1024) {
+				console.error("L'image ne doit pas dépasser 5MB");
 				return;
 			}
 
-			logoFile = file;
-			$formData.logo = file;
+			// Compresser et redimensionner le logo
+			const compressionResult = await compressLogo(file);
+
+			// Utiliser l'image compressée
+			logoFile = compressionResult.file;
+			$formData.logo = compressionResult.file;
+			compressionInfo = formatCompressionInfo(compressionResult);
+
+			// 🔄 Synchroniser l'input file avec l'image compressée
+			// Créer un nouveau FileList avec l'image compressée
+			const dataTransfer = new DataTransfer();
+			dataTransfer.items.add(compressionResult.file);
+			logoInputElement.files = dataTransfer.files;
 
 			// Create preview
 			const reader = new FileReader();
 			reader.onload = (e) => {
 				logoPreview = e.target?.result as string;
 			};
-			reader.readAsDataURL(file);
+			reader.readAsDataURL(compressionResult.file);
+		} catch (error) {
+			console.error('Erreur lors de la compression:', error);
+		} finally {
+			isCompressing = false;
 		}
 	}
 
@@ -62,6 +89,7 @@
 		logoFile = null;
 		logoPreview = null;
 		$formData.logo = undefined;
+		compressionInfo = null;
 	}
 </script>
 
@@ -118,7 +146,31 @@
 			on:change={handleFileSelect}
 			class="hidden"
 			disabled={$submitting}
+			bind:this={logoInputElement}
 		/>
+
+		{#if isCompressing}
+			<div class="mt-2 flex items-center gap-2 text-sm text-blue-600">
+				<div
+					class="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"
+				></div>
+				Compression du logo en cours...
+			</div>
+		{:else if compressionInfo}
+			<div class="mt-2 rounded-md bg-green-50 p-3 text-sm">
+				<p class="mb-1 font-medium text-green-800">
+					✅ Logo optimisé avec succès !
+				</p>
+				<div class="whitespace-pre-line text-xs text-green-700">
+					{compressionInfo}
+				</div>
+			</div>
+		{:else}
+			<p class="mt-1 text-sm text-muted-foreground">
+				Format JPG, PNG. Le logo sera automatiquement redimensionné à 400x400px
+				et optimisé.
+			</p>
+		{/if}
 	</div>
 
 	<Form.Field {form} name="name">

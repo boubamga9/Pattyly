@@ -67,25 +67,34 @@ export async function deleteShopLogo(
     if (!logoUrl) return;
 
     try {
-        // Extraire le nom du fichier de l'URL
+        // Extraire le chemin complet du fichier depuis l'URL Supabase
+        // Format: http://localhost:54321/storage/v1/object/public/shop-logos/userId/filename
         const urlParts = logoUrl.split('/');
-        const fileName = urlParts[urlParts.length - 1];
+        const storageIndex = urlParts.findIndex(part => part === 'shop-logos');
 
-        if (!fileName) {
-            console.warn('Impossible d\'extraire le nom du fichier du logo:', logoUrl);
+        if (storageIndex === -1) {
+            console.warn('URL Supabase invalide pour le logo:', logoUrl);
             return;
         }
 
-        console.log(`Suppression du logo de la boutique: ${fileName}`);
+        // Construire le chemin: userId/filename
+        const filePath = urlParts.slice(storageIndex + 1).join('/');
+
+        if (!filePath) {
+            console.warn('Impossible d\'extraire le chemin du fichier du logo:', logoUrl);
+            return;
+        }
+
+        console.log(`Suppression du logo de la boutique: ${filePath}`);
 
         const { error: deleteError } = await supabase.storage
             .from('shop-logos')
-            .remove([fileName]);
+            .remove([filePath]);
 
         if (deleteError) {
             console.error('Erreur lors de la suppression du logo:', deleteError);
         } else {
-            console.log(`Logo supprimé avec succès: ${fileName}`);
+            console.log(`Logo supprimé avec succès: ${filePath}`);
         }
     } catch (error) {
         console.error('Erreur lors de la suppression du logo:', error);

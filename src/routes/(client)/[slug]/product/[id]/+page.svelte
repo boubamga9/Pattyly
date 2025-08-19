@@ -96,9 +96,15 @@
 		selectedOptions = { ...selectedOptions }; // Trigger reactivity
 	}
 
-	// Fonction pour retourner à la boutique
+	// Fonction pour retourner à la boutique ou au dashboard
 	function goBack() {
-		goto(`/${shop.slug}`);
+		// Si on est en mode preview, retourner au dashboard
+		if ($page.url.searchParams.get('preview') === 'true') {
+			goto('/dashboard/products');
+		} else {
+			// Sinon, retourner à la boutique
+			goto(`/${shop.slug}`);
+		}
 	}
 
 	// Fonction pour valider les champs
@@ -237,7 +243,11 @@
 			on:click={goBack}
 			class="text-xs italic text-gray-400 underline transition-colors hover:text-gray-600 sm:text-sm"
 		>
-			← Retour à la boutique
+			{#if $page.url.searchParams.get('preview') === 'true'}
+				← Retour au dashboard
+			{:else}
+				← Retour à la boutique
+			{/if}
 		</button>
 	</header>
 
@@ -545,15 +555,28 @@
 						{#if errors.submit}
 							<p class="text-center text-sm text-red-500">{errors.submit}</p>
 						{/if}
-						<Button
-							on:click={validateOrder}
-							disabled={isSubmitting}
-							class="w-full rounded-full bg-black px-6 py-2 text-sm text-white shadow-[0px_10px_18px_-1px_rgba(0,0,0,0.25)] hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 sm:px-8 sm:py-3 sm:text-base"
-						>
-							{isSubmitting
-								? 'Redirection vers le paiement...'
-								: 'Valider et payer la commande'}
-						</Button>
+
+						<!-- Bouton de commande (caché en mode preview) -->
+						{#if $page.url.searchParams.get('preview') !== 'true'}
+							<Button
+								on:click={validateOrder}
+								disabled={isSubmitting}
+								class="w-full rounded-full bg-black px-6 py-2 text-sm text-white shadow-[0px_10px_18px_-1px_rgba(0,0,0,0.25)] hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 sm:px-8 sm:py-3 sm:text-base"
+							>
+								{isSubmitting
+									? 'Redirection vers le paiement...'
+									: 'Valider et payer la commande'}
+							</Button>
+						{:else}
+							<!-- Message en mode preview -->
+							<div
+								class="rounded-lg border border-blue-200 bg-blue-50 p-4 text-center"
+							>
+								<p class="text-sm text-blue-800">
+									🔍 Mode prévisualisation - Bouton de commande masqué
+								</p>
+							</div>
+						{/if}
 					</div>
 				</div>
 			</div>

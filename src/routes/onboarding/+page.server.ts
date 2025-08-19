@@ -4,6 +4,7 @@ import { getShopId } from '$lib/permissions';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { formSchema } from './schema';
+import { validateImageServer, validateAndRecompressImage, logValidationInfo } from '$lib/utils/server-image-validation';
 
 export const load: PageServerLoad = async ({ locals }) => {
     const { session } = await locals.safeGetSession();
@@ -81,13 +82,29 @@ export const actions: Actions = {
 
         // Handle logo upload if provided
         let logoUrl = null;
+        let oldLogoUrl = null; // Pas d'ancien logo pour une nouvelle boutique
+
         if (logo && logo.size > 0) {
+            // Pas d'ancien logo à stocker pour l'onboarding
+            // 🔍 Validation serveur stricte + re-compression automatique si nécessaire
+            const validationResult = await validateAndRecompressImage(logo, 'LOGO');
+
+            // Log de validation pour le debugging
+            logValidationInfo(logo, 'LOGO', validationResult);
+
+            if (!validationResult.isValid) {
+                return { success: false, error: validationResult.error || 'Validation du logo échouée' };
+            }
+
             try {
+                // 🔄 Utiliser l'image re-compressée si disponible
+                const imageToUpload = validationResult.compressedFile || logo;
+
                 // Upload to Supabase Storage
-                const fileName = `logos/${userId}/${Date.now()}_${logo.name}`;
+                const fileName = `logos/${userId}/${Date.now()}_${imageToUpload.name}`;
                 const { data: uploadData, error: uploadError } = await locals.supabase.storage
                     .from('shop-logos')
-                    .upload(fileName, logo, {
+                    .upload(fileName, imageToUpload, {
                         cacheControl: '3600',
                         upsert: false
                     });

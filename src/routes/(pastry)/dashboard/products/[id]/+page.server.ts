@@ -2,6 +2,7 @@ import { error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { getShopId } from '$lib/permissions';
 import { deleteImageIfUnused } from '$lib/storage-utils';
+import { validateImageServer, validateAndRecompressImage, logValidationInfo } from '$lib/utils/server-image-validation';
 
 export const load: PageServerLoad = async ({ params, locals, parent }) => {
     const { userId } = await parent();
@@ -115,23 +116,30 @@ export const actions: Actions = {
 
             // Handle image upload if provided
             let imageUrl = null;
-            if (imageFile && imageFile.size > 0) {
-                // Check file type
-                if (!imageFile.type.startsWith('image/')) {
-                    return fail(400, { error: 'L\'image doit être une image valide' });
-                }
+            let oldImageUrl = null; // Stocker l'ancienne image pour suppression
 
-                // Check file size (max 2MB)
-                if (imageFile.size > 2 * 1024 * 1024) {
-                    return fail(400, { error: 'L\'image ne doit pas dépasser 2MB' });
+            if (imageFile && imageFile.size > 0) {
+                // Stocker l'ancienne image avant de la remplacer
+                oldImageUrl = currentProduct?.image_url || null;
+                // 🔍 Validation serveur stricte + re-compression automatique si nécessaire
+                const validationResult = await validateAndRecompressImage(imageFile, 'PRODUCT');
+
+                // Log de validation pour le debugging
+                logValidationInfo(imageFile, 'PRODUCT', validationResult);
+
+                if (!validationResult.isValid) {
+                    return fail(400, { error: validationResult.error || 'Validation de l\'image échouée' });
                 }
 
                 try {
+                    // 🔄 Utiliser l'image re-compressée si disponible
+                    const imageToUpload = validationResult.compressedFile || imageFile;
+
                     // Upload to Supabase Storage
-                    const fileName = `${shopId}/${Date.now()}-${imageFile.name}`;
+                    const fileName = `${shopId}/${Date.now()}-${imageToUpload.name}`;
                     const { error: uploadError } = await locals.supabase.storage
                         .from('product-images')
-                        .upload(fileName, imageFile, {
+                        .upload(fileName, imageToUpload, {
                             cacheControl: '3600',
                             upsert: false
                         });
@@ -183,8 +191,8 @@ export const actions: Actions = {
             }
 
             // Supprimer l'ancienne image si elle n'est plus utilisée par d'autres produits
-            if (imageUrl && currentProduct?.image_url && currentProduct.image_url !== imageUrl) {
-                await deleteImageIfUnused(locals.supabase, currentProduct.image_url, productId);
+            if (oldImageUrl && oldImageUrl !== imageUrl) {
+                await deleteImageIfUnused(locals.supabase, oldImageUrl, productId);
             }
 
             // Mettre à jour les champs de personnalisation si fournis

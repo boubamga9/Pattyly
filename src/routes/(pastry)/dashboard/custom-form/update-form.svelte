@@ -15,50 +15,32 @@
 		CustomizationFormBuilder,
 		type CustomizationField,
 	} from '$lib/components/CustomizationFormBuilder';
+	import { tick } from 'svelte';
+	import { LoaderCircle, CheckCircle } from 'lucide-svelte';
 
 	export let data: SuperValidated<Infer<UpdateCustomFormForm>>;
 	export let customFields: CustomizationField[];
-	export let onSuccess: () => void = () => {}; // Callback pour notifier le succès
-
-	console.log('🔧 UpdateForm initialisé avec data:', data);
-	console.log('🔧 customFields:', customFields);
 
 	const form = superForm(data, {
 		validators: zodClient(updateCustomFormFormSchema),
 		dataType: 'json', // Permet d'envoyer des structures de données imbriquées
-		onSubmit: ({ formData, cancel: _cancel }) => {
-			console.log('📤 Soumission du formulaire update commencée');
-			console.log('📤 FormData:', Object.fromEntries(formData.entries()));
-		},
-		onResult: ({ result }) => {
-			console.log('📥 Résultat reçu:', result);
-		},
-		onUpdated: ({ form }) => {
-			console.log('🔄 Formulaire mis à jour:', form);
-		},
-		onError: ({ result }) => {
-			console.error('❌ Erreur du formulaire:', result);
-		},
 	});
 
-	const { form: formData, enhance, submitting, message } = form;
+	const { form: formData, enhance, submitting } = form;
 
-	$: if ($message) {
-		console.log('✅ Message reçu:', $message);
-		// Pas de rechargement de page, juste notifier le succès
-		onSuccess();
-	}
-
-	// Log des changements d'état
-	$: console.log('🔄 $submitting:', $submitting);
-	$: console.log('🔄 $formData:', $formData);
+	let submitted = false;
 
 	// Gestionnaire pour les changements de champs
 	function handleFieldsChange(event: CustomEvent<CustomizationField[]>) {
-		console.log('🔄 Champs personnalisés mis à jour:', event.detail);
 		customFields = event.detail;
 		// Synchroniser avec le formulaire Superforms
 		$formData.customFields = event.detail;
+	}
+
+	async function handleSubmit() {
+		submitted = true;
+		await tick();
+		setTimeout(() => (submitted = false), 2000);
 	}
 
 	// Synchroniser customFields avec le formulaire au chargement
@@ -68,16 +50,19 @@
 
 	// Initialiser les valeurs par défaut si elles sont undefined
 	$: if ($formData.title === undefined) {
-		console.log('🔧 Initialisation title par défaut');
 		$formData.title = '';
 	}
 	$: if ($formData.description === undefined) {
-		console.log('🔧 Initialisation description par défaut');
 		$formData.description = '';
 	}
 </script>
 
-<form method="POST" action="?/updateCustomForm" use:enhance>
+<form
+	method="POST"
+	action="?/updateCustomForm"
+	use:enhance
+	on:submit|preventDefault={handleSubmit}
+>
 	<Form.Errors {form} />
 
 	<!-- Les données customFields seront envoyées automatiquement par Superforms -->
@@ -129,9 +114,27 @@
 
 	<!-- Boutons d'action -->
 	<div class="flex gap-4 pt-6">
-		<Button type="submit" class="flex-1" disabled={$submitting}>
-			<Save class="mr-2 h-4 w-4" />
-			Sauvegarder le Formulaire
+		<Button
+			type="submit"
+			disabled={$submitting}
+			class={`w-full ${
+				$submitting
+					? 'bg-gray-300'
+					: submitted
+						? 'bg-green-700 hover:bg-green-800'
+						: 'bg-primary'
+			}`}
+		>
+			{#if $submitting}
+				<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+				Mise à jour...
+			{:else if submitted}
+				<CheckCircle class="mr-2 h-4 w-4" />
+				Mis à jour
+			{:else}
+				<Save class="mr-2 h-4 w-4" />
+				Sauvegarder le Formulaire
+			{/if}
 		</Button>
 	</div>
 </form>

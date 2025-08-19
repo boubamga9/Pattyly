@@ -16,6 +16,10 @@
 		CustomizationFormBuilder,
 		type CustomizationField,
 	} from '$lib/components/CustomizationFormBuilder';
+	import {
+		compressProductImage,
+		formatCompressionInfo,
+	} from '$lib/utils/image-compression';
 
 	// Données de la page
 	$: ({ categories } = $page.data);
@@ -28,6 +32,9 @@
 	// Variables pour l'upload d'image
 	let _imageFile: File | null = null;
 	let imagePreview: string | null = null;
+	let compressionInfo: string | null = null;
+	let isCompressing = false;
+	let imageInputElement: HTMLInputElement;
 
 	// Variables pour les champs de personnalisation
 	let customizationFields: CustomizationField[] = [];
@@ -60,33 +67,55 @@
 		goto('/dashboard/products');
 	}
 
-	// Handle file selection
-	function handleFileSelect(event: Event) {
+	// Handle file selection with compression
+	async function handleFileSelect(event: Event) {
 		const target = event.target as HTMLInputElement;
 		const file = target.files?.[0];
 
-		if (file) {
+		if (!file) return;
+
+		try {
+			isCompressing = true;
+			compressionInfo = null;
+			errorMessage = '';
+
 			// Validate file type
 			if (!file.type.startsWith('image/')) {
 				errorMessage = 'Veuillez sélectionner une image';
 				return;
 			}
 
-			// Validate file size (2MB)
-			if (file.size > 2 * 1024 * 1024) {
-				errorMessage = "L'image ne doit pas dépasser 2MB";
+			// Validate file size before compression (max 10MB pour éviter les abus)
+			if (file.size > 10 * 1024 * 1024) {
+				errorMessage = "L'image ne doit pas dépasser 10MB";
 				return;
 			}
 
-			_imageFile = file;
-			errorMessage = '';
+			// Compresser et redimensionner l'image
+			const compressionResult = await compressProductImage(file);
+
+			// Utiliser l'image compressée
+			_imageFile = compressionResult.file;
+			compressionInfo = formatCompressionInfo(compressionResult);
+
+			// 🔄 Synchroniser l'input file avec l'image compressée
+			// Créer un nouveau FileList avec l'image compressée
+			const dataTransfer = new DataTransfer();
+			dataTransfer.items.add(compressionResult.file);
+			imageInputElement.files = dataTransfer.files;
 
 			// Create preview
 			const reader = new FileReader();
 			reader.onload = (e) => {
 				imagePreview = e.target?.result as string;
 			};
-			reader.readAsDataURL(file);
+			reader.readAsDataURL(compressionResult.file);
+		} catch (error) {
+			console.error('Erreur lors de la compression:', error);
+			errorMessage =
+				"Erreur lors du traitement de l'image. Veuillez réessayer.";
+		} finally {
+			isCompressing = false;
 		}
 	}
 
@@ -94,6 +123,7 @@
 	function removeImage() {
 		_imageFile = null;
 		imagePreview = null;
+		compressionInfo = null;
 	}
 
 	// Gestionnaire pour les changements de champs
@@ -275,6 +305,7 @@
 						accept="image/*"
 						on:change={handleFileSelect}
 						class="hidden"
+						bind:this={imageInputElement}
 					/>
 
 					<!-- Champ caché pour les données de personnalisation -->
@@ -283,9 +314,34 @@
 						name="customizationFields"
 						value={JSON.stringify(customizationFields)}
 					/>
-					<p class="mt-1 text-sm text-muted-foreground">
-						Format JPG, PNG. Max 2MB.
-					</p>
+					{#if isCompressing}
+						<div class="mt-2 flex items-center gap-2 text-sm text-blue-600">
+							<div
+								class="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"
+							></div>
+							Compression de l'image en cours...
+						</div>
+					{:else if compressionInfo}
+						<div class="mt-2 rounded-md bg-green-50 p-3 text-sm">
+							<p class="mb-1 font-medium text-green-800">
+								✅ Image optimisée avec succès !
+							</p>
+							<div class="whitespace-pre-line text-xs text-green-700">
+								{compressionInfo}
+							</div>
+						</div>
+					{:else}
+						<div class="mt-1 space-y-2">
+							<p class="mt-1 text-sm text-muted-foreground">
+								Format JPG, PNG. L'image sera automatiquement redimensionnée à
+								800x800px et optimisée.
+							</p>
+							<div class="flex items-center gap-2 text-xs text-blue-600">
+								<div class="h-3 w-3 rounded-full bg-blue-600"></div>
+								<span>Validation hybride : Front + Serveur</span>
+							</div>
+						</div>
+					{/if}
 				</div>
 
 				<!-- Nom du gâteau -->

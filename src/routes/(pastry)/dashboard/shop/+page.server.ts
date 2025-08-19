@@ -2,10 +2,11 @@ import { error, redirect } from '@sveltejs/kit';
 import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
 import type { PageServerLoad, Actions } from './$types';
 import Stripe from 'stripe';
-import { deleteShopLogo } from '$lib/storage-utils';
+
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { formSchema } from './schema';
+import { validateImageServer, validateAndRecompressImage, logValidationInfo } from '$lib/utils/server-image-validation';
 
 
 
@@ -69,10 +70,10 @@ export const actions: Actions = {
         const logoFile = logo;
         const currentLogoUrl = form.data.logo_url;
 
-        // Get shop ID
+        // Get shop data including logo_url
         const { data: shop } = await locals.supabase
             .from('shops')
-            .select('id')
+            .select('id, logo_url')
             .eq('profile_id', userId)
             .single();
 
@@ -103,23 +104,27 @@ export const actions: Actions = {
 
         // Handle logo upload if new file is provided
         let logoUrl = currentLogoUrl;
-        if (logoFile && logoFile.size > 0) {
-            // Check file type
-            if (!logoFile.type.startsWith('image/')) {
-                return { success: false, error: 'Le logo doit être une image' };
-            }
 
-            // Check file size (max 1MB)
-            if (logoFile.size > 1 * 1024 * 1024) {
-                return { success: false, error: 'Le logo ne doit pas dépasser 1MB' };
+        if (logoFile && logoFile.size > 0) {
+            // 🔍 Validation serveur stricte + re-compression automatique si nécessaire
+            const validationResult = await validateAndRecompressImage(logoFile, 'LOGO');
+
+            // Log de validation pour le debugging
+            logValidationInfo(logoFile, 'LOGO', validationResult);
+
+            if (!validationResult.isValid) {
+                return { success: false, error: validationResult.error || 'Validation du logo échouée' };
             }
 
             try {
+                // 🔄 Utiliser l'image re-compressée si disponible
+                const imageToUpload = validationResult.compressedFile || logoFile;
+
                 // Upload to Supabase Storage
-                const fileName = `${userId}/${Date.now()}-${logoFile.name}`;
+                const fileName = `${userId}/${Date.now()}-${imageToUpload.name}`;
                 const { error: uploadError } = await locals.supabase.storage
                     .from('shop-logos')
-                    .upload(fileName, logoFile, {
+                    .upload(fileName, imageToUpload, {
                         cacheControl: '3600',
                         upsert: false
                     });
@@ -160,10 +165,6 @@ export const actions: Actions = {
             return { success: false, error: 'Erreur lors de la mise à jour' };
         }
 
-        // Supprimer l'ancien logo si un nouveau a été uploadé
-        if (logoFile && logoFile.size > 0 && currentLogoUrl && currentLogoUrl !== logoUrl) {
-            await deleteShopLogo(locals.supabase, currentLogoUrl);
-        }
 
         // Return form data for Superforms compatibility with updated data
         const updatedForm = await superValidate(zod(formSchema), {

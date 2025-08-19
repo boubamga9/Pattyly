@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
+	import CategoryForm from './category-form.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import {
 		Card,
@@ -41,19 +42,10 @@
 
 	// État pour l'ajout de catégorie
 	let isAddingCategory = false;
-	let newCategoryName = '';
-	let categoryInputElement: HTMLInputElement | undefined;
-	let categoryError = '';
 
 	// État pour l'édition de catégorie
 	let editingCategoryId: string | null = null;
 	let editingCategoryName = '';
-	let editingCategoryInputElement: HTMLInputElement | undefined;
-	let editingCategoryError = '';
-
-	// Classes CSS réactives pour les erreurs
-	$: editingCategoryInputClass = editingCategoryError ? 'border-red-500' : '';
-	$: categoryInputClass = categoryError ? 'border-red-500' : '';
 
 	// État pour la confirmation de suppression
 	let confirmingDeleteId: string | null = null;
@@ -94,9 +86,9 @@
 
 	// Fonction pour rediriger vers la vue d'un produit
 	function viewProduct(productId: string) {
-		// Rediriger vers la page publique du produit
+		// Rediriger vers la page publique du produit avec le mode preview
 		if (shopSlug) {
-			goto(`/${shopSlug}/product/${productId}`);
+			goto(`/${shopSlug}/product/${productId}?preview=true`);
 		} else {
 			console.error('Shop slug not available');
 		}
@@ -110,80 +102,12 @@
 	// Fonctions pour l'ajout de catégorie
 	function startAddingCategory() {
 		isAddingCategory = true;
-		newCategoryName = '';
-		categoryError = '';
-		// Focus automatique sur l'input après le rendu
-		setTimeout(() => {
-			categoryInputElement?.focus();
-		}, 0);
-	}
-
-	function cancelAddingCategory() {
-		isAddingCategory = false;
-		newCategoryName = '';
-		categoryError = '';
-	}
-
-	function validateCategoryName(name: string): string | null {
-		if (!name.trim()) {
-			return 'Le nom de la catégorie est obligatoire';
-		}
-		if (name.trim().length < 2) {
-			return 'Le nom doit contenir au moins 2 caractères';
-		}
-		if (name.trim().length > 50) {
-			return 'Le nom ne peut pas dépasser 50 caractères';
-		}
-		// Vérifier si la catégorie existe déjà
-		const existingCategory = categories?.find(
-			(cat: any) => cat.name.toLowerCase() === name.trim().toLowerCase(),
-		);
-		if (existingCategory) {
-			return 'Cette catégorie existe déjà';
-		}
-		return null;
 	}
 
 	// Fonctions pour l'édition de catégorie
 	function startEditingCategory(categoryId: string, categoryName: string) {
 		editingCategoryId = categoryId;
 		editingCategoryName = categoryName;
-		editingCategoryError = '';
-		// Focus automatique sur l'input après le rendu
-		setTimeout(() => {
-			editingCategoryInputElement?.focus();
-		}, 0);
-	}
-
-	function cancelEditingCategory() {
-		editingCategoryId = null;
-		editingCategoryName = '';
-		editingCategoryError = '';
-	}
-
-	function validateEditingCategoryName(
-		name: string,
-		currentCategoryId: string,
-	): string | null {
-		if (!name.trim()) {
-			return 'Le nom de la catégorie est obligatoire';
-		}
-		if (name.trim().length < 2) {
-			return 'Le nom doit contenir au moins 2 caractères';
-		}
-		if (name.trim().length > 50) {
-			return 'Le nom ne peut pas dépasser 50 caractères';
-		}
-		// Vérifier si la catégorie existe déjà (en excluant la catégorie actuelle)
-		const existingCategory = categories?.find(
-			(cat: any) =>
-				cat.id !== currentCategoryId &&
-				cat.name.toLowerCase() === name.trim().toLowerCase(),
-		);
-		if (existingCategory) {
-			return 'Cette catégorie existe déjà';
-		}
-		return null;
 	}
 
 	// Fonctions pour la confirmation de suppression
@@ -283,90 +207,23 @@
 					{#if editingCategoryId === category.id}
 						<!-- Interface d'édition de catégorie -->
 						<div class="flex items-center gap-1">
-							<form
-								method="POST"
-								action="?/updateCategory"
-								use:enhance={() => {
-									return async ({ result }) => {
-										if (result.type === 'success') {
-											editingCategoryId = null;
-											editingCategoryName = '';
-											editingCategoryError = '';
-											window.location.reload();
-										} else if (result.type === 'failure') {
-											editingCategoryError =
-												result.data?.error || 'Erreur lors de la modification';
-										}
-									};
+							<CategoryForm
+								data={$page.data.updateCategoryForm}
+								isEditing={true}
+								editingCategoryId={category.id}
+								{editingCategoryName}
+								showDeleteButton={true}
+								onSuccess={() => {
+									editingCategoryId = null;
+									editingCategoryName = '';
+									// TODO: Mettre à jour la liste des catégories sans reload
 								}}
-								class="flex items-center gap-1"
-							>
-								<input
-									bind:this={editingCategoryInputElement}
-									bind:value={editingCategoryName}
-									type="text"
-									name="categoryName"
-									class="h-9 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 {editingCategoryInputClass}"
-									on:input={() => {
-										// Effacer l'erreur quand l'utilisateur tape
-										if (editingCategoryError) {
-											editingCategoryError = '';
-										}
-									}}
-								/>
-								<input type="hidden" name="categoryId" value={category.id} />
-								<Button
-									type="submit"
-									variant="outline"
-									size="sm"
-									class="h-9 w-9 p-0"
-									title="Valider"
-								>
-									<Check class="h-4 w-4" />
-								</Button>
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									class="h-9 w-9 p-0"
-									on:click={cancelEditingCategory}
-									title="Annuler"
-								>
-									<X class="h-4 w-4" />
-								</Button>
-							</form>
-							<form
-								method="POST"
-								action="?/deleteCategory"
-								use:enhance={() => {
-									return async ({ result }) => {
-										if (result.type === 'success') {
-											editingCategoryId = null;
-											editingCategoryName = '';
-											editingCategoryError = '';
-											window.location.reload();
-										} else if (result.type === 'failure') {
-											editingCategoryError =
-												result.data?.error || 'Erreur lors de la suppression';
-										}
-									};
+								onCancel={() => {
+									editingCategoryId = null;
+									editingCategoryName = '';
 								}}
-							>
-								<input type="hidden" name="categoryId" value={category.id} />
-								<Button
-									type="submit"
-									variant="outline"
-									size="sm"
-									class="h-9 w-9 p-0 text-red-600 hover:bg-red-50 hover:text-red-700"
-									title="Supprimer"
-								>
-									<Trash2 class="h-4 w-4" />
-								</Button>
-							</form>
+							/>
 						</div>
-						{#if editingCategoryError}
-							<div class="text-xs text-red-500">{editingCategoryError}</div>
-						{/if}
 					{:else}
 						<!-- Bouton de catégorie avec icône d'édition -->
 						<Button
@@ -395,61 +252,17 @@
 				<!-- Interface d'ajout de catégorie -->
 				{#if isAddingCategory}
 					<div class="flex flex-col gap-2">
-						<form
-							method="POST"
-							action="?/createCategory"
-							use:enhance={() => {
-								return async ({ result }) => {
-									if (result.type === 'success') {
-										isAddingCategory = false;
-										newCategoryName = '';
-										categoryError = '';
-										window.location.reload();
-									} else if (result.type === 'failure') {
-										categoryError =
-											result.data?.error || 'Erreur lors de la création';
-									}
-								};
+						<CategoryForm
+							data={$page.data.createCategoryForm}
+							isEditing={false}
+							onSuccess={() => {
+								isAddingCategory = false;
+								// TODO: Mettre à jour la liste des catégories sans reload
 							}}
-							class="flex items-center gap-1"
-						>
-							<input
-								bind:this={categoryInputElement}
-								bind:value={newCategoryName}
-								type="text"
-								name="categoryName"
-								placeholder="Nom de la catégorie"
-								class="h-9 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 {categoryInputClass}"
-								on:input={() => {
-									// Effacer l'erreur quand l'utilisateur tape
-									if (categoryError) {
-										categoryError = '';
-									}
-								}}
-							/>
-							<Button
-								type="submit"
-								variant="outline"
-								size="sm"
-								class="h-9 w-9 p-0"
-								title="Valider"
-							>
-								<Check class="h-4 w-4" />
-							</Button>
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								class="h-9 w-9 p-0"
-								on:click={cancelAddingCategory}
-								title="Annuler"
-							>
-								<X class="h-4 w-4" />
-							</Button>
-						</form>
-						{#if categoryError}
-							<div class="text-xs text-red-500">{categoryError}</div>
-						{/if}
+							onCancel={() => {
+								isAddingCategory = false;
+							}}
+						/>
 					</div>
 				{:else}
 					<Button

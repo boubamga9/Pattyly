@@ -2,6 +2,9 @@ import { error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { getShopId } from '$lib/permissions';
 import { deleteImageIfUnused } from '$lib/storage-utils';
+import { superValidate } from 'sveltekit-superforms';
+import { zod } from 'sveltekit-superforms/adapters';
+import { createCategoryFormSchema, updateCategoryFormSchema, deleteCategoryFormSchema } from './schema';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
     const { userId, permissions } = await parent();
@@ -51,6 +54,11 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
         throw error(500, 'Erreur lors du chargement des informations de la boutique');
     }
 
+    // Initialiser les formulaires Superforms
+    const createCategoryForm = await superValidate(zod(createCategoryFormSchema));
+    const updateCategoryForm = await superValidate(zod(updateCategoryFormSchema));
+    const deleteCategoryForm = await superValidate(zod(deleteCategoryFormSchema));
+
     return {
         products,
         categories,
@@ -58,7 +66,10 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
         canAddProducts,
         userPlan: permissions.plan,
         permissions,
-        shopSlug: shop.slug
+        shopSlug: shop.slug,
+        createCategoryForm,
+        updateCategoryForm,
+        deleteCategoryForm
     };
 };
 
@@ -319,29 +330,15 @@ export const actions: Actions = {
             return fail(500, { error: 'Boutique non trouvée' });
         }
 
-        const formData = await request.formData();
-        const categoryName = formData.get('categoryName') as string;
+        // Validation avec Superforms
+        const form = await superValidate(request, zod(createCategoryFormSchema));
 
-        if (!categoryName || !categoryName.trim()) {
-            return fail(400, {
-                error: 'Le nom de la catégorie est obligatoire'
-            });
+        if (!form.valid) {
+            return fail(400, { form });
         }
 
+        const { name: categoryName } = form.data;
         const trimmedName = categoryName.trim();
-
-        // Validation côté serveur
-        if (trimmedName.length < 2) {
-            return fail(400, {
-                error: 'Le nom doit contenir au moins 2 caractères'
-            });
-        }
-
-        if (trimmedName.length > 50) {
-            return fail(400, {
-                error: 'Le nom ne peut pas dépasser 50 caractères'
-            });
-        }
 
         try {
             // Vérifier si la catégorie existe déjà
@@ -380,12 +377,13 @@ export const actions: Actions = {
                 });
             }
 
-            return { message: 'Catégorie créée avec succès' };
+            // Retourner le formulaire mis à jour pour Superforms
+            const updatedForm = await superValidate(zod(createCategoryFormSchema));
+            updatedForm.message = 'Catégorie créée avec succès';
+            return { form: updatedForm };
         } catch (err) {
             console.error('Unexpected error:', err);
-            return fail(500, {
-                error: 'Erreur inattendue lors de la création de la catégorie'
-            });
+            return fail(500, { form });
         }
     },
 
@@ -404,28 +402,23 @@ export const actions: Actions = {
             return fail(500, { error: 'Boutique non trouvée' });
         }
 
+        // Récupérer categoryId AVANT superValidate (car le body ne peut être lu qu'une fois)
         const formData = await request.formData();
         const categoryId = formData.get('categoryId') as string;
-        const categoryName = formData.get('categoryName') as string;
 
         if (!categoryId) {
             return fail(400, { error: 'ID de la catégorie manquant' });
         }
 
-        if (!categoryName || !categoryName.trim()) {
-            return fail(400, { error: 'Le nom de la catégorie est obligatoire' });
+        // Validation avec Superforms
+        const form = await superValidate(formData, zod(updateCategoryFormSchema));
+
+        if (!form.valid) {
+            return fail(400, { form });
         }
 
+        const { name: categoryName } = form.data;
         const trimmedName = categoryName.trim();
-
-        // Validation côté serveur
-        if (trimmedName.length < 2) {
-            return fail(400, { error: 'Le nom doit contenir au moins 2 caractères' });
-        }
-
-        if (trimmedName.length > 50) {
-            return fail(400, { error: 'Le nom ne peut pas dépasser 50 caractères' });
-        }
 
         try {
             // Vérifier que la catégorie appartient à l'utilisateur
@@ -475,10 +468,13 @@ export const actions: Actions = {
                 return fail(500, { error: 'Erreur lors de la modification de la catégorie' });
             }
 
-            return { message: 'Catégorie modifiée avec succès' };
+            // Retourner le formulaire mis à jour pour Superforms
+            const updatedForm = await superValidate(zod(updateCategoryFormSchema));
+            updatedForm.message = 'Catégorie modifiée avec succès';
+            return { form: updatedForm };
         } catch (err) {
             console.error('Unexpected error:', err);
-            return fail(500, { error: 'Erreur inattendue lors de la modification' });
+            return fail(500, { form });
         }
     },
 
@@ -547,7 +543,10 @@ export const actions: Actions = {
                 return fail(500, { error: 'Erreur lors de la suppression de la catégorie' });
             }
 
-            return { message: 'Catégorie supprimée avec succès' };
+            // Retourner le formulaire mis à jour pour Superforms
+            const deleteForm = await superValidate(zod(deleteCategoryFormSchema));
+            deleteForm.message = 'Catégorie supprimée avec succès';
+            return { form: deleteForm };
         } catch (err) {
             console.error('Unexpected error:', err);
             return fail(500, { error: 'Erreur inattendue lors de la suppression' });
