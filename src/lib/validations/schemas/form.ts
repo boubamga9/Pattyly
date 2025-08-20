@@ -44,6 +44,19 @@ export const formFieldSchema = z.object({
     order: z.number().int().min(0)
 });
 
+// ===== 3.1. CHAMP DE PERSONNALISATION (pour les formulaires) =====
+
+export const customizationFieldSchema = z.object({
+    id: z.string().optional(),           // Optionnel pour les nouveaux champs
+    label: z.string().min(1, 'Le libellé est requis').max(100, 'Max 100 caractères'),
+    type: fieldTypeSchema,
+    required: z.boolean().default(false),
+    options: z.array(z.object({
+        label: z.string().min(1, 'Le libellé est requis').max(50, 'Max 50 caractères'),
+        price: z.number().min(0, 'Le prix doit être positif').optional()
+    })).optional().default([])
+});
+
 // ===== 4. FORMULAIRE (table forms) =====
 
 // Formulaire de PRODUIT (sans title/description)
@@ -90,18 +103,7 @@ export const toggleCustomRequestsSchema = z.object({
 export const updateCustomFormSchema = z.object({
     title: z.string().max(200, 'Le titre ne peut pas dépasser 200 caractères').optional(),
     description: z.string().max(500, 'La description ne peut pas dépasser 500 caractères').optional(),
-    customFields:
-        // Accepter directement un array
-        z.array(z.object({
-            id: z.string().optional(),
-            label: z.string().min(1, 'Le libellé est requis').max(100, 'Max 100 caractères'),
-            type: z.enum(['short-text', 'long-text', 'number', 'single-select', 'multi-select']),
-            required: z.boolean().default(false),
-            options: z.array(z.object({
-                label: z.string().min(1, 'Le libellé est requis').max(50, 'Max 50 caractères'),
-                price: z.number().min(0, 'Le prix doit être positif').optional()
-            })).optional().default([])
-        }))
+    customFields: z.array(customizationFieldSchema)
 });
 
 // ===== TYPES EXPORTÉS =====
@@ -109,6 +111,7 @@ export const updateCustomFormSchema = z.object({
 export type FieldType = z.infer<typeof fieldTypeSchema>;
 export type FormOption = z.infer<typeof formOptionSchema>;
 export type FormField = z.infer<typeof formFieldSchema>;
+export type CustomizationField = z.infer<typeof customizationFieldSchema>;
 export type ProductForm = z.infer<typeof productFormSchema>;
 export type CustomForm = z.infer<typeof customFormSchema>;
 export type Form = z.infer<typeof formSchema>;

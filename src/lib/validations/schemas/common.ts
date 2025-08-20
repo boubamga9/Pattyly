@@ -47,10 +47,11 @@ export const productNameSchema = z
     .regex(/^[A-Za-zÀ-ÿ'-]+(\s[A-Za-zÀ-ÿ'-]+)*$/, 'Le nom du produit ne peut contenir que des lettres, tirets, apostrophes et espaces, avec un seul espace entre chaque mot')
     .trim();
 
-// Description - pour les textes longs optionnels
+// Description - pour les textes longs optionnels (avec protection XSS)
 export const descriptionSchema = z
     .string()
     .max(1000, 'La description ne peut pas dépasser 1000 caractères')
+    .regex(/^[^<>{}[\]\\\/`;]*$/, 'La description ne peut pas contenir ces caractères spéciaux (<, >, {, }, [, ], \\, /, `, ;)')
     .trim()
     .optional();
 
@@ -72,10 +73,20 @@ export const slugSchema = z
     .transform(val => val.toLowerCase());
 
 // Prix - pour les montants monétaires
-export const priceSchema = z
-    .number()
-    .min(0, 'Le prix doit être positif')
-    .max(10000, 'Le prix ne peut pas dépasser 10 000€');
+export const priceSchema = z.preprocess(
+    (val) => {
+        // Convertir string → number avant validation
+        if (typeof val === 'string') {
+            const num = parseFloat(val);
+            return isNaN(num) ? val : num; // Retourner val si pas un nombre pour que Zod gère l'erreur
+        }
+        return val;
+    },
+    z.number({
+        required_error: 'Le prix est requis',
+        invalid_type_error: 'Le prix doit être un nombre'
+    }).min(0, 'Le prix doit être positif').max(10000, 'Le prix ne peut pas dépasser 10 000€')
+);
 
 // URL - pour les liens et images
 export const urlSchema = z

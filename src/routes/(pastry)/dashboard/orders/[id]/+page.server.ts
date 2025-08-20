@@ -3,6 +3,9 @@ import { error, fail } from '@sveltejs/kit';
 import { getUserPermissions } from '$lib/permissions';
 import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
 import Stripe from 'stripe';
+import { superValidate } from 'sveltekit-superforms';
+import { zod } from 'sveltekit-superforms/adapters';
+import { makeQuoteFormSchema, rejectOrderFormSchema, personalNoteFormSchema } from './schema.js';
 
 const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
     apiVersion: '2024-04-10'
@@ -78,11 +81,26 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             throw error(404, 'Boutique non trouvée');
         }
 
+        // Initialiser les formulaires Superforms
+        const makeQuoteForm = await superValidate(zod(makeQuoteFormSchema));
+        const rejectOrderForm = await superValidate(zod(rejectOrderFormSchema));
+        const personalNoteForm = await superValidate(
+            zod(personalNoteFormSchema),
+            {
+                defaults: {
+                    note: personalNote?.note || ''
+                }
+            }
+        );
+
         return {
             order,
             shop,
             paidAmount,
-            personalNote: personalNote || null
+            personalNote: personalNote || null,
+            makeQuoteForm,
+            rejectOrderForm,
+            personalNoteForm
         };
     } catch (err) {
         console.error('Erreur load order detail page:', err);
@@ -94,11 +112,17 @@ export const actions: Actions = {
     // Sauvegarder/modifier la note personnelle
     savePersonalNote: async ({ request, params, locals }) => {
         try {
-            const formData = await request.formData();
-            const note = formData.get('note') as string;
+            // Valider avec Superforms
+            const form = await superValidate(request, zod(personalNoteFormSchema));
 
-            if (!note.trim()) {
-                return fail(400, { error: 'La note ne peut pas être vide' });
+            if (!form.valid) {
+                return fail(400, { form });
+            }
+
+            const { note } = form.data;
+
+            if (!note || !note.trim()) {
+                return fail(400, { form, error: 'La note ne peut pas être vide' });
             }
 
             // Récupérer l'utilisateur connecté
@@ -137,7 +161,9 @@ export const actions: Actions = {
                 return fail(500, { error: 'Erreur lors de la sauvegarde' });
             }
 
-            return { success: true };
+            // Retourner le succès avec le formulaire Superforms
+            form.message = 'Note sauvegardée avec succès';
+            return { form };
         } catch (err) {
             console.error('Erreur savePersonalNote:', err);
             return fail(500, { error: 'Erreur serveur' });
@@ -146,14 +172,19 @@ export const actions: Actions = {
 
     // Faire un devis pour une commande en attente
     makeQuote: async ({ request, params, locals }) => {
+        console.log('🔍 Action makeQuote appelée !');
         try {
-            const formData = await request.formData();
-            const price = formData.get('price');
-            const chefMessage = formData.get('chef_message') as string;
-            const chefPickupDate = formData.get('chef_pickup_date') as string;
+            // Valider avec Superforms
+            const form = await superValidate(request, zod(makeQuoteFormSchema));
+
+            if (!form.valid) {
+                return fail(400, { form });
+            }
+
+            const { price, chef_message: chefMessage, chef_pickup_date: chefPickupDate } = form.data;
 
             if (!price) {
-                return fail(400, { error: 'Le prix est requis' });
+                return fail(400, { form, error: 'Le prix est requis' });
             }
 
             // Récupérer l'utilisateur connecté
@@ -179,12 +210,12 @@ export const actions: Actions = {
             // Mettre à jour la commande
             const updateData: {
                 status: 'quoted';
-                price: number;
+                total_amount: number;
                 chef_message: string | null;
                 chef_pickup_date?: string;
             } = {
                 status: 'quoted',
-                price: parseFloat(price as string),
+                total_amount: price,
                 chef_message: chefMessage || null
             };
 
@@ -204,7 +235,9 @@ export const actions: Actions = {
                 return fail(500, { error: 'Erreur lors de la mise à jour de la commande' });
             }
 
-            return { message: 'Devis envoyé avec succès' };
+            // Retourner le succès avec le formulaire Superforms
+            form.message = 'Devis envoyé avec succès';
+            return { form };
         } catch (err) {
             console.error('Erreur makeQuote:', err);
             return fail(500, { error: 'Erreur interne' });
@@ -214,8 +247,14 @@ export const actions: Actions = {
     // Refuser une commande
     rejectOrder: async ({ request, params, locals }) => {
         try {
-            const formData = await request.formData();
-            const chefMessage = formData.get('chef_message') as string;
+            // Valider avec Superforms
+            const form = await superValidate(request, zod(rejectOrderFormSchema));
+
+            if (!form.valid) {
+                return fail(400, { form });
+            }
+
+            const { chef_message: chefMessage } = form.data;
 
             // Récupérer l'utilisateur connecté
             const {
@@ -253,7 +292,9 @@ export const actions: Actions = {
                 return fail(500, { error: 'Erreur lors de la mise à jour de la commande' });
             }
 
-            return { message: 'Commande refusée avec succès' };
+            // Retourner le succès avec le formulaire Superforms
+            form.message = 'Commande refusée avec succès';
+            return { form };
         } catch (err) {
             console.error('Erreur rejectOrder:', err);
             return fail(500, { error: 'Erreur interne' });
@@ -399,6 +440,48 @@ export const actions: Actions = {
         } catch (err) {
             console.error('Erreur cancelOrder:', err);
             return fail(500, { error: 'Erreur interne' });
+        }
+    },
+
+    // Supprimer la note personnelle
+    deletePersonalNote: async ({ params, locals }) => {
+        try {
+            // Récupérer l'utilisateur connecté
+            const {
+                data: { user },
+            } = await locals.supabase.auth.getUser();
+
+            if (!user) {
+                return fail(401, { error: 'Non autorisé' });
+            }
+
+            // Récupérer la boutique de l'utilisateur via profile_id
+            const { data: shop, error: shopError } = await locals.supabase
+                .from('shops')
+                .select('id')
+                .eq('profile_id', user.id)
+                .single();
+
+            if (shopError || !shop) {
+                return fail(404, { error: 'Boutique non trouvée' });
+            }
+
+            // Supprimer la note
+            const { error: deleteError } = await locals.supabase
+                .from('personal_order_notes')
+                .delete()
+                .eq('order_id', params.id)
+                .eq('shop_id', shop.id);
+
+            if (deleteError) {
+                console.error('Erreur suppression note:', deleteError);
+                return fail(500, { error: 'Erreur lors de la suppression' });
+            }
+
+            return { success: true, message: 'Note supprimée avec succès' };
+        } catch (err) {
+            console.error('Error deletePersonalNote:', err);
+            return fail(500, { error: 'Erreur serveur' });
         }
     }
 };

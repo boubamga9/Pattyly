@@ -30,8 +30,8 @@ export const load = async ({ locals }) => {
         .eq('shop_id', shopId)
         .eq('is_active', true);
 
-    // Get recent orders (last 10)
-    const { data: recentOrders } = await locals.supabase
+    // Get recent orders (last 10) - Version simplifiée pour debug
+    const { data: recentOrders, error: recentOrdersError } = await locals.supabase
         .from('orders')
         .select(`
 			id,
@@ -40,14 +40,19 @@ export const load = async ({ locals }) => {
 			status,
 			customer_name,
 			customer_email,
-			products:order_items(
-				quantity,
-				product:products(name)
-			)
+			product_name
 		`)
         .eq('shop_id', shopId)
         .order('created_at', { ascending: false })
         .limit(10);
+
+    // Debug: Log des erreurs et données
+    if (recentOrdersError) {
+        console.error('❌ Erreur récupération commandes récentes:', recentOrdersError);
+    } else {
+        console.log('✅ Commandes récentes récupérées:', recentOrders?.length || 0);
+        console.log('📋 Détails des commandes:', recentOrders);
+    }
 
     // Get revenue data for different time periods
     const now = new Date();
@@ -76,34 +81,39 @@ export const load = async ({ locals }) => {
         getRevenueForPeriod(oneYearAgo)
     ]);
 
-    // Get popular active products (top 5 by sales)
-    const { data: popularProducts } = await locals.supabase
-        .from('order_items')
+    // Get popular active products (top 5 by sales) - Version corrigée
+    const { data: popularProducts, error: popularProductsError } = await locals.supabase
+        .from('orders')
         .select(`
-			quantity,
-			product:products(
-				id,
-				name,
-				price,
-				image_url
-			)
+			product_name,
+			total_amount,
+			status
 		`)
-        .eq('products.shop_id', shopId)
-        .eq('products.is_active', true);
+        .eq('shop_id', shopId)
+        .not('product_name', 'is', null)  // Seulement les commandes avec nom de produit
+        .eq('status', 'completed');  // Seulement les commandes terminées
 
-    // Process popular products data
+    // Debug: Log des gâteaux populaires
+    if (popularProductsError) {
+        console.error('❌ Erreur récupération gâteaux populaires:', popularProductsError);
+    } else {
+        console.log('✅ Gâteaux populaires récupérés:', popularProducts?.length || 0);
+        console.log('📋 Détails des gâteaux populaires:', popularProducts);
+    }
+
+    // Process popular products data - Version corrigée
     const productSales = new Map();
     popularProducts?.forEach(item => {
-        if (item.product) {
-            const productId = item.product.id;
-            const current = productSales.get(productId) || {
-                product: item.product,
+        if (item.product_name) {
+            const productName = item.product_name;
+            const current = productSales.get(productName) || {
+                product: { name: productName },
                 totalQuantity: 0,
                 totalRevenue: 0
             };
-            current.totalQuantity += item.quantity || 0;
-            current.totalRevenue += (item.quantity || 0) * (item.product.price || 0);
-            productSales.set(productId, current);
+            current.totalQuantity += 1; // Chaque commande = 1 gâteau
+            current.totalRevenue += item.total_amount || 0;
+            productSales.set(productName, current);
         }
     });
 

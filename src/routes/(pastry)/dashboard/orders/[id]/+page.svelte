@@ -2,6 +2,9 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
+	import QuoteForm from './quote-form.svelte';
+	import RejectForm from './reject-form.svelte';
+	import PersonalNoteForm from './personal-note-form.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import {
 		Card,
@@ -27,22 +30,32 @@
 		X,
 		PackageCheck,
 		StickyNote,
+		Trash2,
 	} from 'lucide-svelte';
 
 	// Données de la page
-	$: ({ order, paidAmount, personalNote } = $page.data);
+	$: ({
+		order,
+		paidAmount,
+		personalNote,
+		makeQuoteForm,
+		rejectOrderForm,
+		personalNoteForm,
+	} = $page.data);
 
 	// État du formulaire pour les actions
 	let showQuoteForm = false;
 	let showRejectForm = false;
-	let quoteMessage = '';
-	let quotePrice = '';
-	let rejectMessage = '';
-	let newPickupDate = '';
 
 	// État pour la note personnelle
 	let isEditingNote = false;
 	let noteText = personalNote?.note || '';
+
+	// État pour la confirmation de suppression
+	let confirmingDeleteNote = false;
+
+	// État pour la confirmation d'annulation de commande
+	let confirmingCancelOrder = false;
 
 	// Fonction pour formater le prix
 	function formatPrice(price: number | null): string {
@@ -126,6 +139,47 @@
 	// Fonction pour retourner à la liste
 	function goBack() {
 		goto('/dashboard/orders');
+	}
+
+	// Fonctions pour la gestion de la suppression
+	function startDeleteConfirmation() {
+		confirmingDeleteNote = true;
+	}
+
+	function cancelDeleteConfirmation() {
+		confirmingDeleteNote = false;
+	}
+
+	// Fonction de suppression avec enhance
+	async function handleDeleteNote() {
+		try {
+			const response = await fetch('?/deletePersonalNote', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded',
+				},
+			});
+
+			if (response.ok) {
+				// Fermer la confirmation
+				confirmingDeleteNote = false;
+				// Mettre à jour l'interface localement
+				personalNote = null;
+			} else {
+				console.error('Erreur lors de la suppression');
+			}
+		} catch (error) {
+			console.error('Erreur lors de la suppression:', error);
+		}
+	}
+
+	// Fonctions pour la confirmation d'annulation de commande
+	function startCancelConfirmation() {
+		confirmingCancelOrder = true;
+	}
+
+	function cancelCancelConfirmation() {
+		confirmingCancelOrder = false;
 	}
 
 	// Fonction pour obtenir le nom du produit ou "Commande personnalisée"
@@ -291,37 +345,13 @@
 				</CardHeader>
 				<CardContent>
 					{#if isEditingNote}
-						<form
-							method="POST"
-							action="?/savePersonalNote"
-							use:enhance={() => {
+						<PersonalNoteForm
+							data={$page.data.personalNoteForm}
+							onCancel={() => {
 								isEditingNote = false;
-								noteText = '';
+								noteText = personalNote?.note || '';
 							}}
-							class="space-y-3"
-						>
-							<Textarea
-								name="note"
-								bind:value={noteText}
-								placeholder="Ajoutez vos notes personnelles sur cette commande..."
-								class="min-h-[100px]"
-								required
-							/>
-							<div class="flex gap-2">
-								<Button type="submit" size="sm">Sauvegarder</Button>
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									on:click={() => {
-										isEditingNote = false;
-										noteText = personalNote?.note || '';
-									}}
-								>
-									Annuler
-								</Button>
-							</div>
-						</form>
+						/>
 					{:else}
 						<div class="space-y-3">
 							{#if personalNote?.note}
@@ -336,20 +366,57 @@
 									Aucune note personnelle
 								</p>
 							{/if}
-							<Button
-								variant="outline"
-								size="sm"
-								on:click={() => {
-									isEditingNote = true;
-									noteText = personalNote?.note || '';
-								}}
-							>
+							<div class="flex gap-2">
+								<Button
+									variant="outline"
+									size="sm"
+									on:click={() => {
+										isEditingNote = true;
+										noteText = personalNote?.note || '';
+									}}
+								>
+									{#if personalNote?.note}
+										Modifier la note
+									{:else}
+										Ajouter une note
+									{/if}
+								</Button>
+
 								{#if personalNote?.note}
-									Modifier la note
-								{:else}
-									Ajouter une note
+									{#if confirmingDeleteNote}
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											class="bg-red-600 text-white hover:bg-red-700 hover:text-white"
+											title="Confirmer la suppression"
+											on:click={handleDeleteNote}
+										>
+											<Check class="h-4 w-4" />
+										</Button>
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											on:click={cancelDeleteConfirmation}
+											title="Annuler la suppression"
+										>
+											<X class="h-4 w-4" />
+										</Button>
+									{:else}
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											class="text-red-600 hover:bg-red-50 hover:text-red-700"
+											on:click={startDeleteConfirmation}
+											title="Supprimer la note"
+										>
+											<Trash2 class="h-4 w-4" />
+										</Button>
+									{/if}
 								{/if}
-							</Button>
+							</div>
 						</div>
 					{/if}
 				</CardContent>
@@ -431,18 +498,6 @@
 					</CardContent>
 				</Card>
 			{/if}
-
-			<!-- Message du pâtissier -->
-			{#if order.chef_message}
-				<Card>
-					<CardHeader>
-						<CardTitle>Votre message</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<p class="text-sm">{order.chef_message}</p>
-					</CardContent>
-				</Card>
-			{/if}
 		</div>
 
 		<!-- Colonne droite : Actions -->
@@ -486,6 +541,18 @@
 				</CardContent>
 			</Card>
 
+			<!-- Message du pâtissier -->
+			{#if order.chef_message}
+				<Card>
+					<CardHeader>
+						<CardTitle>Votre message</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<p class="text-sm">{order.chef_message}</p>
+					</CardContent>
+				</Card>
+			{/if}
+
 			<!-- Actions selon le statut -->
 			<Card>
 				<CardHeader>
@@ -504,69 +571,10 @@
 							</Button>
 
 							{#if showQuoteForm}
-								<form
-									method="POST"
-									action="?/makeQuote"
-									use:enhance={() => {
-										return async ({ result }) => {
-											if (result.type === 'success') {
-												showQuoteForm = false;
-												quoteMessage = '';
-												quotePrice = '';
-												window.location.reload();
-											}
-										};
-									}}
-									class="space-y-4 rounded-lg border p-4"
-								>
-									<div>
-										<Label for="quotePrice">Prix (€)</Label>
-										<Input
-											id="quotePrice"
-											name="price"
-											type="number"
-											step="0.01"
-											min="0"
-											bind:value={quotePrice}
-											required
-										/>
-									</div>
-									<div>
-										<Label for="quoteMessage">Message (optionnel)</Label>
-										<Textarea
-											id="quoteMessage"
-											name="chef_message"
-											bind:value={quoteMessage}
-											placeholder="Message pour le client..."
-										/>
-									</div>
-									<div>
-										<Label for="newPickupDate"
-											>Nouvelle date de récupération (optionnel)</Label
-										>
-										<Input
-											id="newPickupDate"
-											name="chef_pickup_date"
-											type="date"
-											bind:value={newPickupDate}
-										/>
-									</div>
-									<div class="flex gap-2">
-										<Button type="submit" class="flex-1 gap-2">
-											<Check class="h-4 w-4" />
-											Envoyer le devis
-										</Button>
-										<Button
-											type="button"
-											variant="outline"
-											on:click={() => (showQuoteForm = false)}
-											class="flex-1 gap-2"
-										>
-											<X class="h-4 w-4" />
-											Annuler
-										</Button>
-									</div>
-								</form>
+								<QuoteForm
+									data={$page.data.makeQuoteForm}
+									onCancel={() => (showQuoteForm = false)}
+								/>
 							{/if}
 
 							<Button
@@ -579,94 +587,62 @@
 							</Button>
 
 							{#if showRejectForm}
-								<form
-									method="POST"
-									action="?/rejectOrder"
-									use:enhance={() => {
-										return async ({ result }) => {
-											if (result.type === 'success') {
-												showRejectForm = false;
-												rejectMessage = '';
-												window.location.reload();
-											}
-										};
-									}}
-									class="space-y-4 rounded-lg border p-4"
-								>
-									<div>
-										<Label for="rejectMessage">Message (optionnel)</Label>
-										<Textarea
-											id="rejectMessage"
-											name="chef_message"
-											bind:value={rejectMessage}
-											placeholder="Message pour le client..."
-										/>
-									</div>
-									<div class="flex gap-2">
-										<Button
-											type="submit"
-											variant="destructive"
-											class="flex-1 gap-2"
-										>
-											<X class="h-4 w-4" />
-											Refuser
-										</Button>
-										<Button
-											type="button"
-											variant="outline"
-											on:click={() => (showRejectForm = false)}
-											class="flex-1 gap-2"
-										>
-											Annuler
-										</Button>
-									</div>
-								</form>
+								<RejectForm
+									data={$page.data.rejectOrderForm}
+									onCancel={() => (showRejectForm = false)}
+								/>
 							{/if}
 						</div>
 					{:else if order.status === 'quoted'}
 						<!-- Actions pour les commandes avec devis -->
-						<form
-							method="POST"
-							action="?/cancelOrder"
-							use:enhance={() => {
-								return async ({ result }) => {
-									if (result.type === 'success') {
-										window.location.reload();
-									}
-								};
-							}}
-						>
+						{#if confirmingCancelOrder}
+							<!-- Mode confirmation -->
+							<div class="space-y-4">
+								<p class="text-center text-sm text-muted-foreground">
+									Êtes-vous sûr de vouloir annuler cette commande ?
+								</p>
+								<div class="flex gap-2">
+									<form
+										method="POST"
+										action="?/cancelOrder"
+										use:enhance
+										class="flex-1"
+									>
+										<Button
+											type="submit"
+											variant="destructive"
+											class="w-full gap-2"
+										>
+											<Check class="h-4 w-4" />
+											Confirmer l'annulation
+										</Button>
+									</form>
+									<Button
+										type="button"
+										variant="outline"
+										class="flex-1 gap-2"
+										on:click={cancelCancelConfirmation}
+									>
+										<X class="h-4 w-4" />
+										Annuler
+									</Button>
+								</div>
+							</div>
+						{:else}
+							<!-- Mode normal -->
 							<Button
-								type="submit"
+								type="button"
 								variant="outline"
 								class="w-full gap-2"
-								on:click={(e) => {
-									if (
-										!confirm(
-											'Êtes-vous sûr de vouloir annuler cette commande ?',
-										)
-									) {
-										e.preventDefault();
-									}
-								}}
+								on:click={startCancelConfirmation}
 							>
 								<XCircle class="h-4 w-4" />
 								Annuler la commande
 							</Button>
-						</form>
+						{/if}
 					{:else if order.status === 'confirmed'}
 						<!-- Actions pour les commandes confirmées -->
-						<form
-							method="POST"
-							action="?/makeOrderReady"
-							use:enhance={() => {
-								return async ({ result }) => {
-									if (result.type === 'success') {
-										window.location.reload();
-									}
-								};
-							}}
-						>
+						<form method="POST" action="?/makeOrderReady" use:enhance>
 							<Button type="submit" class="w-full gap-2">
 								<PackageCheck class="h-4 w-4" />
 								Marquer comme prête
@@ -674,17 +650,7 @@
 						</form>
 					{:else if order.status === 'ready'}
 						<!-- Actions pour les commandes prêtes -->
-						<form
-							method="POST"
-							action="?/makeOrderCompleted"
-							use:enhance={() => {
-								return async ({ result }) => {
-									if (result.type === 'success') {
-										window.location.reload();
-									}
-								};
-							}}
-						>
+						<form method="POST" action="?/makeOrderCompleted" use:enhance>
 							<Button type="submit" class="w-full gap-2">
 								<CheckSquare class="h-4 w-4" />
 								Marquer comme terminée

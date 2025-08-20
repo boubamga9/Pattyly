@@ -2,6 +2,9 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { getUserPermissions, getShopId } from '$lib/permissions';
 import { validateImageServer, validateAndRecompressImage, logValidationInfo } from '$lib/utils/server-image-validation';
+import { superValidate } from 'sveltekit-superforms';
+import { zod } from 'sveltekit-superforms/adapters';
+import { createProductFormSchema, createCategoryFormSchema } from './schema';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
     const { userId, permissions } = await parent();
@@ -27,9 +30,15 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
         console.error('Error fetching categories:', categoriesError);
     }
 
+    // Initialiser les formulaires Superforms
+    const createProductForm = await superValidate(zod(createProductFormSchema));
+    const createCategoryForm = await superValidate(zod(createCategoryFormSchema));
+
     return {
         categories: categories || [],
-        userPlan: permissions.plan
+        userPlan: permissions.plan,
+        createProductForm,
+        createCategoryForm
     };
 };
 
@@ -58,49 +67,51 @@ export const actions: Actions = {
 
         const formData = await request.formData();
 
-        // DEBUG: Log tous les champs du FormData
-        console.log('=== ALL FORM DATA ===');
-        for (const [key, value] of formData.entries()) {
-            console.log(`${key}:`, value);
+        // Valider avec Superforms
+        const form = await superValidate(formData, zod(createProductFormSchema));
+
+        if (!form.valid) {
+            return fail(400, { form });
         }
 
-        const name = formData.get('name') as string;
-        const description = formData.get('description') as string;
-        const base_price = parseFloat(formData.get('price') as string);
-        const category_id = formData.get('category_id') as string;
-        const min_days_notice = parseInt(formData.get('min_days_notice') as string) || 0;
+        // Extraire les données validées
+        const { name, description, base_price, category_id, min_days_notice, customizationFields } = form.data;
         const imageFile = formData.get('image') as File;
-        const customizationFieldsJson = formData.get('customizationFields') as string;
 
-        // DEBUG: Log des données reçues
-        console.log('=== DEBUG CUSTOMIZATION FIELDS ===');
-        console.log('customizationFieldsJson:', customizationFieldsJson);
-        console.log('Type:', typeof customizationFieldsJson);
+        // Vérifier s'il y a une nouvelle catégorie à créer
+        const newCategoryName = formData.get('newCategoryName') as string;
+        let finalCategoryId = category_id;
 
-        if (!name || !base_price || base_price <= 0) {
-            return fail(400, { error: 'Veuillez remplir tous les champs obligatoires' });
-        }
-
-        // Parse customization fields
-        let customizationFields: Array<{
-            label: string;
-            type: 'short-text' | 'long-text' | 'number' | 'single-select' | 'multi-select';
-            required: boolean;
-            options: Array<{ label: string; price?: number }>;
-        }> = [];
-
-        if (customizationFieldsJson) {
+        // Créer la nouvelle catégorie si nécessaire
+        if (newCategoryName && newCategoryName.trim()) {
             try {
-                customizationFields = JSON.parse(customizationFieldsJson);
-                console.log('Parsed customizationFields:', customizationFields);
-                console.log('Number of fields:', customizationFields.length);
-            } catch (error) {
-                console.error('Error parsing customization fields:', error);
-                return fail(400, { error: 'Erreur lors du traitement des champs de personnalisation' });
+                const { data: newCategory, error: categoryError } = await locals.supabase
+                    .from('categories')
+                    .insert({
+                        name: newCategoryName.trim(),
+                        shop_id: shopId
+                    })
+                    .select()
+                    .single();
+
+                if (categoryError) {
+                    console.error('Error creating category:', categoryError);
+                    return fail(500, { form, error: 'Erreur lors de la création de la catégorie' });
+                }
+
+                // Utiliser l'ID de la nouvelle catégorie
+                finalCategoryId = newCategory.id;
+            } catch (err) {
+                console.error('Unexpected error creating category:', err);
+                return fail(500, { form, error: 'Erreur lors de la création de la catégorie' });
             }
-        } else {
-            console.log('No customization fields JSON received');
+        } else if (category_id === 'temp-new-category') {
+            // Si l'ID est temporaire mais qu'il n'y a pas de nouveau nom, erreur
+            return fail(400, { form, error: 'Erreur: catégorie temporaire sans nom' });
         }
+
+        // Les champs de personnalisation sont déjà validés et parsés par Superforms
+        const validatedCustomizationFields = customizationFields || [];
 
         // Handle image upload if provided
         let imageUrl = null;
@@ -157,7 +168,7 @@ export const actions: Actions = {
                     name,
                     description,
                     base_price,
-                    category_id: category_id || null,
+                    category_id: finalCategoryId || null,
                     shop_id: shopId,
                     min_days_notice,
                     image_url: imageUrl
@@ -171,13 +182,9 @@ export const actions: Actions = {
             }
 
             // Create form if customization fields are provided
-            console.log('Checking if customization fields exist:', customizationFields.length > 0);
-
-            if (customizationFields.length > 0) {
-                console.log('Creating form for customization fields...');
-
+            if (validatedCustomizationFields.length > 0) {
                 // Create the form
-                const { data: form, error: formError } = await locals.supabase
+                const { data: formData, error: formError } = await locals.supabase
                     .from('forms')
                     .insert({
                         shop_id: shopId,
@@ -188,22 +195,18 @@ export const actions: Actions = {
 
                 if (formError) {
                     console.error('Error creating form:', formError);
-                    return fail(500, { error: 'Erreur lors de la création du formulaire' });
+                    return fail(500, { form, error: 'Erreur lors de la création du formulaire' });
                 }
 
-                console.log('Form created successfully:', form);
-
                 // Create form fields
-                const formFields = customizationFields.map((field, index) => ({
-                    form_id: form.id,
+                const formFields = validatedCustomizationFields.map((field, index) => ({
+                    form_id: formData.id,
                     label: field.label,
                     type: field.type,
-                    options: field.options.length > 0 ? field.options : null,
+                    options: field.options && field.options.length > 0 ? field.options : null,
                     required: field.required,
                     order: index + 1
                 }));
-
-                console.log('Form fields to insert:', formFields);
 
                 const { error: fieldsError } = await locals.supabase
                     .from('form_fields')
@@ -211,33 +214,28 @@ export const actions: Actions = {
 
                 if (fieldsError) {
                     console.error('Error creating form fields:', fieldsError);
-                    return fail(500, { error: 'Erreur lors de la création des champs du formulaire' });
+                    return fail(500, { form, error: 'Erreur lors de la création des champs du formulaire' });
                 }
 
-                console.log('Form fields created successfully');
-
                 // Update product with form_id
-                console.log('Updating product with form_id:', form.id);
-
                 const { error: updateError } = await locals.supabase
                     .from('products')
-                    .update({ form_id: form.id })
+                    .update({ form_id: formData.id })
                     .eq('id', product.id);
 
                 if (updateError) {
                     console.error('Error updating product with form_id:', updateError);
-                    return fail(500, { error: 'Erreur lors de l\'association du formulaire au produit' });
+                    return fail(500, { form, error: 'Erreur lors de l\'association du formulaire au produit' });
                 }
-
-                console.log('Product updated with form_id successfully');
             }
         } catch (err) {
             console.error('Unexpected error:', err);
-            return fail(500, { error: 'Erreur inattendue lors de l\'ajout du produit' });
+            return fail(500, { form, error: 'Erreur inattendue lors de l\'ajout du produit' });
         }
 
-        // Retourner un succès pour déclencher la redirection côté client
-        return { success: true, message: 'Produit créé avec succès' };
+        // Retourner un succès pour Superforms
+        form.message = 'Produit créé avec succès';
+        return { form };
     },
 
     createCategory: async ({ request, locals }) => {
@@ -256,28 +254,15 @@ export const actions: Actions = {
         }
 
         const formData = await request.formData();
-        const categoryName = formData.get('categoryName') as string;
 
-        if (!categoryName || !categoryName.trim()) {
-            return fail(400, {
-                error: 'Le nom de la catégorie est obligatoire'
-            });
+        // Valider avec Superforms
+        const form = await superValidate(formData, zod(createCategoryFormSchema));
+
+        if (!form.valid) {
+            return fail(400, { form });
         }
 
-        const trimmedName = categoryName.trim();
-
-        // Validation côté serveur
-        if (trimmedName.length < 2) {
-            return fail(400, {
-                error: 'Le nom doit contenir au moins 2 caractères'
-            });
-        }
-
-        if (trimmedName.length > 50) {
-            return fail(400, {
-                error: 'Le nom ne peut pas dépasser 50 caractères'
-            });
-        }
+        const { name: trimmedName } = form.data;
 
         try {
             // Vérifier si la catégorie existe déjà
@@ -290,15 +275,11 @@ export const actions: Actions = {
 
             if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
                 console.error('Error checking existing category:', checkError);
-                return fail(500, {
-                    error: 'Erreur lors de la vérification de la catégorie'
-                });
+                return fail(500, { form, error: 'Erreur lors de la vérification de la catégorie' });
             }
 
             if (existingCategory) {
-                return fail(400, {
-                    error: 'Cette catégorie existe déjà'
-                });
+                return fail(400, { form, error: 'Cette catégorie existe déjà' });
             }
 
             // Créer la nouvelle catégorie
@@ -313,20 +294,15 @@ export const actions: Actions = {
 
             if (insertError) {
                 console.error('Error creating category:', insertError);
-                return fail(500, {
-                    error: 'Erreur lors de la création de la catégorie'
-                });
+                return fail(500, { form, error: 'Erreur lors de la création de la catégorie' });
             }
 
-            return {
-                message: 'Catégorie créée avec succès',
-                category: newCategory
-            };
+            // Retourner un succès pour Superforms
+            form.message = 'Catégorie créée avec succès';
+            return { form, category: newCategory };
         } catch (err) {
             console.error('Unexpected error:', err);
-            return fail(500, {
-                error: 'Erreur inattendue lors de la création de la catégorie'
-            });
+            return fail(500, { form, error: 'Erreur inattendue lors de la création de la catégorie' });
         }
     }
 };

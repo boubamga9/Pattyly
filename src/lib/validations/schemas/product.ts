@@ -18,11 +18,20 @@ export const productBaseSchema = z.object({
     base_price: priceSchema,          // Prix de base (0 à 10 000€)
     category_id: uuidSchema,          // Lien vers la catégorie
     form_id: uuidSchema,              // Lien vers le formulaire de personnalisation
-    min_days_notice: z
-        .number()
-        .int()
-        .min(0, 'Le délai minimum doit être positif')
-        .max(365, 'Le délai maximum est de 365 jours')
+    min_days_notice: z.preprocess(
+        (val) => {
+            // Convertir string → number avant validation
+            if (typeof val === 'string') {
+                const num = parseInt(val);
+                return isNaN(num) ? val : num; // Retourner val si pas un nombre pour que Zod gère l'erreur
+            }
+            return val;
+        },
+        z.number({
+            required_error: 'Le délai est requis',
+            invalid_type_error: 'Le délai doit être un nombre'
+        }).int().min(0, 'Le délai minimum doit être positif').max(365, 'Le délai maximum est de 365 jours')
+    )
 });
 
 // Création d'un nouveau produit

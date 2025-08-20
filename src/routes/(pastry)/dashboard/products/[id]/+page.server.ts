@@ -3,6 +3,9 @@ import type { PageServerLoad, Actions } from './$types';
 import { getShopId } from '$lib/permissions';
 import { deleteImageIfUnused } from '$lib/storage-utils';
 import { validateImageServer, validateAndRecompressImage, logValidationInfo } from '$lib/utils/server-image-validation';
+import { superValidate } from 'sveltekit-superforms';
+import { zod } from 'sveltekit-superforms/adapters';
+import { updateProductFormSchema, createCategoryFormSchema } from './schema.js';
 
 export const load: PageServerLoad = async ({ params, locals, parent }) => {
     const { userId } = await parent();
@@ -58,10 +61,30 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
         }
     }
 
+    // Initialiser Superforms pour l'édition
+    const updateProductForm = await superValidate(
+        zod(updateProductFormSchema),
+        {
+            defaults: {
+                name: product.name,
+                description: product.description || '',
+                base_price: product.base_price,
+                category_id: product.category_id || '',
+                min_days_notice: product.min_days_notice,
+                customizationFields: customizationFields
+            }
+        }
+    );
+
+    // Initialiser Superforms pour les catégories
+    const createCategoryForm = await superValidate(zod(createCategoryFormSchema));
+
     return {
         product,
         categories: categories || [],
-        customizationFields
+        customizationFields,
+        updateProductForm,
+        createCategoryForm
     };
 };
 
@@ -90,19 +113,52 @@ export const actions: Actions = {
         }
 
         const formData = await request.formData();
-        const name = formData.get('name') as string;
-        const description = formData.get('description') as string;
-        const base_price = parseFloat(formData.get('price') as string);
-        const category_id = formData.get('category_id') as string;
-        const min_days_notice = parseInt(formData.get('min_days_notice') as string) || 0;
-        const imageFile = formData.get('image') as File;
-        const customizationFieldsJson = formData.get('customizationFields') as string;
 
-        // Validation basique
-        if (!name || !base_price || base_price <= 0) {
-            return fail(400, {
-                error: 'Veuillez remplir tous les champs obligatoires'
-            });
+        // Valider avec Superforms
+        const form = await superValidate(formData, zod(updateProductFormSchema));
+
+        if (!form.valid) {
+            return fail(400, { form });
+        }
+
+        // Extraire les données validées
+        const { name, description, base_price, category_id, min_days_notice, customizationFields } = form.data;
+        const imageFile = formData.get('image') as File;
+
+        // Vérifier s'il y a une nouvelle catégorie à créer
+        const newCategoryName = formData.get('newCategoryName') as string;
+        let finalCategoryId = category_id;
+
+        // Créer la nouvelle catégorie si nécessaire
+        if (newCategoryName && newCategoryName.trim()) {
+            try {
+                const { data: newCategory, error: categoryError } = await locals.supabase
+                    .from('categories')
+                    .insert({
+                        name: newCategoryName.trim(),
+                        shop_id: shopId
+                    })
+                    .select()
+                    .single();
+
+                if (categoryError) {
+                    console.error('Error creating category:', categoryError);
+                    return fail(500, { form, error: 'Erreur lors de la création de la catégorie' });
+                }
+
+                finalCategoryId = newCategory.id;
+            } catch (err) {
+                console.error('Error creating category:', err);
+                return fail(500, { form, error: 'Erreur lors de la création de la catégorie' });
+            }
+        }
+
+        // Gérer le cas de la catégorie temporaire
+        if (finalCategoryId === 'temp-new-category') {
+            if (!newCategoryName || !newCategoryName.trim()) {
+                return fail(400, { form, error: 'Nom de catégorie requis pour la nouvelle catégorie' });
+            }
+            // La catégorie a déjà été créée ci-dessus
         }
 
         try {
@@ -166,7 +222,7 @@ export const actions: Actions = {
                 name,
                 description,
                 base_price,
-                category_id: category_id || null,
+                category_id: finalCategoryId || null,
                 min_days_notice
             };
 
@@ -196,9 +252,8 @@ export const actions: Actions = {
             }
 
             // Mettre à jour les champs de personnalisation si fournis
-            if (customizationFieldsJson) {
+            if (customizationFields && customizationFields.length > 0) {
                 try {
-                    const customizationFields = JSON.parse(customizationFieldsJson);
 
                     if (updatedProduct.form_id) {
                         // Supprimer les anciens champs
@@ -208,9 +263,9 @@ export const actions: Actions = {
                             .eq('form_id', updatedProduct.form_id);
 
                         // Ajouter les nouveaux champs
-                        if (customizationFields.length > 0) {
+                        if (customizationFields.length > 0 && updatedProduct.form_id) {
                             const formFields = customizationFields.map((field: any, index: number) => ({
-                                form_id: updatedProduct.form_id,
+                                form_id: updatedProduct.form_id!,
                                 label: field.label,
                                 type: field.type,
                                 options: field.options && field.options.length > 0 ? field.options : null,
@@ -288,7 +343,60 @@ export const actions: Actions = {
             });
         }
 
-        // Retourner un succès pour déclencher la redirection côté client
-        return { success: true, message: 'Produit modifié avec succès' };
+        // Retourner un succès avec le formulaire Superforms
+        form.message = 'Produit modifié avec succès';
+        return { form };
+    },
+
+    createCategory: async ({ request, locals }) => {
+        const { session } = await locals.safeGetSession();
+        const userId = session?.user.id;
+
+        if (!userId) {
+            return fail(401, { error: 'Non autorisé' });
+        }
+
+        // Get shop_id for this user
+        const shopId = await getShopId(userId, locals.supabase);
+
+        if (!shopId) {
+            return fail(500, { error: 'Boutique non trouvée' });
+        }
+
+        const formData = await request.formData();
+
+        // Valider avec Superforms
+        const form = await superValidate(formData, zod(createCategoryFormSchema));
+
+        if (!form.valid) {
+            return fail(400, { form });
+        }
+
+        // Extraire les données validées
+        const { name: categoryName } = form.data;
+        const trimmedName = categoryName.trim();
+
+        try {
+            const { data: newCategory, error: categoryError } = await locals.supabase
+                .from('categories')
+                .insert({
+                    name: trimmedName,
+                    shop_id: shopId
+                })
+                .select()
+                .single();
+
+            if (categoryError) {
+                console.error('Error creating category:', categoryError);
+                return fail(500, { form, error: 'Erreur lors de la création de la catégorie' });
+            }
+
+            // Retourner le succès avec le formulaire et la nouvelle catégorie
+            form.message = 'Catégorie créée avec succès';
+            return { form, category: newCategory };
+        } catch (err) {
+            console.error('Error creating category:', err);
+            return fail(500, { form, error: 'Erreur lors de la création de la catégorie' });
+        }
     }
 }; 

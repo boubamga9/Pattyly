@@ -338,33 +338,36 @@
 				{:else}
 					<div class="space-y-4">
 						{#each metrics.recentOrders as order}
-							<div
-								class="flex items-center justify-between rounded-lg border p-3"
+							<button
+								class="w-full text-left"
+								on:click={() => goto(`/dashboard/orders/${order.id}`)}
 							>
-								<div class="flex-1">
-									<div class="flex items-center space-x-2">
-										<p class="font-medium">
+								<div
+									class="flex cursor-pointer items-center justify-between rounded-lg border p-3 transition-colors hover:bg-gray-50"
+								>
+									<div class="flex-1">
+										<div class="flex items-center space-x-2">
+											<p class="font-medium">
+												{order.product_name || 'Commande personnalisée'}
+											</p>
+											<Badge variant={getOrderStatus(order.status).variant}>
+												{getOrderStatus(order.status).label}
+											</Badge>
+										</div>
+										<p class="text-sm text-muted-foreground">
 											{order.customer_name || order.customer_email}
 										</p>
-										<Badge variant={getOrderStatus(order.status).variant}>
-											{getOrderStatus(order.status).label}
-										</Badge>
-									</div>
-									<p class="text-sm text-muted-foreground">
-										{formatDate(order.created_at)}
-									</p>
-									{#if order.products && order.products.length > 0}
 										<p class="text-xs text-muted-foreground">
-											{order.products.length} article(s)
+											{formatDate(order.created_at)}
 										</p>
-									{/if}
+									</div>
+									<div class="text-right">
+										<p class="font-medium">
+											{formatPrice(order.total_amount || 0)}
+										</p>
+									</div>
 								</div>
-								<div class="text-right">
-									<p class="font-medium">
-										{formatPrice(order.total_amount || 0)}
-									</p>
-								</div>
-							</div>
+							</button>
 						{/each}
 					</div>
 					<div class="mt-4">
@@ -408,9 +411,6 @@
 								</div>
 								<div class="text-right">
 									<p class="font-medium">{formatPrice(item.totalRevenue)}</p>
-									<p class="text-xs text-muted-foreground">
-										{formatPrice(item.product.price || 0)} l'unité
-									</p>
 								</div>
 							</div>
 						{/each}
