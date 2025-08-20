@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
+	import { writable } from 'svelte/store';
 	import CategoryForm from './category-form.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import {
@@ -35,6 +36,14 @@
 		permissions,
 		shopSlug,
 	} = $page.data);
+
+	// Store local pour les catégories (permet la mise à jour de l'interface)
+	const localCategories = writable(categories || []);
+
+	// Synchroniser le store local avec les données de la page
+	$: if (categories) {
+		localCategories.set(categories);
+	}
 
 	// État du filtre
 	let selectedCategory: string | null = null;
@@ -97,6 +106,29 @@
 	// Fonction pour rediriger vers l'édition d'un produit
 	function editProduct(productId: string) {
 		goto(`/dashboard/products/${productId}`);
+	}
+
+	// Fonction de suppression de catégorie avec mise à jour instantanée
+	async function handleCategoryDelete(categoryId: string) {
+		const formData = new FormData();
+		formData.append('categoryId', categoryId);
+
+		try {
+			const response = await fetch('?/deleteCategory', {
+				method: 'POST',
+				body: formData,
+			});
+
+			if (response.ok) {
+				// Mise à jour instantanée !
+				localCategories.update((cats: any[]) =>
+					cats.filter((cat: any) => cat.id !== categoryId),
+				);
+				confirmingDeleteId = null;
+			}
+		} catch (error) {
+			console.error('Erreur lors de la suppression:', error);
+		}
 	}
 
 	// Fonctions pour l'ajout de catégorie
@@ -203,7 +235,7 @@
 				</Button>
 
 				<!-- Filtres par catégorie -->
-				{#each categories || [] as category}
+				{#each $localCategories as category}
 					{#if editingCategoryId === category.id}
 						<!-- Interface d'édition de catégorie -->
 						<div class="flex items-center gap-1">
@@ -216,12 +248,14 @@
 								onSuccess={() => {
 									editingCategoryId = null;
 									editingCategoryName = '';
-									// TODO: Mettre à jour la liste des catégories sans reload
+									// Mise à jour instantanée via le store local
+									// TODO: Rafraîchir les données depuis le serveur
 								}}
 								onCancel={() => {
 									editingCategoryId = null;
 									editingCategoryName = '';
 								}}
+								onDelete={handleCategoryDelete}
 							/>
 						</div>
 					{:else}

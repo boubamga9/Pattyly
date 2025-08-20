@@ -14,7 +14,7 @@ export const categorySchema = z.object({
     name: z
         .string()
         .min(2, 'Le nom de la catégorie doit faire au moins 2 caractères')
-        .max(50, 'Le nom de la catégorie ne peut pas dépasser 50 caractères')
+        .max(30, 'Le nom de la catégorie ne peut pas dépasser 30 caractères')
         .trim(),
     shop_id: uuidSchema
 });
