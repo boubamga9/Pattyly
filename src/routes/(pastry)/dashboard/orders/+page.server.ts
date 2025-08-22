@@ -1,4 +1,4 @@
-import { fail } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { getUserPermissions } from '$lib/permissions';
@@ -27,16 +27,22 @@ export const load: PageServerLoad = async ({ locals }) => {
         } = await locals.supabase.auth.getUser();
 
         if (!user) {
-            throw error(401, 'Non autorisé');
+            throw redirect(302, '/login');
         }
 
-        // Récupérer les permissions et l'ID de la boutique
+        // Vérifier les permissions
         const permissions = await getUserPermissions(user.id, locals.supabase);
-        const shopId = permissions.shopId;
 
-        if (!shopId) {
-            throw error(404, 'Boutique non trouvée');
+        if (!permissions.canAccessDashboard) {
+            throw redirect(302, '/onboarding');
         }
+
+        // Récupérer l'ID de la boutique
+        if (!permissions.shopId) {
+            throw error(400, 'Boutique non trouvée');
+        }
+
+        const shopId = permissions.shopId;
 
         // Récupérer les informations de la boutique
         const { data: shop, error: shopError } = await locals.supabase

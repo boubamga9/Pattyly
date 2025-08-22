@@ -83,14 +83,91 @@ export const formSchema = z.discriminatedUnion('is_custom_form', [
 
 // ===== 5. RÉPONSES DES CLIENTS =====
 
+// Schéma de base pour les réponses de personnalisation
 export const customizationResponseSchema = z.record(
-    z.string(), // LABEL du champ (ex: "Nombre de personnes")
+    z.string(), // ID du champ (ex: "field_1")
     z.union([
         z.string(),           // Réponse texte
         z.number(),           // Réponse nombre
         z.array(z.string())   // Réponse sélection multiple
     ])
 );
+
+// Fonction pour créer un schéma de validation dynamique basé sur les champs configurés
+export function createDynamicCustomizationSchema(fields: Array<{
+    id: string;
+    label: string;
+    type: 'short-text' | 'long-text' | 'number' | 'single-select' | 'multi-select';
+    required: boolean;
+    options?: Array<{ label: string; price?: number }>;
+}>) {
+    const shape: Record<string, any> = {};
+
+    for (const field of fields) {
+        let validator: any;
+
+        switch (field.type) {
+            case 'short-text':
+                validator = z.string();
+                if (field.required) {
+                    validator = validator.min(2, `${field.label} est requis`);
+                }
+                break;
+
+            case 'long-text':
+                validator = z.string();
+                if (field.required) {
+                    validator = validator.min(1, `${field.label} est requis`);
+                }
+                break;
+
+            case 'number':
+                validator = z.number().min(0, `${field.label} doit être positif`);
+                if (!field.required) {
+                    validator = validator.optional();
+                }
+                break;
+
+            case 'single-select':
+                validator = z.string();
+                if (field.required) {
+                    validator = validator.min(1, `${field.label} est requis`);
+                } else {
+                    validator = validator.optional();
+                }
+
+                if (field.options && field.options.length > 0) {
+                    const validOptions = field.options.map(opt => opt.label);
+                    validator = validator.refine(
+                        (val: string | undefined) => !val || validOptions.includes(val),
+                        `Veuillez sélectionner une option valide pour ${field.label}`
+                    );
+                }
+                break;
+
+            case 'multi-select':
+                validator = z.array(z.string());
+                if (field.required) {
+                    validator = validator.min(1, `Veuillez sélectionner au moins une option pour ${field.label}`);
+                } else {
+                    validator = validator.optional();
+                }
+
+                if (field.options && field.options.length > 0) {
+                    const validOptions = field.options.map(opt => opt.label);
+                    validator = validator.refine(
+                        (values: string[] | undefined) => !values || values.every(val => validOptions.includes(val)),
+                        `Veuillez sélectionner des options valides pour ${field.label}`
+                    );
+                }
+                break;
+        }
+
+        shape[field.id] = validator;
+    }
+
+    return z.object(shape);
+}
 
 // ===== 6. SCHÉMAS D'ACTION POUR LES FORMULAIRES PERSONNALISÉS =====
 

@@ -86,8 +86,77 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         console.log('🔍 Compte principal Pattyly:', stripeAccountId);
         console.log('🔍 Comptes Connect connus:', ['acct_1RteYnAokGuma9up', 'acct_1RtdxQAGwWDDWxQc']);
 
-        // Calculer le montant de l'acompte (50%)
-        const depositAmount = Math.round(orderData.totalPrice * 50); // Stripe utilise les centimes (totalPrice est déjà en euros)
+        // Récupérer le prix du produit depuis la base de données pour la sécurité
+        const { data: product, error: productError } = await locals.supabase
+            .from('products')
+            .select('base_price')
+            .eq('id', orderData.productId)
+            .single();
+
+        if (productError || !product) {
+            return json({ error: 'Produit non trouvé' }, { status: 404 });
+        }
+
+        // Calculer le prix total avec les options sélectionnées
+        let totalPrice = product.base_price;
+        if (orderData.selectedOptions && Object.keys(orderData.selectedOptions).length > 0) {
+            // Récupérer le formulaire de personnalisation du produit
+            const { data: productForm } = await locals.supabase
+                .from('products')
+                .select('form_id')
+                .eq('id', orderData.productId)
+                .single();
+
+            if (productForm?.form_id) {
+                // Récupérer les champs de personnalisation pour calculer le prix total
+                const { data: customizationFields } = await locals.supabase
+                    .from('form_fields')
+                    .select('id, label, type, options')
+                    .eq('form_id', productForm.form_id)
+                    .order('order');
+
+                if (customizationFields) {
+                    customizationFields.forEach((field: any) => {
+                        const fieldValue = orderData.selectedOptions[field.id];
+                        if (fieldValue) {
+                            const options = field.options as Array<{ label: string; price?: number }> || [];
+
+                            if (field.type === 'single-select') {
+                                // Single-select : ajouter le prix de l'option
+                                const selectedOption = options.find((opt: any) => opt.label === fieldValue);
+                                totalPrice += selectedOption?.price || 0;
+                            } else if (field.type === 'multi-select') {
+                                // Multi-select : ajouter le prix de chaque option sélectionnée
+                                if (Array.isArray(fieldValue)) {
+                                    fieldValue.forEach((selectedLabel: string) => {
+                                        const selectedOption = options.find((opt: any) => opt.label === selectedLabel);
+                                        totalPrice += selectedOption?.price || 0;
+                                    });
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        }
+
+        // Calculer le montant de l'acompte (50%) avec le prix sécurisé
+        const depositAmount = Math.round(totalPrice * 50); // Stripe utilise les centimes
+
+        // Vérifier la cohérence entre le prix front et le prix back (sécurité + UX)
+        if (Math.abs(orderData.totalPrice - totalPrice) > 0.01) { // Tolérance de 1 centime
+            console.warn('⚠️ Prix front/back différent:', {
+                frontPrice: orderData.totalPrice,
+                backPrice: totalPrice,
+                difference: Math.abs(orderData.totalPrice - totalPrice)
+            });
+
+            // Option 1: Rejeter la commande (sécurisé mais UX dégradée)
+            // return json({ error: 'Prix incorrect détecté' }, { status: 400 });
+
+            // Option 2: Utiliser le prix back et continuer (sécurisé + UX préservée)
+            console.log('✅ Utilisation du prix sécurisé côté serveur');
+        }
 
         // Récupérer le slug de la boutique
         const { data: shopData } = await locals.supabase
@@ -129,12 +198,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     .order('order');
 
                 if (customizationFields) {
-                    customizationFields.forEach((field: { id: string; label: string; type: string; options?: Array<{ label: string; price?: number }> }) => {
+                    customizationFields.forEach((field: any) => {
                         const fieldValue = orderData.selectedOptions[field.id];
                         if (fieldValue) {
+                            const options = field.options as Array<{ label: string; price?: number }> || [];
+
                             if (field.type === 'single-select') {
                                 // Single-select : {value, price}
-                                const selectedOption = field.options?.find((opt: any) => opt.label === fieldValue);
+                                const selectedOption = options.find((opt: any) => opt.label === fieldValue);
                                 transformedCustomizationData[field.label] = {
                                     value: fieldValue,
                                     price: selectedOption?.price || 0
@@ -143,7 +214,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                                 // Multi-select : [{value, price}, ...]
                                 if (Array.isArray(fieldValue)) {
                                     transformedCustomizationData[field.label] = fieldValue.map((selectedLabel: string) => {
-                                        const selectedOption = field.options?.find((opt: any) => opt.label === selectedLabel);
+                                        const selectedOption = options.find((opt: any) => opt.label === selectedLabel);
                                         return {
                                             value: selectedLabel,
                                             price: selectedOption?.price || 0

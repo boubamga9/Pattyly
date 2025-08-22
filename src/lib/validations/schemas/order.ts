@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { uuidSchema, nameSchema, emailSchema, messageSchema, priceSchema, futureDateSchema } from './common';
-import { customizationResponseSchema } from './form';
+import { customizationResponseSchema, createDynamicCustomizationSchema } from './form';
 
 /**
  * Schémas de validation pour les commandes et devis
@@ -34,14 +34,16 @@ export const orderBaseSchema = z.object({
     product_id: uuidSchema.optional(),      // Lien vers le produit (null pour demande sur mesure)
     customer_name: nameSchema,              // Nom du client
     customer_email: emailSchema,            // Email du client
+    customer_phone: z.string().optional(),  // Téléphone du client (optionnel)
+    customer_instagram: z.string().optional(), // Instagram du client (optionnel)
     pickup_date: futureDateSchema,          // Date de retrait (future uniquement)
-    message: messageSchema,                 // Message optionnel du client
+    additional_information: messageSchema.optional(), // Informations supplémentaires (optionnel)
     customization_data: customizationResponseSchema.optional(), // Réponses au formulaire
     status: orderStatusSchema,
     refused_by: refusedBySchema.optional(), // Qui a refusé (si applicable)
-    price: priceSchema.optional(),          // Prix final (null si pas encore devisé)
+    total_amount: priceSchema.optional(),   // Prix final (null si pas encore devisé)
     chef_message: messageSchema,            // Message du chef (utilise messageSchema de common)
-    stripe_payment_id: z.string().optional() // ID de paiement Stripe
+    stripe_payment_intent_id: z.string().optional() // ID de paiement Stripe
 });
 
 // ===== SCHÉMAS COMPOSÉS =====
@@ -52,10 +54,41 @@ export const createOrderSchema = orderBaseSchema.omit({
     shop_id: true,
     status: true,
     refused_by: true,
-    price: true,
+    total_amount: true,
     chef_message: true,
-    stripe_payment_id: true
+    stripe_payment_intent_id: true
 });
+
+// Création d'une demande personnalisée (côté client)
+export const createCustomOrderSchema = orderBaseSchema.omit({
+    id: true,
+    shop_id: true,
+    product_id: true,        // Pas de produit pour les demandes custom
+    status: true,
+    refused_by: true,
+    total_amount: true,
+    chef_message: true,
+    stripe_payment_intent_id: true
+});
+
+// Fonction pour créer un schéma de commande personnalisée avec validation dynamique
+export function createDynamicCustomOrderSchema(fields: Array<{
+    id: string;
+    label: string;
+    type: 'short-text' | 'long-text' | 'number' | 'single-select' | 'multi-select';
+    required: boolean;
+    options?: Array<{ label: string; price?: number }>;
+}>) {
+    return z.object({
+        customer_name: nameSchema,
+        customer_email: emailSchema,
+        customer_phone: z.string().optional(),
+        customer_instagram: z.string().optional(),
+        pickup_date: futureDateSchema,
+        customization_data: createDynamicCustomizationSchema(fields),
+        additional_information: messageSchema.optional()
+    });
+}
 
 // Mise à jour du statut d'une commande
 export const updateOrderStatusSchema = z.object({
@@ -64,7 +97,7 @@ export const updateOrderStatusSchema = z.object({
 
 // Envoi d'un devis (changer le statut en 'quoted')
 export const sendQuoteSchema = z.object({
-    price: priceSchema,                     // Prix du devis
+    total_amount: priceSchema,              // Prix du devis
     chef_message: messageSchema.optional()  // Message du chef
 });
 
@@ -81,6 +114,8 @@ export type RefusedBy = z.infer<typeof refusedBySchema>;
 
 export type OrderBase = z.infer<typeof orderBaseSchema>;
 export type CreateOrder = z.infer<typeof createOrderSchema>;
+export type CreateCustomOrder = z.infer<typeof createCustomOrderSchema>;
 export type UpdateOrderStatus = z.infer<typeof updateOrderStatusSchema>;
 export type SendQuote = z.infer<typeof sendQuoteSchema>;
 export type RefuseOrder = z.infer<typeof refuseOrderSchema>;
+

@@ -90,7 +90,7 @@ export const load = async ({ locals }) => {
 			status
 		`)
         .eq('shop_id', shopId)
-        .not('product_name', 'is', null)  // Seulement les commandes avec nom de produit
+        .not('product_id', 'is', null)  // Seulement les commandes avec nom de produit
         .eq('status', 'completed');  // Seulement les commandes terminées
 
     // Debug: Log des gâteaux populaires

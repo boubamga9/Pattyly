@@ -80,7 +80,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 additional_information: orderData.additionalInfo || null,
                 customization_data: transformedCustomizationData,
                 status: 'pending',
-                price: orderData.estimatedPrice || 0,
+                total_amount: orderData.estimatedPrice || 0,
                 product_name: 'Demande personnalisée'
             })
             .select()

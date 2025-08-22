@@ -2,6 +2,7 @@ import { error, redirect } from '@sveltejs/kit';
 import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
 import type { PageServerLoad, Actions } from './$types';
 import Stripe from 'stripe';
+import { getUserPermissions } from '$lib/permissions';
 
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
@@ -11,18 +12,32 @@ import { validateImageServer, validateAndRecompressImage, logValidationInfo } fr
 
 
 export const load: PageServerLoad = async ({ locals }) => {
-    const { session } = await locals.safeGetSession();
-    if (!session) {
-        error(401, 'Non autorisé');
+    // Récupérer l'utilisateur connecté
+    const {
+        data: { user },
+    } = await locals.supabase.auth.getUser();
+
+    if (!user) {
+        throw redirect(302, '/login');
     }
 
-    const userId = session.user.id;
+    // Vérifier les permissions
+    const permissions = await getUserPermissions(user.id, locals.supabase);
+
+    if (!permissions.canAccessDashboard) {
+        throw redirect(302, '/onboarding');
+    }
+
+    // Récupérer l'ID de la boutique
+    if (!permissions.shopId) {
+        throw error(400, 'Boutique non trouvée');
+    }
 
     // Get shop data
     const { data: shop, error: shopError } = await locals.supabase
         .from('shops')
         .select('*')
-        .eq('profile_id', userId)
+        .eq('id', permissions.shopId)
         .single();
 
     if (shopError) {

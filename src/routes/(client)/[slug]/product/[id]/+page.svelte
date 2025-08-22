@@ -7,7 +7,7 @@
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Separator } from '$lib/components/ui/separator';
 	import { Heart } from 'lucide-svelte';
-	import { ClientFooter, DatePicker } from '$lib/components';
+	import { ClientFooter, DatePicker, OptionGroup } from '$lib/components';
 
 	// Données de la page
 	$: ({
@@ -315,36 +315,18 @@
 										{field.required ? '*' : ''}
 									</Label>
 									{#if field.type === 'single-select' || field.type === 'multi-select'}
-										<div class="flex flex-wrap gap-2">
-											{#each field.options as option}
-												<Button
-													variant={field.type === 'single-select'
-														? selectedOptions[field.id] === option.label
-															? 'default'
-															: 'outline'
-														: Array.isArray(selectedOptions[field.id]) &&
-															  selectedOptions[field.id].includes(option.label)
-															? 'default'
-															: 'outline'}
-													on:click={() =>
-														toggleOption(field.id, option.label, field.type)}
-													class="rounded-lg text-xs sm:text-sm {field.type ===
-													'single-select'
-														? selectedOptions[field.id] === option.label
-															? ''
-															: 'text-muted-foreground'
-														: Array.isArray(selectedOptions[field.id]) &&
-															  selectedOptions[field.id].includes(option.label)
-															? ''
-															: 'text-muted-foreground'}"
-												>
-													{option.label}
-													{option.price > 0
-														? `(+${formatPrice(option.price)})`
-														: ''}
-												</Button>
-											{/each}
-										</div>
+										<OptionGroup
+											fieldId={field.id}
+											fieldType={field.type}
+											options={field.options || []}
+											selectedValues={selectedOptions[field.id] ||
+												(field.type === 'multi-select' ? [] : '')}
+											on:change={(event) => {
+												const { values } = event.detail;
+												selectedOptions[field.id] = values;
+												selectedOptions = { ...selectedOptions };
+											}}
+										/>
 									{:else if field.type === 'long-text'}
 										<Textarea
 											id={field.id}

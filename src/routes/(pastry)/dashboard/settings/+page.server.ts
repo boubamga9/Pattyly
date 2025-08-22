@@ -5,6 +5,7 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import { message, setError, superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad } from './$types';
+import { getUserPermissions } from '$lib/permissions';
 import {
     deleteAccountFormSchema,
     infoFormSchema,
@@ -19,12 +20,28 @@ const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
 });
 
 export const load: PageServerLoad = async ({ locals }) => {
-    const { session } = await locals.safeGetSession();
-    if (!session) {
-        error(401, 'Non autorisé');
+    // Récupérer l'utilisateur connecté
+    const {
+        data: { user },
+    } = await locals.supabase.auth.getUser();
+
+    if (!user) {
+        throw redirect(302, '/login');
     }
 
-    const userId = session.user.id;
+    // Vérifier les permissions
+    const permissions = await getUserPermissions(user.id, locals.supabase);
+
+    if (!permissions.canAccessDashboard) {
+        throw redirect(302, '/onboarding');
+    }
+
+    // Récupérer l'ID de la boutique
+    if (!permissions.shopId) {
+        throw error(400, 'Boutique non trouvée');
+    }
+
+    const userId = user.id;
 
     // get profile info
     let info;
