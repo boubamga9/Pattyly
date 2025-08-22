@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/stores';
 	import * as Form from '$lib/components/ui/form';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -313,17 +314,28 @@
 
 		<!-- Section 5: Boutons d'action -->
 		<div class="flex gap-2">
-			<Button type="submit" disabled={$submitting} class="flex-1">
-				{#if $submitting}
-					<span class="loading loading-spinner loading-sm"></span>
-					Envoi en cours...
-				{:else}
-					Envoyer ma demande
-				{/if}
-			</Button>
-			<Button type="button" variant="outline" on:click={onCancel}>
-				Annuler
-			</Button>
+			{#if $page.url.searchParams.get('preview') !== 'true'}
+				<Button type="submit" disabled={$submitting} class="flex-1">
+					{#if $submitting}
+						<span class="loading loading-spinner loading-sm"></span>
+						Envoi en cours...
+					{:else}
+						Envoyer ma demande
+					{/if}
+				</Button>
+				<Button type="button" variant="outline" on:click={onCancel}>
+					Annuler
+				</Button>
+			{:else}
+				<!-- Message en mode preview -->
+				<div
+					class="rounded-lg border border-blue-200 bg-blue-50 p-4 text-center"
+				>
+					<p class="text-sm text-blue-800">
+						🔍 Mode prévisualisation - Bouton de commande masqué
+					</p>
+				</div>
+			{/if}
 		</div>
 	</div>
 </form>

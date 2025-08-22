@@ -30,7 +30,14 @@ export const load = async ({ locals }) => {
         .eq('shop_id', shopId)
         .eq('is_active', true);
 
-    // Get recent orders (last 10) - Version simplifiée pour debug
+    // Define time periods for metrics
+    const now = new Date();
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    const oneYearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+
+    // Get recent orders (last 3) - Version simplifiée pour debug
     const { data: recentOrders, error: recentOrdersError } = await locals.supabase
         .from('orders')
         .select(`
@@ -44,7 +51,25 @@ export const load = async ({ locals }) => {
 		`)
         .eq('shop_id', shopId)
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(3);
+
+    // Get total orders count for each period
+    const getOrdersCountForPeriod = async (startDate: Date) => {
+        const { count } = await locals.supabase
+            .from('orders')
+            .select('*', { count: 'exact', head: true })
+            .eq('shop_id', shopId)
+            .gte('created_at', startDate.toISOString());
+        return count || 0;
+    };
+
+    // Get orders count for all periods
+    const [weeklyOrdersCount, monthlyOrdersCount, threeMonthsOrdersCount, yearlyOrdersCount] = await Promise.all([
+        getOrdersCountForPeriod(oneWeekAgo),
+        getOrdersCountForPeriod(oneMonthAgo),
+        getOrdersCountForPeriod(threeMonthsAgo),
+        getOrdersCountForPeriod(oneYearAgo)
+    ]);
 
     // Debug: Log des erreurs et données
     if (recentOrdersError) {
@@ -54,12 +79,7 @@ export const load = async ({ locals }) => {
         console.log('📋 Détails des commandes:', recentOrders);
     }
 
-    // Get revenue data for different time periods
-    const now = new Date();
-    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-    const oneYearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+
 
     // Helper function to get revenue for a period
     const getRevenueForPeriod = async (startDate: Date) => {
@@ -129,6 +149,12 @@ export const load = async ({ locals }) => {
         metrics: {
             productsCount: productsCount || 0,
             recentOrders: recentOrders || [],
+            ordersCount: {
+                weekly: weeklyOrdersCount,
+                monthly: monthlyOrdersCount,
+                threeMonths: threeMonthsOrdersCount,
+                yearly: yearlyOrdersCount
+            },
             revenue: {
                 weekly: weeklyRevenue,
                 monthly: monthlyRevenue,

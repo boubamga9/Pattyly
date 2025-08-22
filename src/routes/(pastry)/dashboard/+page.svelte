@@ -75,6 +75,9 @@
 	// Fonction pour obtenir le revenu actuel
 	$: currentRevenue = metrics.revenue[selectedRevenuePeriod];
 
+	// Fonction pour obtenir le nombre de commandes actuel
+	$: currentOrdersCount = metrics.ordersCount[selectedRevenuePeriod];
+
 	// Fonction pour calculer la variation (simulation)
 	$: revenueVariation = 0; // À implémenter avec les données historiques
 
@@ -178,20 +181,20 @@
 			</CardContent>
 		</Card>
 
-		<!-- Commandes récentes -->
+		<!-- Total des commandes -->
 		<Card>
 			<CardHeader
 				class="flex flex-row items-center justify-between space-y-0 pb-2"
 			>
-				<CardTitle class="text-sm font-medium">Commandes récentes</CardTitle>
+				<CardTitle class="text-sm font-medium">Total des commandes</CardTitle>
 				<ShoppingCart class="h-4 w-4 text-muted-foreground" />
 			</CardHeader>
 			<CardContent>
-				<div class="text-2xl font-bold">{metrics.recentOrders.length}</div>
+				<div class="text-2xl font-bold">{currentOrdersCount}</div>
 				<p class="text-xs text-muted-foreground">
-					{metrics.recentOrders.length === 0
+					{currentOrdersCount === 0
 						? 'Aucune commande'
-						: 'dernières commandes'}
+						: `commandes ${selectedRevenuePeriod === 'weekly' ? 'cette semaine' : selectedRevenuePeriod === 'monthly' ? 'ce mois' : selectedRevenuePeriod === 'threeMonths' ? 'ces 3 mois' : 'cette année'}`}
 				</p>
 			</CardContent>
 		</Card>
@@ -362,9 +365,11 @@
 										</p>
 									</div>
 									<div class="text-right">
-										<p class="font-medium">
-											{formatPrice(order.total_amount || 0)}
-										</p>
+										{#if (order.total_amount || 0) > 0}
+											<p class="font-medium">
+												{formatPrice(order.total_amount)}
+											</p>
+										{/if}
 									</div>
 								</div>
 							</button>

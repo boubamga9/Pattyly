@@ -83,16 +83,6 @@ export const formSchema = z.discriminatedUnion('is_custom_form', [
 
 // ===== 5. RÉPONSES DES CLIENTS =====
 
-// Schéma de base pour les réponses de personnalisation
-export const customizationResponseSchema = z.record(
-    z.string(), // ID du champ (ex: "field_1")
-    z.union([
-        z.string(),           // Réponse texte
-        z.number(),           // Réponse nombre
-        z.array(z.string())   // Réponse sélection multiple
-    ])
-);
-
 // Fonction pour créer un schéma de validation dynamique basé sur les champs configurés
 export function createDynamicCustomizationSchema(fields: Array<{
     id: string;

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { uuidSchema, nameSchema, emailSchema, messageSchema, priceSchema, futureDateSchema } from './common';
-import { customizationResponseSchema, createDynamicCustomizationSchema } from './form';
+import { createDynamicCustomizationSchema } from './form';
 
 /**
  * Schémas de validation pour les commandes et devis
@@ -38,7 +38,7 @@ export const orderBaseSchema = z.object({
     customer_instagram: z.string().optional(), // Instagram du client (optionnel)
     pickup_date: futureDateSchema,          // Date de retrait (future uniquement)
     additional_information: messageSchema.optional(), // Informations supplémentaires (optionnel)
-    customization_data: customizationResponseSchema.optional(), // Réponses au formulaire
+    customization_data: z.record(z.string(), z.string().or(z.number()).or(z.array(z.string()))).optional(), // Réponses au formulaire
     status: orderStatusSchema,
     refused_by: refusedBySchema.optional(), // Qui a refusé (si applicable)
     total_amount: priceSchema.optional(),   // Prix final (null si pas encore devisé)

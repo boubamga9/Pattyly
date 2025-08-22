@@ -53,7 +53,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     // Récupérer les informations de la boutique
     const { data: shop, error: shopError } = await locals.supabase
         .from('shops')
-        .select('id, is_custom_accepted')
+        .select('id, slug, is_custom_accepted')
         .eq('id', permissions.shopId)
         .single();
 

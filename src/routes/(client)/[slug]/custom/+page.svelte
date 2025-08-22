@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { ClientFooter } from '$lib/components';
+	import { Separator } from '$lib/components/ui/separator';
 	import CustomForm from './custom-form.svelte';
 
 	// Données de la page
@@ -14,9 +15,15 @@
 		form,
 	} = $page.data);
 
-	// Fonction pour retourner à la boutique
+	// Fonction pour retourner à la boutique ou au dashboard
 	function goBack() {
-		goto(`/${shop.slug}`);
+		// Si on est en mode preview, retourner au dashboard
+		if ($page.url.searchParams.get('preview') === 'true') {
+			goto('/dashboard/custom-form');
+		} else {
+			// Sinon, retourner à la boutique
+			goto(`/${shop.slug}`);
+		}
 	}
 </script>
 
@@ -62,9 +69,16 @@
 			on:click={goBack}
 			class="text-xs italic text-gray-400 underline transition-colors hover:text-gray-600 sm:text-sm"
 		>
-			← Retour à la boutique
+			{#if $page.url.searchParams.get('preview') === 'true'}
+				← Retour au dashboard
+			{:else}
+				← Retour à la boutique
+			{/if}
 		</button>
 	</header>
+
+	<!-- Separator -->
+	<Separator class="mx-4" />
 
 	<!-- Contenu principal -->
 	<div class="px-4 pb-6 sm:pb-8">
@@ -104,6 +118,7 @@
 					</div>
 				</div>
 
+				<!-- Colonne droit : Formulaire -->
 				<CustomForm
 					data={form}
 					{customFields}

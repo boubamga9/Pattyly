@@ -236,8 +236,16 @@
 								on:input={(e) =>
 									updateField(field.id, { label: e.currentTarget.value })}
 								placeholder="Ex: Couleur du glaçage"
-								class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+								class="w-full rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 {field.label.trim() ===
+								''
+									? 'border-red-500 focus:ring-red-500'
+									: 'border-gray-300'}"
 							/>
+							{#if field.label.trim() === ''}
+								<p class="mt-1 text-sm text-red-600">
+									⚠️ Le libellé du champ est requis
+								</p>
+							{/if}
 						</div>
 
 						<!-- Type de champ -->
@@ -277,63 +285,76 @@
 						<!-- Options pour les champs de sélection -->
 						{#if field.type === 'single-select' || field.type === 'multi-select'}
 							<div class="space-y-3">
-								<div class="flex items-center justify-between">
+								<div class="space-y-2">
 									<label class="text-sm font-medium">Options</label>
-									<Button
-										type="button"
-										variant="outline"
-										size="sm"
-										on:click={() => addOption(field.id)}
-									>
-										<Plus class="mr-1 h-3 w-3" />
-										Ajouter une option
-									</Button>
 								</div>
 
-								{#if field.options.length === 0}
-									<p class="text-sm text-muted-foreground">
-										Aucune option définie
-									</p>
-								{:else}
-									<div class="space-y-2">
-										{#each field.options as option, optionIndex}
-											<div class="flex items-center gap-2">
+								<div class="space-y-2">
+									{#each field.options as option, optionIndex}
+										<div class="flex items-center gap-2">
+											<input
+												type="text"
+												value={option.label}
+												on:input={(e) =>
+													updateOption(field.id, optionIndex, {
+														label: e.currentTarget.value,
+													})}
+												placeholder="Nom de l'option"
+												class="flex-1 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 {option.label.trim() ===
+												''
+													? 'border-red-500 focus:ring-red-500'
+													: 'border-gray-300'}"
+											/>
+											{#if option.label.trim() === ''}
+												<p class="mt-1 text-xs text-red-600">
+													⚠️ Le nom de l'option est requis
+												</p>
+											{/if}
+											{#if !isCustomForm}
 												<input
-													type="text"
-													value={option.label}
+													type="number"
+													value={option.price}
 													on:input={(e) =>
 														updateOption(field.id, optionIndex, {
-															label: e.currentTarget.value,
+															price: parseFloat(e.currentTarget.value) || 0,
 														})}
-													placeholder="Nom de l'option"
-													class="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+													placeholder="Prix"
+													min="0"
+													step="0.01"
+													class="w-20 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 												/>
-												{#if !isCustomForm}
-													<input
-														type="number"
-														value={option.price}
-														on:input={(e) =>
-															updateOption(field.id, optionIndex, {
-																price: parseFloat(e.currentTarget.value) || 0,
-															})}
-														placeholder="Prix"
-														min="0"
-														step="0.01"
-														class="w-20 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-													/>
-													<span class="text-sm text-muted-foreground">€</span>
-												{/if}
-												<Button
-													type="button"
-													variant="ghost"
-													size="sm"
-													on:click={() => removeOption(field.id, optionIndex)}
-												>
-													<Trash2 class="h-3 w-3" />
-												</Button>
-											</div>
-										{/each}
-									</div>
+												<span class="text-sm text-muted-foreground">€</span>
+											{/if}
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												on:click={() => removeOption(field.id, optionIndex)}
+											>
+												<Trash2 class="h-3 w-3" />
+											</Button>
+										</div>
+									{/each}
+								</div>
+
+								<!-- Bouton pour ajouter une option (toujours visible) -->
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									class={field.options.length < 2
+										? 'border-red-500 text-red-600 hover:bg-red-50'
+										: ''}
+									on:click={() => addOption(field.id)}
+								>
+									<Plus class="mr-1 h-3 w-3" />
+									Ajouter une option
+								</Button>
+
+								{#if field.options.length < 2}
+									<p class="text-sm text-red-600">
+										⚠️ Il faut au moins 2 options pour ce type de champ
+									</p>
 								{/if}
 							</div>
 						{/if}

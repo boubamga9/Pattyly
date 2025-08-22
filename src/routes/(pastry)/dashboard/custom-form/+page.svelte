@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import {
 		Card,
@@ -11,7 +12,7 @@
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
 	import { Badge } from '$lib/components/ui/badge';
 
-	import { Info } from 'lucide-svelte';
+	import { Info, Eye } from 'lucide-svelte';
 	import type { CustomizationField } from '$lib/components/CustomizationFormBuilder';
 	import ToggleForm from './toggle-form.svelte';
 	import UpdateForm from './update-form.svelte';
@@ -41,6 +42,16 @@
 	function handleUpdateSuccess() {
 		console.log('✅ Formulaire personnalisé mis à jour avec succès !');
 		// Optionnel : afficher une notification ou mettre à jour l'interface
+	}
+
+	// Fonction pour voir le preview du formulaire personnalisé
+	function viewCustomFormPreview() {
+		// Rediriger vers la page publique du formulaire personnalisé avec le mode preview
+		if (shop?.slug) {
+			goto(`/${shop.slug}/custom?preview=true`);
+		} else {
+			console.error('Shop slug not available');
+		}
 	}
 
 	// Initialiser les champs de personnalisation
@@ -97,11 +108,24 @@
 				Gérez les demandes personnalisées de vos clients
 			</p>
 		</div>
-		{#if shop}
-			<Badge variant={shop.is_custom_accepted ? 'default' : 'secondary'}>
-				{shop.is_custom_accepted ? 'Activé' : 'Désactivé'}
-			</Badge>
-		{/if}
+		<div class="flex items-center gap-3">
+			{#if shop?.is_custom_accepted}
+				<Button
+					variant="outline"
+					size="sm"
+					on:click={viewCustomFormPreview}
+					title="Voir le formulaire comme vos clients"
+				>
+					<Eye class="mr-2 h-4 w-4" />
+					Preview
+				</Button>
+			{/if}
+			{#if shop}
+				<Badge variant={shop.is_custom_accepted ? 'default' : 'secondary'}>
+					{shop.is_custom_accepted ? 'Activé' : 'Désactivé'}
+				</Badge>
+			{/if}
+		</div>
 	</div>
 
 	<!-- Page d'upgrade pour les utilisateurs basic -->
