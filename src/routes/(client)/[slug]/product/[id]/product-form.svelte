@@ -190,7 +190,7 @@
 						<DatePicker
 							{availabilities}
 							{unavailabilities}
-							minDaysNotice={3}
+							minDaysNotice={product.min_days_notice}
 							on:dateSelected={(event) => {
 								$formData.pickup_date = event.detail;
 							}}
