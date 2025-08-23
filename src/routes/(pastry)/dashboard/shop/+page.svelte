@@ -39,42 +39,42 @@
 	<title>Paramètres de la boutique - Pattyly</title>
 </svelte:head>
 
-<div class="container mx-auto space-y-6 p-3 md:p-6">
-	<div class="mb-6">
+<div class="container mx-auto space-y-8 p-4 md:p-8">
+	<div class="mb-8">
 		<h1 class="text-3xl font-bold text-foreground">
 			Paramètres de la boutique
 		</h1>
-		<p class="mt-2 text-muted-foreground">
+		<p class="mt-3 text-muted-foreground">
 			Gérez les informations de votre boutique et vos paramètres de paiement
 		</p>
 	</div>
 
 	{#if error}
-		<Alert class="mb-6">
+		<Alert class="mb-8">
 			<AlertDescription>{error}</AlertDescription>
 		</Alert>
 	{/if}
 
 	{#if success}
-		<Alert class="mb-6">
+		<Alert class="mb-8">
 			<AlertDescription class="text-green-600">{success}</AlertDescription>
 		</Alert>
 	{/if}
 
 	<!-- Shop Information -->
-	<Card>
-		<CardHeader>
-			<div class="flex items-center space-x-3">
-				<Store class="h-6 w-6 text-primary" />
+	<Card class="shadow-sm">
+		<CardHeader class="pb-6">
+			<div class="flex items-center space-x-4">
+				<Store class="h-7 w-7 text-primary" />
 				<div>
-					<CardTitle>Informations de la boutique</CardTitle>
-					<CardDescription>
+					<CardTitle class="text-xl">Informations de la boutique</CardTitle>
+					<CardDescription class="text-base">
 						Modifiez les informations de votre boutique
 					</CardDescription>
 				</div>
 			</div>
 		</CardHeader>
-		<CardContent>
+		<CardContent class="pt-0">
 			<ShopForm data={data.form} />
 		</CardContent>
 	</Card>

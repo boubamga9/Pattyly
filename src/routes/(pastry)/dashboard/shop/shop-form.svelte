@@ -120,35 +120,42 @@
 	action="?/updateShop"
 	use:enhance
 	enctype="multipart/form-data"
-	class="space-y-6"
+	class="space-y-8"
 	on:submit|preventDefault={handleSubmit}
 >
 	<Form.Errors {form} />
 
-	<div>
-		<Label for="logo">Logo de la boutique</Label>
+	<!-- Section Logo -->
+	<div class="space-y-6">
+		<div class="space-y-3">
+			<Label for="logo" class="text-base font-medium">Logo de la boutique</Label
+			>
+			<p class="text-sm text-muted-foreground">
+				Ajoutez un logo pour personnaliser votre boutique
+			</p>
+		</div>
 
 		{#if logoPreview}
-			<div class="mb-4 flex justify-center">
+			<div class="flex justify-center">
 				<div class="relative">
 					<img
 						src={logoPreview}
 						alt="Aperçu du logo"
-						class="h-32 w-32 rounded-lg border-2 border-border object-cover"
+						class="h-32 w-32 rounded-lg border-2 border-border object-cover shadow-sm"
 					/>
 					<button
 						type="button"
 						on:click={removeLogo}
-						class="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-destructive-foreground transition-colors hover:bg-destructive/90"
+						class="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-sm transition-colors hover:bg-destructive/90"
 					>
 						<X class="h-4 w-4" />
 					</button>
 				</div>
 			</div>
 		{:else}
-			<div class="mb-4 flex justify-center">
+			<div class="flex justify-center">
 				<div
-					class="flex h-32 w-32 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/20 transition-colors hover:border-primary"
+					class="flex h-32 w-32 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/20 transition-colors hover:border-primary hover:bg-muted/50"
 					on:click={() => document.getElementById('logo')?.click()}
 				>
 					<Upload class="mb-2 h-8 w-8 text-muted-foreground" />
@@ -171,75 +178,111 @@
 		/>
 		<input type="hidden" name="logo_url" value={logoPreview || ''} />
 
-		<Form.Field {form} name="name">
-			<Form.Control let:attrs>
-				<Form.Label>Nom de la boutique</Form.Label>
-				<Input
-					{...attrs}
-					type="text"
-					placeholder="Ma Pâtisserie"
-					required
-					bind:value={$formData.name}
-				/>
-			</Form.Control>
-			<Form.FieldErrors />
-		</Form.Field>
+		{#if compressionInfo}
+			<div class="rounded-md bg-blue-50 p-3 text-sm text-blue-700">
+				{compressionInfo}
+			</div>
+		{/if}
+	</div>
 
-		<Form.Field {form} name="slug">
-			<Form.Control let:attrs>
-				<Form.Label>URL de la boutique</Form.Label>
-				<div class="flex items-center space-x-2">
-					<span class="text-sm text-muted-foreground">pattyly.com/</span>
+	<!-- Section Informations de base -->
+	<div class="space-y-6">
+		<div class="space-y-3">
+			<h3 class="text-lg font-semibold text-foreground">
+				Informations de base
+			</h3>
+			<p class="text-sm text-muted-foreground">
+				Configurez les informations essentielles de votre boutique
+			</p>
+		</div>
+
+		<div class="space-y-5">
+			<Form.Field {form} name="name">
+				<Form.Control let:attrs>
+					<Form.Label>Nom de la boutique</Form.Label>
 					<Input
 						{...attrs}
 						type="text"
-						placeholder="ma-patisserie"
+						placeholder="Ma Pâtisserie"
 						required
-						bind:value={$formData.slug}
-						class="flex-1"
+						bind:value={$formData.name}
+						class="h-11"
 					/>
-					<Button
-						type="button"
-						size="sm"
-						on:click={copyShopUrl}
-						title="Copier l'URL complète"
-						disabled={!$formData.slug}
-						class={copySuccess
-							? 'border-green-300 bg-green-100 text-green-700 hover:border-green-400 hover:bg-green-200'
-							: 'border border-input bg-background text-black hover:bg-accent hover:text-accent-foreground'}
-					>
-						{#if copySuccess}
-							<CheckCircle class="mr-2 h-4 w-4" />
-							Copiée
-						{:else}
-							<Copy class="mr-2 h-4 w-4" />
-							Copier
-						{/if}
-					</Button>
-				</div>
-			</Form.Control>
-			<Form.FieldErrors />
-			<Form.Description>L'URL de votre boutique publique</Form.Description>
-		</Form.Field>
+				</Form.Control>
+				<Form.FieldErrors />
+			</Form.Field>
 
-		<Form.Field {form} name="bio">
-			<Form.Control let:attrs>
-				<Form.Label>Description (optionnel)</Form.Label>
-				<Textarea
-					{...attrs}
-					placeholder="Décrivez votre boutique, vos spécialités..."
-					rows={4}
-					bind:value={$formData.bio}
-				/>
-			</Form.Control>
-			<Form.FieldErrors />
-		</Form.Field>
+			<Form.Field {form} name="slug">
+				<Form.Control let:attrs>
+					<Form.Label>URL de la boutique</Form.Label>
+					<div class="flex items-center space-x-3">
+						<span class="text-sm font-medium text-muted-foreground"
+							>pattyly.com/</span
+						>
+						<Input
+							{...attrs}
+							type="text"
+							placeholder="ma-patisserie"
+							required
+							bind:value={$formData.slug}
+							class="h-11 flex-1"
+						/>
+						<Button
+							type="button"
+							size="sm"
+							on:click={copyShopUrl}
+							title="Copier l'URL complète"
+							disabled={!$formData.slug}
+							class={`h-11 px-4 ${
+								copySuccess
+									? 'border-green-300 bg-green-100 text-green-700 hover:border-green-400 hover:bg-green-200'
+									: 'border border-input bg-background text-black hover:bg-accent hover:text-accent-foreground'
+							}`}
+						>
+							{#if copySuccess}
+								<CheckCircle class="mr-2 h-4 w-4" />
+								Copiée
+							{:else}
+								<Copy class="mr-2 h-4 w-4" />
+								Copier
+							{/if}
+						</Button>
+					</div>
+				</Form.Control>
+				<Form.FieldErrors />
+				<Form.Description>L'URL de votre boutique publique</Form.Description>
+			</Form.Field>
 
-		<Separator />
+			<Form.Field {form} name="bio">
+				<Form.Control let:attrs>
+					<Form.Label>Description (optionnel)</Form.Label>
+					<Textarea
+						{...attrs}
+						placeholder="Décrivez votre boutique, vos spécialités, votre histoire..."
+						rows={4}
+						bind:value={$formData.bio}
+						class="resize-none"
+					/>
+				</Form.Control>
+				<Form.FieldErrors />
+				<Form.Description>
+					Une description attrayante aide les clients à mieux comprendre votre
+					boutique
+				</Form.Description>
+			</Form.Field>
+		</div>
+	</div>
 
-		<div class="space-y-4">
-			<h4 class="text-lg font-medium text-foreground">Réseaux sociaux</h4>
+	<!-- Section Réseaux sociaux -->
+	<div class="space-y-6">
+		<div class="space-y-3">
+			<h3 class="text-lg font-semibold text-foreground">Réseaux sociaux</h3>
+			<p class="text-sm text-muted-foreground">
+				Connectez vos réseaux sociaux pour augmenter votre visibilité
+			</p>
+		</div>
 
+		<div class="space-y-5">
 			<Form.Field {form} name="instagram">
 				<Form.Control let:attrs>
 					<Form.Label>Instagram (optionnel)</Form.Label>
@@ -247,6 +290,7 @@
 						{...attrs}
 						placeholder="@votre_compte"
 						bind:value={$formData.instagram}
+						class="h-11"
 					/>
 				</Form.Control>
 				<Form.FieldErrors />
@@ -259,6 +303,7 @@
 						{...attrs}
 						placeholder="@votre_compte"
 						bind:value={$formData.tiktok}
+						class="h-11"
 					/>
 				</Form.Control>
 				<Form.FieldErrors />
@@ -272,29 +317,32 @@
 						placeholder="https://votre-site.com"
 						type="url"
 						bind:value={$formData.website}
+						class="h-11"
 					/>
 				</Form.Control>
 				<Form.FieldErrors />
 			</Form.Field>
 		</div>
+	</div>
 
-		<!-- Bouton de soumission -->
+	<!-- Bouton de soumission -->
+	<div class="pt-4">
 		<Button
 			type="submit"
 			disabled={$submitting}
-			class={`w-full ${
+			class={`h-12 w-full text-base font-medium ${
 				$submitting
 					? 'bg-gray-300'
 					: submitted
 						? 'bg-green-700 hover:bg-green-800'
-						: 'bg-primary'
+						: 'bg-primary hover:bg-primary/90'
 			}`}
 		>
 			{#if $submitting}
-				<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+				<LoaderCircle class="mr-2 h-5 w-5 animate-spin" />
 				Mise à jour...
 			{:else if submitted}
-				<CheckCircle class="mr-2 h-4 w-4" />
+				<CheckCircle class="mr-2 h-5 w-5" />
 				Mis à jour
 			{:else}
 				Mettre à jour la boutique

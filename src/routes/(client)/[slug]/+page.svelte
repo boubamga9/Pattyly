@@ -125,7 +125,7 @@
 			<p
 				class="mx-auto mb-4 max-w-2xl whitespace-pre-wrap text-sm text-gray-500 sm:text-base"
 			>
-				{@html shop.bio}
+				{shop.bio}
 			</p>
 		{/if}
 

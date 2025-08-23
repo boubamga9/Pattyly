@@ -108,12 +108,15 @@ export const futureDateSchema = z
     );
 
 // Username pour réseaux sociaux (Instagram, TikTok)
-export const socialUsernameSchema = z
-    .string()
-    .min(1, 'Le nom d\'utilisateur est requis')
-    .max(30, 'Le nom d\'utilisateur ne peut pas dépasser 30 caractères')
-    .regex(/^[a-zA-Z0-9._]+$/, 'Le nom d\'utilisateur ne peut contenir que des lettres, chiffres, points et tirets de soulignement')
-    .optional();
+export const socialUsernameSchema = z.preprocess(
+    (val) => (val === "" ? undefined : val),
+    z
+        .string()
+        .min(1, "Le nom d'utilisateur est requis")
+        .max(30, "Le nom d'utilisateur ne peut pas dépasser 30 caractères")
+        .regex(/^[a-zA-Z0-9._]+$/, "Le nom d'utilisateur ne peut contenir que des lettres, chiffres, points et tirets de soulignement")
+        .optional()
+);
 
 // Texte sécurisé pour les FAQ - sans caractères spéciaux problématiques
 export const secureTextSchema = z
