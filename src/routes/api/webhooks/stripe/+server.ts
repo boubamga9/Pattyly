@@ -18,7 +18,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     if (!endpointSecret || !sig) {
         console.error('Missing webhook secret or signature');
-        error(400, 'Webhook signature verification failed');
+        throw error(400, 'Webhook signature verification failed');
     }
 
     let event: Stripe.Event;
@@ -27,11 +27,33 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         event = Stripe.webhooks.constructEvent(body, sig, endpointSecret);
     } catch (err) {
         console.error('Webhook signature verification failed:', err);
-        error(400, 'Webhook signature verification failed');
+        throw error(400, 'Webhook signature verification failed');
     }
 
     try {
         console.log('🔍 Processing webhook event:', event.type);
+
+        // ✅ Idempotence check
+        const { data: existing } = await locals.supabaseServiceRole
+            .from('stripe_events')
+            .select('id')
+            .eq('id', event.id)
+            .maybeSingle();
+
+        if (existing) {
+            console.log('⏩ Event déjà traité:', event.id);
+            return json({ received: true });
+        }
+
+        // Enregistrement de l’event.id
+        const { error: insertError } = await locals.supabaseServiceRole
+            .from('stripe_events')
+            .insert({ id: event.id });
+
+        if (insertError) {
+            console.error('❌ Erreur enregistrement event.id:', insertError);
+            throw error(500, 'Erreur idempotence');
+        }
 
         switch (event.type) {
             case 'customer.created':
@@ -91,7 +113,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         return json({ received: true });
     } catch (err) {
         console.error('Error processing webhook:', err);
-        error(500, 'Webhook processing failed');
+        throw error(500, 'Webhook processing failed');
     }
 };
 
@@ -140,6 +162,7 @@ async function upsertSubscription(subscription: Stripe.Subscription, locals: any
 
     if (upsertError) {
         console.error('Error upserting subscription in database:', upsertError);
+        throw error(500, 'Failed to upsert subscription in database');
     } else {
         console.log('✅ upsertSubscription - Successfully upserted subscription');
     }
@@ -160,6 +183,7 @@ async function upsertSubscription(subscription: Stripe.Subscription, locals: any
 
             if (shopUpdateError) {
                 console.error('Error disabling custom requests for basic plan:', shopUpdateError);
+                throw error(500, 'Failed to disable custom requests for basic plan');
             } else {
                 console.log('✅ Disabled custom requests for basic plan user:', profileId);
             }
@@ -187,6 +211,7 @@ async function handleCustomerCreated(customer: Stripe.Customer, locals: any) {
 
     if (upsertError) {
         console.error('Error saving customer to database:', upsertError);
+        throw error(500, 'Failed to save customer to database');
     }
 }
 
@@ -226,6 +251,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription, loca
 
     if (updateError) {
         console.error('Error updating subscription status in database:', updateError);
+        throw error(500, 'Failed to update subscription status in database');
     } else {
         console.log('✅ handleSubscriptionDeleted - Successfully marked subscription as inactive');
     }
@@ -238,6 +264,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription, loca
 
     if (shopUpdateError) {
         console.error('Error disabling custom requests after subscription deletion:', shopUpdateError);
+        throw error(500, 'Failed to disable custom requests after subscription deletion');
     } else {
         console.log('✅ Disabled custom requests after subscription deletion for user:', profileId);
     }
@@ -275,6 +302,7 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice, locals: any) {
 
     if (updateError) {
         console.error('Error reactivating subscription after payment success:', updateError);
+        throw error(500, 'Failed to reactivate subscription after payment success');
     } else {
         console.log('✅ handlePaymentSucceeded - Successfully reactivated subscription');
     }
@@ -314,6 +342,7 @@ async function handlePaymentFailed(invoice: Stripe.Invoice, locals: any) {
 
     if (updateError) {
         console.error('Error updating subscription status after payment failure:', updateError);
+        throw error(500, 'Failed to update subscription status after payment failure');
     } else {
         console.log('✅ handlePaymentFailed - Successfully marked subscription as inactive');
     }
@@ -326,6 +355,7 @@ async function handlePaymentFailed(invoice: Stripe.Invoice, locals: any) {
 
     if (shopUpdateError) {
         console.error('Error disabling custom requests after payment failure:', shopUpdateError);
+        throw error(500, 'Failed to disable custom requests after payment failure');
     } else {
         console.log('✅ Disabled custom requests after payment failure for user:', profileId);
     }
@@ -344,6 +374,7 @@ async function handleAccountUpdated(account: Stripe.Account, locals: any) {
 
         if (updateError) {
             console.error('Error updating account status:', updateError);
+            throw error(500, 'Failed to update account status');
         } else {
             console.log('✅ Stripe Connect account activated:', account.id);
         }
@@ -431,7 +462,7 @@ async function handleProductOrderPayment(session: Stripe.Checkout.Session, local
 
         if (orderError) {
             console.error('❌ Erreur création commande produit:', orderError);
-            return;
+            throw error(500, 'Failed to create product order');
         }
 
         console.log('✅ Commande produit créée avec succès:', order.id);
@@ -462,7 +493,7 @@ async function handleCustomOrderDeposit(session: Stripe.Checkout.Session, locals
 
         if (orderError) {
             console.error('❌ Erreur mise à jour commande custom:', orderError);
-            return;
+            throw error(500, 'Failed to update custom order');
         }
 
         console.log('✅ Acompte commande custom payé avec succès:', order.id);
@@ -500,7 +531,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent,
 
         if (updateError) {
             console.error('❌ Erreur mise à jour paid_amount:', updateError);
-            return;
+            throw error(500, 'Failed to update paid amount');
         }
 
         console.log('✅ Montant payé mis à jour:', { orderId: order.id, paidAmount });

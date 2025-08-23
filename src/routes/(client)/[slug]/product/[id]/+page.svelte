@@ -122,7 +122,7 @@
 						</p>
 						{#if product.description}
 							<p class="text-sm text-foreground sm:text-base">
-								{product.description}
+								{@html product.description}
 							</p>
 						{/if}
 						<p class="text-xs italic text-gray-400 sm:text-sm">

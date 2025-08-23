@@ -1,6 +1,6 @@
 import type { PostgrestError } from '@supabase/supabase-js';
 import { fail, type Actions, type ServerLoad } from '@sveltejs/kit';
-import { message, superValidate } from 'sveltekit-superforms';
+import { message, superValidate, setError } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { formSchema } from './schema';
 
@@ -12,6 +12,18 @@ export const load: ServerLoad = async () => {
 
 export const actions: Actions = {
 	default: async (event) => {
+		// Vérifier si c'est une erreur de rate limiting
+		const rateLimitExceeded = event.request.headers.get('x-rate-limit-exceeded');
+		if (rateLimitExceeded === 'true') {
+			const rateLimitMessage = event.request.headers.get('x-rate-limit-message') || 'Trop de tentatives. Veuillez patienter.';
+			console.log('🚫 Rate limiting détecté dans l\'action:', rateLimitMessage);
+
+			// Utiliser setError au lieu de fail pour une meilleure gestion
+			const form = await superValidate(zod(formSchema));
+			setError(form, '', rateLimitMessage);
+			return { form };
+		}
+
 		const supabaseServiceRole = event.locals.supabaseServiceRole;
 		const form = await superValidate(event, zod(formSchema));
 		if (!form.valid) {

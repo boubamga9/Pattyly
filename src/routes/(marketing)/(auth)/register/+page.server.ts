@@ -11,7 +11,7 @@ export const load: PageServerLoad = async ({ url }) => {
 	const next = url.searchParams.get('next');
 	const isCheckout = Boolean(
 		typeof next === 'string' &&
-			decodeURIComponent(next).match(/^\/checkout\/.+$/),
+		decodeURIComponent(next).match(/^\/checkout\/.+$/),
 	);
 
 	return {
@@ -22,6 +22,18 @@ export const load: PageServerLoad = async ({ url }) => {
 
 export const actions: Actions = {
 	default: async (event) => {
+		// Vérifier si c'est une erreur de rate limiting
+		const rateLimitExceeded = event.request.headers.get('x-rate-limit-exceeded');
+		if (rateLimitExceeded === 'true') {
+			const rateLimitMessage = event.request.headers.get('x-rate-limit-message') || 'Trop de tentatives. Veuillez patienter.';
+			console.log('🚫 Rate limiting détecté dans l\'action register:', rateLimitMessage);
+
+			// Utiliser setError au lieu de fail pour une meilleure gestion
+			const form = await superValidate(zod(formSchema));
+			setError(form, '', rateLimitMessage);
+			return { form };
+		}
+
 		const supabase = event.locals.supabase;
 		const form = await superValidate(event, zod(formSchema));
 		if (!form.valid) {

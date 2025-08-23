@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { superValidate, fail, message } from 'sveltekit-superforms';
+import { superValidate, fail, message, setError } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { createLocalDynamicSchema } from './schema';
 
@@ -106,6 +106,19 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 export const actions: Actions = {
     createProductOrder: async ({ request, params, locals }) => {
+        // Vérifier si c'est une erreur de rate limiting
+        const rateLimitExceeded = request.headers.get('x-rate-limit-exceeded');
+        if (rateLimitExceeded === 'true') {
+            const rateLimitMessage = request.headers.get('x-rate-limit-message') || 'Trop de tentatives. Veuillez patienter.';
+            console.log('🚫 Rate limiting détecté dans l\'action createProductOrder:', rateLimitMessage);
+
+            // Créer un schéma temporaire pour l'erreur
+            const tempSchema = createLocalDynamicSchema([]);
+            const form = await superValidate(request, zod(tempSchema));
+            setError(form, '', rateLimitMessage);
+            return { form };
+        }
+
         try {
             const { slug } = params;
 

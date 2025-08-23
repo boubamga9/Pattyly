@@ -92,7 +92,7 @@
 					</h2>
 					<div class="space-y-3 text-muted-foreground">
 						{#if customForm?.description}
-							<p class="whitespace-pre-wrap">{customForm.description}</p>
+							<p class="whitespace-pre-wrap">{@html customForm.description}</p>
 						{:else}
 							<p>
 								Vous avez une idée précise en tête ? Un gâteau pour une occasion
