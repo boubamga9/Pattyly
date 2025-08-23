@@ -27,7 +27,7 @@ export const refusedBySchema = z.enum([
 
 // ===== SCHÉMAS DE BASE =====
 
-// Commande de base (tous les champs)
+/* Commande de base (tous les champs)
 export const orderBaseSchema = z.object({
     id: uuidSchema,
     shop_id: uuidSchema,                    // Lien vers la boutique
@@ -44,11 +44,11 @@ export const orderBaseSchema = z.object({
     total_amount: priceSchema.optional(),   // Prix final (null si pas encore devisé)
     chef_message: messageSchema,            // Message du chef (utilise messageSchema de common)
     stripe_payment_intent_id: z.string().optional() // ID de paiement Stripe
-});
+}); */
 
 // ===== SCHÉMAS COMPOSÉS =====
 
-// Création d'une commande (côté client)
+/* Création d'une commande (côté client)
 export const createOrderSchema = orderBaseSchema.omit({
     id: true,
     shop_id: true,
@@ -57,9 +57,9 @@ export const createOrderSchema = orderBaseSchema.omit({
     total_amount: true,
     chef_message: true,
     stripe_payment_intent_id: true
-});
+}); */
 
-// Création d'une demande personnalisée (côté client)
+/* Création d'une demande personnalisée (côté client)
 export const createCustomOrderSchema = orderBaseSchema.omit({
     id: true,
     shop_id: true,
@@ -69,10 +69,11 @@ export const createCustomOrderSchema = orderBaseSchema.omit({
     total_amount: true,
     chef_message: true,
     stripe_payment_intent_id: true
-});
+}); */
 
 // Fonction pour créer un schéma de commande personnalisée avec validation dynamique
-export function createDynamicCustomOrderSchema(fields: Array<{
+// Schéma de base commun pour toutes les commandes
+function createBaseOrderSchema(fields: Array<{
     id: string;
     label: string;
     type: 'short-text' | 'long-text' | 'number' | 'single-select' | 'multi-select';
@@ -87,6 +88,28 @@ export function createDynamicCustomOrderSchema(fields: Array<{
         pickup_date: futureDateSchema,
         customization_data: createDynamicCustomizationSchema(fields),
         additional_information: messageSchema.optional()
+    });
+}
+
+export function createDynamicCustomOrderSchema(fields: Array<{
+    id: string;
+    label: string;
+    type: 'short-text' | 'long-text' | 'number' | 'single-select' | 'multi-select';
+    required: boolean;
+    options?: Array<{ label: string; price?: number }>;
+}>) {
+    return createBaseOrderSchema(fields);
+}
+
+export function createDynamicProductOrderSchema(fields: Array<{
+    id: string;
+    label: string;
+    type: 'short-text' | 'long-text' | 'number' | 'single-select' | 'multi-select';
+    required: boolean;
+    options?: Array<{ label: string; price?: number }>;
+}>) {
+    return createBaseOrderSchema(fields).extend({
+        product_id: uuidSchema
     });
 }
 
@@ -112,9 +135,9 @@ export const refuseOrderSchema = z.object({
 export type OrderStatus = z.infer<typeof orderStatusSchema>;
 export type RefusedBy = z.infer<typeof refusedBySchema>;
 
-export type OrderBase = z.infer<typeof orderBaseSchema>;
+/* export type OrderBase = z.infer<typeof orderBaseSchema>;
 export type CreateOrder = z.infer<typeof createOrderSchema>;
-export type CreateCustomOrder = z.infer<typeof createCustomOrderSchema>;
+export type CreateCustomOrder = z.infer<typeof createCustomOrderSchema>; */
 export type UpdateOrderStatus = z.infer<typeof updateOrderStatusSchema>;
 export type SendQuote = z.infer<typeof sendQuoteSchema>;
 export type RefuseOrder = z.infer<typeof refuseOrderSchema>;
