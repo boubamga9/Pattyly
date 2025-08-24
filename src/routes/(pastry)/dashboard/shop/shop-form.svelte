@@ -4,7 +4,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Button } from '$lib/components/ui/button';
-	import { Separator } from '$lib/components/ui/separator';
+
 	import {
 		superForm,
 		type Infer,
@@ -329,13 +329,15 @@
 	<div class="pt-4">
 		<Button
 			type="submit"
-			disabled={$submitting}
-			class={`h-12 w-full text-base font-medium ${
+			disabled={$submitting || !($formData.name && $formData.slug)}
+			class={`h-11 w-full text-sm font-medium transition-all duration-200 ${
 				$submitting
-					? 'bg-gray-300'
+					? 'cursor-not-allowed bg-gray-300'
 					: submitted
 						? 'bg-green-700 hover:bg-green-800'
-						: 'bg-primary hover:bg-primary/90'
+						: $formData.name && $formData.slug
+							? 'bg-primary shadow-sm hover:bg-primary/90 hover:shadow-md'
+							: 'cursor-not-allowed bg-gray-500 opacity-60'
 			}`}
 		>
 			{#if $submitting}
@@ -344,6 +346,8 @@
 			{:else if submitted}
 				<CheckCircle class="mr-2 h-5 w-5" />
 				Mis à jour
+			{:else if !($formData.name && $formData.slug)}
+				Remplissez tous les champs requis
 			{:else}
 				Mettre à jour la boutique
 			{/if}

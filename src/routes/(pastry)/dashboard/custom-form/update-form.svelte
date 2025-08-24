@@ -116,13 +116,15 @@
 	<div class="flex gap-4 pt-6">
 		<Button
 			type="submit"
-			disabled={$submitting}
-			class={`w-full ${
+			disabled={$submitting || customFields.length === 0}
+			class={`h-11 w-full transition-all duration-200 ${
 				$submitting
-					? 'bg-gray-300'
+					? 'cursor-not-allowed bg-gray-300'
 					: submitted
 						? 'bg-green-700 hover:bg-green-800'
-						: 'bg-primary'
+						: customFields.length > 0
+							? 'bg-primary shadow-sm hover:bg-primary/90 hover:shadow-md'
+							: 'cursor-not-allowed bg-gray-500 opacity-60'
 			}`}
 		>
 			{#if $submitting}
@@ -131,6 +133,8 @@
 			{:else if submitted}
 				<CheckCircle class="mr-2 h-4 w-4" />
 				Mis à jour
+			{:else if customFields.length === 0}
+				Ajoutez au moins un champ
 			{:else}
 				<Save class="mr-2 h-4 w-4" />
 				Sauvegarder le Formulaire

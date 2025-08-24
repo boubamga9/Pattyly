@@ -30,8 +30,6 @@
 
 	let logoFile: File | null = null;
 	let logoPreview: string | null = null;
-	let compressionInfo: string | null = null;
-	let isCompressing = false;
 	let logoInputElement: HTMLInputElement;
 
 	// Handle file selection with compression
@@ -42,9 +40,6 @@
 		if (!file) return;
 
 		try {
-			isCompressing = true;
-			compressionInfo = null;
-
 			// Validate file type
 			if (!file.type.startsWith('image/')) {
 				console.error('Veuillez sélectionner une image');
@@ -63,7 +58,6 @@
 			// Utiliser l'image compressée
 			logoFile = compressionResult.file;
 			$formData.logo = compressionResult.file;
-			compressionInfo = formatCompressionInfo(compressionResult);
 
 			// 🔄 Synchroniser l'input file avec l'image compressée
 			// Créer un nouveau FileList avec l'image compressée
@@ -79,8 +73,6 @@
 			reader.readAsDataURL(compressionResult.file);
 		} catch (error) {
 			console.error('Erreur lors de la compression:', error);
-		} finally {
-			isCompressing = false;
 		}
 	}
 
@@ -89,7 +81,6 @@
 		logoFile = null;
 		logoPreview = null;
 		$formData.logo = undefined;
-		compressionInfo = null;
 	}
 </script>
 
@@ -148,29 +139,6 @@
 			disabled={$submitting}
 			bind:this={logoInputElement}
 		/>
-
-		{#if isCompressing}
-			<div class="mt-2 flex items-center gap-2 text-sm text-blue-600">
-				<div
-					class="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"
-				></div>
-				Compression du logo en cours...
-			</div>
-		{:else if compressionInfo}
-			<div class="mt-2 rounded-md bg-green-50 p-3 text-sm">
-				<p class="mb-1 font-medium text-green-800">
-					✅ Logo optimisé avec succès !
-				</p>
-				<div class="whitespace-pre-line text-xs text-green-700">
-					{compressionInfo}
-				</div>
-			</div>
-		{:else}
-			<p class="mt-1 text-sm text-muted-foreground">
-				Format JPG, PNG. Le logo sera automatiquement redimensionné à 400x400px
-				et optimisé.
-			</p>
-		{/if}
 	</div>
 
 	<Form.Field {form} name="name">

@@ -1,11 +1,5 @@
 import { z } from 'zod';
-import { createCustomOrderSchema, createDynamicCustomOrderSchema } from '$lib/validations/schemas/order.js';
-
-// Ré-export du schéma de base
-export { createCustomOrderSchema };
-
-// Type exporté pour TypeScript
-export type CreateCustomOrderForm = z.infer<typeof createCustomOrderSchema>;
+import { createDynamicCustomOrderSchema } from '$lib/validations/schemas/order.js';
 
 // Interface pour les champs personnalisés
 export interface CustomField {

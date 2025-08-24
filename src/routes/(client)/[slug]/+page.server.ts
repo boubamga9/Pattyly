@@ -1,51 +1,44 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { loadShopCatalog } from '$lib/utils/catalog-loader';
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params, locals, setHeaders }) => {
     const { slug } = params;
 
-    // Récupérer les informations de la boutique
-    const { data: shop, error: shopError } = await locals.supabase
-        .from('shops')
-        .select('*')
-        .eq('slug', slug)
-        .single();
+    try {
+        // 1. Récupérer l'ID de la boutique depuis le slug
+        const { data: shopInfo, error: shopError } = await locals.supabase
+            .from('shops')
+            .select('id')
+            .eq('slug', slug)
+            .single();
 
-    if (shopError || !shop) {
-        throw error(404, 'Boutique non trouvée');
+        if (shopError || !shopInfo) {
+            throw error(404, 'Boutique non trouvée');
+        }
+
+        // 2. Charger le catalogue avec gestion du cache
+        const catalogData = await loadShopCatalog(locals.supabase, shopInfo.id);
+
+        // 3. Headers CDN pour optimiser la performance
+        setHeaders({
+            'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+            'X-Cache-Status': catalogData.from_cache ? 'HIT' : 'MISS'
+        });
+
+        return {
+            shop: catalogData.shop,
+            categories: catalogData.categories,
+            products: catalogData.products,
+            faqs: catalogData.faqs,
+            cacheInfo: {
+                cached_at: catalogData.cached_at,
+                catalog_version: catalogData.shop.catalog_version,
+                from_cache: catalogData.from_cache
+            }
+        };
+    } catch (error) {
+        console.error('Error loading shop catalog:', error);
+        throw error;
     }
-
-    // Récupérer les catégories de la boutique
-    const { data: categories } = await locals.supabase
-        .from('categories')
-        .select('*')
-        .eq('shop_id', shop.id)
-        .order('name');
-
-    // Récupérer les produits de la boutique avec leurs catégories
-    const { data: products, error: productsError } = await locals.supabase
-        .from('products')
-        .select(`
-			*,
-			categories (
-				id,
-				name
-			)
-		`)
-        .eq('shop_id', shop.id)
-        .order('created_at', { ascending: false });
-
-    // Récupérer les FAQ de la boutique
-    const { data: faqs } = await locals.supabase
-        .from('faq')
-        .select('*')
-        .eq('shop_id', shop.id)
-        .order('created_at', { ascending: true });
-
-    return {
-        shop,
-        categories: categories || [],
-        products: products || [],
-        faqs: faqs || []
-    };
 };

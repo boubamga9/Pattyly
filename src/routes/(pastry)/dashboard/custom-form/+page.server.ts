@@ -3,6 +3,7 @@ import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad, Actions } from './$types';
 import { getUserPermissions } from '$lib/permissions';
+import { incrementCatalogVersion } from '$lib/utils/catalog-version';
 import { toggleCustomRequestsFormSchema, updateCustomFormFormSchema } from './schema';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -161,6 +162,14 @@ export const actions: Actions = {
                 return { toggleForm, form: toggleForm };
             }
 
+            // Increment catalog version to invalidate public cache
+            try {
+                await incrementCatalogVersion(locals.supabase, permissions.shopId);
+            } catch (error) {
+                console.error('Warning: Failed to increment catalog version:', error);
+                // Don't fail the entire operation, just log the warning
+            }
+
             // Retourner le formulaire pour Superforms
             const toggleForm = await superValidate(zod(toggleCustomRequestsFormSchema));
             toggleForm.message = isCustomAccepted
@@ -298,6 +307,14 @@ export const actions: Actions = {
                     updateForm.message = 'Erreur lors de la mise à jour des champs';
                     return { updateForm, form: updateForm };
                 }
+            }
+
+            // Increment catalog version to invalidate public cache
+            try {
+                await incrementCatalogVersion(locals.supabase, permissions.shopId);
+            } catch (error) {
+                console.error('Warning: Failed to increment catalog version:', error);
+                // Don't fail the entire operation, just log the warning
             }
 
             // Retourner le formulaire pour Superforms

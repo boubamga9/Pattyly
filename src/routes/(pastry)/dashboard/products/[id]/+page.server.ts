@@ -3,6 +3,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { getShopId } from '$lib/permissions';
 import { deleteImageIfUnused } from '$lib/storage-utils';
 import { validateImageServer, validateAndRecompressImage, logValidationInfo } from '$lib/utils/server-image-validation';
+import { incrementCatalogVersion } from '$lib/utils/catalog-version';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { updateProductFormSchema, createCategoryFormSchema } from './schema.js';
@@ -341,6 +342,14 @@ export const actions: Actions = {
             return fail(500, {
                 error: 'Erreur inattendue lors de la modification du produit'
             });
+        }
+
+        // Increment catalog version to invalidate public cache
+        try {
+            await incrementCatalogVersion(locals.supabase, shopId);
+        } catch (error) {
+            console.error('Warning: Failed to increment catalog version:', error);
+            // Don't fail the entire operation, just log the warning
         }
 
         // Retourner un succès avec le formulaire Superforms

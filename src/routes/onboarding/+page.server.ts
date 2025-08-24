@@ -5,6 +5,7 @@ import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { formSchema } from './schema';
 import { validateImageServer, validateAndRecompressImage, logValidationInfo } from '$lib/utils/server-image-validation';
+import { incrementCatalogVersion } from '$lib/utils/catalog-version';
 
 export const load: PageServerLoad = async ({ locals }) => {
     const { session } = await locals.safeGetSession();

@@ -2,6 +2,7 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { getUserPermissions, getShopId } from '$lib/permissions';
 import { validateImageServer, validateAndRecompressImage, logValidationInfo } from '$lib/utils/server-image-validation';
+import { incrementCatalogVersion } from '$lib/utils/catalog-version';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { createProductFormSchema, createCategoryFormSchema } from './schema';
@@ -233,6 +234,14 @@ export const actions: Actions = {
             return fail(500, { form, error: 'Erreur inattendue lors de l\'ajout du produit' });
         }
 
+        // Increment catalog version to invalidate public cache
+        try {
+            await incrementCatalogVersion(locals.supabase, shopId);
+        } catch (error) {
+            console.error('Warning: Failed to increment catalog version:', error);
+            // Don't fail the entire operation, just log the warning
+        }
+
         // Retourner un succès pour Superforms
         form.message = 'Produit créé avec succès';
         return { form };
@@ -296,6 +305,15 @@ export const actions: Actions = {
                 console.error('Error creating category:', insertError);
                 return fail(500, { form, error: 'Erreur lors de la création de la catégorie' });
             }
+
+            // Increment catalog version to invalidate public cache
+            try {
+                await incrementCatalogVersion(locals.supabase, shopId);
+            } catch (error) {
+                console.error('Warning: Failed to increment catalog version:', error);
+                // Don't fail the entire operation, just log the warning
+            }
+
 
             // Retourner un succès pour Superforms
             form.message = 'Catégorie créée avec succès';

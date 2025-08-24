@@ -4,6 +4,7 @@ import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad, Actions } from './$types';
 import { getUserPermissions } from '$lib/permissions';
 import { formSchema } from './schema';
+import { incrementCatalogVersion } from '$lib/utils/catalog-version';
 
 export const load: PageServerLoad = async ({ locals }) => {
     const { data: { user } } = await locals.supabase.auth.getUser();
@@ -85,6 +86,14 @@ export const actions: Actions = {
             throw error(500, 'Erreur lors de la création de la FAQ');
         }
 
+        // Increment catalog version to invalidate public cache
+        try {
+            await incrementCatalogVersion(locals.supabase, permissions.shopId);
+        } catch (error) {
+            console.error('Warning: Failed to increment catalog version:', error);
+            // Don't fail the entire operation, just log the warning
+        }
+
         // Retourner le formulaire pour Superforms
         const form = await superValidate(zod(formSchema));
         form.message = 'FAQ créée avec succès !';
@@ -132,6 +141,14 @@ export const actions: Actions = {
             throw error(500, 'Erreur lors de la mise à jour de la FAQ');
         }
 
+        // Increment catalog version to invalidate public cache
+        try {
+            await incrementCatalogVersion(locals.supabase, permissions.shopId);
+        } catch (error) {
+            console.error('Warning: Failed to increment catalog version:', error);
+            // Don't fail the entire operation, just log the warning
+        }
+
         // Retourner le formulaire pour Superforms
         const form = await superValidate(zod(formSchema));
         form.message = 'FAQ mise à jour avec succès !';
@@ -171,6 +188,14 @@ export const actions: Actions = {
         if (deleteError) {
             console.error('Error deleting FAQ:', deleteError);
             throw error(500, 'Erreur lors de la suppression de la FAQ');
+        }
+
+        // Increment catalog version to invalidate public cache
+        try {
+            await incrementCatalogVersion(locals.supabase, permissions.shopId);
+        } catch (error) {
+            console.error('Warning: Failed to increment catalog version:', error);
+            // Don't fail the entire operation, just log the warning
         }
 
         // Retourner le formulaire pour Superforms

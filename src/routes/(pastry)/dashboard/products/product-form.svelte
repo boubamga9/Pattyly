@@ -509,19 +509,31 @@
 		<Button
 			type="submit"
 			form="product-form"
-			class="flex-1"
-			disabled={$submitting}
+			class="h-11 flex-1 transition-all duration-200"
+			disabled={$submitting ||
+				!(
+					$formData.name &&
+					$formData.base_price !== undefined &&
+					$formData.base_price > 0
+				)}
 		>
 			{#if $submitting}
 				<div
 					class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
 				/>
+			{:else if !($formData.name && $formData.base_price !== undefined && $formData.base_price > 0)}
+				Remplissez les champs requis
 			{:else}
 				<Save class="mr-2 h-4 w-4" />
 			{/if}
 			{isEditing ? 'Sauvegarder' : 'Créer'} le Gâteau
 		</Button>
-		<Button type="button" variant="outline" on:click={onCancel} class="flex-1">
+		<Button
+			type="button"
+			variant="outline"
+			on:click={onCancel}
+			class="h-11 flex-1"
+		>
 			Annuler
 		</Button>
 	</div>

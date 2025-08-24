@@ -2,6 +2,7 @@ import { error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { getShopId } from '$lib/permissions';
 import { deleteImageIfUnused } from '$lib/storage-utils';
+import { incrementCatalogVersion } from '$lib/utils/catalog-version';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { createCategoryFormSchema, updateCategoryFormSchema, deleteCategoryFormSchema } from './schema';
@@ -159,6 +160,14 @@ export const actions: Actions = {
                 await deleteImageIfUnused(locals.supabase, product.image_url);
             }
 
+            // Increment catalog version to invalidate public cache
+            try {
+                await incrementCatalogVersion(locals.supabase, shopId);
+            } catch (error) {
+                console.error('Warning: Failed to increment catalog version:', error);
+                // Don't fail the entire operation, just log the warning
+            }
+
             return { message: 'Produit et formulaire supprimés avec succès' };
         } catch (err) {
             console.error('Unexpected error:', err);
@@ -304,6 +313,14 @@ export const actions: Actions = {
                         });
                     }
                 }
+            }
+
+            // Increment catalog version to invalidate public cache
+            try {
+                await incrementCatalogVersion(locals.supabase, shopId);
+            } catch (error) {
+                console.error('Warning: Failed to increment catalog version:', error);
+                // Don't fail the entire operation, just log the warning
             }
 
             return { message: 'Produit et formulaire dupliqués avec succès' };
@@ -599,6 +616,14 @@ export const actions: Actions = {
             if (updateError) {
                 console.error('Error updating product active status:', updateError);
                 return fail(500, { error: 'Erreur lors de la mise à jour du produit' });
+            }
+
+            // Increment catalog version to invalidate public cache
+            try {
+                await incrementCatalogVersion(locals.supabase, shopId);
+            } catch (error) {
+                console.error('Warning: Failed to increment catalog version:', error);
+                // Don't fail the entire operation, just log the warning
             }
 
             return {
