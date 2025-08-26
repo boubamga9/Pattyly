@@ -7,6 +7,9 @@ import { createLocalDynamicSchema } from './schema';
 export const load: PageServerLoad = async ({ params, locals }) => {
     const { slug, id } = params;
 
+
+    console.log('🔍 Loading product page:', { slug, id });
+
     // Récupérer les informations de la boutique
     const { data: shop, error: shopError } = await locals.supabase
         .from('shops')
@@ -16,10 +19,15 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         .single();
 
     if (shopError || !shop) {
+        console.error('❌ Shop error:', shopError);
         throw error(404, 'Boutique non trouvée');
     }
 
+    console.log('✅ Shop found:', shop.id);
+
     // Récupérer le produit actif avec ses informations
+    console.log('🔍 Fetching product with ID:', id, 'for shop:', shop.id);
+
     const { data: product, error: productError } = await locals.supabase
         .from('products')
         .select(`
@@ -41,41 +49,55 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         .single();
 
     if (productError || !product) {
+        console.error('❌ Product error:', productError);
+        console.error('❌ Product data:', product);
         throw error(404, 'Produit non trouvé');
     }
 
+    // Si le produit n'a pas de formulaire, on utilise un formulaire par défaut
     if (!product.form_id) {
-        throw error(404, 'Produit non trouvé');
+        console.log('⚠️ Product has no form_id, using default form');
+        // Pas d'erreur, on continue avec un formulaire vide
     }
 
-    // Récupérer le formulaire personnalisé
-    const { data: customForm, error: formError } = await locals.supabase
-        .from('forms')
-        .select('id, is_custom_form, title, description')
-        .eq('shop_id', shop.id)
-        .eq('id', product.form_id)
-        .single();
+    console.log('✅ Product found:', { id: product.id, name: product.name, form_id: product.form_id });
 
-    if (formError && formError.code !== 'PGRST116') {
-        console.error('Error fetching custom form:', formError);
-        throw error(500, 'Erreur lors du chargement du formulaire personnalisé');
-    }
-
-    // Récupérer les champs du formulaire s'il existe
+    // Récupérer le formulaire personnalisé seulement s'il existe
+    let customForm = null;
     let customFields: any[] = [];
-    if (customForm) {
-        const { data: formFields, error: fieldsError } = await locals.supabase
-            .from('form_fields')
-            .select('*')
-            .eq('form_id', customForm.id)
-            .order('order');
 
-        if (fieldsError) {
-            console.error('Error fetching form fields:', fieldsError);
-            throw error(500, 'Erreur lors du chargement des champs du formulaire');
+    if (product.form_id) {
+        const { data: formData, error: formError } = await locals.supabase
+            .from('forms')
+            .select('id, is_custom_form, title, description')
+            .eq('shop_id', shop.id)
+            .eq('id', product.form_id)
+            .single();
+
+        if (formError && formError.code !== 'PGRST116') {
+            console.error('Error fetching custom form:', formError);
+            throw error(500, 'Erreur lors du chargement du formulaire personnalisé');
         }
 
-        customFields = formFields || [];
+        customForm = formData;
+
+        // Récupérer les champs du formulaire s'il existe
+        if (customForm) {
+            const { data: formFields, error: fieldsError } = await locals.supabase
+                .from('form_fields')
+                .select('*')
+                .eq('form_id', customForm.id)
+                .order('order');
+
+            if (fieldsError) {
+                console.error('Error fetching form fields:', fieldsError);
+                throw error(500, 'Erreur lors du chargement des champs du formulaire');
+            }
+
+            customFields = formFields || [];
+        }
+    } else {
+        console.log('ℹ️ No custom form for this product, using basic order form');
     }
 
     // Récupérer les disponibilités de la boutique
@@ -89,6 +111,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         .from('unavailabilities')
         .select('start_date, end_date')
         .eq('shop_id', shop.id);
+
 
     // Créer le schéma dynamique basé sur les champs configurés
     const dynamicSchema = createLocalDynamicSchema(customFields);
@@ -105,14 +128,15 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 };
 
 export const actions: Actions = {
-    createProductOrder: async ({ request, params, locals }) => {
+    createProductOrder: async ({ request, params, locals, fetch }) => {
+        console.log('🔍 createProductOrder action called');
+
         // Vérifier si c'est une erreur de rate limiting
         const rateLimitExceeded = request.headers.get('x-rate-limit-exceeded');
         if (rateLimitExceeded === 'true') {
             const rateLimitMessage = request.headers.get('x-rate-limit-message') || 'Trop de tentatives. Veuillez patienter.';
-            console.log('🚫 Rate limiting détecté dans l\'action createProductOrder:', rateLimitMessage);
+            console.log('🚫 Rate limiting détecté dans createProductOrder:', rateLimitMessage);
 
-            // Créer un schéma temporaire pour l'erreur
             const tempSchema = createLocalDynamicSchema([]);
             const form = await superValidate(request, zod(tempSchema));
             setError(form, '', rateLimitMessage);
@@ -120,9 +144,13 @@ export const actions: Actions = {
         }
 
         try {
-            const { slug } = params;
+            const { slug, id } = params;
 
-            // Récupérer les informations de la boutique
+            if (!id) {
+                throw error(400, 'Paramètre produit manquant');
+            }
+
+            // Récupérer la boutique
             const { data: shop, error: shopError } = await locals.supabase
                 .from('shops')
                 .select('id, name, slug')
@@ -134,17 +162,17 @@ export const actions: Actions = {
                 throw error(404, 'Boutique non trouvée');
             }
 
-            // Récupérer le produit actif avec ses informations
+            // Récupérer le produit
             const { data: product, error: productError } = await locals.supabase
                 .from('products')
                 .select(`
-        id,
-        name,
-        description,
-        base_price,
-        form_id
-    `)
-                .eq('id', params.id)
+                    id,
+                    name,
+                    description,
+                    base_price,
+                    form_id
+                `)
+                .eq('id', id)
                 .eq('shop_id', shop.id)
                 .eq('is_active', true)
                 .single();
@@ -153,7 +181,7 @@ export const actions: Actions = {
                 throw error(404, 'Produit non trouvé');
             }
 
-
+            // Récupérer les champs personnalisés
             let customFields: any[] = [];
             if (product.form_id) {
                 const { data: formFields } = await locals.supabase
@@ -162,9 +190,11 @@ export const actions: Actions = {
                     .eq('form_id', product.form_id)
                     .order('order');
                 customFields = formFields || [];
+            } else {
+                console.log('ℹ️ Aucun formulaire personnalisé pour ce produit');
             }
 
-            // Créer le schéma dynamique et valider le formulaire
+            // Validation dynamique
             const dynamicSchema = createLocalDynamicSchema(customFields);
             const form = await superValidate(request, zod(dynamicSchema));
 
@@ -182,19 +212,27 @@ export const actions: Actions = {
                 customization_data
             } = form.data;
 
-            // Transformer les données de personnalisation : ID → Label
+            // 🔐 Sécurité : forcer pickup_date → Date
+            let selectedDate: string | null = null;
+            try {
+                selectedDate = new Date(pickup_date).toISOString().split('T')[0];
+            } catch {
+                return fail(400, { form, error: 'Date de retrait invalide' });
+            }
+
+            // Transformer les données de personnalisation
             const selectedOptions: Record<string, any> = {};
-            Object.entries(customization_data).forEach(([fieldId, value]) => {
+            Object.entries(customization_data || {}).forEach(([fieldId, value]) => {
                 const field = customFields.find((f) => f.id === fieldId);
                 if (!field) return;
 
-                // Cas texte / nombre → garder la valeur brute
-                if (field.type === 'short-text' || field.type === 'long-text' || field.type === 'number') {
+                // Texte ou nombre
+                if (['short-text', 'long-text', 'number'].includes(field.type)) {
                     selectedOptions[field.label] = value;
                 }
 
-                // Cas single-select → un objet { price, value }
-                else if (field.type === 'single-select') {
+                // Single-select
+                else if (field.type === 'single-select' && Array.isArray(field.options)) {
                     const option = field.options.find((opt: any) => opt.label === value);
                     if (option) {
                         selectedOptions[field.label] = {
@@ -204,79 +242,60 @@ export const actions: Actions = {
                     }
                 }
 
-                // Cas multi-select → tableau d'objets { price, value }
-                else if (field.type === 'multi-select' && Array.isArray(value)) {
+                // Multi-select
+                else if (field.type === 'multi-select' && Array.isArray(value) && Array.isArray(field.options)) {
                     selectedOptions[field.label] = value
                         .map((optionLabel: string) => {
                             const option = field.options.find((opt: any) => opt.label === optionLabel);
-                            if (option) {
-                                return { value: option.label, price: option.price || 0 };
-                            }
-                            return null;
+                            return option ? { value: option.label, price: option.price || 0 } : null;
                         })
-                        .filter(Boolean); // enlever les null si jamais
+                        .filter(Boolean);
                 }
             });
 
-            // Calculer le prix total (prix de base + options)
+            // Calcul du prix total
             let totalPrice = product.base_price || 0;
             Object.values(selectedOptions).forEach((val: any) => {
                 if (Array.isArray(val)) {
-                    // multi-select
-                    val.forEach((opt) => {
-                        totalPrice += opt.price || 0;
-                    });
+                    val.forEach((opt) => { totalPrice += opt.price || 0; });
                 } else if (typeof val === 'object' && val?.price !== undefined) {
-                    // single-select
                     totalPrice += val.price || 0;
                 }
             });
 
+            // Préparer les données de commande
+            const orderData = {
+                productId: id,
+                shopId: shop.id,
+                selectedDate,
+                customerName: customer_name,
+                customerEmail: customer_email,
+                customerPhone: customer_phone,
+                customerInstagram: customer_instagram,
+                additionalInfo: additional_information,
+                selectedOptions,
+                totalPrice,
+                cakeName: product.name,
+            };
 
+            // Créer la session Stripe
+            const response = await fetch('/api/create-payment-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(orderData),
+            });
 
-            try {
-                // Préparer les données de la commande
-                const orderData = {
-                    productId: params.id,
-                    shopId: shop.id,
-                    selectedDate: pickup_date.toISOString().split('T')[0],
-                    customerName: customer_name,
-                    customerEmail: customer_email,
-                    customerPhone: customer_phone,
-                    customerInstagram: customer_instagram,
-                    additionalInfo: additional_information,
-                    selectedOptions,
-                    totalPrice,
-                    cakeName: product.name,
-                };
-
-                // Créer la session de paiement Stripe
-                const response = await fetch('/api/create-payment-session', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(orderData),
-                });
-
-                if (!response.ok) {
-                    throw new Error('Erreur lors de la création de la session de paiement');
-                }
-
-                const { sessionUrl } = await response.json();
-
-                return message(form, { redirectTo: sessionUrl })
-
-            } catch (error) {
-                console.error('Erreur:', error);
-
+            if (!response.ok) {
+                throw error(500, 'Erreur lors de la création de la session de paiement');
             }
 
-
+            const { sessionUrl } = await response.json();
+            return message(form, { redirectTo: sessionUrl });
 
         } catch (err) {
-            console.error('Error in createCustomOrder:', err);
+            console.error('❌ Error in createProductOrder:', err);
             throw error(500, 'Erreur serveur');
         }
     }
+
 };

@@ -11,7 +11,6 @@
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import type { SuperValidated } from 'sveltekit-superforms';
 	import { createLocalDynamicSchema } from './schema';
-	import { goto } from '$app/navigation';
 
 	export let data: SuperValidated<any>;
 	export let customFields: Array<{
@@ -39,7 +38,7 @@
 		dataType: 'json',
 	});
 
-	const { form: formData, enhance, submitting, message } = form;
+	const { form: formData, enhance, submitting, message, errors } = form;
 
 	$: totalPrice = (() => {
 		let total = product.base_price || 0;
@@ -80,7 +79,7 @@
 	$: if ($message?.redirectTo) {
 		const url = $message.redirectTo;
 		message.set(null); // reset pour éviter une boucle
-		goto(url);
+		window.location.href = url;
 	}
 
 	// Fonction pour formater le prix
@@ -92,7 +91,7 @@
 	}
 </script>
 
-<form method="POST" action="?/createCustomOrder" use:enhance>
+<form method="POST" action="?/createProductOrder" use:enhance>
 	<Form.Errors {form} />
 
 	<div class="space-y-8">
@@ -368,9 +367,9 @@
 				<Button type="submit" disabled={$submitting} class="flex-1">
 					{#if $submitting}
 						<span class="loading loading-spinner loading-sm"></span>
-						Envoi en cours...
+						Commande en cours...
 					{:else}
-						Envoyer ma demande
+						Commander
 					{/if}
 				</Button>
 				<Button type="button" variant="outline" on:click={onCancel}>

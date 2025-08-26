@@ -253,36 +253,92 @@ export const actions: Actions = {
             }
 
             // Mettre à jour les champs de personnalisation si fournis
-            if (customizationFields && customizationFields.length > 0) {
+            if (customizationFields !== undefined) { // Vérifier si le champ est présent (même vide)
                 try {
+                    console.log('🔄 Updating customization fields:', customizationFields);
 
                     if (updatedProduct.form_id) {
-                        // Supprimer les anciens champs
-                        await locals.supabase
+                        // Récupérer les champs existants pour comparer
+                        const { data: existingFields, error: fetchError } = await locals.supabase
                             .from('form_fields')
-                            .delete()
-                            .eq('form_id', updatedProduct.form_id);
+                            .select('id, label, type, options, required, order')
+                            .eq('form_id', updatedProduct.form_id)
+                            .order('order');
 
-                        // Ajouter les nouveaux champs
-                        if (customizationFields.length > 0 && updatedProduct.form_id) {
-                            const formFields = customizationFields.map((field: any, index: number) => ({
-                                form_id: updatedProduct.form_id!,
-                                label: field.label,
-                                type: field.type,
-                                options: field.options && field.options.length > 0 ? field.options : null,
-                                required: field.required,
-                                order: index + 1
-                            }));
+                        if (fetchError) {
+                            console.error('Error fetching existing fields:', fetchError);
+                            return fail(500, {
+                                error: 'Erreur lors de la récupération des champs existants'
+                            });
+                        }
 
-                            const { error: fieldsError } = await locals.supabase
+                        console.log('📋 Existing fields:', existingFields);
+                        console.log('🆕 New fields:', customizationFields);
+
+                        // Identifier les champs à supprimer (ceux qui existent mais ne sont plus dans la nouvelle liste)
+                        const fieldsToDelete = existingFields.filter(existingField =>
+                            !customizationFields.some(newField => newField.id === existingField.id)
+                        );
+
+                        // Identifier les champs à mettre à jour ou ajouter
+                        const fieldsToUpsert = customizationFields.map((field: any, index: number) => ({
+                            id: field.id || undefined, // Garder l'ID si il existe
+                            form_id: updatedProduct.form_id!,
+                            label: field.label,
+                            type: field.type,
+                            options: field.options && field.options.length > 0 ? field.options : null,
+                            required: field.required,
+                            order: index + 1
+                        }));
+
+                        console.log('🗑️ Fields to delete:', fieldsToDelete);
+                        console.log('💾 Fields to upsert:', fieldsToUpsert);
+
+                        // Supprimer les champs supprimés
+                        if (fieldsToDelete.length > 0) {
+                            const { error: deleteError } = await locals.supabase
                                 .from('form_fields')
-                                .insert(formFields);
+                                .delete()
+                                .in('id', fieldsToDelete.map(f => f.id));
 
-                            if (fieldsError) {
-                                console.error('Error updating form fields:', fieldsError);
+                            if (deleteError) {
+                                console.error('Error deleting fields:', deleteError);
+                                return fail(500, {
+                                    error: 'Erreur lors de la suppression des champs'
+                                });
+                            }
+                        }
+
+                        // Mettre à jour ou ajouter les champs
+                        if (fieldsToUpsert.length > 0) {
+                            const { error: upsertError } = await locals.supabase
+                                .from('form_fields')
+                                .upsert(fieldsToUpsert, {
+                                    onConflict: 'id',
+                                    ignoreDuplicates: false
+                                });
+
+                            if (upsertError) {
+                                console.error('Error upserting fields:', upsertError);
                                 return fail(500, {
                                     error: 'Erreur lors de la mise à jour des champs de personnalisation'
                                 });
+                            }
+                        } else {
+                            // Tous les champs ont été supprimés, supprimer tous les champs existants
+                            console.log('🗑️ All fields removed, deleting all existing fields');
+                            if (existingFields.length > 0) {
+                                const { error: deleteAllError } = await locals.supabase
+                                    .from('form_fields')
+                                    .delete()
+                                    .eq('form_id', updatedProduct.form_id);
+
+                                if (deleteAllError) {
+                                    console.error('Error deleting all fields:', deleteAllError);
+                                    return fail(500, {
+                                        error: 'Erreur lors de la suppression de tous les champs'
+                                    });
+                                }
                             }
                         }
                     } else if (customizationFields.length > 0) {

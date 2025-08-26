@@ -108,9 +108,8 @@ export function createDynamicProductOrderSchema(fields: Array<{
     required: boolean;
     options?: Array<{ label: string; price?: number }>;
 }>) {
-    return createBaseOrderSchema(fields).extend({
-        product_id: uuidSchema
-    });
+    return createBaseOrderSchema(fields);
+    // product_id n'est plus requis côté client, on l'utilise depuis params.id
 }
 
 // Mise à jour du statut d'une commande

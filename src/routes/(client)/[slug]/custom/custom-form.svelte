@@ -262,7 +262,9 @@
 					{#if $formData.pickup_date}
 						<div class="flex justify-between">
 							<span class="text-muted-foreground">Date de récupération :</span>
-							<span class="font-medium">{$formData.pickup_date}</span>
+							<span class="font-medium"
+								>{$formData.pickup_date.toLocaleDateString('fr-FR')}</span
+							>
 						</div>
 					{/if}
 					{#if $formData.customer_name}

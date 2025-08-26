@@ -14,9 +14,8 @@
 	import ThemeSwitchButton from '$lib/components/ThemeSwitchButton.svelte';
 
 	const menuItems = {
-		'/': 'Home',
-		'/#features': 'Features',
-		'/#pricing': 'Pricing',
+		'/': 'Accueil',
+		'/#pricing': 'Tarifs',
 		'/contact': 'Contact',
 	};
 
@@ -28,7 +27,11 @@
 	export let data;
 </script>
 
-<header class="sticky top-0 z-10 border-b border-border bg-card py-4">
+<!-- Navbar integrated in Hero section with transparent background -->
+<header
+	class="marketing-section absolute top-0 z-10 w-full py-4"
+	style="background-color: transparent;"
+>
 	<div
 		class="container grid grid-cols-2 flex-nowrap items-center justify-between sm:grid-cols-[auto,auto,auto]"
 	>
@@ -37,7 +40,12 @@
 			<ul class="hidden flex-wrap px-1 text-lg font-bold sm:flex">
 				{#each Object.entries(menuItems) as [href, text]}
 					<li class="md:mx-2">
-						<Button variant="ghost" {href} class="text-base text-foreground">
+						<Button
+							variant="ghost"
+							{href}
+							class="text-base text-foreground transition-colors duration-200 hover:bg-white/20 hover:text-white"
+							style="color: #333; font-size: 18px;"
+						>
 							{text}
 						</Button>
 					</li>
@@ -48,7 +56,13 @@
 			{#if data.user}
 				<Button href="/dashboard">Dashboard</Button>
 			{:else}
-				<Button href="/login">Get Started Now</Button>
+				<Button
+					href="/login"
+					class="transform rounded-full transition-all duration-200 hover:scale-105 hover:bg-[#e85a4f]"
+					style="background-color: #FF6F61; color: #FFF; font-size: 16px; width: 230px; height: 48px;"
+				>
+					Je teste gratuitement
+				</Button>
 			{/if}
 		</div>
 
@@ -127,7 +141,7 @@
 										variant="ghost"
 										class="w-full py-6 text-base"
 									>
-										Register
+										S'inscrire
 									</Button>
 								</li>
 								<li>
@@ -136,7 +150,7 @@
 										variant="ghost"
 										class="w-full py-6 text-base"
 									>
-										Log in
+										Se connecter
 									</Button>
 								</li>
 							{:else}
@@ -176,7 +190,7 @@
 	</div>
 </header>
 
-<main class="container mx-auto p-8">
+<main class="marketing-section">
 	<slot />
 </main>
 
@@ -186,7 +200,11 @@
 	<div class="container flex flex-col gap-12">
 		<div class="flex flex-col flex-wrap gap-12 sm:flex-row">
 			<div class="flex-[0.3]">
-				<HomeButton />
+				<img
+					src="/images/logo_icone.svg"
+					alt="Logo Pattyly"
+					class="h-[70px] w-[120px] object-contain transition-transform duration-200 hover:scale-105"
+				/>
 			</div>
 			<div
 				class={cn(
@@ -218,76 +236,40 @@
 							variant="link"
 							class="block h-auto p-0 text-start text-base font-normal text-muted-foreground"
 						>
-							Login
+							Se connecter
 						</Button>
 						<Button
 							href="/register"
 							variant="link"
 							class="block h-auto p-0 text-start text-base font-normal text-muted-foreground"
 						>
-							Register
+							S'inscrire
 						</Button>
 					</nav>
 				</div>
 				<div class="col">
-					<span class="footer-title">Links</span>
+					<span class="footer-title">Retrouvez-nous</span>
 					<nav>
 						<Button
 							variant="link"
 							class="block h-auto p-0 text-start text-base font-normal text-muted-foreground"
-							href="https://kizivat.eu"
+							href="/"
 							target="_blank"
 						>
-							David Kizivat
+							Instagram
 						</Button>
 						<Button
 							variant="link"
 							class="block h-auto p-0 text-start text-base font-normal text-muted-foreground"
-							href="https://twitter.com/kizivat"
+							href="/"
 							target="_blank"
 						>
-							@kizivat at 𝕏
-						</Button>
-						<Button
-							variant="link"
-							class="block h-auto p-0 text-start text-base font-normal text-muted-foreground"
-							href="https://github.com/kizivat"
-							target="_blank"
-						>
-							GitHub
-						</Button>
-						<Button
-							variant="link"
-							class="block h-auto p-0 text-start text-base font-normal text-muted-foreground"
-							href="https://www.linkedin.com/in/david-kizivat/"
-							target="_blank"
-						>
-							LinkedIn
+							Tiktok
 						</Button>
 					</nav>
 				</div>
 			</div>
 		</div>
-		<p class="max-w-prose place-self-center text-center text-sm leading-6">
-			&copy; {new Date().getFullYear()}
-			{WebsiteName} created by <Button
-				variant="link"
-				href="https://kizivat.eu"
-				target="_blank"
-				class="h-auto p-0 text-primary underline hover:no-underline"
-				>David Kizivat</Button
-			>. Based on <Button
-				variant="link"
-				class="h-auto p-0 text-primary underline hover:no-underline"
-				href="https://github.com/CriticalMoments/CMSaasStarter"
-				target="_blank">CriticalMoments/CMSaasStarter</Button
-			>. Landing page design inspired by Leo Miranda's <Button
-				variant="link"
-				class="h-auto p-0 text-primary underline hover:no-underline"
-				href="https://shadcn-landing-page.vercel.app/"
-				target="_blank">Shadcn Landing Page</Button
-			>.
-		</p>
 	</div>
 </footer>
 
