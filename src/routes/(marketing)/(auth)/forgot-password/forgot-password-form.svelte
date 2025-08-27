@@ -31,8 +31,8 @@
 	{#if $message?.success}
 		<p class="text-sm text-green-700">{$message.success}</p>
 		<p class="text-sm text-muted-foreground">
-			Didn't receive the email? Check your spam folder or
-			<a href="/forgot-password" class="underline">try again</a>.
+			Tu n'as pas reçu l'email ? Vérifie tes spams ou
+			<a href="/forgot-password" class="underline">réessaie</a>.
 		</p>
 	{:else}
 		<Form.Errors {form} />
@@ -42,7 +42,7 @@
 				<Input
 					{...attrs}
 					type="email"
-					placeholder="name@example.com"
+					placeholder="ton@email.com"
 					required
 					bind:value={$formData.email}
 				/>
@@ -52,9 +52,9 @@
 		<Form.Button class="w-full" disabled={$submitting}>
 			{#if $submitting}
 				<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-				Sending reset password instructions…
+				Envoi des instructions…
 			{:else}
-				Send reset password instructions
+				Envoyer les instructions
 			{/if}
 		</Form.Button>
 	{/if}

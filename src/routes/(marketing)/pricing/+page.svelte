@@ -25,7 +25,9 @@
 			</Section.Description>
 		</Section.Header>
 
-		<div class="grid gap-8 pt-12 md:mx-auto md:max-w-4xl md:grid-cols-2">
+		<div
+			class="grid gap-12 pt-12 md:mx-auto md:max-w-4xl md:grid-cols-2 md:gap-8"
+		>
 			{#each plans as plan}
 				<div class="flex justify-center">
 					<Pricing.Plan emphasized={plan.popular}>
@@ -69,9 +71,9 @@
 									class="w-full {plan.popular
 										? 'bg-[#FF6F61] hover:bg-[#e85a4f]'
 										: 'bg-neutral-800 hover:bg-neutral-700'}"
-									href="/checkout/{plan.stripePriceId}"
+									href="/register"
 								>
-									Choisir {plan.name}
+									Essayer gratuitement
 								</Button>
 							</Card.Content>
 

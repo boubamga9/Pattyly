@@ -4,7 +4,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Check, X, Star, Shield } from 'lucide-svelte';
+	import { Star } from 'lucide-svelte';
 	import type { PageData } from './$types';
 
 	export let data: PageData;
@@ -31,7 +31,9 @@
 			</Section.Description>
 		</Section.Header>
 
-		<div class="grid gap-8 pt-12 md:mx-auto md:max-w-4xl md:grid-cols-2">
+		<div
+			class="grid gap-12 pt-12 md:mx-auto md:max-w-4xl md:grid-cols-2 md:gap-8"
+		>
 			{#each data.plans as plan}
 				<div class="flex justify-center">
 					<Pricing.Plan emphasized={plan.popular}>
@@ -41,7 +43,7 @@
 									class="absolute -top-4 left-1/2 -translate-x-1/2 transform"
 								>
 									<Badge
-										class="flex items-center gap-1 rounded-full bg-blue-600 px-4 py-1 text-white"
+										class="flex items-center gap-1 rounded-full bg-[#FF6F61] px-4 py-1 text-white"
 									>
 										<Star class="h-4 w-4" />
 										Le plus populaire
@@ -64,7 +66,7 @@
 										>
 									</div>
 									<div class="flex items-baseline justify-center gap-1">
-										<span class="text-5xl font-black tracking-tight">
+										<span class="text-5xl font-bold tracking-tight">
 											{plan.price}€
 										</span>
 										<span class="text-muted-foreground">/mois</span>
@@ -81,8 +83,8 @@
 								{:else}
 									<Button
 										class="w-full {plan.popular
-											? 'bg-blue-600 hover:bg-blue-700'
-											: ''}"
+											? 'bg-[#FF6F61] hover:bg-[#e85a4f]'
+											: 'bg-neutral-800 hover:bg-neutral-700'}"
 										href="/checkout/{plan.stripePriceId}"
 									>
 										{data.currentPlan
@@ -101,7 +103,6 @@
 									{/each}
 									{#each plan.limitations as limitation}
 										<Pricing.FeatureItem class="text-muted-foreground">
-											<X class="mr-2 h-4 w-4 text-red-500" />
 											{limitation}
 										</Pricing.FeatureItem>
 									{/each}

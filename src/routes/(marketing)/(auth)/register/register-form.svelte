@@ -47,7 +47,8 @@
 		</Form.Control>
 		<Form.FieldErrors />
 		<Form.Description class="text-right text-xs"
-			>Au moins 6 caractères</Form.Description
+			>Au moins 8 caractères dont une majuscule, une minuscule, un chiffre et un
+			caractère spécial</Form.Description
 		>
 	</Form.Field>
 	<Form.Button class="w-full" disabled={$submitting}>
