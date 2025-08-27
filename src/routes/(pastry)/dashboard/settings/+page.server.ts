@@ -16,7 +16,7 @@ import { deleteAllShopImages } from '$lib/storage-utils';
 
 
 const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
-    apiVersion: '2023-10-16'
+    apiVersion: '2024-04-10'
 });
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -417,5 +417,16 @@ export const actions = {
             console.error('❌ Error creating billing link:', err);
             return { success: false, error: 'Erreur lors de la création du lien de billing' };
         }
+    },
+
+    logout: async ({ locals, cookies }) => {
+        // Déconnexion côté serveur
+        await locals.supabase.auth.signOut();
+
+        // Supprimer le cookie de session
+        cookies.delete('session', { path: '/' });
+
+        // Rediriger directement vers la homepage
+        throw redirect(303, '/');
     }
 }; 

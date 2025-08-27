@@ -33,7 +33,7 @@
 				class="bg-[#FF6F61] text-white shadow-lg transition-transform duration-200 hover:scale-105 hover:bg-[#e85a4f]"
 				style="width: 270px; height: 56px; margin-bottom: 12px; font-size: 16px; border-radius: 12px;"
 			>
-				Je teste gratuitement
+				Commencer
 			</Button>
 		</div>
 

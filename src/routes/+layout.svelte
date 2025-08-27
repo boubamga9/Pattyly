@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto, invalidate } from '$app/navigation';
 	import { navigating, page } from '$app/stores';
-	import CookiesBanner from '$lib/components/landing/cookies-banner/cookies-banner.svelte';
+
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { ModeWatcher } from 'mode-watcher';
 	import { afterUpdate, onMount } from 'svelte';
@@ -76,7 +76,6 @@
 
 <MetaTags />
 <ModeWatcher />
-<CookiesBanner />
 
 {#if $navigating}
 	<!-- 

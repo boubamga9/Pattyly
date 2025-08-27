@@ -36,7 +36,7 @@
 	</Form.Field>
 	<Form.Field {form} name="password">
 		<Form.Control let:attrs>
-			<Form.Label>Password</Form.Label>
+			<Form.Label>Mot de passe</Form.Label>
 			<Input
 				{...attrs}
 				type="password"
@@ -47,15 +47,15 @@
 		</Form.Control>
 		<Form.FieldErrors />
 		<Form.Description class="text-right text-xs"
-			>At least 6 characters long</Form.Description
+			>Au moins 6 caractères</Form.Description
 		>
 	</Form.Field>
 	<Form.Button class="w-full" disabled={$submitting}>
 		{#if $submitting}
 			<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-			Creating an account…
+			Création du compte en cours…
 		{:else}
-			Create an account
+			Créer un compte
 		{/if}
 	</Form.Button>
 </form>

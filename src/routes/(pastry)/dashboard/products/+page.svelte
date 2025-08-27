@@ -314,25 +314,49 @@
 	</div>
 
 	<!-- Liste des gâteaux -->
-	<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+	<div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
 		{#if filteredProducts && filteredProducts.length > 0}
 			{#each filteredProducts as product}
 				<Card class={product.is_active ? '' : 'bg-muted/50'}>
 					<CardHeader>
-						<div class="flex items-start justify-between">
-							<div>
-								<CardTitle class="text-lg">{product.name}</CardTitle>
-								<CardDescription class="mt-1">
-									{truncateText(
-										product.description || 'Aucune description',
-										50,
-									)}
-								</CardDescription>
+						<div class="flex items-start gap-4">
+							<!-- Colonne image à gauche -->
+							<div class="flex-shrink-0">
+								{#if product.image_url}
+									<img
+										src={product.image_url}
+										alt={product.name}
+										class="h-20 w-20 rounded-lg border border-border object-cover"
+									/>
+								{:else}
+									<div
+										class="flex h-20 w-20 items-center justify-center rounded-lg border border-border bg-muted"
+									>
+										<span class="text-2xl text-muted-foreground">🎂</span>
+									</div>
+								{/if}
 							</div>
 
-							<span class="text-sm text-muted-foreground">
-								{formatPrice(product.base_price)}
-							</span>
+							<!-- Colonne contenu à droite -->
+							<div class="min-w-0 flex-1">
+								<div class="flex items-start justify-between">
+									<div class="min-w-0 flex-1">
+										<CardTitle class="text-lg">{product.name}</CardTitle>
+										<CardDescription class="mt-1">
+											{truncateText(
+												product.description || 'Aucune description',
+												45,
+											)}
+										</CardDescription>
+									</div>
+
+									<span
+										class="ml-2 flex-shrink-0 text-sm text-muted-foreground"
+									>
+										{formatPrice(product.base_price)}
+									</span>
+								</div>
+							</div>
 						</div>
 					</CardHeader>
 

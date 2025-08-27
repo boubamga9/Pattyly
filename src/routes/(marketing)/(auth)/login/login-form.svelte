@@ -45,12 +45,12 @@
 	<Form.Field {form} name="password">
 		<Form.Control let:attrs>
 			<div class="mb-2 flex items-center">
-				<Form.Label>Password</Form.Label>
+				<Form.Label>Mot de passe</Form.Label>
 				<a
 					href="/forgot-password"
 					class="ml-auto inline-block text-sm text-muted-foreground underline"
 				>
-					Forgot password?
+					Mot de passe oublié ?
 				</a>
 			</div>
 			<Input
@@ -66,9 +66,9 @@
 	<Form.Button class="w-full" disabled={$submitting}>
 		{#if $submitting}
 			<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-			Logging in…
+			Connexion en cours…
 		{:else}
-			Log in
+			Se connecter
 		{/if}
 	</Form.Button>
 </form>

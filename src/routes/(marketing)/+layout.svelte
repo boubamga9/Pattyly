@@ -1,21 +1,16 @@
 <script>
 	import { onNavigate } from '$app/navigation';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import * as Collapsible from '$lib/components/ui/collapsible';
 	import * as Drawer from '$lib/components/ui/drawer';
 	import { Separator } from '$lib/components/ui/separator';
 	import { cn } from '$lib/utils';
-	import ChevronsUpDown from 'virtual:icons/lucide/chevrons-up-down';
 	import MenuIcon from 'virtual:icons/lucide/menu';
 	import XIcon from 'virtual:icons/lucide/x';
 	import '../../app.css';
-	import { WebsiteName } from '../../config';
-	import HomeButton from './components/HomeButton.svelte';
-	import ThemeSwitchButton from '$lib/components/ThemeSwitchButton.svelte';
 
 	const menuItems = {
 		'/': 'Accueil',
-		'/#pricing': 'Tarifs',
+		'/pricing': 'Tarifs',
 		'/contact': 'Contact',
 	};
 
@@ -32,14 +27,27 @@
 	class="marketing-section absolute top-0 z-10 w-full py-4"
 	style="background-color: transparent;"
 >
-	<div
-		class="container grid grid-cols-2 flex-nowrap items-center justify-between sm:grid-cols-[auto,auto,auto]"
-	>
-		<HomeButton />
-		<nav class="hidden sm:block">
-			<ul class="hidden flex-wrap px-1 text-lg font-bold sm:flex">
+	<div class="container flex items-center justify-between">
+		<!-- Logo à gauche -->
+		<div class="flex justify-start">
+			<Button
+				variant="ghost"
+				class="flex w-fit flex-nowrap items-center gap-3 text-xl transition-colors duration-200 hover:bg-white/20"
+				href="/"
+			>
+				<img
+					src="/images/logo_text.svg"
+					alt="Logo Pattyly"
+					class="h-[70px] w-[120px] object-contain transition-transform duration-200 hover:scale-105"
+				/>
+			</Button>
+		</div>
+
+		<!-- Navigation centrée (cachée sur mobile) -->
+		<nav class="absolute left-1/2 hidden -translate-x-1/2 transform lg:block">
+			<ul class="flex items-center gap-8 text-lg font-bold">
 				{#each Object.entries(menuItems) as [href, text]}
-					<li class="md:mx-2">
+					<li>
 						<Button
 							variant="ghost"
 							{href}
@@ -52,140 +60,118 @@
 				{/each}
 			</ul>
 		</nav>
-		<div class="hidden justify-self-end sm:flex sm:gap-4">
-			{#if data.user}
-				<Button href="/dashboard">Dashboard</Button>
-			{:else}
-				<Button
-					href="/login"
-					class="transform rounded-full transition-all duration-200 hover:scale-105 hover:bg-[#e85a4f]"
-					style="background-color: #FF6F61; color: #FFF; font-size: 16px; width: 230px; height: 48px;"
-				>
-					Je teste gratuitement
-				</Button>
-			{/if}
-		</div>
 
-		<div class="justify-self-end sm:hidden">
-			<Drawer.Root bind:open={menuOpen}>
-				<Drawer.Trigger asChild let:builder>
-					<Button variant="ghost" size="icon" builders={[builder]}>
-						<span class="sr-only">Menu</span>
-						<MenuIcon />
+		<!-- Boutons à droite -->
+		<div class="flex items-center gap-4">
+			<!-- Boutons desktop -->
+			<div class="hidden lg:flex lg:gap-4">
+				{#if data.user}
+					<Button href="/dashboard">Dashboard</Button>
+				{:else}
+					<Button
+						href="/login"
+						variant="ghost"
+						class="text-base font-medium text-neutral-700 transition-all duration-200 hover:scale-105 hover:bg-white/20 hover:text-neutral-800"
+					>
+						Se connecter
 					</Button>
-				</Drawer.Trigger>
-				<Drawer.Content>
-					<Drawer.Header class="flex justify-end py-0">
-						<Drawer.Close asChild let:builder>
-							<Button variant="ghost" size="icon" builders={[builder]}>
-								<span class="sr-only">Close</span>
-								<XIcon />
-							</Button>
-						</Drawer.Close>
-					</Drawer.Header>
-					<Collapsible.Root>
-						<Collapsible.Trigger asChild let:builder>
-							<div class="p-2">
-								<Button
-									variant="ghost"
-									class="flex w-full flex-nowrap gap-2 text-base"
-									builders={[builder]}
-								>
-									Switch theme
-									<ChevronsUpDown class="size-4" />
+					<Button
+						href="/register"
+						class="rounded-xl bg-[#FF6F61] text-base font-medium text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-[#e85a4f]"
+						style="width: 140px; height: 48px;"
+					>
+						Commencer
+					</Button>
+				{/if}
+			</div>
+
+			<!-- Bouton mobile -->
+			<div class="lg:hidden">
+				<Drawer.Root bind:open={menuOpen}>
+					<Drawer.Trigger asChild let:builder>
+						<Button variant="ghost" size="icon" builders={[builder]}>
+							<span class="sr-only">Menu</span>
+							<MenuIcon />
+						</Button>
+					</Drawer.Trigger>
+					<Drawer.Content>
+						<Drawer.Header class="flex justify-end py-0">
+							<Drawer.Close asChild let:builder>
+								<Button variant="ghost" size="icon" builders={[builder]}>
+									<span class="sr-only">Close</span>
+									<XIcon />
 								</Button>
-							</div>
-						</Collapsible.Trigger>
-						<Collapsible.Content>
-							<ul
-								class="grid grid-cols-[auto,auto] items-center gap-x-2 p-2 pt-0"
-							>
-								<li class="col-span-2 grid grid-cols-subgrid">
-									<ThemeSwitchButton
-										mode="system"
-										class="col-span-2 grid grid-cols-subgrid"
-									/>
-								</li>
-								<li class="col-span-2 grid grid-cols-subgrid">
-									<ThemeSwitchButton
-										mode="light"
-										class="col-span-2 grid grid-cols-subgrid"
-									/>
-								</li>
-								<li class="col-span-2 grid grid-cols-subgrid">
-									<ThemeSwitchButton
-										mode="dark"
-										class="col-span-2 grid grid-cols-subgrid"
-									/>
-								</li>
+							</Drawer.Close>
+						</Drawer.Header>
+						<nav class="[&_ul]:flex [&_ul]:flex-col [&_ul]:p-2">
+							<ul>
+								{#each Object.entries(menuItems) as [href, text]}
+									<li>
+										<Button
+											{href}
+											variant="ghost"
+											class="w-full py-6 text-base"
+										>
+											{text}
+										</Button>
+									</li>
+								{/each}
 							</ul>
-						</Collapsible.Content>
-					</Collapsible.Root>
-					<Separator />
-					<nav class="[&_ul]:flex [&_ul]:flex-col [&_ul]:p-2">
-						<ul>
-							{#each Object.entries(menuItems) as [href, text]}
-								<li>
-									<Button {href} variant="ghost" class="w-full py-6 text-base">
-										{text}
-									</Button>
-								</li>
-							{/each}
-						</ul>
-						<Separator />
-						<ul class="">
-							{#if !data.user}
-								<li>
-									<Button
-										href="/register"
-										variant="ghost"
-										class="w-full py-6 text-base"
-									>
-										S'inscrire
-									</Button>
-								</li>
-								<li>
-									<Button
-										href="/login"
-										variant="ghost"
-										class="w-full py-6 text-base"
-									>
-										Se connecter
-									</Button>
-								</li>
-							{:else}
-								<li>
-									<Button
-										href="/dashboard"
-										variant="ghost"
-										class="w-full py-6 text-base"
-									>
-										Dashboard
-									</Button>
-								</li>
-								<li>
-									<Button
-										href="/settings"
-										variant="ghost"
-										class="w-full py-6 text-base"
-									>
-										Settings
-									</Button>
-								</li>
-								<li>
-									<Button
-										href="/log-out"
-										variant="ghost"
-										class="w-full py-6 text-base"
-									>
-										Log out
-									</Button>
-								</li>
-							{/if}
-						</ul>
-					</nav>
-				</Drawer.Content>
-			</Drawer.Root>
+							<Separator />
+							<ul class="">
+								{#if !data.user}
+									<li>
+										<Button
+											href="/register"
+											variant="ghost"
+											class="w-full py-6 text-base"
+										>
+											S'inscrire
+										</Button>
+									</li>
+									<li>
+										<Button
+											href="/login"
+											variant="ghost"
+											class="w-full py-6 text-base"
+										>
+											Se connecter
+										</Button>
+									</li>
+								{:else}
+									<li>
+										<Button
+											href="/dashboard"
+											variant="ghost"
+											class="w-full py-6 text-base"
+										>
+											Dashboard
+										</Button>
+									</li>
+									<li>
+										<Button
+											href="/settings"
+											variant="ghost"
+											class="w-full py-6 text-base"
+										>
+											Settings
+										</Button>
+									</li>
+									<li>
+										<Button
+											href="/log-out"
+											variant="ghost"
+											class="w-full py-6 text-base"
+										>
+											Log out
+										</Button>
+									</li>
+								{/if}
+							</ul>
+						</nav>
+					</Drawer.Content>
+				</Drawer.Root>
+			</div>
 		</div>
 	</div>
 </header>

@@ -12,8 +12,8 @@
 
 {#if prices.length === 0}
 	<div class="py-12 text-center">
-		<p class="text-muted-foreground">
-			Pricing plans are being configured. Please check back soon!
+		<p class="text-neutral-700">
+			Les forfaits sont en cours de configuration. Reviens bientôt !
 		</p>
 	</div>
 {:else}
@@ -33,14 +33,14 @@
 					<Price.Core price={prices[0]}>
 						<Card.Content class="flex flex-col gap-6">
 							<Price.Amount price={prices[0]} />
-							<Price.Button price={prices[0]}>Get Started</Price.Button>
+							<Price.Button price={prices[0]}>Commencer</Price.Button>
 						</Card.Content>
 					</Price.Core>
 					<Card.Footer>
 						<Pricing.PlanFeatures>
-							<Pricing.FeatureItem>Everything</Pricing.FeatureItem>
+							<Pricing.FeatureItem>Tout inclus</Pricing.FeatureItem>
 							<Pricing.FeatureItem>
-								Good kickstart for your product
+								Un bon démarrage pour ton activité
 							</Pricing.FeatureItem>
 						</Pricing.PlanFeatures>
 					</Card.Footer>
@@ -62,45 +62,15 @@
 					<Price.Core price={prices[1]}>
 						<Card.Content class="flex flex-col gap-6">
 							<Price.Amount price={prices[1]} />
-							<Price.Button price={prices[1]}>Get Started</Price.Button>
+							<Price.Button price={prices[1]}>Commencer</Price.Button>
 						</Card.Content>
 					</Price.Core>
 					<Card.Footer>
 						<Pricing.PlanFeatures>
-							<Pricing.FeatureItem>Everything from free</Pricing.FeatureItem>
+							<Pricing.FeatureItem>Tout depuis le gratuit</Pricing.FeatureItem>
 							<Pricing.FeatureItem>
-								Warm fuzzy feeling for both of us
+								Une belle sensation pour nous deux
 							</Pricing.FeatureItem>
-						</Pricing.PlanFeatures>
-					</Card.Footer>
-				</Card.Root>
-			</Pricing.Plan>
-		{/if}
-		{#if prices[2]}
-			<Pricing.Plan>
-				<Card.Root class="relative">
-					<div class="absolute right-2 top-1.5">
-						<Price.Badges price={prices[2]} />
-					</div>
-					<Card.Header>
-						<Card.Title>{prices[2].product.name}</Card.Title>
-						<Card.Description>
-							{prices[2].product.description ?? ''}
-						</Card.Description>
-					</Card.Header>
-					<Price.Core price={prices[2]}>
-						<Card.Content class="flex flex-col gap-6">
-							<Price.Amount price={prices[2]} />
-							<Price.Button price={prices[2]}>Get Started</Price.Button>
-						</Card.Content>
-					</Price.Core>
-					<Card.Footer>
-						<Pricing.PlanFeatures>
-							<Pricing.FeatureItem>
-								Everything from free and "Say thanks"
-							</Pricing.FeatureItem>
-							<Pricing.FeatureItem>Logo cloud spot</Pricing.FeatureItem>
-							<Pricing.FeatureItem>Your logo in the README</Pricing.FeatureItem>
 						</Pricing.PlanFeatures>
 					</Card.Footer>
 				</Card.Root>

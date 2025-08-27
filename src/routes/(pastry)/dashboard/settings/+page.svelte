@@ -204,7 +204,7 @@
 <div class="mt-8 border-t pt-8">
 	<!-- Bouton Se déconnecter -->
 	<div class="mb-6">
-		<form method="POST" action="/log-out">
+		<form method="POST" action="?/logout">
 			<Button
 				type="submit"
 				variant="outline"

@@ -1,20 +1,31 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card';
 	import ContactForm from './contact-form.svelte';
+	import { WebsiteName } from '../../../config';
 
 	export let data;
 </script>
 
 <svelte:head>
-	<title>Contact SaaS Kit</title>
+	<title>Contact {WebsiteName}</title>
 </svelte:head>
 
-<Card.Root class="mx-auto max-w-lg">
-	<Card.Header>
-		<Card.Title tag="h1" class="text-2xl">Contact Us</Card.Title>
-		<Card.Description>Let us know how we can help you.</Card.Description>
-	</Card.Header>
-	<Card.Content class="flex flex-col gap-4">
-		<ContactForm data={data.form} />
-	</Card.Content>
-</Card.Root>
+<div class="mb-24 mt-36">
+	<Card.Root
+		class="mx-auto max-w-lg rounded-2xl border-neutral-200 bg-white shadow-sm"
+	>
+		<Card.Header class="text-center">
+			<Card.Title
+				tag="h1"
+				class="text-2xl font-normal leading-[120%] tracking-tight text-neutral-800 lg:text-3xl"
+				>Nous contacter</Card.Title
+			>
+			<Card.Description class="text-neutral-700"
+				>Dis-nous comment on peut t'aider.</Card.Description
+			>
+		</Card.Header>
+		<Card.Content class="flex flex-col gap-4">
+			<ContactForm data={data.form} />
+		</Card.Content>
+	</Card.Root>
+</div>

@@ -1,5 +1,27 @@
 <script lang="ts">
-	// Pain points section with sticky scroll effect
+	// Pain points data - facile à modifier et ajouter
+	const painPoints = [
+		{
+			bgColor: '#FFF1D6',
+			rotation: '-5deg',
+			text: '⏳ Tu réponds au client quelques heures<br />après son message<br />→ et hop, il part ailleurs 😢',
+		},
+		{
+			bgColor: '#FFD6D6',
+			rotation: '5deg',
+			text: '❌ Répéter mille fois<br />les mêmes infos<br />→ ça use la patience',
+		},
+		{
+			bgColor: '#D6E8FF',
+			rotation: '-5deg',
+			text: '📅 Jongler entre<br />commandes, planning et imprévus<br />→ casse-tête assuré',
+		},
+		{
+			bgColor: '#D9FFD6',
+			rotation: '5deg',
+			text: '🛒 courses, colis, matériel<br />→ ça prend une énergie folle',
+		},
+	];
 </script>
 
 <section class="w-full bg-white">
@@ -13,7 +35,8 @@
 				style="color: #333333;"
 			>
 				Soyons honnêtes :<br />
-				Tu passes plus de temps à gérer <br />qu'à pâtisser, non ?
+				Tu passes plus de temps à gérer <br />qu'à
+				<span class="font-bold text-[#FF6F61]">pâtisser</span>, non ?
 			</h2>
 		</div>
 

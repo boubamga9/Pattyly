@@ -65,21 +65,21 @@ export const actions: Actions = {
 		try {
 			[/*result,*/ { error }] = await Promise.all([/*send, */ insert]);
 		} catch (e) {
-			console.warn("Couldn't send contact request email.", e);
+			console.warn("Impossible d'envoyer l'email de contact.", e);
 			if (!error) {
 				console.info(
-					`Contact message from ${name} <${email}> with subject "${subject}" and body "${body}" was saved to your databases \`contact_messages\` table.`,
+					`Message de contact de ${name} <${email}> avec le sujet "${subject}" et le corps "${body}" a été sauvegardé dans la table \`contact_messages\` de ta base de données.`,
 				);
 			}
 		}
 
 		if (error) {
 			console.error(
-				'Error inserting contact request message into the database: ',
+				'Erreur lors de l\'insertion du message de contact dans la base de données : ',
 				error,
 			);
 			console.error(
-				`Contact message from ${name} <${email}> with subject "${subject}" and body "${body}" was not saved.`,
+				`Le message de contact de ${name} <${email}> avec le sujet "${subject}" et le corps "${body}" n'a pas été sauvegardé.`,
 			);
 		}
 
@@ -96,7 +96,7 @@ export const actions: Actions = {
 		// }
 
 		return message(form, {
-			success: 'Thank you for your message. We will get back to you soon.',
+			success: 'Merci pour ton message. On te répondra bientôt !',
 		});
 	},
 };

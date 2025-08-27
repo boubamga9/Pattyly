@@ -29,7 +29,7 @@
 </script>
 
 <svelte:head>
-	<title>Sign in to {WebsiteName}</title>
+	<title>Se connecter à {WebsiteName}</title>
 </svelte:head>
 
 {#if $page.url.searchParams.get('verified') == 'true'}
@@ -46,27 +46,39 @@
 				d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
 			/></svg
 		>
-		<span>Email verified! Please log in.</span>
+		<span>Email vérifié ! Tu peux maintenant te connecter.</span>
 	</div>
 {/if}
-<Card.Root class="mx-auto max-w-sm">
-	<Card.Header>
-		<Card.Title tag="h1" class="text-2xl">
-			Log in <span class="sr-only">to {WebsiteName}</span>
-		</Card.Title>
-	</Card.Header>
-	<Card.Content class="flex flex-col gap-4">
-		<SocialsAuth />
 
-		<div class="flex flex-col gap-3">
-			<p class="text-sm text-muted-foreground">
-				Log in to your account with your email address below.
-			</p>
-			<LoginForm data={data.form} />
-			<div class="mt-4 text-center text-sm">
-				Don&apos;t have an account?
-				<a href="/register" class="underline">Sign up</a>.
+<div class="mb-24 mt-36">
+	<Card.Root
+		class="mx-auto max-w-sm rounded-2xl border-neutral-200 bg-white shadow-sm"
+	>
+		<Card.Header class="text-center">
+			<Card.Title
+				tag="h1"
+				class="text-2xl font-normal leading-[120%] tracking-tight text-neutral-800 lg:text-3xl"
+			>
+				Se connecter <span class="sr-only">à {WebsiteName}</span>
+			</Card.Title>
+		</Card.Header>
+		<Card.Content class="flex flex-col gap-4">
+			<SocialsAuth />
+
+			<div class="flex flex-col gap-3">
+				<p class="text-center text-sm text-neutral-700">
+					Connecte-toi à ton compte avec ton adresse email ci-dessous.
+				</p>
+				<LoginForm data={data.form} />
+				<div class="mt-4 text-center text-sm text-neutral-600">
+					Tu n&apos;as pas encore de compte ?
+					<a
+						href="/register"
+						class="text-[#FF6F61] underline transition-colors hover:text-[#e85a4f]"
+						>Créer un compte</a
+					>
+				</div>
 			</div>
-		</div>
-	</Card.Content>
-</Card.Root>
+		</Card.Content>
+	</Card.Root>
+</div>

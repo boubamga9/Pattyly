@@ -28,11 +28,11 @@
 		<div class="flex flex-wrap gap-2">
 			<Form.Field class="flex-1" {form} name="name">
 				<Form.Control let:attrs>
-					<Form.Label>Name</Form.Label>
+					<Form.Label class="mb-2">Nom</Form.Label>
 					<Input
 						{...attrs}
 						type="text"
-						placeholder="John Doe"
+						placeholder="Ton nom"
 						required
 						bind:value={$formData.name}
 					/>
@@ -45,7 +45,7 @@
 					<Input
 						{...attrs}
 						type="email"
-						placeholder="name@example.com"
+						placeholder="ton@email.com"
 						required
 						bind:value={$formData.email}
 					/>
@@ -55,11 +55,11 @@
 		</div>
 		<Form.Field class="flex-1" {form} name="subject">
 			<Form.Control let:attrs>
-				<Form.Label class="mb-2">Subject</Form.Label>
+				<Form.Label class="mb-2">Sujet</Form.Label>
 				<Input
 					{...attrs}
 					type="text"
-					placeholder="Collaboration request"
+					placeholder="Demande de collaboration"
 					required
 					bind:value={$formData.subject}
 				/>
@@ -72,7 +72,7 @@
 				<Textarea
 					rows={10}
 					{...attrs}
-					placeholder="Type your message here."
+					placeholder="Tape ton message ici."
 					bind:value={$formData.body}
 				/>
 			</Form.Control>
@@ -81,9 +81,9 @@
 		<Form.Button class="w-full" disabled={$submitting}>
 			{#if $submitting}
 				<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-				Sending message…
+				Envoi du message…
 			{:else}
-				Send message
+				Envoyer le message
 			{/if}
 		</Form.Button>
 	{/if}
