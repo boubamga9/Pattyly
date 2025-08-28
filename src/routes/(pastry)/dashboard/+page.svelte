@@ -67,6 +67,10 @@
 				return { label: 'Terminée', variant: 'outline' };
 			case 'cancelled':
 				return { label: 'Annulée', variant: 'destructive' };
+			case 'ready':
+				return { label: 'Prête', variant: 'default' };
+			case 'quoted':
+				return { label: 'Devis envoyé', variant: 'outline' };
 			default:
 				return { label: status, variant: 'outline' };
 		}
@@ -131,12 +135,18 @@
 	{#if shop?.slug}
 		<Card>
 			<CardContent class="pt-6">
-				<div class="flex items-center justify-between">
+				<div
+					class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+				>
 					<div>
-						<h3 class="text-sm font-medium text-muted-foreground">
+						<h3
+							class="text-xs font-medium text-muted-foreground sm:text-sm md:text-base"
+						>
 							URL de votre boutique
 						</h3>
-						<p class="font-mono text-lg text-foreground">
+						<p
+							class="break-all font-mono text-sm text-foreground sm:text-base md:text-lg"
+						>
 							https://pattyly.com/{shop.slug}
 						</p>
 					</div>

@@ -14,7 +14,7 @@
 
 	import { Upload, X, Copy, CheckCircle, LoaderCircle } from 'lucide-svelte';
 	import { formSchema, type FormSchema } from './schema';
-	import { createEventDispatcher, tick } from 'svelte';
+	import { createEventDispatcher } from 'svelte';
 	import {
 		compressLogo,
 		formatCompressionInfo,
@@ -107,21 +107,22 @@
 			console.error('Error copying URL:', err);
 		}
 	}
-
-	async function handleSubmit() {
-		submitted = true;
-		await tick();
-		setTimeout(() => (submitted = false), 2000);
-	}
 </script>
 
 <form
 	method="POST"
 	action="?/updateShop"
-	use:enhance
+	use:enhance={{
+		onResult: ({ result }) => {
+			// Only show success feedback if the request succeeded
+			if (result.type === 'success') {
+				submitted = true;
+				setTimeout(() => (submitted = false), 2000);
+			}
+		},
+	}}
 	enctype="multipart/form-data"
 	class="space-y-8"
-	on:submit|preventDefault={handleSubmit}
 >
 	<Form.Errors {form} />
 
@@ -177,12 +178,6 @@
 			bind:this={logoInputElement}
 		/>
 		<input type="hidden" name="logo_url" value={logoPreview || ''} />
-
-		{#if compressionInfo}
-			<div class="rounded-md bg-blue-50 p-3 text-sm text-blue-700">
-				{compressionInfo}
-			</div>
-		{/if}
 	</div>
 
 	<!-- Section Informations de base -->

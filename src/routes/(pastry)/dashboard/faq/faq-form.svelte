@@ -33,7 +33,7 @@
 
 	// Détermine le texte du bouton et l'action
 	$: isEditMode = !!faqId;
-	$: buttonText = isEditMode ? 'Sauvegarder' : 'Créer';
+	$: buttonText = isEditMode ? 'Modifier' : 'Ajouter la question';
 	$: action = isEditMode ? '?/update' : '?/create';
 </script>
 

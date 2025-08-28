@@ -112,7 +112,20 @@ export function createDynamicCustomizationSchema(fields: Array<{
                 break;
 
             case 'number':
-                validator = z.number().min(0, `${field.label} doit être positif`);
+                validator = z.preprocess(
+                    (val) => {
+                        // Convertir string → number avant validation
+                        if (typeof val === 'string') {
+                            const num = parseInt(val);
+                            return isNaN(num) ? val : num; // Retourner val si pas un nombre pour que Zod gère l'erreur
+                        }
+                        return val;
+                    },
+                    z.number({
+                        required_error: field.required ? 'Un nombre est requis' : undefined,
+                        invalid_type_error: 'Un nombre est requis'
+                    }).int().min(0, 'Le nombre minimum doit être positif').max(365, 'Le nombre maximum est de 365')
+                );
                 if (!field.required) {
                     validator = validator.optional();
                 }

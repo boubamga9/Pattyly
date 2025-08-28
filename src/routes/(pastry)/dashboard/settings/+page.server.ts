@@ -99,7 +99,7 @@ export const actions = {
         // and we don't have other editable fields in the current schema
 
         return message(form, {
-            success: 'Profile updated successfully.',
+            success: 'Profil mis à jour avec succès.',
         });
     },
     deleteAccount: async (event) => {
@@ -181,7 +181,7 @@ export const actions = {
         if (delError) {
             console.error('Error deleting account:', delError.message);
             return fail(500, {
-                errorMessage: 'Unknown error. If this persists please contact us.',
+                errorMessage: 'Erreur inconnue. Si le problème persiste, veuillez nous contacter.',
             });
         }
 
@@ -221,7 +221,7 @@ export const actions = {
                 return setError(
                     form,
                     '',
-                    'Recovery code expired. Please log out, then use "Forgot Password" on the log in page to reset your password. Codes are valid for 15 minutes.',
+                    'Code de récupération expiré. Veuillez vous déconnecter, puis utiliser "Mot de passe oublié" sur la page de connexion pour réinitialiser votre mot de passe. Les codes sont valides pendant 15 minutes.',
                 );
             }
         }
@@ -232,7 +232,7 @@ export const actions = {
         // at this point the validation would have failed if password was set
         // and the old password was not provided but just in case we check again
         if (!recoveryAmr && passwordSet && !('old_password' in form.data)) {
-            return setError(form, '', 'Old password is required');
+            return setError(form, '', 'L\'ancien mot de passe est requis');
         }
 
         if ('old_password' in form.data) {
@@ -241,7 +241,7 @@ export const actions = {
                 throw setError(
                     form,
                     '',
-                    'Could not update password. Please try again.',
+                    'Impossible de mettre à jour le mot de passe. Veuillez réessayer.',
                 );
             }
 
@@ -262,7 +262,7 @@ export const actions = {
 
         if (error) {
             console.error(error);
-            return setError(form, '', 'Could not update password. Please try again.');
+            return setError(form, '', 'Impossible de mettre à jour le mot de passe. Veuillez réessayer.');
         }
 
         if (recoveryAmr) {
@@ -272,11 +272,11 @@ export const actions = {
 
         return 'old_password' in form.data
             ? message(form, {
-                success: 'Password updated',
+                success: 'Mot de passe mis à jour',
             })
             : {
                 form,
-                success: 'Password set',
+                success: 'Mot de passe défini',
             };
     },
     connectStripe: async ({ locals }) => {
@@ -311,8 +311,8 @@ export const actions = {
 
             const accountLink = await stripe.accountLinks.create({
                 account: existingAccount.stripe_account_id,
-                refresh_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard/shop`,
-                return_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard/shop`,
+                refresh_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard/settings`,
+                return_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard/settings`,
                 type: 'account_onboarding',
             });
 
@@ -350,8 +350,8 @@ export const actions = {
         // Create account link
         const accountLink = await stripe.accountLinks.create({
             account: account.id,
-            refresh_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard/shop`,
-            return_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard/shop`,
+            refresh_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard/settings`,
+            return_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard/settings`,
             type: 'account_onboarding',
         });
 

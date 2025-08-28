@@ -94,7 +94,7 @@
 				disabled={$submitting || !$formData.startDate || !$formData.endDate}
 			>
 				<Plus class="mr-2 h-4 w-4" />
-				Ajouter
+				Ajouter une indisponibilité
 			</Button>
 			<Button type="button" variant="outline" on:click={onCancel}>
 				<X class="mr-2 h-4 w-4" />

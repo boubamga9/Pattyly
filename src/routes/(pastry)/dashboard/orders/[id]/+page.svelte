@@ -423,7 +423,7 @@
 			</Card>
 
 			<!-- Personnalisation -->
-			{#if order.customization_data}
+			{#if order.customization_data && Object.keys(order.customization_data).length > 0}
 				<Card>
 					<CardHeader>
 						<CardTitle>Personnalisation</CardTitle>

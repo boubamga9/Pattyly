@@ -43,7 +43,11 @@
 						class="h-8 w-8 rounded object-cover"
 					/>
 				{:else}
-					<Logo />
+					<img
+						src="/images/logo_icone.svg"
+						alt="Logo Pattyly"
+						class="h-8 w-8 rounded object-cover"
+					/>
 				{/if}
 				<span class="sr-only">{data.shop?.name || 'SaaS Kit'}</span>
 			</a>
@@ -178,10 +182,14 @@
 							class="h-8 w-8 rounded object-cover"
 						/>
 					{:else}
-						<Logo />
+						<img
+							src="/images/logo_icone.svg"
+							alt="Logo Pattyly"
+							class="h-8 w-8 rounded object-cover"
+						/>
 					{/if}
 					<span class="max-w-[150px] truncate text-sm font-medium">
-						{data.shop?.name || 'SaaS Kit'}
+						{data.shop?.name || 'Pattyly'}
 					</span>
 				</div>
 

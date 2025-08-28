@@ -10,6 +10,7 @@
 	} from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import LoaderCircle from '~icons/lucide/loader-circle';
+	import { CheckCircle } from 'lucide-svelte';
 	import {
 		changePasswordFormSchema,
 		createPasswordFormSchema,
@@ -34,28 +35,41 @@
 		enhance,
 		submitting,
 		tainted,
-		message,
 	} = isUpdate ? changeForm : createForm);
+
+	let submitted = false;
 </script>
 
 <Card.Root>
 	<Card.Header>
 		<Card.Title>
 			{#if isUpdate}
-				Change Password
+				Modifier le mot de passe
 			{:else}
-				Create Password
+				Créer un mot de passe
 			{/if}
 		</Card.Title>
 		<Card.Description>
 			{#if isUpdate}
-				Change the password associated with your account.
+				Modifiez le mot de passe associé à votre compte.
 			{:else}
-				Create a password for your account.
+				Créez un mot de passe pour votre compte.
 			{/if}
 		</Card.Description>
 	</Card.Header>
-	<form method="POST" action="?/updatePassword" use:enhance>
+	<form
+		method="POST"
+		action="?/updatePassword"
+		use:enhance={{
+			onResult: ({ result }) => {
+				// Only show success feedback if the request succeeded
+				if (result.type === 'success') {
+					submitted = true;
+					setTimeout(() => (submitted = false), 2000);
+				}
+			},
+		}}
+	>
 		<input
 			type="text"
 			name="email"
@@ -71,7 +85,7 @@
 					name="old_password"
 				>
 					<Form.Control let:attrs>
-						<Form.Label>Old Password</Form.Label>
+						<Form.Label>Ancien mot de passe</Form.Label>
 						<Input
 							{...attrs}
 							type="password"
@@ -85,7 +99,7 @@
 			{/if}
 			<Form.Field form={isUpdate ? changeForm : createForm} name="new_password">
 				<Form.Control let:attrs>
-					<Form.Label>New Password</Form.Label>
+					<Form.Label>Nouveau mot de passe</Form.Label>
 					<Input
 						{...attrs}
 						type="password"
@@ -102,7 +116,7 @@
 				name="confirm_password"
 			>
 				<Form.Control let:attrs>
-					<Form.Label>Confirm Password</Form.Label>
+					<Form.Label>Confirmer le mot de passe</Form.Label>
 					<Input
 						{...attrs}
 						type="password"
@@ -116,21 +130,27 @@
 			</Form.Field>
 		</Card.Content>
 		<Card.Footer class="flex gap-2">
-			<Form.Button type="submit" disabled={$submitting || !$tainted}>
+			<Form.Button
+				type="submit"
+				disabled={$submitting || !$tainted}
+				class={`w-full transition-all duration-200 ${
+					$submitting
+						? 'cursor-not-allowed bg-gray-300'
+						: submitted
+							? 'bg-green-700 hover:bg-green-800'
+							: 'bg-primary hover:bg-primary/90'
+				}`}
+			>
 				{#if $submitting}
 					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-					Updating password…
+					Mise à jour du mot de passe…
+				{:else if submitted}
+					<CheckCircle class="mr-2 h-4 w-4" />
+					Mot de passe mis à jour
 				{:else}
-					Update Password
+					Mettre à jour le mot de passe
 				{/if}
 			</Form.Button>
-			{#if $message?.success}
-				<p class="text-xs text-green-700">{$message.success}</p>
-			{:else if !$tainted}
-				<p class="text-xs text-muted-foreground">
-					Fill in the form to update your password.
-				</p>
-			{/if}
 		</Card.Footer>
 	</form>
 </Card.Root>

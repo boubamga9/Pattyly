@@ -88,12 +88,6 @@ export const priceSchema = z.preprocess(
     }).min(0, 'Le prix doit être positif').max(10000, 'Le prix ne peut pas dépasser 10 000€')
 );
 
-// URL - pour les liens et images
-export const urlSchema = z
-    .string()
-    .url('Format d\'URL invalide')
-    .optional();
-
 // UUID - pour les identifiants
 export const uuidSchema = z
     .string()
@@ -115,6 +109,14 @@ export const socialUsernameSchema = z.preprocess(
         .min(1, "Le nom d'utilisateur est requis")
         .max(30, "Le nom d'utilisateur ne peut pas dépasser 30 caractères")
         .regex(/^[a-zA-Z0-9._]+$/, "Le nom d'utilisateur ne peut contenir que des lettres, chiffres, points et tirets de soulignement")
+        .optional()
+);
+
+// URL - pour les liens et images
+export const urlSchema = z.preprocess(
+    (val) => (val === "" ? undefined : val),
+    z.string()
+        .url('Format d\'URL invalide')
         .optional()
 );
 

@@ -58,7 +58,29 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
         if (formFieldsError) {
             console.error('Error fetching form fields:', formFieldsError);
         } else {
-            customizationFields = formFields || [];
+            // Normaliser les champs pour s'assurer qu'ils ont la bonne structure
+            customizationFields = (formFields || []).map(field => {
+                const normalizedField: any = {
+                    id: field.id,
+                    label: field.label,
+                    type: field.type,
+                    required: field.required,
+                    order: field.order
+                };
+
+                // Pour les champs de sélection, s'assurer qu'ils ont des options
+                if (field.type === 'single-select' || field.type === 'multi-select') {
+                    normalizedField.options = (field as any).options || [
+                        { label: '', price: 0 },
+                        { label: '', price: 0 }
+                    ];
+                } else {
+                    // Pour les champs texte/nombre, s'assurer qu'ils ont options: []
+                    normalizedField.options = [];
+                }
+
+                return normalizedField;
+            });
         }
     }
 

@@ -55,7 +55,7 @@
 </script>
 
 <svelte:head>
-	<title>Profile | Settings</title>
+	<title>Profil | Paramètres</title>
 </svelte:head>
 
 {#if form?.success}

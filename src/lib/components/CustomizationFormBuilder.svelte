@@ -135,9 +135,19 @@
 			'multi-select',
 		];
 		if (validTypes.includes(newType as FieldType)) {
-			updateField(fieldId, {
+			const updates: Partial<CustomizationField> = {
 				type: newType as FieldType,
-			});
+			};
+
+			// Si c'est un type de sélection, s'assurer qu'il y a des options
+			if (newType === 'single-select' || newType === 'multi-select') {
+				updates.options = [
+					{ label: '', price: 0 },
+					{ label: '', price: 0 },
+				];
+			}
+
+			updateField(fieldId, updates);
 		}
 	}
 
@@ -205,7 +215,7 @@
 		{:else}
 			<div class="{containerClass} space-y-6">
 				{#each fields as field, index (field.id)}
-					<div class="space-y-4 rounded-lg border bg-white p-4">
+					<div class="space-y-4 rounded-lg border bg-gray-50 p-4">
 						<div class="flex items-center justify-between">
 							<div class="flex items-center gap-2">
 								{#if showDragHandle && fields.length > 1}

@@ -32,7 +32,9 @@
 >
 	<Form.Field {form} name="confirmation">
 		<Form.Control let:attrs>
-			<Form.Label>To confirm, please type in your password:</Form.Label>
+			<Form.Label
+				>Pour confirmer, veuillez saisir votre mot de passe :</Form.Label
+			>
 			<Input
 				{...attrs}
 				type="password"
@@ -52,14 +54,14 @@
 		>
 			{#if $submitting}
 				<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-				Deleting Account…
+				Suppression du compte…
 			{:else}
-				Delete Account
+				Supprimer le compte
 			{/if}
 		</Form.Button>
 		<Dialog.Close asChild let:builder>
 			<Form.Button type="reset" variant="default" builders={[builder]}>
-				Cancel
+				Annuler
 			</Form.Button>
 		</Dialog.Close>
 	</Dialog.Footer>

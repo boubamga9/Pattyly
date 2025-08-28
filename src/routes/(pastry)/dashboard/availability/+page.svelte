@@ -79,7 +79,7 @@
 			Gestion des disponibilités
 		</h1>
 		<p class="mt-2 text-muted-foreground">
-			Configurez vos horaires d'ouverture et vos périodes d'indisponibilité
+			Configurez vos jours d'ouverture et vos périodes d'indisponibilité
 		</p>
 	</div>
 
@@ -89,9 +89,9 @@
 			<div class="flex items-center space-x-3">
 				<Clock class="h-6 w-6 text-primary" />
 				<div>
-					<CardTitle>Horaires d'ouverture</CardTitle>
+					<CardTitle>Jours d'ouverture</CardTitle>
 					<CardDescription>
-						Définissez vos horaires pour chaque jour de la semaine
+						Définissez vos jours d'ouverture pour chaque jour de la semaine
 					</CardDescription>
 				</div>
 			</div>

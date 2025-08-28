@@ -29,9 +29,13 @@
 <Card.Root>
 	<Card.Header>
 		<Card.Title>
-			{recoverySession ? 'Reset Password' : 'Create Password'}
+			{recoverySession
+				? 'Réinitialiser le mot de passe'
+				: 'Créer un mot de passe'}
 		</Card.Title>
-		<Card.Description>Create a new password for your account.</Card.Description>
+		<Card.Description
+			>Créez un nouveau mot de passe pour votre compte.</Card.Description
+		>
 	</Card.Header>
 	<form method="POST" action="?/updatePassword" use:enhance>
 		<input
@@ -45,7 +49,7 @@
 			<Form.Errors {form} />
 			<Form.Field {form} name="new_password">
 				<Form.Control let:attrs>
-					<Form.Label>New Password</Form.Label>
+					<Form.Label>Nouveau mot de passe</Form.Label>
 					<Input
 						{...attrs}
 						type="password"
@@ -59,7 +63,7 @@
 			</Form.Field>
 			<Form.Field {form} name="confirm_password">
 				<Form.Control let:attrs>
-					<Form.Label>Confirm New Password</Form.Label>
+					<Form.Label>Confirmer le nouveau mot de passe</Form.Label>
 					<Input
 						{...attrs}
 						type="password"
@@ -76,16 +80,20 @@
 			<Form.Button type="submit" disabled={$submitting || !$tainted}>
 				{#if $submitting}
 					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-					{recoverySession ? 'Resetting Password…' : 'Creating Password…'}
+					{recoverySession
+						? 'Réinitialisation du mot de passe…'
+						: 'Création du mot de passe…'}
 				{:else}
-					{recoverySession ? 'Reset Password' : 'Create Password'}
+					{recoverySession
+						? 'Réinitialiser le mot de passe'
+						: 'Créer le mot de passe'}
 				{/if}
 			</Form.Button>
 			{#if $message?.success}
 				<p class="text-xs text-green-700">{$message.success}</p>
 			{:else if !$tainted}
 				<p class="text-xs text-muted-foreground">
-					Fill in the form to create your password.
+					Remplissez le formulaire pour créer votre mot de passe.
 				</p>
 			{/if}
 		</Card.Footer>
