@@ -220,7 +220,7 @@ export const actions: Actions = {
                 return fail(400, { form, error: 'Date de retrait invalide' });
             }
 
-            // Transformer les données de personnalisation
+            // Transformer les données de personnalisation - Garder les IDs pour la traçabilité
             const selectedOptions: Record<string, any> = {};
             Object.entries(customization_data || {}).forEach(([fieldId, value]) => {
                 const field = customFields.find((f) => f.id === fieldId);
@@ -228,15 +228,22 @@ export const actions: Actions = {
 
                 // Texte ou nombre
                 if (['short-text', 'long-text', 'number'].includes(field.type)) {
-                    selectedOptions[field.label] = value;
+                    selectedOptions[fieldId] = {
+                        value: value,
+                        label: field.label,
+                        type: field.type,
+                        price: 0
+                    };
                 }
 
                 // Single-select
                 else if (field.type === 'single-select' && Array.isArray(field.options)) {
                     const option = field.options.find((opt: any) => opt.label === value);
                     if (option) {
-                        selectedOptions[field.label] = {
+                        selectedOptions[fieldId] = {
                             value: option.label,
+                            label: field.label,
+                            type: field.type,
                             price: option.price || 0
                         };
                     }
@@ -244,24 +251,31 @@ export const actions: Actions = {
 
                 // Multi-select
                 else if (field.type === 'multi-select' && Array.isArray(value) && Array.isArray(field.options)) {
-                    selectedOptions[field.label] = value
-                        .map((optionLabel: string) => {
+                    selectedOptions[fieldId] = {
+                        values: value.map((optionLabel: string) => {
                             const option = field.options.find((opt: any) => opt.label === optionLabel);
-                            return option ? { value: option.label, price: option.price || 0 } : null;
-                        })
-                        .filter(Boolean);
+                            return option ? { label: option.label, price: option.price || 0 } : null;
+                        }).filter(Boolean),
+                        label: field.label,
+                        type: field.type,
+                        price: value.reduce((sum: number, optionLabel: string) => {
+                            const option = field.options.find((opt: any) => opt.label === optionLabel);
+                            return sum + (option?.price || 0);
+                        }, 0)
+                    };
                 }
             });
 
-            // Calcul du prix total
+            // Calcul du prix total avec la nouvelle structure
             let totalPrice = product.base_price || 0;
             Object.values(selectedOptions).forEach((val: any) => {
-                if (Array.isArray(val)) {
-                    val.forEach((opt) => { totalPrice += opt.price || 0; });
-                } else if (typeof val === 'object' && val?.price !== undefined) {
+                if (val?.price !== undefined) {
                     totalPrice += val.price || 0;
                 }
             });
+
+            console.log('selectedOptions', selectedOptions);
+            console.log('totalPrice', totalPrice);
 
             // Préparer les données de commande
             const orderData = {

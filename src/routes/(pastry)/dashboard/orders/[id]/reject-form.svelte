@@ -12,6 +12,7 @@
 	// Props
 	export let data: SuperValidated<Infer<RejectOrderForm>>;
 	export let onCancel: () => void;
+	export let onSuccess: () => void;
 
 	// Superforms
 	const form = superForm(data, {
@@ -30,7 +31,13 @@
 <form
 	method="POST"
 	action="?/rejectOrder"
-	use:enhance
+	use:enhance={() => {
+		return async ({ result }) => {
+			if (result.type === 'success') {
+				onSuccess();
+			}
+		};
+	}}
 	class="space-y-4 rounded-lg border p-4"
 >
 	<!-- Message -->

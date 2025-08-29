@@ -30,11 +30,7 @@
 {/if}
 {#if registrationSuccess}
 	<Alert.Root
-		class={cn(
-			'mb-6',
-			'border-green-700 bg-green-50 text-green-700',
-			'dark:border-green-700 dark:bg-green-950 dark:text-green-100',
-		)}
+		class={cn('mb-6', 'border-green-700 bg-green-50 text-green-700')}
 		variant="default"
 	>
 		<Alert.Title>Email de vérification envoyé</Alert.Title>

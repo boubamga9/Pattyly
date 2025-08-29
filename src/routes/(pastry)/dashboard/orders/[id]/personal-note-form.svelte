@@ -19,7 +19,7 @@
 		dataType: 'json',
 	});
 
-	const { form: formData, enhance, submitting, message, errors } = form;
+	const { form: formData, enhance, submitting, message } = form;
 
 	// Fermer automatiquement le formulaire en cas de succès
 	$: if ($message) {

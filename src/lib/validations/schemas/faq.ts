@@ -1,11 +1,11 @@
 import { z } from 'zod';
-import { secureTextSchema } from './common';
+import { faqTextSchema } from './common';
 
 export const faqSchema = z.object({
-    question: secureTextSchema.pipe(
+    question: faqTextSchema.pipe(
         z.string().max(500, 'La question ne peut pas dépasser 500 caractères')
     ),
-    answer: secureTextSchema.pipe(
+    answer: faqTextSchema.pipe(
         z.string().max(2000, 'La réponse ne peut pas dépasser 2000 caractères')
     )
 });

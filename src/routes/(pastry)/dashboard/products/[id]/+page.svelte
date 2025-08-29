@@ -13,11 +13,6 @@
 	function goBack() {
 		goto('/dashboard/products');
 	}
-
-	// Fonction appelée en cas de succès
-	function handleSuccess() {
-		goto('/dashboard/products');
-	}
 </script>
 
 <svelte:head>
@@ -56,7 +51,7 @@
 			image_url: product?.image_url,
 			customizationFields: customizationFields,
 		}}
-		onSuccess={handleSuccess}
+		onSuccess={goBack}
 		onCancel={goBack}
 	/>
 </div>

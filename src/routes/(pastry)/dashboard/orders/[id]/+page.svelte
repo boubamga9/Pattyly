@@ -66,6 +66,79 @@
 		}).format(price);
 	}
 
+	// Fonction pour afficher les options de personnalisation
+	function displayCustomizationOption(data: unknown): {
+		text: string;
+		price?: number;
+	} {
+		if (typeof data === 'string' || typeof data === 'number') {
+			return { text: String(data) };
+		}
+
+		if (data && typeof data === 'object') {
+			const obj = data as Record<string, unknown>;
+
+			// Nouvelle structure avec type, label, price, values, value, etc.
+			if (obj.type === 'multi-select' && Array.isArray(obj.values)) {
+				// Multi-select : afficher toutes les options sur une ligne séparées par des virgules
+				const optionsWithPrices = obj.values.map(
+					(item: Record<string, unknown>) => {
+						const itemLabel = item.label || item.value || 'Option';
+						const itemPrice = (item.price as number) || 0;
+						if (itemPrice === 0) {
+							return itemLabel;
+						}
+						return `${itemLabel} (+${formatPrice(itemPrice)})`;
+					},
+				);
+				return {
+					text: optionsWithPrices.join(', '),
+					price: (obj.price as number) || 0,
+				};
+			} else if (obj.type === 'single-select' && obj.value) {
+				// Single-select : afficher la valeur avec le prix
+				const value = obj.value as string;
+				const price = (obj.price as number) || 0;
+				return {
+					text: price === 0 ? value : `${value} (+${formatPrice(price)})`,
+					price: price,
+				};
+			} else if (
+				obj.type === 'short-text' ||
+				obj.type === 'long-text' ||
+				obj.type === 'number'
+			) {
+				// Champs texte/nombre : afficher la valeur
+				const value = obj.value || '';
+				return { text: value ? String(value) : 'Non spécifié' };
+			}
+
+			// Fallback pour l'ancienne structure
+			if (obj.value && typeof obj.price === 'number') {
+				const price = obj.price;
+				if (price === 0) {
+					return { text: String(obj.value) };
+				}
+				return { text: `${obj.value} (+${formatPrice(price)})`, price: price };
+			}
+			if (Array.isArray(data)) {
+				const options = data.map((item: Record<string, unknown>) => {
+					if (item.value && typeof item.price === 'number') {
+						const price = item.price;
+						if (price === 0) {
+							return String(item.value);
+						}
+						return `${item.value} (+${formatPrice(price)})`;
+					}
+					return String(item.value || item);
+				});
+				return { text: options.join(', ') };
+			}
+		}
+
+		return { text: String(data) };
+	}
+
 	// Fonction pour formater la date
 	function formatDate(dateString: string): string {
 		const date = new Date(dateString);
@@ -437,50 +510,18 @@
 									{key}
 								</h4>
 
-								{#if Array.isArray(value)}
-									<!-- Si c'est un tableau (ex: suppléments, options multiples) -->
-									<div class="space-y-2">
-										{#each value as item}
-											<div
-												class="flex items-center justify-between rounded-lg bg-muted/50 p-3"
-											>
-												<span class="text-sm">
-													{item.value ||
-														item.name ||
-														item.title ||
-														'Non spécifié'}
-												</span>
-												{#if item.price !== undefined && item.price > 0}
-													<span class="text-sm font-medium text-green-600">
-														+{formatPrice(item.price)}
-													</span>
-												{/if}
-											</div>
-										{/each}
-									</div>
-								{:else if typeof value === 'object' && value !== null}
-									<!-- Si c'est un objet (ex: base, option unique) -->
-									<div
-										class="flex items-center justify-between rounded-lg bg-muted/50 p-3"
-									>
-										<span class="text-sm">
-											{value.value ||
-												value.name ||
-												value.title ||
-												'Non spécifié'}
+								<div
+									class="flex items-center justify-between rounded-lg bg-muted/50 p-3"
+								>
+									<span class="text-sm">
+										{displayCustomizationOption(value).text}
+									</span>
+									{#if displayCustomizationOption(value).price !== undefined && displayCustomizationOption(value).price > 0}
+										<span class="text-sm font-medium text-green-600">
+											+{formatPrice(displayCustomizationOption(value).price)}
 										</span>
-										{#if value.price !== undefined && value.price > 0}
-											<span class="text-sm font-medium text-green-600">
-												{formatPrice(value.price)}
-											</span>
-										{/if}
-									</div>
-								{:else}
-									<!-- Si c'est une valeur simple (string, number, boolean) -->
-									<div class="rounded-lg bg-muted/50 p-3">
-										<span class="text-sm">{String(value)}</span>
-									</div>
-								{/if}
+									{/if}
+								</div>
 							</div>
 						{/each}
 					</CardContent>
@@ -574,6 +615,10 @@
 								<QuoteForm
 									data={$page.data.makeQuoteForm}
 									onCancel={() => (showQuoteForm = false)}
+									onSuccess={() => {
+										showQuoteForm = false;
+										goto('/dashboard/orders');
+									}}
 								/>
 							{/if}
 
@@ -590,6 +635,10 @@
 								<RejectForm
 									data={$page.data.rejectOrderForm}
 									onCancel={() => (showRejectForm = false)}
+									onSuccess={() => {
+										showRejectForm = false;
+										goto('/dashboard/orders');
+									}}
 								/>
 							{/if}
 						</div>
@@ -605,7 +654,13 @@
 									<form
 										method="POST"
 										action="?/cancelOrder"
-										use:enhance
+										use:enhance={() => {
+											return async ({ result }) => {
+												if (result.type === 'success') {
+													goto('/dashboard/orders');
+												}
+											};
+										}}
 										class="flex-1"
 									>
 										<Button
@@ -642,7 +697,17 @@
 						{/if}
 					{:else if order.status === 'confirmed'}
 						<!-- Actions pour les commandes confirmées -->
-						<form method="POST" action="?/makeOrderReady" use:enhance>
+						<form
+							method="POST"
+							action="?/makeOrderReady"
+							use:enhance={() => {
+								return async ({ result }) => {
+									if (result.type === 'success') {
+										goto('/dashboard/orders');
+									}
+								};
+							}}
+						>
 							<Button type="submit" class="w-full gap-2">
 								<PackageCheck class="h-4 w-4" />
 								Marquer comme prête
@@ -650,7 +715,17 @@
 						</form>
 					{:else if order.status === 'ready'}
 						<!-- Actions pour les commandes prêtes -->
-						<form method="POST" action="?/makeOrderCompleted" use:enhance>
+						<form
+							method="POST"
+							action="?/makeOrderCompleted"
+							use:enhance={() => {
+								return async ({ result }) => {
+									if (result.type === 'success') {
+										goto('/dashboard/orders');
+									}
+								};
+							}}
+						>
 							<Button type="submit" class="w-full gap-2">
 								<CheckSquare class="h-4 w-4" />
 								Marquer comme terminée

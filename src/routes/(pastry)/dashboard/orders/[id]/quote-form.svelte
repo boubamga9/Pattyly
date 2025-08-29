@@ -12,7 +12,8 @@
 
 	// Props
 	export let data: SuperValidated<Infer<MakeQuoteForm>>;
-	export let onCancel: () => void;
+	export let onCancel: () => void = () => {};
+	export let onSuccess: () => void = () => {};
 
 	// Superforms
 	const form = superForm(data, {
@@ -20,18 +21,24 @@
 		dataType: 'json',
 	});
 
-	const { form: formData, enhance, submitting, message, errors } = form;
+	const { form: formData, enhance, submitting, message } = form;
 
 	// Fermer automatiquement le formulaire en cas de succès
 	$: if ($message) {
-		onCancel();
+		onSuccess();
 	}
 </script>
 
 <form
 	method="POST"
 	action="?/makeQuote"
-	use:enhance
+	use:enhance={() => {
+		return async ({ result }) => {
+			if (result.type === 'success') {
+				onSuccess();
+			}
+		};
+	}}
 	class="space-y-4 rounded-lg border p-4"
 >
 	<!-- Prix -->

@@ -11,6 +11,7 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders }) => {
             .from('shops')
             .select('id')
             .eq('slug', slug)
+            .eq('is_active', true)
             .single();
 
         if (shopError || !shopInfo) {

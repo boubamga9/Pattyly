@@ -18,8 +18,8 @@ const RATE_LIMITS = {
 	'/register': { max: 5, window: 3600000 }, // 5 tentatives par heure
 	'/login': { max: 10, window: 3600000 }, // 10 tentatives par heure
 	'/forgot-password': { max: 3, window: 3600000 }, // 3 tentatives par heure
-	'/custom': { max: 5, window: 3600000 }, // 5 tentatives par heure (routes dynamiques)
-	'/product': { max: 5, window: 3600000 } // 5 tentatives par heure (routes dynamiques)
+	'/custom': { max: 15, window: 3600000 }, // 15 tentatives par heure (routes dynamiques)
+	'/product': { max: 15, window: 3600000 } // 15 tentatives par heure (routes dynamiques)
 };
 
 // Store en mémoire pour les tentatives (en production, utiliser Redis)

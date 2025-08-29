@@ -9,10 +9,7 @@
 {#if !price.livemode}
 	<Badge
 		variant="outline"
-		class={cn(
-			'text-nowrap border-yellow-500 bg-yellow-50 text-yellow-700',
-			'dark:border-yellow-600 dark:bg-yellow-800 dark:text-yellow-400',
-		)}
+		class={cn('text-nowrap border-yellow-500 bg-yellow-50 text-yellow-700')}
 	>
 		Test Mode
 	</Badge>

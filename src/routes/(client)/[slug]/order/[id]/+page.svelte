@@ -60,18 +60,49 @@
 		}
 		if (data && typeof data === 'object') {
 			const obj = data as Record<string, unknown>;
+
+			// Nouvelle structure avec type, label, price, values, value, etc.
+			if (obj.type === 'multi-select' && Array.isArray(obj.values)) {
+				// Multi-select : afficher toutes les options sur une ligne séparées par des virgules
+				const optionsWithPrices = obj.values.map(
+					(item: Record<string, unknown>) => {
+						const itemLabel = item.label || item.value || 'Option';
+						const itemPrice = (item.price as number) || 0;
+						if (itemPrice === 0) {
+							return itemLabel;
+						}
+						return `${itemLabel} (+${formatPrice(itemPrice)})`;
+					},
+				);
+				return optionsWithPrices.join(', ');
+			} else if (obj.type === 'single-select' && obj.value) {
+				// Single-select : afficher la valeur avec le prix
+				const value = obj.value as string;
+				const price = (obj.price as number) || 0;
+				if (price === 0) {
+					return value;
+				}
+				return `${value} (+${formatPrice(price)})`;
+			} else if (
+				obj.type === 'short-text' ||
+				obj.type === 'long-text' ||
+				obj.type === 'number'
+			) {
+				// Champs texte/nombre : afficher la valeur
+				const value = obj.value || '';
+				return value ? String(value) : 'Non spécifié';
+			}
+
+			// Fallback pour l'ancienne structure
 			if (obj.value && typeof obj.price === 'number') {
-				// Ne pas afficher le prix s'il est à 0€
 				if (obj.price === 0) {
 					return `${obj.value}`;
 				}
 				return `${obj.value} (+${formatPrice(obj.price)})`;
 			}
 			if (Array.isArray(data)) {
-				// Pour les multi-select, retourner un tableau pour afficher chaque option séparément
 				return data.map((item: Record<string, unknown>) => {
 					if (item.value && typeof item.price === 'number') {
-						// Ne pas afficher le prix s'il est à 0€
 						if (item.price === 0) {
 							return `${item.value}`;
 						}
@@ -296,21 +327,10 @@
 					{#if order?.customization_data}
 						{#each Object.entries(order.customization_data) as [label, data]}
 							{@const displayData = displayCustomizationOption(label, data)}
-							{#if Array.isArray(displayData)}
-								<!-- Multi-select : afficher chaque option avec le label -->
-								{#each displayData as option}
-									<div class="flex items-center justify-between">
-										<span class="text-muted-foreground">{label} :</span>
-										<span class="font-normal">{option}</span>
-									</div>
-								{/each}
-							{:else}
-								<!-- Option simple -->
-								<div class="flex items-center justify-between">
-									<span class="text-muted-foreground">{label} :</span>
-									<span class="font-normal">{displayData}</span>
-								</div>
-							{/if}
+							<div class="flex items-center justify-between">
+								<span class="text-muted-foreground">{label} :</span>
+								<span class="font-normal">{displayData}</span>
+							</div>
 						{/each}
 					{/if}
 

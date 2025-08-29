@@ -3,7 +3,6 @@
 	import { navigating, page } from '$app/stores';
 
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { ModeWatcher } from 'mode-watcher';
 	import { afterUpdate, onMount } from 'svelte';
 	import { expoOut } from 'svelte/easing';
 	import { slide } from 'svelte/transition';
@@ -75,7 +74,6 @@
 </AlertDialog.Root>
 
 <MetaTags />
-<ModeWatcher />
 
 {#if $navigating}
 	<!-- 

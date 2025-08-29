@@ -97,10 +97,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             return json({ error: 'Produit non trouvé' }, { status: 404 });
         }
 
-        // Calculer le prix total avec les options sélectionnées
+        // Calculer le prix total avec les options sélectionnées (DOUBLE CALCUL POUR LA SÉCURITÉ)
         let totalPrice = product.base_price;
+        console.log('💰 Prix de base du produit:', product.base_price);
+
         if (orderData.selectedOptions && Object.keys(orderData.selectedOptions).length > 0) {
-            // Récupérer le formulaire de personnalisation du produit
+            // Récupérer le formulaire de personnalisation du produit pour validation
             const { data: productForm } = await locals.supabase
                 .from('products')
                 .select('form_id')
@@ -108,7 +110,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 .single();
 
             if (productForm?.form_id) {
-                // Récupérer les champs de personnalisation pour calculer le prix total
+                // Récupérer les champs de personnalisation pour validation
                 const { data: customizationFields } = await locals.supabase
                     .from('form_fields')
                     .select('id, label, type, options')
@@ -116,29 +118,38 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     .order('order');
 
                 if (customizationFields) {
-                    customizationFields.forEach((field: any) => {
-                        const fieldValue = orderData.selectedOptions[field.id];
-                        if (fieldValue) {
-                            const options = field.options as Array<{ label: string; price?: number }> || [];
-
-                            if (field.type === 'single-select') {
-                                // Single-select : ajouter le prix de l'option
-                                const selectedOption = options.find((opt: any) => opt.label === fieldValue);
-                                totalPrice += selectedOption?.price || 0;
-                            } else if (field.type === 'multi-select') {
-                                // Multi-select : ajouter le prix de chaque option sélectionnée
-                                if (Array.isArray(fieldValue)) {
-                                    fieldValue.forEach((selectedLabel: string) => {
-                                        const selectedOption = options.find((opt: any) => opt.label === selectedLabel);
-                                        totalPrice += selectedOption?.price || 0;
-                                    });
+                    // VALIDATION SÉCURISÉE : Vérifier que chaque option correspond à un champ valide
+                    Object.entries(orderData.selectedOptions).forEach(([fieldId, fieldData]) => {
+                        const field = customizationFields.find((f) => f.id === fieldId);
+                        if (field && fieldData && typeof fieldData === 'object') {
+                            // Vérifier que l'option sélectionnée existe dans la DB
+                            if (field.type === 'single-select' && field.options) {
+                                const validOption = field.options.find((opt: any) => opt.label === fieldData.value);
+                                if (validOption) {
+                                    const optionPrice = validOption.price || 0;
+                                    totalPrice += optionPrice;
+                                    console.log(`💰 Option "${fieldData.label}" validée: +${optionPrice}€ (total: ${totalPrice}€)`);
+                                } else {
+                                    console.warn(`⚠️ Option invalide détectée: ${fieldData.value} pour le champ ${field.label}`);
                                 }
+                            } else if (field.type === 'multi-select' && fieldData.values && Array.isArray(fieldData.values)) {
+                                // Multi-select : vérifier chaque valeur
+                                fieldData.values.forEach((optionData: any) => {
+                                    const validOption = field.options?.find((opt: any) => opt.label === optionData.label);
+                                    if (validOption) {
+                                        const optionPrice = validOption.price || 0;
+                                        totalPrice += optionPrice;
+                                        console.log(`💰 Option multi "${optionData.label}" validée: +${optionPrice}€ (total: ${totalPrice}€)`);
+                                    }
+                                });
                             }
                         }
                     });
                 }
             }
         }
+
+        console.log('💰 Prix total calculé côté serveur (VALIDÉ):', totalPrice);
 
         // Calculer le montant de l'acompte (50%) avec le prix sécurisé
         const depositAmount = Math.round(totalPrice * 50); // Stripe utilise les centimes
@@ -179,8 +190,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         console.log('  - Success URL:', successUrl);
         console.log('  - Cancel URL:', cancelUrl);
 
-        // Transformer les données de personnalisation (IDs → Labels avec prix)
-        const transformedCustomizationData: Record<string, string | number | { value: string; price: number } | Array<{ value: string; price: number }>> = {};
+        // Transformer les données de personnalisation (IDs → Labels avec métadonnées complètes)
+        const transformedCustomizationData: Record<string, any> = {};
         if (orderData.selectedOptions && Object.keys(orderData.selectedOptions).length > 0) {
             // Récupérer d'abord le formulaire de personnalisation du produit
             const { data: product } = await locals.supabase
@@ -198,36 +209,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     .order('order');
 
                 if (customizationFields) {
-                    customizationFields.forEach((field: any) => {
-                        const fieldValue = orderData.selectedOptions[field.id];
-                        if (fieldValue) {
-                            const options = field.options as Array<{ label: string; price?: number }> || [];
-
-                            if (field.type === 'single-select') {
-                                // Single-select : {value, price}
-                                const selectedOption = options.find((opt: any) => opt.label === fieldValue);
-                                transformedCustomizationData[field.label] = {
-                                    value: fieldValue,
-                                    price: selectedOption?.price || 0
-                                };
-                            } else if (field.type === 'multi-select') {
-                                // Multi-select : [{value, price}, ...]
-                                if (Array.isArray(fieldValue)) {
-                                    transformedCustomizationData[field.label] = fieldValue.map((selectedLabel: string) => {
-                                        const selectedOption = options.find((opt: any) => opt.label === selectedLabel);
-                                        return {
-                                            value: selectedLabel,
-                                            price: selectedOption?.price || 0
-                                        };
-                                    });
-                                }
-                            } else if (field.type === 'number') {
-                                // Number : valeur brute
-                                transformedCustomizationData[field.label] = fieldValue;
-                            } else {
-                                // Text fields (short-text, long-text) : valeur brute
-                                transformedCustomizationData[field.label] = fieldValue;
-                            }
+                    // Parcourir les options sélectionnées (qui ont maintenant des IDs comme clés)
+                    Object.entries(orderData.selectedOptions).forEach(([fieldId, fieldData]) => {
+                        const field = customizationFields.find((f) => f.id === fieldId);
+                        if (field && fieldData) {
+                            // Transformer en utilisant le label comme clé finale
+                            transformedCustomizationData[field.label] = {
+                                ...fieldData,           // Garder toutes les métadonnées existantes
+                                fieldId: fieldId,       // Ajouter l'ID du champ pour la traçabilité
+                                fieldType: field.type   // Ajouter le type du champ
+                            };
                         }
                     });
                 }
@@ -235,6 +226,29 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         }
 
         console.log('📝 Données de personnalisation transformées:', transformedCustomizationData);
+        console.log('🔍 Structure des données originales:', JSON.stringify(orderData.selectedOptions, null, 2));
+
+        // 🗄️ SAUVEGARDER LES DONNÉES COMPLÈTES DANS pending_orders
+        console.log('💾 Sauvegarde des données complètes dans pending_orders...');
+        const { data: pendingOrder, error: pendingOrderError } = await locals.supabase
+            .from('pending_orders')
+            .insert({
+                order_data: {
+                    ...orderData,
+                    selectedOptions: transformedCustomizationData,
+                    serverCalculatedPrice: totalPrice,
+                    depositAmount: depositAmount
+                }
+            })
+            .select('id')
+            .single();
+
+        if (pendingOrderError) {
+            console.error('❌ Erreur sauvegarde pending_order:', pendingOrderError);
+            return json({ error: 'Erreur lors de la sauvegarde des données' }, { status: 500 });
+        }
+
+        console.log('✅ Données sauvegardées avec ID:', pendingOrder.id);
 
         // Créer la session de paiement
         const session = await stripe.checkout.sessions.create({
@@ -257,18 +271,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             cancel_url: cancelUrl,
             customer_email: orderData.customerEmail,
             metadata: {
-                orderData: JSON.stringify({
-                    ...orderData,
-                    selectedOptions: transformedCustomizationData
-                }),
+                orderId: pendingOrder.id,
+                cakeName: orderData.cakeName,
+                depositAmount: depositAmount.toString(),
                 type: 'product_order'
             },
-            payment_intent_data: {
+            /*payment_intent_data: {
                 application_fee_amount: Math.round(depositAmount * 0.05), // 5% de frais pour Pattyly
                 transfer_data: {
                     destination: stripeAccountId,
                 },
-            },
+            },*/
         });
 
         return json({ sessionUrl: session.url });

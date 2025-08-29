@@ -132,8 +132,24 @@ export const secureTextSchema = z
             .trim();
     })
     .refine(
-        (text) => !/[<>"&'\\]/.test(text),
-        'Le texte ne peut pas contenir les caractères suivants : < > " & \' \\'
+        (text) => !/[<>"&\\]/.test(text),
+        'Le texte ne peut pas contenir les caractères suivants : < > " \\'
+    );
+
+// Texte sécurisé pour les FAQ - permet les apostrophes (très courantes en français)
+export const faqTextSchema = z
+    .string()
+    .min(1, 'Le texte est requis')
+    .transform((text) => {
+        // Supprimer les caractères de contrôle et les espaces multiples
+        return text
+            .replace(/[\x00-\x1F\x7F]/g, '') // Caractères de contrôle
+            .replace(/\s+/g, ' ') // Espaces multiples
+            .trim();
+    })
+    .refine(
+        (text) => !/[<>"&\\]/.test(text),
+        'Le texte ne peut pas contenir les caractères suivants : < > " \\'
     );
 
 // ===== TYPES EXPORTÉS =====
@@ -152,3 +168,4 @@ export type UUID = z.infer<typeof uuidSchema>;
 export type FutureDate = z.infer<typeof futureDateSchema>;
 export type SocialUsername = z.infer<typeof socialUsernameSchema>;
 export type SecureText = z.infer<typeof secureTextSchema>;
+export type FaqText = z.infer<typeof faqTextSchema>;

@@ -407,7 +407,7 @@ export const actions = {
             // Créer un lien de billing Stripe avec configuration par défaut
             const billingLink = await stripe.billingPortal.sessions.create({
                 customer: customer.stripe_customer_id,
-                return_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard/shop`,
+                return_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard/settings`,
                 configuration: undefined // Utilise la configuration par défaut
             });
 

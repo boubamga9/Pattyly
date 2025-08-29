@@ -45,7 +45,7 @@ export async function loadShopCatalog(
             supabase
                 .from('products')
                 .select(`
-                    id, name, description, base_price, image_url, min_days_notice,
+                    id, name, description, base_price, image_url, min_days_notice, category_id,
                     categories(name),
                     forms(
                         id,

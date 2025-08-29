@@ -216,7 +216,6 @@ async function handleCustomerCreated(customer: Stripe.Customer, locals: any) {
 }
 
 
-
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription, locals: any) {
     console.log('🔍 handleSubscriptionDeleted - Processing subscription deletion');
 
@@ -249,6 +248,8 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription, loca
         .eq('profile_id', profileId)
         .eq('stripe_product_id', productId);
 
+
+
     if (updateError) {
         console.error('Error updating subscription status in database:', updateError);
         throw error(500, 'Failed to update subscription status in database');
@@ -256,10 +257,10 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription, loca
         console.log('✅ handleSubscriptionDeleted - Successfully marked subscription as inactive');
     }
 
-    // Désactiver is_custom_accepted quand l'abonnement est supprimé
+    // Désactiver is_custom_accepted et is_active quand l'abonnement est supprimé
     const { error: shopUpdateError } = await locals.supabaseServiceRole
         .from('shops')
-        .update({ is_custom_accepted: false })
+        .update({ is_custom_accepted: false, is_active: false })
         .eq('profile_id', profileId);
 
     if (shopUpdateError) {
@@ -308,6 +309,7 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice, locals: any) {
     }
 }
 
+/*
 async function handlePaymentFailed(invoice: Stripe.Invoice, locals: any) {
     console.log('🔍 handlePaymentFailed - Processing payment failure');
     console.log('🔍 handlePaymentFailed - Invoice ID:', invoice.id);
@@ -359,6 +361,10 @@ async function handlePaymentFailed(invoice: Stripe.Invoice, locals: any) {
     } else {
         console.log('✅ Disabled custom requests after payment failure for user:', profileId);
     }
+} */
+
+async function handlePaymentFailed(invoice: Stripe.Invoice, locals: any) {
+    console.log('send failed payment email to user');
 }
 
 async function handleAccountUpdated(account: Stripe.Account, locals: any) {
@@ -422,9 +428,23 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, 
 
 async function handleProductOrderPayment(session: Stripe.Checkout.Session, locals: any) {
     try {
-        // Récupérer les données de commande depuis les métadonnées
-        const orderData = JSON.parse(session.metadata!.orderData);
-        console.log('📝 Données de commande produit:', orderData);
+        // 🗄️ RÉCUPÉRER LES DONNÉES COMPLÈTES DEPUIS pending_orders
+        const orderId = session.metadata!.orderId;
+        console.log('🔍 Récupération des données depuis pending_orders avec ID:', orderId);
+
+        const { data: pendingOrder, error: pendingOrderError } = await locals.supabaseServiceRole
+            .from('pending_orders')
+            .select('order_data')
+            .eq('id', orderId)
+            .single();
+
+        if (pendingOrderError || !pendingOrder) {
+            console.error('❌ Erreur récupération pending_order:', pendingOrderError);
+            throw error(500, 'Pending order not found');
+        }
+
+        const orderData = pendingOrder.order_data;
+        console.log('📝 Données de commande produit récupérées:', orderData);
 
         // Récupérer le prix de base du produit
         const { data: product, error: productError } = await locals.supabaseServiceRole
@@ -451,7 +471,7 @@ async function handleProductOrderPayment(session: Stripe.Checkout.Session, local
                 additional_information: orderData.additionalInfo || null,
                 customization_data: orderData.selectedOptions || null,
                 status: 'confirmed',
-                total_amount: orderData.totalPrice,
+                total_amount: orderData.serverCalculatedPrice || orderData.totalPrice,
                 product_name: orderData.cakeName,
                 product_base_price: product?.base_price || 0,
                 stripe_payment_intent_id: session.payment_intent as string,
@@ -466,6 +486,20 @@ async function handleProductOrderPayment(session: Stripe.Checkout.Session, local
         }
 
         console.log('✅ Commande produit créée avec succès:', order.id);
+
+        // 🗑️ SUPPRIMER LA LIGNE pending_orders UTILISÉE
+        console.log('🗑️ Suppression de la ligne pending_orders utilisée...');
+        const { error: deleteError } = await locals.supabaseServiceRole
+            .from('pending_orders')
+            .delete()
+            .eq('id', orderId);
+
+        if (deleteError) {
+            console.error('⚠️ Erreur suppression pending_order (non critique):', deleteError);
+        } else {
+            console.log('✅ Ligne pending_orders supprimée avec succès');
+        }
+
     } catch (err) {
         console.error('❌ Erreur traitement commande produit:', err);
     }

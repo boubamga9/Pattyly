@@ -25,7 +25,7 @@
 </script>
 
 <script lang="ts">
-	import { onMount, createEventDispatcher } from 'svelte';
+	import { createEventDispatcher } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import {
 		Card,
@@ -39,9 +39,9 @@
 
 	// Props
 	export let fields: CustomizationField[];
-	export let title = 'Configuration du Formulaire';
+	export let title = 'Personnalisation du gâteau';
 	export let description =
-		'Personnalisez les champs que vos clients devront remplir';
+		'Ajoutez des questions que vos clients devront remplir pour personnaliser leur commande';
 	export let containerClass = 'custom-fields-container';
 	export let showDragHandle = true;
 	export let isCustomForm = false;
@@ -53,11 +53,11 @@
 
 	// Types de champs disponibles
 	const fieldTypes = [
-		{ value: 'short-text', label: 'Texte court' },
-		{ value: 'long-text', label: 'Texte long' },
+		{ value: 'short-text', label: 'Réponse courte' },
+		{ value: 'long-text', label: 'Réponse longue' },
 		{ value: 'number', label: 'Nombre' },
-		{ value: 'single-select', label: 'Sélection unique' },
-		{ value: 'multi-select', label: 'Sélection multiple' },
+		{ value: 'single-select', label: 'Choix unique' },
+		{ value: 'multi-select', label: 'Choix multiples' },
 	];
 
 	// Fonctions de gestion des champs
@@ -205,11 +205,11 @@
 		{#if fields.length === 0}
 			<div class="py-8 text-center">
 				<p class="mb-4 text-muted-foreground">
-					Aucun champ de personnalisation ajouté
+					Aucune question ajoutée pour le moment
 				</p>
 				<Button type="button" variant="outline" on:click={addField}>
 					<Plus class="mr-2 h-4 w-4" />
-					Ajouter un champ
+					Ajouter une question
 				</Button>
 			</div>
 		{:else}
@@ -223,7 +223,7 @@
 										<GripVertical class="h-4 w-4 text-gray-400" />
 									</div>
 								{/if}
-								<h4 class="font-medium">Champ {index + 1}</h4>
+								<h4 class="font-medium">Question {index + 1}</h4>
 							</div>
 							<Button
 								type="button"
@@ -238,14 +238,14 @@
 						<!-- Label du champ -->
 						<div>
 							<label class="mb-2 block text-sm font-medium">
-								Libellé du champ *
+								Question à poser *
 							</label>
 							<input
 								type="text"
 								value={field.label}
 								on:input={(e) =>
 									updateField(field.id, { label: e.currentTarget.value })}
-								placeholder="Ex: Couleur du glaçage"
+								placeholder="Ex: Quelle couleur de glaçage souhaitez-vous ?"
 								class="w-full rounded-md border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 {field.label.trim() ===
 								''
 									? 'border-red-500 focus:ring-red-500'
@@ -253,7 +253,7 @@
 							/>
 							{#if field.label.trim() === ''}
 								<p class="mt-1 text-sm text-red-600">
-									⚠️ Le libellé du champ est requis
+									⚠️ La question est obligatoire
 								</p>
 							{/if}
 						</div>
@@ -261,7 +261,7 @@
 						<!-- Type de champ -->
 						<div>
 							<label class="mb-2 block text-sm font-medium">
-								Type de champ *
+								Type de réponse *
 							</label>
 							<select
 								value={field.type}
@@ -288,7 +288,7 @@
 								class="rounded border-gray-300"
 							/>
 							<label for={`required-${field.id}`} class="text-sm">
-								Champ obligatoire
+								Réponse obligatoire
 							</label>
 						</div>
 
@@ -296,7 +296,7 @@
 						{#if field.type === 'single-select' || field.type === 'multi-select'}
 							<div class="space-y-3">
 								<div class="space-y-2">
-									<label class="text-sm font-medium">Options</label>
+									<label class="text-sm font-medium">Choix proposés</label>
 								</div>
 
 								<div class="space-y-2">
@@ -309,7 +309,7 @@
 													updateOption(field.id, optionIndex, {
 														label: e.currentTarget.value,
 													})}
-												placeholder="Nom de l'option"
+												placeholder="Ex: Rouge, Blanc, Chocolat..."
 												class="flex-1 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 {option.label.trim() ===
 												''
 													? 'border-red-500 focus:ring-red-500'
@@ -317,7 +317,7 @@
 											/>
 											{#if option.label.trim() === ''}
 												<p class="mt-1 text-xs text-red-600">
-													⚠️ Le nom de l'option est requis
+													⚠️ Le choix est obligatoire
 												</p>
 											{/if}
 											{#if !isCustomForm}
@@ -358,12 +358,12 @@
 									on:click={() => addOption(field.id)}
 								>
 									<Plus class="mr-1 h-3 w-3" />
-									Ajouter une option
+									Ajouter un choix
 								</Button>
 
 								{#if field.options.length < 2}
 									<p class="text-sm text-red-600">
-										⚠️ Il faut au moins 2 options pour ce type de champ
+										⚠️ Il faut au moins 2 choix pour ce type de question
 									</p>
 								{/if}
 							</div>
@@ -375,7 +375,7 @@
 				<div class="pt-4">
 					<Button type="button" variant="outline" on:click={addField}>
 						<Plus class="mr-2 h-4 w-4" />
-						Ajouter un champ
+						Ajouter une question
 					</Button>
 				</div>
 			</div>

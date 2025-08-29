@@ -130,12 +130,12 @@
 
 	<!-- Page d'upgrade pour les utilisateurs basic -->
 	{#if needsUpgrade}
-		<Card class="mx-auto max-w-4xl">
+		<Card class="mx-auto">
 			<CardContent class="py-12">
 				<div class="space-y-6 text-center">
 					<!-- Icône -->
 					<div
-						class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600"
+						class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#FF6F61] to-[#e85a4f]"
 					>
 						<svg
 							class="h-8 w-8 text-white"
@@ -167,10 +167,10 @@
 					<div class="mx-auto grid max-w-2xl gap-6 md:grid-cols-3">
 						<div class="space-y-2 text-center">
 							<div
-								class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-50"
+								class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#FFE8D6]"
 							>
 								<svg
-									class="h-6 w-6 text-blue-600"
+									class="h-6 w-6 text-[#FF6F61]"
 									fill="none"
 									stroke="currentColor"
 									viewBox="0 0 24 24"
@@ -193,10 +193,10 @@
 
 						<div class="space-y-2 text-center">
 							<div
-								class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-50"
+								class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#FFF1D6]"
 							>
 								<svg
-									class="h-6 w-6 text-blue-600"
+									class="h-6 w-6 text-[#FF6F61]"
 									fill="none"
 									stroke="currentColor"
 									viewBox="0 0 24 24"
@@ -219,10 +219,10 @@
 
 						<div class="space-y-2 text-center">
 							<div
-								class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-50"
+								class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#FFE0D6]"
 							>
 								<svg
-									class="h-6 w-6 text-blue-600"
+									class="h-6 w-6 text-[#FF6F61]"
 									fill="none"
 									stroke="currentColor"
 									viewBox="0 0 24 24"
@@ -246,7 +246,7 @@
 					<div class="pt-6">
 						<Button
 							size="lg"
-							class="bg-blue-600 px-8 py-3 text-white hover:bg-blue-700"
+							class="bg-[#FF6F61] px-8 py-3 text-white transition-colors duration-200 hover:bg-[#e85a4f]"
 							on:click={() => (window.location.href = '/subscription')}
 						>
 							<svg
