@@ -135,16 +135,17 @@ export const actions: Actions = {
                 .eq('slug', slug)
                 .single();
 
+
             if (slugCheckError && slugCheckError.code !== 'PGRST116') {
                 console.error('Error checking slug:', slugCheckError);
                 return { success: false, error: 'Erreur lors de la vérification du slug' };
             }
 
             if (existingShop) {
-                return { success: false, error: 'Ce nom d\'URL est déjà pris. Veuillez en choisir un autre.' };
+                form.valid = false;
+                form.message = "Ce nom d'URL est déjà pris. Veuillez en choisir un autre.";
+                return { form };
             }
-
-
 
             // Create shop
             const { data: shop, error: createError } = await locals.supabase

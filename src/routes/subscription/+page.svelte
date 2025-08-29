@@ -8,6 +8,28 @@
 	import type { PageData } from './$types';
 
 	export let data: PageData;
+
+	async function startTrial(planType: string) {
+		try {
+			const response = await fetch('/api/start-trial', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ planType }),
+			});
+
+			if (response.ok) {
+				// Rediriger vers le dashboard
+				window.location.href = '/dashboard';
+			} else {
+				const error = await response.json();
+				console.error('Erreur:', error);
+				alert("Erreur lors du démarrage de l'essai gratuit");
+			}
+		} catch (error) {
+			console.error('Erreur démarrage essai:', error);
+			alert("Erreur lors du démarrage de l'essai gratuit");
+		}
+	}
 </script>
 
 <svelte:head>
@@ -74,22 +96,42 @@
 								</div>
 
 								{#if data.currentPlan === plan.id}
+									<!-- Plan actuel - bouton désactivé -->
 									<Button
 										class="w-full cursor-not-allowed bg-gray-500"
 										disabled
 									>
 										Plan actuel
 									</Button>
-								{:else}
+								{:else if data.currentPlan}
+									<!-- Utilisateur avec plan actif - checkout Stripe pour changer -->
 									<Button
 										class="w-full {plan.popular
 											? 'bg-[#FF6F61] hover:bg-[#e85a4f]'
 											: 'bg-neutral-800 hover:bg-neutral-700'}"
 										href="/checkout/{plan.stripePriceId}"
 									>
-										{data.currentPlan
-											? 'Changer vers ' + plan.name
-											: 'Choisir ' + plan.name}
+										Changer vers {plan.name}
+									</Button>
+								{:else if data.hasHadSubscription}
+									<!-- Utilisateur avec historique - checkout Stripe -->
+									<Button
+										class="w-full {plan.popular
+											? 'bg-[#FF6F61] hover:bg-[#e85a4f]'
+											: 'bg-neutral-800 hover:bg-neutral-700'}"
+										href="/checkout/{plan.stripePriceId}"
+									>
+										Choisir {plan.name}
+									</Button>
+								{:else}
+									<!-- Nouvel utilisateur - essai gratuit -->
+									<Button
+										class="w-full {plan.popular
+											? 'bg-[#FF6F61] hover:bg-[#e85a4f]'
+											: 'bg-neutral-800 hover:bg-neutral-700'}"
+										on:click={() => startTrial(plan.id)}
+									>
+										Essayer gratuitement 7 jours
 									</Button>
 								{/if}
 							</Card.Content>
@@ -116,28 +158,26 @@
 	</Section.Root>
 
 	<!-- Bouton retour pour les utilisateurs avec abonnement -->
-	{#if data.currentPlan}
-		<div class="mx-auto max-w-4xl px-4">
-			<Button
-				variant="outline"
-				href="/dashboard"
-				class="mt-8 flex items-center gap-2"
+	<div class="mx-auto max-w-4xl px-4">
+		<Button
+			variant="outline"
+			href="/dashboard"
+			class="mt-8 flex items-center gap-2"
+		>
+			<svg
+				class="h-4 w-4"
+				fill="none"
+				stroke="currentColor"
+				viewBox="0 0 24 24"
 			>
-				<svg
-					class="h-4 w-4"
-					fill="none"
-					stroke="currentColor"
-					viewBox="0 0 24 24"
-				>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M10 19l-7-7m0 0l7-7m-7 7h18"
-					/>
-				</svg>
-				Retour au dashboard
-			</Button>
-		</div>
-	{/if}
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="2"
+					d="M10 19l-7-7m0 0l7-7m-7 7h18"
+				/>
+			</svg>
+			Retour au dashboard
+		</Button>
+	</div>
 </div>

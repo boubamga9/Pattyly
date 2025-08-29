@@ -37,7 +37,7 @@ async function getUserPlan(profileId: string, supabase: SupabaseClient): Promise
         return 'exempt';
     }
 
-    // Check active subscription
+    // Check active subscription OR trial subscription (ignore inactive for plan detection)
     const { data: subscription, error: subscriptionError } = await supabase
         .from('user_products')
         .select('stripe_product_id, subscription_status')
@@ -57,8 +57,29 @@ async function getUserPlan(profileId: string, supabase: SupabaseClient): Promise
         return 'basic';
     }
 
-    console.log('🔍 No active subscription found');
-    return null; // No active subscription
+    // Si l'utilisateur a un abonnement inactif, on ne retourne pas null
+    // mais on vérifie s'il a un historique d'abonnement
+    const { data: anySubscription } = await supabase
+        .from('user_products')
+        .select('stripe_product_id')
+        .eq('profile_id', profileId)
+        .single();
+
+    if (anySubscription) {
+        // L'utilisateur a un historique d'abonnement (même inactif)
+        // On détermine le plan selon le produit_id, peu importe le statut
+        if (anySubscription.stripe_product_id === 'prod_Selcz36pAfV3vV') {
+            console.log('🔍 User has premium plan (inactive)');
+            return 'premium';
+        }
+        if (anySubscription.stripe_product_id === 'prod_Selbd3Ne2plHqG') {
+            console.log('🔍 User has basic plan (inactive)');
+            return 'basic';
+        }
+    }
+
+    console.log('🔍 No subscription found');
+    return null; // No subscription at all
 }
 
 /**

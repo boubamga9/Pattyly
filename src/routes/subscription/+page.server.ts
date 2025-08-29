@@ -11,22 +11,30 @@ export const load: PageServerLoad = async ({ locals }) => {
 
     const userId = session.user.id;
 
-    // Récupérer l'abonnement actuel de l'utilisateur
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: existingSubscription } = await (locals.supabase as any)
+    // Récupérer TOUS les abonnements (actifs, inactifs, en essai)
+    const { data: allSubscriptions } = await (locals.supabase as any)
         .from('user_products')
         .select('stripe_product_id, subscription_status')
-        .eq('profile_id', userId)
-        .eq('subscription_status', 'active')
-        .single();
+        .eq('profile_id', userId);
 
-    // Déterminer le plan actuel
+    // Déterminer le plan actuel ET l'historique
     let currentPlan = null;
-    if (existingSubscription) {
-        if (existingSubscription.stripe_product_id === 'prod_Selbd3Ne2plHqG') {
-            currentPlan = 'basic';
-        } else if (existingSubscription.stripe_product_id === 'prod_Selcz36pAfV3vV') {
-            currentPlan = 'premium';
+    let hasHadSubscription = false;
+
+    if (allSubscriptions && allSubscriptions.length > 0) {
+        hasHadSubscription = true;
+
+        // Chercher un abonnement actif ou en essai
+        const activeSubscription = allSubscriptions.find((sub: any) =>
+            sub.subscription_status === 'active' || sub.subscription_status === 'trialing'
+        );
+
+        if (activeSubscription) {
+            if (activeSubscription.stripe_product_id === 'prod_Selbd3Ne2plHqG') {
+                currentPlan = 'basic';
+            } else if (activeSubscription.stripe_product_id === 'prod_Selcz36pAfV3vV') {
+                currentPlan = 'premium';
+            }
         }
     }
 
@@ -85,6 +93,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     return {
         plans,
         currentPlan,
+        hasHadSubscription,  // ✅ Nouveau champ
         user: {
             id: userId,
             email: session.user.email

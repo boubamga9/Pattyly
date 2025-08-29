@@ -26,11 +26,15 @@
 		validators: zodClient(formSchema),
 	});
 
-	const { form: formData, enhance, submitting } = form;
+	const { form: formData, enhance, submitting, message } = form;
 
 	let logoFile: File | null = null;
 	let logoPreview: string | null = null;
 	let logoInputElement: HTMLInputElement;
+
+	$: if (message) {
+		dispatch('message', message);
+	}
 
 	// Handle file selection with compression
 	async function handleFileSelect(event: Event) {

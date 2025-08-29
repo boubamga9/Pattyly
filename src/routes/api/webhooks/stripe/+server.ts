@@ -139,7 +139,7 @@ async function upsertSubscription(subscription: Stripe.Subscription, locals: any
     // Déterminer le statut de l'abonnement
     let subscriptionStatus: 'active' | 'inactive' = 'inactive';
 
-    if (subscription.status === 'active' || subscription.status === 'trialing') {
+    if (subscription.status === 'active') {
         subscriptionStatus = 'active';
     }
 
@@ -299,6 +299,12 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice, locals: any) {
         .update({
             subscription_status: 'active'
         })
+        .eq('profile_id', profileId);
+
+    // Réactiver is_active de la boutique
+    const { error: shopUpdateError } = await locals.supabaseServiceRole
+        .from('shops')
+        .update({ is_active: true })
         .eq('profile_id', profileId);
 
     if (updateError) {
