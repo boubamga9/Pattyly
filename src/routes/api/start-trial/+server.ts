@@ -22,6 +22,47 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             ? 'price_1Rre1ZPNddYt1P7Lea1N7Cbq'
             : 'price_1RrdwvPNddYt1P7LGICY3by5';
 
+        // Vérifier si un essai gratuit a déjà été utilisé via numéro de téléphone
+        const { data: connectAccount } = await locals.supabase
+            .from('stripe_connect_accounts')
+            .select('stripe_account_id')
+            .eq('profile_id', userId)
+            .single();
+
+        if (connectAccount?.stripe_account_id) {
+            const account = await stripe.accounts.retrieve(connectAccount.stripe_account_id);
+            const accountData = account as any;
+
+            // Récupérer le numéro du compte Stripe Connect (individuel ou entreprise)
+            const phone =
+                accountData?.individual?.phone ||
+                accountData?.business_profile?.support_phone ||
+                null;
+
+            if (phone) {
+                // Vérifier si ce numéro est déjà dans la base anti-fraude
+                const { data: existingPhone } = await (locals.supabase as any)
+                    .from('anti_fraud_phone_numbers')
+                    .select('phone_number')
+                    .eq('phone_number', phone)
+                    .single();
+
+                if (existingPhone) {
+                    return json(
+                        { error: 'Un essai gratuit a déjà été utilisé avec ce numéro.' },
+                        { status: 403 }
+                    );
+                }
+
+                // Sinon, enregistrer le numéro pour bloquer d’autres essais
+                await (locals.supabase as any)
+                    .from('anti_fraud_phone_numbers')
+                    .insert({ phone_number: phone });
+
+                console.log(`✅ Numéro de téléphone ${phone} enregistré pour l'anti-fraude`);
+            }
+        }
+
         // Créer ou récupérer le customer Stripe
         let customer: string;
         const { data: existingCustomer } = await locals.supabase
@@ -58,7 +99,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         });
 
         // Sauvegarder l'abonnement en base
-        await locals.supabase
+        await (locals.supabase as any)
             .from('user_products')
             .upsert({
                 profile_id: userId,

@@ -2,13 +2,13 @@ import { error, redirect } from '@sveltejs/kit';
 import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
 import type { PageServerLoad, Actions } from './$types';
 import Stripe from 'stripe';
-import { getUserPermissions } from '$lib/permissions';
+import { getUserPermissions } from '$lib/auth';
 
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { formSchema } from './schema';
-import { validateImageServer, validateAndRecompressImage, logValidationInfo } from '$lib/utils/server-image-validation';
-import { incrementCatalogVersion } from '$lib/utils/catalog-version';
+import { validateImageServer, validateAndRecompressImage, logValidationInfo } from '$lib/utils/images/server';
+import { incrementCatalogVersion } from '$lib/utils/catalog';
 
 
 

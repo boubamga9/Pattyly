@@ -46,14 +46,17 @@ export const actions: Actions = {
 
 		const {
 			error,
-			data: { session },
+			data: { user, session },
 		} = await supabase.auth.signUp({
 			email,
 			password,
+			options: {
+				emailRedirectTo: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/auth/callback?next=onboarding`
+			}
 		});
 
 		if (error) {
-			console.error(error);
+			console.error('🚨 Erreur lors de l\'inscription:', error);
 
 			// Check to see if sign-ups are disabled in Supabase
 			if (
@@ -66,21 +69,34 @@ export const actions: Actions = {
 				};
 			}
 
-			return setError(form, '', 'Could not sign up. Please try again.');
+			// Détecter l'erreur "User already registered"
+			if (
+				error.code === 'user_already_exists'
+			) {
+				// Rediriger vers la confirmation pour renvoyer l'email
+				throw redirect(303, `/confirmation?email=${encodeURIComponent(email)}&context=signup`);
+			}
+
+			// Détecter d'autres erreurs courantes
+			if (error.message?.includes('Invalid email')) {
+				return setError(form, 'email', 'Format d\'email invalide. Veuillez vérifier votre adresse email.');
+			}
+
+			if (error.message?.includes('Password should be at least')) {
+				return setError(form, 'password', 'Le mot de passe doit contenir au moins 6 caractères.');
+			}
+
+			// Erreur générique pour les autres cas
+			return setError(form, '', 'Impossible de créer le compte. Veuillez réessayer.');
 		}
 
-		if (session) {
-			const search = new URLSearchParams(event.url.search);
-			search.set('next', event.url.searchParams.get('next') || '/dashboard');
-
-			return redirect(303, '/auth/callback?' + search.toString());
+		// Si l'inscription a réussi (avec ou sans session), rediriger vers la confirmation
+		if (user && user.email) {
+			console.log('✅ Inscription réussie pour:', user.email);
+			throw redirect(303, `/confirmation?email=${encodeURIComponent(user.email)}&context=signup`);
 		}
 
-		// Instead of redirecting, return success status and the email used to sign up
-		return {
-			form,
-			success: true,
-			email,
-		};
+		// Fallback (normalement on ne devrait jamais arriver ici)
+		throw redirect(303, '/');
 	},
 };

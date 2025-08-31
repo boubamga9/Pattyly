@@ -1,9 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
-	import { browser } from '$app/environment';
-	import { onMount } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import {
 		Card,
@@ -13,8 +10,7 @@
 		CardTitle,
 	} from '$lib/components/ui/card';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { CheckCircle, Store, CreditCard, ArrowRight } from 'lucide-svelte';
-	import LoaderCircle from '~icons/lucide/loader-circle';
+	import { CheckCircle, Store, CreditCard } from 'lucide-svelte';
 	import OnboardingForm from './onboarding-form.svelte';
 
 	export let data: {
@@ -46,16 +42,6 @@
 	function handleConnectStripe() {
 		loading = true;
 		error = '';
-	}
-
-	// Handle form result
-	function handleResult(result: any) {
-		if (result.type === 'success') {
-			step = 2;
-		} else if (result.type === 'failure') {
-			error = result.data?.error || 'Une erreur est survenue';
-		}
-		loading = false;
 	}
 
 	// Handle Stripe Connect result
@@ -204,8 +190,7 @@
 							method="POST"
 							action="?/connectStripe"
 							use:enhance={() => {
-								loading = true; // Activate loading state
-								error = ''; // Clear any previous errors
+								handleConnectStripe();
 
 								return async ({ result }) => {
 									handleStripeResult(result);

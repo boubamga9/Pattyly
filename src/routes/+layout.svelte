@@ -7,12 +7,11 @@
 	import { expoOut } from 'svelte/easing';
 	import { slide } from 'svelte/transition';
 	import '../app.css';
-	import MetaTags from './(marketing)/meta-tags.svelte';
 
 	export let data;
 
-	let { supabase, session } = data;
-	$: ({ supabase, session } = data);
+	let { supabase } = data;
+	$: ({ supabase } = data);
 
 	onMount(() => {
 		const { data } = supabase.auth.onAuthStateChange(
@@ -72,8 +71,6 @@
 		{/await}
 	</AlertDialog.Content>
 </AlertDialog.Root>
-
-<MetaTags />
 
 {#if $navigating}
 	<!-- 

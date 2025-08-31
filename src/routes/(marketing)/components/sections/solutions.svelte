@@ -85,19 +85,30 @@
 	}
 
 	onMount(() => {
-		recalcSlides();
-		updateTargetFromScroll();
+		try {
+			recalcSlides();
+			updateTargetFromScroll();
 
-		// Optimisations CSS pour la performance
-		if (ulRef) {
-			ulRef.style.willChange = 'transform';
-			ulRef.style.backfaceVisibility = 'hidden';
-			ulRef.style.perspective = '1000px';
+			// Optimisations CSS pour la performance
+			if (ulRef) {
+				ulRef.style.willChange = 'transform';
+				ulRef.style.backfaceVisibility = 'hidden';
+				ulRef.style.perspective = '1000px';
+			}
+
+			if (progressBar) {
+				progressBar.style.transformOrigin = 'left';
+				progressBar.style.willChange = 'transform';
+			}
+		} catch (error) {
+			console.error(
+				"🚨 Erreur lors de l'initialisation de la section solutions:",
+				error,
+			);
 		}
 
+		// Initialiser la barre de progression
 		if (progressBar) {
-			progressBar.style.transformOrigin = 'left';
-			progressBar.style.willChange = 'transform';
 			progressBar.style.transform = 'scaleX(0)';
 		}
 
@@ -173,11 +184,11 @@
 				<li
 					class="flex h-screen w-screen flex-shrink-0 flex-col items-center justify-center overflow-hidden {solution.bgColor} px-4 sm:px-8"
 				>
-					<h2
+					<h3
 						class="mb-6 text-2xl font-normal leading-[120%] tracking-tight lg:text-3xl xl:text-4xl"
 					>
 						{solution.title}
-					</h2>
+					</h3>
 					<p
 						class="mb-8 max-w-xs text-center text-lg text-[#333] sm:max-w-lg sm:text-xl lg:max-w-2xl lg:text-2xl"
 					>
@@ -196,11 +207,11 @@
 			<li
 				class="flex h-screen w-screen flex-shrink-0 flex-col items-center justify-center overflow-hidden bg-[#FFE0D6] px-4 sm:px-8"
 			>
-				<h2
+				<h3
 					class="mb-6 text-2xl font-normal leading-[120%] tracking-tight lg:text-3xl xl:text-4xl"
 				>
 					PLANNING
-				</h2>
+				</h3>
 				<p class="mb-8 max-w-2xl text-center text-xl text-[#333] lg:text-2xl">
 					🗓️ Gère ton planning sans te casser la tête
 				</p>
@@ -216,11 +227,11 @@
 			<li
 				class="flex h-screen w-screen flex-shrink-0 flex-col items-center justify-center overflow-hidden bg-[#FFF1D6] px-4 sm:px-8"
 			>
-				<h2
+				<h3
 					class="mb-6 text-2xl font-normal leading-[120%] tracking-tight lg:text-3xl xl:text-4xl"
 				>
 					FAQ
-				</h2>
+				</h3>
 				<p class="mb-8 max-w-2xl text-center text-xl text-[#333] lg:text-2xl">
 					❓ Mets une FAQ en vitrine pour arrêter de répéter 50 fois la même
 					chose
@@ -241,7 +252,7 @@
 						href="/register"
 						class="inline-flex items-center justify-center rounded-xl bg-[#FF6F61] px-8 py-4 text-base font-medium text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-[#e85a4f] focus:outline-none focus:ring-2 focus:ring-[#FF6F61] focus:ring-offset-2"
 					>
-						Commencer
+						Commencer mon essai gratuit
 					</a>
 				</div>
 			</li>

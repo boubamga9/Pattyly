@@ -11,7 +11,7 @@
 	import MenuIcon from '~icons/lucide/menu';
 	import XIcon from '~icons/lucide/x';
 
-	import Logo from '$lib/components/Logo.svelte';
+	import { Logo } from '$lib/components/brand';
 	import { Button } from '$lib/components/ui/button';
 	import * as Drawer from '$lib/components/ui/drawer';
 	import * as Tooltip from '$lib/components/ui/tooltip';

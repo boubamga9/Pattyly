@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
-import { getUserPermissions } from '$lib/permissions';
+import { getUserPermissions } from '$lib/auth';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
     const { session } = await locals.safeGetSession();

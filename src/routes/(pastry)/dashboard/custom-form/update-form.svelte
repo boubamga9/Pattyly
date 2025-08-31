@@ -14,7 +14,7 @@
 	import {
 		CustomizationFormBuilder,
 		type CustomizationField,
-	} from '$lib/components/CustomizationFormBuilder';
+	} from '$lib/components/forms';
 	import { tick } from 'svelte';
 	import { LoaderCircle, CheckCircle } from 'lucide-svelte';
 

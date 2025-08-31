@@ -17,6 +17,38 @@ export const load: PageServerLoad = async ({ locals }) => {
         .select('stripe_product_id, subscription_status')
         .eq('profile_id', userId);
 
+    // Vérifier l'anti-fraude : récupérer le numéro de téléphone de l'utilisateur
+    let isPhoneNumberBlocked = false;
+    try {
+        const { data: connectAccount } = await locals.supabase
+            .from('stripe_connect_accounts')
+            .select('stripe_account_id')
+            .eq('profile_id', userId)
+            .single();
+
+        if (connectAccount?.stripe_account_id) {
+            // Récupérer le numéro de téléphone depuis Stripe
+            const account = await locals.stripe.accounts.retrieve(connectAccount.stripe_account_id);
+            const accountData = account as any;
+
+            if (accountData.phone) {
+                // Vérifier si ce numéro est dans la table anti-fraude
+                const { data: blockedPhone } = await (locals.supabase as any)
+                    .from('anti_fraud_phone_numbers')
+                    .select('phone_number')
+                    .eq('phone_number', accountData.phone)
+                    .single();
+
+                isPhoneNumberBlocked = !!blockedPhone;
+                console.log(`🔍 Anti-fraude: Numéro ${accountData.phone} - Bloqué: ${isPhoneNumberBlocked}`);
+            }
+        }
+    } catch (error) {
+        console.error('⚠️ Erreur lors de la vérification anti-fraude:', error);
+        // En cas d'erreur, on considère que l'utilisateur n'est pas bloqué
+        isPhoneNumberBlocked = false;
+    }
+
     // Déterminer le plan actuel ET l'historique
     let currentPlan = null;
     let hasHadSubscription = false;
@@ -94,6 +126,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         plans,
         currentPlan,
         hasHadSubscription,  // ✅ Nouveau champ
+        isPhoneNumberBlocked,  // ✅ Nouveau champ anti-fraude
         user: {
             id: userId,
             email: session.user.email

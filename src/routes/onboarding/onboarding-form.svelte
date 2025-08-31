@@ -3,7 +3,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import { Button } from '$lib/components/ui/button';
+	//import { Button } from '$lib/components/ui/button';
 	import {
 		superForm,
 		type Infer,
@@ -14,10 +14,7 @@
 	import { Upload, X } from 'lucide-svelte';
 	import { formSchema, type FormSchema } from './schema';
 	import { createEventDispatcher } from 'svelte';
-	import {
-		compressLogo,
-		formatCompressionInfo,
-	} from '$lib/utils/image-compression';
+	import { compressLogo } from '$lib/utils/images/client';
 
 	export let data: SuperValidated<Infer<FormSchema>>;
 	const dispatch = createEventDispatcher();
@@ -28,9 +25,9 @@
 
 	const { form: formData, enhance, submitting, message } = form;
 
-	let logoFile: File | null = null;
 	let logoPreview: string | null = null;
 	let logoInputElement: HTMLInputElement;
+	let logoError: string | null = null; // Pour afficher les erreurs de validation côté client
 
 	$: if (message) {
 		dispatch('message', message);
@@ -43,16 +40,19 @@
 
 		if (!file) return;
 
+		// Reset error
+		logoError = null;
+
 		try {
 			// Validate file type
 			if (!file.type.startsWith('image/')) {
-				console.error('Veuillez sélectionner une image');
+				logoError = 'Veuillez sélectionner une image valide';
 				return;
 			}
 
 			// Validate file size before compression (max 5MB pour éviter les abus)
 			if (file.size > 5 * 1024 * 1024) {
-				console.error("L'image ne doit pas dépasser 5MB");
+				logoError = "L'image ne doit pas dépasser 5MB";
 				return;
 			}
 
@@ -60,7 +60,6 @@
 			const compressionResult = await compressLogo(file);
 
 			// Utiliser l'image compressée
-			logoFile = compressionResult.file;
 			$formData.logo = compressionResult.file;
 
 			// 🔄 Synchroniser l'input file avec l'image compressée
@@ -77,14 +76,15 @@
 			reader.readAsDataURL(compressionResult.file);
 		} catch (error) {
 			console.error('Erreur lors de la compression:', error);
+			logoError = "Erreur lors du traitement de l'image. Veuillez réessayer.";
 		}
 	}
 
 	// Remove logo
 	function removeLogo() {
-		logoFile = null;
 		logoPreview = null;
 		$formData.logo = undefined;
+		logoError = null; // Reset error when removing logo
 	}
 </script>
 
@@ -121,15 +121,19 @@
 		{:else}
 			<!-- File upload area -->
 			<div class="mb-4 flex justify-center">
-				<div
+				<button
+					type="button"
 					class="flex h-32 w-32 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/20 transition-colors hover:border-primary"
 					on:click={() => document.getElementById('logo')?.click()}
+					on:keydown={(e) =>
+						e.key === 'Enter' && document.getElementById('logo')?.click()}
+					aria-label="Sélectionner un logo"
 				>
 					<Upload class="mb-2 h-8 w-8 text-muted-foreground" />
 					<p class="text-center text-xs text-muted-foreground">
 						Cliquez pour sélectionner votre logo
 					</p>
-				</div>
+				</button>
 			</div>
 		{/if}
 
@@ -143,6 +147,13 @@
 			disabled={$submitting}
 			bind:this={logoInputElement}
 		/>
+
+		<!-- Affichage des erreurs de validation côté client -->
+		{#if logoError}
+			<div class="mt-2 text-sm text-destructive">
+				{logoError}
+			</div>
+		{/if}
 	</div>
 
 	<Form.Field {form} name="name">

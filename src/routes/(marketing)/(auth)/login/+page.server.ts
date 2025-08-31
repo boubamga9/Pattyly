@@ -71,8 +71,25 @@ export const actions: Actions = {
 		});
 
 		if (error) {
-			console.error(error);
-			return setError(form, '', 'Invalid credentials');
+			console.error('🚨 Erreur lors de la connexion:', error);
+
+			// Détecter l'erreur "Email not confirmed"
+			if (error.code === 'email_not_confirmed') {
+				// Rediriger vers la confirmation pour renvoyer l'email
+				throw redirect(303, `/confirmation?email=${encodeURIComponent(email)}&context=login`);
+			}
+
+			// Détecter d'autres erreurs courantes
+			if (error.code === 'invalid_credentials') {
+				return setError(form, '', 'Email ou mot de passe incorrect');
+			}
+
+			if (error.message?.includes('Too many requests')) {
+				return setError(form, '', 'Trop de tentatives. Attendez avant de réessayer.');
+			}
+
+			// Erreur générique
+			return setError(form, '', 'Erreur lors de la connexion. Veuillez réessayer.');
 		}
 
 		redirect(303, '/auth/callback?next=/dashboard');

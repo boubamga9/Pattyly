@@ -20,5 +20,7 @@ export const GET = async (event) => {
 	search.delete('code');
 	search.delete('next');
 
-	throw redirect(303, `/${next.slice(1)}?${search.toString()}`);
+	// Construire l'URL complète en sortant du groupe /auth/
+	const redirectUrl = next.startsWith('/') ? next : `/${next}`;
+	throw redirect(303, `${redirectUrl}?${search.toString()}`);
 };

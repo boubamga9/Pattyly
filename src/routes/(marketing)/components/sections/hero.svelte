@@ -9,20 +9,14 @@
 	<div
 		class="flex flex-1 flex-col items-center justify-center px-6 pt-20 text-center sm:pt-28 md:pt-24"
 	>
-		<h1
-			class="text-3xl font-bold text-neutral-800 md:text-4xl"
-			style="font-size: 32px; line-height: 120%;"
-		>
+		<h2 class="text-3xl font-bold leading-[120%] text-neutral-800 md:text-4xl">
 			Et si tu passais <br class="hidden sm:block" />moins de temps dans tes DM<br
 				class="hidden sm:block"
 			/>
 			et plus de temps derrière ton four ?
-		</h1>
+		</h2>
 
-		<p
-			class="text-neutral-700"
-			style="font-size: 16px; line-height: 160%; margin: 16px 0 32px 0;"
-		>
+		<p class="my-4 text-base leading-[160%] text-neutral-700">
 			Commandes, paiements, devis, planning…<br />
 			Tout centralisé pour que tu gagnes du temps, sans prise de tête.
 		</p>
@@ -30,10 +24,9 @@
 		<div class="flex flex-col items-center gap-4 md:flex-row md:gap-6">
 			<Button
 				href="/register"
-				class="bg-[#FF6F61] text-white shadow-lg transition-transform duration-200 hover:scale-105 hover:bg-[#e85a4f]"
-				style="width: 270px; height: 56px; margin-bottom: 12px; font-size: 16px; border-radius: 12px;"
+				class="mb-3 h-14 w-[270px] rounded-xl bg-[#FF6F61] text-base text-white shadow-lg transition-transform duration-200 hover:scale-105 hover:bg-[#e85a4f]"
 			>
-				Commencer
+				Commencer mon essai gratuit
 			</Button>
 		</div>
 
@@ -43,35 +36,36 @@
 	</div>
 
 	<!-- Carousel -->
-	<div class="w-full pb-8 pt-12 md:pb-16 md:pt-16">
+	<div
+		class="w-full pb-8 pt-12 md:pb-16 md:pt-16"
+		role="region"
+		aria-label="Galerie de pâtisseries"
+	>
 		<div class="w-full overflow-hidden">
-			<div class="carousel-track">
+			<div class="carousel-track" aria-live="polite">
 				{#each Array(3) as _}
 					<!-- Répétition automatique -->
 					<div class="carousel-item">
 						<img
 							src="/carousel/image_1.jpg"
-							alt="Pâtisserie 1"
+							alt="Gâteau d'anniversaire personnalisé avec décorations colorées"
 							loading="lazy"
-							aria-hidden="true"
 							class="h-[140px] w-[210px] rounded-xl object-cover shadow-lg sm:h-[180px] sm:w-[270px] md:h-[210px] md:w-[315px]"
 						/>
 					</div>
 					<div class="carousel-item">
 						<img
 							src="/carousel/image_2.jpg"
-							alt="Pâtisserie 2"
+							alt="Macarons artisanaux aux saveurs variées"
 							loading="lazy"
-							aria-hidden="true"
 							class="h-[140px] w-[210px] rounded-xl object-cover shadow-lg sm:h-[180px] sm:w-[270px] md:h-[210px] md:w-[315px]"
 						/>
 					</div>
 					<div class="carousel-item">
 						<img
 							src="/carousel/image_3.jpg"
-							alt="Pâtisserie 3"
+							alt="Tarte aux fruits frais avec pâte sablée maison"
 							loading="lazy"
-							aria-hidden="true"
 							class="h-[140px] w-[210px] rounded-xl object-cover shadow-lg sm:h-[180px] sm:w-[270px] md:h-[210px] md:w-[315px]"
 						/>
 					</div>
@@ -113,12 +107,6 @@
 		}
 	}
 
-	/* Desktop H1 size */
-	@media (min-width: 1024px) {
-		h1 {
-			font-size: 40px !important;
-		}
-	}
 	@media (min-width: 768px) {
 		.carousel-track {
 			--item-width: 315px;

@@ -18,7 +18,7 @@
 	import {
 		compressLogo,
 		formatCompressionInfo,
-	} from '$lib/utils/image-compression';
+	} from '$lib/utils/images/client';
 
 	export let data: SuperValidated<Infer<FormSchema>>;
 	const _dispatch = createEventDispatcher();

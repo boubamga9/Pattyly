@@ -1,8 +1,8 @@
 import { error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { getShopId } from '$lib/permissions';
-import { deleteImageIfUnused } from '$lib/storage-utils';
-import { incrementCatalogVersion } from '$lib/utils/catalog-version';
+import { getShopId } from '$lib/auth';
+import { deleteImageIfUnused } from '$lib/storage';
+import { incrementCatalogVersion } from '$lib/utils/catalog';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { createCategoryFormSchema, updateCategoryFormSchema, deleteCategoryFormSchema } from './schema';

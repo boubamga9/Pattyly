@@ -150,20 +150,11 @@
 									</li>
 									<li>
 										<Button
-											href="/settings"
+											href="/dashboard/settings"
 											variant="ghost"
 											class="w-full py-6 text-base"
 										>
-											Settings
-										</Button>
-									</li>
-									<li>
-										<Button
-											href="/log-out"
-											variant="ghost"
-											class="w-full py-6 text-base"
-										>
-											Log out
+											Paramètres
 										</Button>
 									</li>
 								{/if}

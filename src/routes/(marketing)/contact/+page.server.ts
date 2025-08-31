@@ -49,7 +49,7 @@ export const actions: Actions = {
 			email,
 			subject,
 			body,
-			updated_at: new Date(),
+			updated_at: new Date().toISOString(),
 		});
 
 		// const send = transport.sendMail({
@@ -75,12 +75,13 @@ export const actions: Actions = {
 
 		if (error) {
 			console.error(
-				'Erreur lors de l\'insertion du message de contact dans la base de données : ',
+				'🚨 Erreur lors de l\'insertion du message de contact dans la base de données : ',
 				error,
 			);
 			console.error(
 				`Le message de contact de ${name} <${email}> avec le sujet "${subject}" et le corps "${body}" n'a pas été sauvegardé.`,
 			);
+			return setError(form, '', 'Erreur lors de l\'envoi du message. Veuillez réessayer plus tard.');
 		}
 
 		// if (result && result.rejected.length > 0) {

@@ -13,6 +13,14 @@
 
 <svelte:head>
 	<title>Tarifs - {WebsiteName}</title>
+	<meta
+		name="description"
+		content="Découvrez nos tarifs flexibles pour la gestion de votre activité de pâtissier. Essai gratuit de 7 jours sans engagement."
+	/>
+	<meta
+		name="keywords"
+		content="tarifs, prix, abonnement, pâtisserie, gestion, essai gratuit"
+	/>
 </svelte:head>
 
 <div class="mb-40 mt-20 flex flex-col gap-20 pt-20">

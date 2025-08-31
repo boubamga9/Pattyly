@@ -2,9 +2,9 @@ import { error, redirect } from '@sveltejs/kit';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad, Actions } from './$types';
-import { getUserPermissions } from '$lib/permissions';
+import { getUserPermissions } from '$lib/auth';
 import { formSchema } from './schema';
-import { incrementCatalogVersion } from '$lib/utils/catalog-version';
+import { incrementCatalogVersion } from '$lib/utils/catalog';
 
 export const load: PageServerLoad = async ({ locals }) => {
     const { data: { user } } = await locals.supabase.auth.getUser();

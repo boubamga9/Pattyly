@@ -31,8 +31,7 @@
 			class="sticky top-0 flex h-screen items-center justify-center p-4 text-center lg:justify-start lg:p-8 lg:pl-16 lg:text-left"
 		>
 			<h2
-				class="text-2xl font-normal leading-[120%] tracking-tight lg:text-3xl xl:text-4xl"
-				style="color: #333333;"
+				class="text-2xl font-normal leading-[120%] tracking-tight text-[#333333] lg:text-3xl xl:text-4xl"
 			>
 				Soyons honnêtes :<br />
 				Tu passes plus de temps à gérer <br />qu'à

@@ -16,9 +16,9 @@
 		<a
 			href="/register"
 			class="inline-flex items-center justify-center rounded-xl bg-[#FF6F61] px-8 py-4 text-base font-medium text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-[#e85a4f] focus:outline-none focus:ring-2 focus:ring-[#FF6F61] focus:ring-offset-2"
-			style="width: 270px; height: 56px;"
+			style="width: 280px; height: 56px;"
 		>
-			Commencer
+			Commencer mon essai gratuit
 		</a>
 	</div>
 	<p class="mt-4 text-sm font-light text-neutral-600">

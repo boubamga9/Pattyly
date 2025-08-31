@@ -20,11 +20,11 @@
 	import {
 		CustomizationFormBuilder,
 		type CustomizationField,
-	} from '$lib/components/CustomizationFormBuilder';
+	} from '$lib/components/forms';
 	import {
 		compressProductImage,
 		formatCompressionInfo,
-	} from '$lib/utils/image-compression';
+	} from '$lib/utils/images/client';
 
 	// Props
 	export let data: SuperValidated<Infer<CreateProductForm>>;

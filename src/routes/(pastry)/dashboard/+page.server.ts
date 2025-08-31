@@ -1,5 +1,5 @@
 import { redirect } from '@sveltejs/kit';
-import { getUserPermissions } from '$lib/permissions';
+import { getUserPermissions } from '$lib/auth';
 
 export const load = async ({ locals }) => {
     const { session, user } = await locals.safeGetSession();

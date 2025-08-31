@@ -7,7 +7,12 @@
 </script>
 
 <svelte:head>
-	<title>Contact {WebsiteName}</title>
+	<title>Contact - {WebsiteName}</title>
+	<meta
+		name="description"
+		content="Contactez l'équipe Pattyly pour toute question sur notre plateforme de gestion pour pâtissiers."
+	/>
+	<meta name="keywords" content="contact, support, aide, pâtisserie, gestion" />
 </svelte:head>
 
 <div class="mb-24 mt-36">

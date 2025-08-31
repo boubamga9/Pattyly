@@ -49,7 +49,9 @@
 			<Section.Description class="text-balance">
 				{data.currentPlan
 					? `Vous avez actuellement le plan ${data.currentPlan === 'basic' ? 'Basic' : 'Premium'}. Vous pouvez changer de plan à tout moment.`
-					: 'Démarrez votre activité de pâtissier en ligne avec nos plans flexibles. Créez votre boutique, gérez vos commandes et développez votre activité.'}
+					: data.isPhoneNumberBlocked
+						? 'Démarrez votre activité de pâtissier en ligne avec nos plans flexibles. Un essai gratuit a déjà été utilisé avec ce numéro de téléphone.'
+						: 'Démarrez votre activité de pâtissier en ligne avec nos plans flexibles. Créez votre boutique, gérez vos commandes et développez votre activité.'}
 			</Section.Description>
 		</Section.Header>
 
@@ -115,6 +117,16 @@
 									</Button>
 								{:else if data.hasHadSubscription}
 									<!-- Utilisateur avec historique - checkout Stripe -->
+									<Button
+										class="w-full {plan.popular
+											? 'bg-[#FF6F61] hover:bg-[#e85a4f]'
+											: 'bg-neutral-800 hover:bg-neutral-700'}"
+										href="/checkout/{plan.stripePriceId}"
+									>
+										Choisir {plan.name}
+									</Button>
+								{:else if data.isPhoneNumberBlocked}
+									<!-- Numéro de téléphone bloqué - checkout Stripe direct -->
 									<Button
 										class="w-full {plan.popular
 											? 'bg-[#FF6F61] hover:bg-[#e85a4f]'

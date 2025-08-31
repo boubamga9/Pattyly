@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { BLOCKED_EMAIL_DOMAINS } from '$lib/config/blocked-emails';
 
 /**
  * Schémas de validation communs réutilisables dans toute l'application
@@ -8,10 +9,15 @@ import { z } from 'zod';
 // ===== CHAMPS DE BASE =====
 
 // Email - utilisé partout (auth, contact, commandes)
+// Inclut la validation anti-jetable pour bloquer les emails temporaires
 export const emailSchema = z
     .string()
     .min(1, 'L\'email est requis')
-    .email('Format d\'email invalide');
+    .email('Format d\'email invalide')
+    .refine((email) => {
+        const domain = email.split('@')[1]?.toLowerCase();
+        return !BLOCKED_EMAIL_DOMAINS.includes(domain as any);
+    }, 'Les emails temporaires ne sont pas autorisés. Veuillez utiliser une adresse email permanente.');
 
 // Mot de passe - avec validation de sécurité renforcée
 export const passwordSchema = z

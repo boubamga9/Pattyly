@@ -1,7 +1,6 @@
 <script lang="ts">
 	import * as Alert from '$lib/components/ui/alert';
 	import * as Card from '$lib/components/ui/card';
-	import { cn } from '$lib/utils';
 	import { WebsiteName } from '../../../../config';
 	import SocialsAuth from '../components/socials-auth.svelte';
 	import RegisterForm from './register-form.svelte';
@@ -10,13 +9,19 @@
 	export let form;
 
 	// Check form status
-	$: registrationSuccess = form?.success;
-	$: userEmail = form?.email;
 	$: signupDisabled = form?.signupDisabled;
 </script>
 
 <svelte:head>
-	<title>Créer un compte</title>
+	<title>Créer un compte - {WebsiteName}</title>
+	<meta
+		name="description"
+		content="Créez votre compte Pattyly pour commencer à gérer votre activité de pâtissier en ligne. Essai gratuit sans engagement."
+	/>
+	<meta
+		name="keywords"
+		content="inscription, créer compte, pâtisserie, gestion, essai gratuit"
+	/>
 </svelte:head>
 
 {#if data.isCheckout}
@@ -28,25 +33,7 @@
 		</Alert.Description>
 	</Alert.Root>
 {/if}
-{#if registrationSuccess}
-	<Alert.Root
-		class={cn('mb-6', 'border-green-700 bg-green-50 text-green-700')}
-		variant="default"
-	>
-		<Alert.Title>Email de vérification envoyé</Alert.Title>
-		<Alert.Description>
-			Nous avons envoyé un email de confirmation à <strong>{userEmail}</strong>.
-			Vérifie ta boîte de réception et suis les instructions pour vérifier ton
-			compte.
-		</Alert.Description>
-	</Alert.Root>
-	<p class="text-center text-sm">
-		Tu n&apos;as pas reçu l&apos;email ? Vérifie tes spams ou <a
-			href="/register"
-			class="underline">réessaie</a
-		>.
-	</p>
-{:else if signupDisabled}
+{#if signupDisabled}
 	<Alert.Root class="mb-6" variant="destructive">
 		<Alert.Title>Inscriptions temporairement désactivées</Alert.Title>
 		<Alert.Description>

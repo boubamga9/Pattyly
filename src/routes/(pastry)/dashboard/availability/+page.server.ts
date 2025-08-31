@@ -2,7 +2,7 @@ import { error, redirect } from '@sveltejs/kit';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad, Actions } from './$types';
-import { getUserPermissions } from '$lib/permissions';
+import { getUserPermissions } from '$lib/auth';
 import { addUnavailabilityFormSchema } from './schema';
 
 export const load: PageServerLoad = async ({ locals }) => {

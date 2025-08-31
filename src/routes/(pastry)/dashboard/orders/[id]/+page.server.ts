@@ -1,6 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
-import { getUserPermissions } from '$lib/permissions';
+import { getUserPermissions } from '$lib/auth';
 import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
 import Stripe from 'stripe';
 import { superValidate } from 'sveltekit-superforms';

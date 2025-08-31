@@ -2,8 +2,8 @@ import { error } from '@sveltejs/kit';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad, Actions } from './$types';
-import { getUserPermissions } from '$lib/permissions';
-import { incrementCatalogVersion } from '$lib/utils/catalog-version';
+import { getUserPermissions } from '$lib/auth';
+import { incrementCatalogVersion } from '$lib/utils/catalog';
 import { toggleCustomRequestsFormSchema, updateCustomFormFormSchema } from './schema';
 
 export const load: PageServerLoad = async ({ locals }) => {

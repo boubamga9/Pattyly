@@ -1,5 +1,5 @@
 import { redirect } from '@sveltejs/kit';
-import { getUserPermissions } from '$lib/permissions';
+import { getUserPermissions } from '$lib/auth';
 import type { LayoutServerLoad } from './$types';
 
 export const load: LayoutServerLoad = async ({
@@ -14,6 +14,7 @@ export const load: LayoutServerLoad = async ({
 	const permissions = await getUserPermissions(user.id, supabase);
 	const shopId = permissions.shopId;
 
+	// Si l'utilisateur est vérifié mais n'a pas de boutique, rediriger vers l'onboarding
 	if (!shopId) {
 		redirect(303, '/onboarding');
 	}

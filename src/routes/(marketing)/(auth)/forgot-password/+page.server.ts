@@ -36,7 +36,7 @@ export const actions: Actions = {
 		const { email } = form.data;
 		const redirectTo = url.searchParams.get('redirectTo');
 		if (!redirectTo) {
-			return setError(form, '', 'Invalid redirect URL.');
+			return setError(form, '', 'URL de redirection invalide.');
 		}
 
 		const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -47,12 +47,12 @@ export const actions: Actions = {
 			return setError(
 				form,
 				'',
-				'An error occured while sending the reset email. Please try again later.',
+				'Une erreur est survenue lors de l\'envoi de l\'email de réinitialisation. Veuillez réessayer plus tard.',
 			);
 		}
 
 		return message(form, {
-			success: 'Sent. Check your email for reset password instructions.',
+			success: 'Email envoyé. Vérifiez votre boîte mail pour les instructions de réinitialisation.',
 		});
 	},
 };

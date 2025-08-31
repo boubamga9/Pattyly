@@ -1,8 +1,8 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { getUserPermissions, getShopId } from '$lib/permissions';
-import { validateImageServer, validateAndRecompressImage, logValidationInfo } from '$lib/utils/server-image-validation';
-import { incrementCatalogVersion } from '$lib/utils/catalog-version';
+import { getUserPermissions, getShopId } from '$lib/auth';
+import { validateImageServer, validateAndRecompressImage, logValidationInfo } from '$lib/utils/images/server';
+import { incrementCatalogVersion } from '$lib/utils/catalog';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { createProductFormSchema, createCategoryFormSchema } from './schema';

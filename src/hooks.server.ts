@@ -12,159 +12,302 @@ import { createClient } from '@supabase/supabase-js';
 import type { Handle } from '@sveltejs/kit';
 import Stripe from 'stripe';
 
-// Rate limiting pour les formulaires publics
-const RATE_LIMITS = {
-	'/contact': { max: 3, window: 3600000 }, // 3 tentatives par heure
-	'/register': { max: 5, window: 3600000 }, // 5 tentatives par heure
-	'/login': { max: 10, window: 3600000 }, // 10 tentatives par heure
-	'/forgot-password': { max: 3, window: 3600000 }, // 3 tentatives par heure
-	'/custom': { max: 15, window: 3600000 }, // 15 tentatives par heure (routes dynamiques)
-	'/product': { max: 15, window: 3600000 } // 15 tentatives par heure (routes dynamiques)
-};
+// ============================================================================
+// TYPES & INTERFACES
+// ============================================================================
 
-// Store en mémoire pour les tentatives (en production, utiliser Redis)
-const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+interface RateLimitEntry {
+	count: number;
+	resetTime: number;
+}
 
-// Nettoyer le store toutes les 5 minutes
-setInterval(() => {
-	const now = Date.now();
-	rateLimitStore.forEach((entry, key) => {
-		if (now > entry.resetTime) {
-			rateLimitStore.delete(key);
+interface RateLimitConfig {
+	max: number;
+	window: number;
+}
+
+type RateLimitStore = Map<string, RateLimitEntry>;
+
+interface RateLimitResult {
+	isLimited: boolean;
+	retryAfter?: number;
+	message?: string;
+}
+
+// ============================================================================
+// CONSTANTS & CONFIGURATION
+// ============================================================================
+
+const RATE_LIMIT_CONFIG = {
+	CLEANUP_INTERVAL: 5 * 60 * 1000, // 5 minutes
+	DEFAULT_WINDOW: 3600000, // 1 hour in milliseconds
+} as const;
+
+const RATE_LIMITS: Record<string, RateLimitConfig> = {
+	'/contact': { max: 3, window: RATE_LIMIT_CONFIG.DEFAULT_WINDOW },
+	'/register': { max: 10, window: RATE_LIMIT_CONFIG.DEFAULT_WINDOW },
+	'/login': { max: 10, window: RATE_LIMIT_CONFIG.DEFAULT_WINDOW },
+	'/forgot-password': { max: 3, window: RATE_LIMIT_CONFIG.DEFAULT_WINDOW },
+	'/custom': { max: 15, window: RATE_LIMIT_CONFIG.DEFAULT_WINDOW },
+	'/product': { max: 15, window: RATE_LIMIT_CONFIG.DEFAULT_WINDOW }
+} as const;
+
+// ============================================================================
+// RATE LIMITING CLASS
+// ============================================================================
+
+class RateLimiter {
+	private store: RateLimitStore = new Map();
+	private cleanupInterval!: NodeJS.Timeout;
+
+	constructor() {
+		this.startCleanupInterval();
+	}
+
+	/**
+	 * Check if a client is rate limited for a specific route
+	 */
+	checkRateLimit(clientIP: string, route: string): RateLimitResult {
+		const config = this.findRateLimitConfig(route);
+		if (!config) {
+			return { isLimited: false };
 		}
-	});
-}, 5 * 60 * 1000);
 
-export const handle: Handle = async ({ event, resolve }) => {
-	// Rate limiting pour les formulaires publics
-	if (event.request.method === 'POST') {
-		const pathname = event.url.pathname;
-		const clientIP = event.getClientAddress();
+		const key = `${clientIP}:${route}`;
+		const now = Date.now();
 
-		// Vérifier si cette route a des limites de rate
-		for (const [route, limit] of Object.entries(RATE_LIMITS)) {
+		// Clean up expired entries
+		this.cleanupExpiredEntries(key, now);
+
+		// Check current rate limit
+		const entry = this.store.get(key);
+		if (!entry) {
+			// First attempt
+			this.store.set(key, {
+				count: 1,
+				resetTime: now + config.window
+			});
+			return { isLimited: false };
+		}
+
+		if (entry.count >= config.max) {
+			const retryAfter = Math.ceil((entry.resetTime - now) / 1000);
+			const message = this.formatRateLimitMessage(retryAfter);
+
+			return {
+				isLimited: true,
+				retryAfter,
+				message
+			};
+		}
+
+		// Increment counter
+		entry.count++;
+		return { isLimited: false };
+	}
+
+	/**
+	 * Find rate limit configuration for a route
+	 */
+	private findRateLimitConfig(pathname: string): RateLimitConfig | null {
+		for (const [route, config] of Object.entries(RATE_LIMITS)) {
 			if (pathname === route || pathname.includes(route)) {
-				const key = `${clientIP}:${route}`;
-				const now = Date.now();
+				return config;
+			}
+		}
+		return null;
+	}
 
-				// Nettoyer les anciennes entrées
-				if (rateLimitStore.has(key)) {
-					const entry = rateLimitStore.get(key)!;
-					if (now > entry.resetTime) {
-						rateLimitStore.delete(key);
-					}
-				}
+	/**
+	 * Clean up expired entries for a specific key
+	 */
+	private cleanupExpiredEntries(key: string, now: number): void {
+		const entry = this.store.get(key);
+		if (entry && now > entry.resetTime) {
+			this.store.delete(key);
+		}
+	}
 
-				// Vérifier le rate limit
-				if (rateLimitStore.has(key)) {
-					const entry = rateLimitStore.get(key)!;
-					if (entry.count >= limit.max) {
-						console.log(`🚫 Rate limit dépassé pour ${clientIP} sur ${route}`);
+	/**
+	 * Format rate limit message based on remaining time
+	 */
+	private formatRateLimitMessage(remainingTime: number): string {
+		const minutes = Math.floor(remainingTime / 60);
+		const seconds = remainingTime % 60;
 
-						// Calculer le temps restant
-						const remainingTime = Math.ceil((entry.resetTime - Date.now()) / 1000);
-						const minutes = Math.floor(remainingTime / 60);
-						const seconds = remainingTime % 60;
+		if (minutes > 0) {
+			return `Trop de tentatives. Veuillez attendre ${minutes}m ${seconds}s avant de réessayer.`;
+		}
+		return `Trop de tentatives. Veuillez attendre ${seconds}s avant de réessayer.`;
+	}
 
-						// Pour SvelteKit, on ajoute les infos de rate limiting dans les headers
-						// et on laisse la requête continuer vers l'action
-						event.request.headers.set('x-rate-limit-exceeded', 'true');
-						event.request.headers.set('x-rate-limit-message',
-							minutes > 0
-								? `Trop de tentatives. Veuillez attendre ${minutes}m ${seconds}s avant de réessayer.`
-								: `Trop de tentatives. Veuillez attendre ${seconds}s avant de réessayer.`
-						);
-						event.request.headers.set('x-rate-limit-retry-after', remainingTime.toString());
+	/**
+	 * Start automatic cleanup interval
+	 */
+	private startCleanupInterval(): void {
+		this.cleanupInterval = setInterval(() => {
+			this.cleanupAllExpiredEntries();
+		}, RATE_LIMIT_CONFIG.CLEANUP_INTERVAL);
+	}
 
-						// On ne bloque plus la requête, on la laisse continuer
-						console.log(`⚠️ Rate limit atteint mais requête autorisée pour traitement par SvelteKit`);
-					}
-					entry.count++;
-				} else {
-					// Première tentative
-					rateLimitStore.set(key, {
-						count: 1,
-						resetTime: now + limit.window
-					});
-				}
-				break; // Une seule route correspond, pas besoin de continuer
+	/**
+	 * Clean up all expired entries
+	 */
+	private cleanupAllExpiredEntries(): void {
+		const now = Date.now();
+		for (const [key, entry] of this.store.entries()) {
+			if (now > entry.resetTime) {
+				this.store.delete(key);
 			}
 		}
 	}
 
-	event.locals.supabase = createServerClient(
-		PUBLIC_SUPABASE_URL,
-		PUBLIC_SUPABASE_ANON_KEY,
-		{
-			cookies: {
-				get: (key) => event.cookies.get(key),
-				/**
-				 * Note: You have to add the `path` variable to the
-				 * set and remove method due to sveltekit's cookie API
-				 * requiring this to be set, setting the path to an empty string
-				 * will replicate previous/standard behaviour (https://kit.svelte.dev/docs/types#public-types-cookies)
-				 */
-				set: (key, value, options) => {
-					event.cookies.set(key, value, { ...options, path: '/' });
-				},
-				remove: (key, options) => {
-					event.cookies.delete(key, { ...options, path: '/' });
+	/**
+	 * Clean up resources
+	 */
+	destroy(): void {
+		if (this.cleanupInterval) {
+			clearInterval(this.cleanupInterval);
+		}
+	}
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+/**
+ * Apply rate limiting headers to the request
+ */
+function applyRateLimitHeaders(request: Request, result: RateLimitResult): void {
+	if (result.isLimited && result.retryAfter !== undefined) {
+		request.headers.set('x-rate-limit-exceeded', 'true');
+		request.headers.set('x-rate-limit-message', result.message || '');
+		request.headers.set('x-rate-limit-retry-after', result.retryAfter.toString());
+	}
+}
+
+/**
+ * Log rate limit events
+ */
+function logRateLimitEvent(clientIP: string, route: string, result: RateLimitResult): void {
+	if (result.isLimited) {
+		console.log(`🚫 Rate limit dépassé pour ${clientIP} sur ${route}`, {
+			clientIP,
+			route,
+			retryAfter: result.retryAfter,
+			message: result.message
+		});
+	}
+}
+
+// ============================================================================
+// MAIN HANDLER
+// ============================================================================
+
+// Initialize rate limiter
+const rateLimiter = new RateLimiter();
+
+export const handle: Handle = async ({ event, resolve }) => {
+	try {
+		// Rate limiting for public forms
+		if (event.request.method === 'POST') {
+			const pathname = event.url.pathname;
+			const clientIP = event.getClientAddress();
+
+			const rateLimitResult = rateLimiter.checkRateLimit(clientIP, pathname);
+
+			// Apply headers if rate limited
+			applyRateLimitHeaders(event.request, rateLimitResult);
+
+			// Log the event
+			logRateLimitEvent(clientIP, pathname, rateLimitResult);
+		}
+
+		// Initialize Supabase client
+		event.locals.supabase = createServerClient(
+			PUBLIC_SUPABASE_URL,
+			PUBLIC_SUPABASE_ANON_KEY,
+			{
+				cookies: {
+					get: (key) => event.cookies.get(key),
+					set: (key, value, options) => {
+						event.cookies.set(key, value, { ...options, path: '/' });
+					},
+					remove: (key, options) => {
+						event.cookies.delete(key, { ...options, path: '/' });
+					},
 				},
 			},
-		},
-	);
+		);
 
-	event.locals.supabaseServiceRole = createClient(
-		PUBLIC_SUPABASE_URL,
-		PRIVATE_SUPABASE_SERVICE_ROLE,
-		{ auth: { persistSession: false } },
-	);
+		// Initialize Supabase service role client
+		event.locals.supabaseServiceRole = createClient(
+			PUBLIC_SUPABASE_URL,
+			PRIVATE_SUPABASE_SERVICE_ROLE,
+			{ auth: { persistSession: false } },
+		);
 
-	/**
-	 * Unlike `supabase.auth.getSession()`, which returns the session _without_
-	 * validating the JWT, this function also calls `getUser()` to validate the
-	 * JWT before returning the session.
-	 */
-	event.locals.safeGetSession = async () => {
-		const {
-			data: { session: originalSession },
-		} = await event.locals.supabase.auth.getSession();
-		if (!originalSession) {
-			return { session: null, user: null, amr: null };
-		}
+		// Initialize Stripe client
+		event.locals.stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
+			apiVersion: '2024-04-10',
+		});
 
-		const {
-			data: { user },
-			error: userError,
-		} = await event.locals.supabase.auth.getUser();
-		if (userError) {
-			// JWT validation has failed
-			return { session: null, user: null, amr: null };
-		}
+		/**
+		 * Safe session getter that validates JWT before returning session
+		 */
+		event.locals.safeGetSession = async () => {
+			try {
+				const {
+					data: { session: originalSession },
+				} = await event.locals.supabase.auth.getSession();
 
-		// TODO: Remove this once the issue is fixed
-		// Hack to overcome annoying Supabase auth warnings
-		// https://github.com/supabase/auth-js/issues/873#issuecomment-2081467385
-		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-		// @ts-ignore
-		delete originalSession.user;
-		const session = Object.assign({}, originalSession, { user });
-		const { data: aal, error: amrError } =
-			await await event.locals.supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-		if (amrError) {
-			return { session, user, amr: null };
-		}
+				if (!originalSession) {
+					return { session: null, user: null, amr: null };
+				}
 
-		return { session, user, amr: aal.currentAuthenticationMethods };
-	};
+				const {
+					data: { user },
+					error: userError,
+				} = await event.locals.supabase.auth.getUser();
 
-	event.locals.stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
-		apiVersion: '2024-04-10',
-	});
+				if (userError) {
+					console.error('JWT validation failed:', userError);
+					return { session: null, user: null, amr: null };
+				}
 
-	return resolve(event, {
-		filterSerializedResponseHeaders(name) {
-			return name === 'content-range' || name === 'x-supabase-api-version';
-		},
-	});
+				// Create clean session object
+				const session = Object.assign({}, originalSession, { user });
+
+				// Get MFA authentication methods
+				const { data: aal, error: amrError } =
+					await event.locals.supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+
+				if (amrError) {
+					console.warn('MFA level retrieval failed:', amrError);
+					return { session, user, amr: null };
+				}
+
+				return { session, user, amr: aal.currentAuthenticationMethods };
+			} catch (error) {
+				console.error('Error in safeGetSession:', error);
+				return { session: null, user: null, amr: null };
+			}
+		};
+
+		return resolve(event, {
+			filterSerializedResponseHeaders(name) {
+				return name === 'content-range' || name === 'x-supabase-api-version';
+			},
+		});
+	} catch (error) {
+		console.error('Critical error in handle function:', error);
+
+		// Return a basic error response
+		return new Response('Internal Server Error', {
+			status: 500,
+			statusText: 'Internal Server Error'
+		});
+	}
 };
+

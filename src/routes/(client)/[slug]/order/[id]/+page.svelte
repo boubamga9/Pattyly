@@ -13,7 +13,7 @@
 		Check,
 		X,
 	} from 'lucide-svelte';
-	import ClientFooter from '$lib/components/ClientFooter.svelte';
+	import { ClientFooter } from '$lib/components/brand';
 	import type { PageData } from './$types';
 
 	export let data: PageData;

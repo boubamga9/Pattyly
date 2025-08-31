@@ -5,14 +5,14 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import { message, setError, superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad } from './$types';
-import { getUserPermissions } from '$lib/permissions';
+import { getUserPermissions } from '$lib/auth';
 import {
     deleteAccountFormSchema,
     infoFormSchema,
     changePasswordFormSchema,
     createPasswordFormSchema,
 } from './schema';
-import { deleteAllShopImages } from '$lib/storage-utils';
+import { deleteAllShopImages } from '$lib/storage';
 
 
 const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {

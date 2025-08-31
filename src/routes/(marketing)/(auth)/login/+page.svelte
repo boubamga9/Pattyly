@@ -9,7 +9,6 @@
 	import LoginForm from './login-form.svelte';
 
 	export let data;
-	// export let form;
 
 	let { supabase } = data;
 
@@ -29,7 +28,15 @@
 </script>
 
 <svelte:head>
-	<title>Se connecter à {WebsiteName}</title>
+	<title>Se connecter - {WebsiteName}</title>
+	<meta
+		name="description"
+		content="Connectez-vous à votre compte Pattyly pour accéder à votre dashboard de gestion de pâtisserie."
+	/>
+	<meta
+		name="keywords"
+		content="connexion, login, pâtisserie, gestion, dashboard"
+	/>
 </svelte:head>
 
 {#if $page.url.searchParams.get('verified') == 'true'}
@@ -50,6 +57,7 @@
 	</div>
 {/if}
 
+<!-- Formulaire de connexion normal -->
 <div class="mb-24 mt-36">
 	<Card.Root
 		class="mx-auto max-w-sm rounded-2xl border-neutral-200 bg-white shadow-sm"

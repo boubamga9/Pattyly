@@ -13,7 +13,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 
 	import { Info, Eye } from 'lucide-svelte';
-	import type { CustomizationField } from '$lib/components/CustomizationFormBuilder';
+	import type { CustomizationField } from '$lib/components/forms';
 	import ToggleForm from './toggle-form.svelte';
 	import UpdateForm from './update-form.svelte';
 
