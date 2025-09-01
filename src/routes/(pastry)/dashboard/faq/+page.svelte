@@ -77,13 +77,12 @@
 				confirmingDeleteId = null;
 			} else {
 			}
-		} catch (error) {
-		}
+		} catch (error) {}
 	}
 </script>
 
 <svelte:head>
-	<title>FAQ - Pattyly</title>
+	<title>Ma FAQ - Pattyly</title>
 </svelte:head>
 
 <div class="container mx-auto space-y-6 p-3 md:p-6">

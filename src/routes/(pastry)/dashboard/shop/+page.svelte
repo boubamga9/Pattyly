@@ -36,7 +36,7 @@
 </script>
 
 <svelte:head>
-	<title>Paramètres de la boutique - Pattyly</title>
+	<title>Ma boutique - Pattyly</title>
 </svelte:head>
 
 <div class="container mx-auto space-y-8 p-4 md:p-8">

@@ -51,7 +51,7 @@
 </script>
 
 <svelte:head>
-	<title>Profil | Paramètres</title>
+	<title>Paramètres - Pattyly</title>
 </svelte:head>
 
 {#if form?.success}

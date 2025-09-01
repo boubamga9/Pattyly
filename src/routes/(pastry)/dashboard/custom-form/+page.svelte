@@ -76,7 +76,7 @@
 </script>
 
 <svelte:head>
-	<title>Questionnaire Personnalisé - Pattyly</title>
+	<title>Mon questionnaire personnalisé - Pattyly</title>
 	<style>
 		.sortable-ghost {
 			opacity: 0.5;
