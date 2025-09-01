@@ -32,7 +32,6 @@ export const load: PageServerLoad = async ({ locals }) => {
         .order('created_at', { ascending: false });
 
     if (faqsError) {
-        console.error('Error fetching FAQs:', faqsError);
         throw error(500, 'Erreur lors du chargement des FAQ');
     }
 
@@ -82,7 +81,6 @@ export const actions: Actions = {
             });
 
         if (createError) {
-            console.error('Error creating FAQ:', createError);
             throw error(500, 'Erreur lors de la création de la FAQ');
         }
 
@@ -90,7 +88,6 @@ export const actions: Actions = {
         try {
             await incrementCatalogVersion(locals.supabase, permissions.shopId);
         } catch (error) {
-            console.error('Warning: Failed to increment catalog version:', error);
             // Don't fail the entire operation, just log the warning
         }
 
@@ -137,7 +134,6 @@ export const actions: Actions = {
             .eq('shop_id', permissions.shopId);
 
         if (updateError) {
-            console.error('Error updating FAQ:', updateError);
             throw error(500, 'Erreur lors de la mise à jour de la FAQ');
         }
 
@@ -145,7 +141,6 @@ export const actions: Actions = {
         try {
             await incrementCatalogVersion(locals.supabase, permissions.shopId);
         } catch (error) {
-            console.error('Warning: Failed to increment catalog version:', error);
             // Don't fail the entire operation, just log the warning
         }
 
@@ -186,7 +181,6 @@ export const actions: Actions = {
             .eq('shop_id', permissions.shopId);
 
         if (deleteError) {
-            console.error('Error deleting FAQ:', deleteError);
             throw error(500, 'Erreur lors de la suppression de la FAQ');
         }
 
@@ -194,7 +188,6 @@ export const actions: Actions = {
         try {
             await incrementCatalogVersion(locals.supabase, permissions.shopId);
         } catch (error) {
-            console.error('Warning: Failed to increment catalog version:', error);
             // Don't fail the entire operation, just log the warning
         }
 

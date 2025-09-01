@@ -31,20 +31,16 @@
 		type: string;
 		data?: { error?: string; redirectUrl?: string; success?: boolean };
 	}) {
-		console.log('📋 Résultat billing:', result);
-
 		// Vérifier si c'est un succès avec une URL de redirection
 		if (
 			result.type === 'success' &&
 			result.data?.success === true &&
 			result.data?.redirectUrl
 		) {
-			console.log('🔄 Redirection vers:', result.data.redirectUrl);
 			window.location.href = result.data.redirectUrl;
 		}
 		// Vérifier s'il y a une erreur (même avec type 'success' mais success: false)
 		else if (result.data?.success === false || result.type === 'failure') {
-			console.log('❌ Erreur billing:', result.data?.error);
 			error = result.data?.error || 'Une erreur est survenue';
 			success = '';
 		}
@@ -136,59 +132,61 @@
 	</Card.Content>
 </Card.Root>
 
-<!-- Gestion de l'abonnement -->
-<Card.Root>
-	<Card.Header>
-		<div class="flex items-center justify-between">
-			<div class="flex items-center space-x-3">
-				<Crown class="h-6 w-6 text-primary" />
-				<div>
-					<Card.Title>Gérer votre abonnement</Card.Title>
-					<Card.Description>
-						Accédez à votre espace abonnement pour modifier votre plan
-					</Card.Description>
+<!-- Gestion de l'abonnement (masquée si utilisateur exempté) -->
+{#if !data.permissions?.isExempt}
+	<Card.Root>
+		<Card.Header>
+			<div class="flex items-center justify-between">
+				<div class="flex items-center space-x-3">
+					<Crown class="h-6 w-6 text-primary" />
+					<div>
+						<Card.Title>Gérer votre abonnement</Card.Title>
+						<Card.Description>
+							Accédez à votre espace abonnement pour modifier votre plan
+						</Card.Description>
+					</div>
 				</div>
 			</div>
-		</div>
-	</Card.Header>
-	<Card.Content>
-		<div class="space-y-4">
-			<p class="text-sm text-muted-foreground">
-				Modifiez votre plan d'abonnement, gérez vos factures et accédez à toutes
-				les fonctionnalités de votre compte.
-			</p>
+		</Card.Header>
+		<Card.Content>
+			<div class="space-y-4">
+				<p class="text-sm text-muted-foreground">
+					Modifiez votre plan d'abonnement, gérez vos factures et accédez à
+					toutes les fonctionnalités de votre compte.
+				</p>
 
-			<div class="flex gap-2">
-				<form
-					method="POST"
-					action="?/accessStripeBilling"
-					use:enhance={() => {
-						billingLoading = true;
-						return async ({ result }) => {
-							handleBillingResult(result);
-							billingLoading = false;
-						};
-					}}
-				>
-					<Button
-						type="submit"
-						disabled={billingLoading}
-						class={billingLoading
-							? 'bg-gray-400 hover:bg-gray-500'
-							: 'bg-black text-white hover:bg-gray-800'}
+				<div class="flex gap-2">
+					<form
+						method="POST"
+						action="?/accessStripeBilling"
+						use:enhance={() => {
+							billingLoading = true;
+							return async ({ result }) => {
+								handleBillingResult(result);
+								billingLoading = false;
+							};
+						}}
 					>
-						{#if billingLoading}
-							<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-						{:else}
-							<Crown class="mr-2 h-4 w-4" />
-						{/if}
-						Gérer votre abonnement
-					</Button>
-				</form>
+						<Button
+							type="submit"
+							disabled={billingLoading}
+							class={billingLoading
+								? 'bg-gray-400 hover:bg-gray-500'
+								: 'bg-black text-white hover:bg-gray-800'}
+						>
+							{#if billingLoading}
+								<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+							{:else}
+								<Crown class="mr-2 h-4 w-4" />
+							{/if}
+							Gérer votre abonnement
+						</Button>
+					</form>
+				</div>
 			</div>
-		</div>
-	</Card.Content>
-</Card.Root>
+		</Card.Content>
+	</Card.Root>
+{/if}
 
 {#if data.createPassword || data.recoverySession}
 	<CreatePasswordForm

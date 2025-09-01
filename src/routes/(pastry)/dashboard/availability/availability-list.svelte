@@ -59,7 +59,6 @@
 						use:enhance={() => {
 							return async ({ result }) => {
 								if (result.type === 'success') {
-									console.log('✅ Disponibilité mise à jour avec succès !');
 								} else {
 									// En cas d'erreur, remettre l'ancienne valeur
 									availabilities = availabilities.map((a) =>
@@ -67,7 +66,6 @@
 											? { ...a, is_open: !availability.is_open }
 											: a,
 									);
-									console.error('❌ Erreur lors de la mise à jour');
 								}
 							};
 						}}

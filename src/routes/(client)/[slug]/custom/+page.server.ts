@@ -7,7 +7,7 @@ import { createLocalDynamicSchema } from './schema';
 export const load: PageServerLoad = async ({ params, locals }) => {
     try {
         const { slug } = params;
-        console.log('🔍 Loading custom form page for shop:', slug);
+
 
         // Récupérer les informations de la boutique
         const { data: shop, error: shopError } = await locals.supabase
@@ -18,20 +18,19 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             .single();
 
         if (shopError) {
-            console.error('❌ Database error fetching shop:', shopError);
             throw error(500, 'Erreur serveur lors du chargement de la boutique');
         }
 
         if (!shop) {
-            console.log('⚠️ Shop not found:', slug);
+
             throw error(404, 'Boutique non trouvée');
         }
 
-        console.log('✅ Shop found:', shop.id);
+
 
         // Vérifier que les demandes personnalisées sont activées
         if (!shop.is_custom_accepted) {
-            console.log('⚠️ Custom orders not accepted for shop:', slug);
+
             throw error(404, 'Demandes personnalisées non disponibles');
         }
 
@@ -44,7 +43,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             .single();
 
         if (formError && formError.code !== 'PGRST116') {
-            console.error('❌ Error fetching custom form:', formError);
             throw error(500, 'Erreur lors du chargement du formulaire personnalisé');
         }
 
@@ -58,14 +56,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
                 .order('order');
 
             if (fieldsError) {
-                console.error('❌ Error fetching form fields:', fieldsError);
                 throw error(500, 'Erreur lors du chargement des champs du formulaire');
             }
 
             customFields = formFields || [];
-            console.log('✅ Custom form fields loaded:', customFields.length, 'fields');
+
         } else {
-            console.log('ℹ️ No custom form found for shop:', slug);
+
         }
 
         // Récupérer les disponibilités de la boutique
@@ -75,7 +72,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             .eq('shop_id', shop.id);
 
         if (availabilitiesError) {
-            console.error('❌ Error fetching availabilities:', availabilitiesError);
             throw error(500, 'Erreur lors du chargement des disponibilités');
         }
 
@@ -86,11 +82,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             .eq('shop_id', shop.id);
 
         if (unavailabilitiesError) {
-            console.error('❌ Error fetching unavailabilities:', unavailabilitiesError);
             throw error(500, 'Erreur lors du chargement des indisponibilités');
         }
 
-        console.log('✅ Shop data loaded successfully');
+
 
         // Créer le schéma dynamique basé sur les champs configurés
         const dynamicSchema = createLocalDynamicSchema(customFields);
@@ -105,7 +100,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         };
 
     } catch (err) {
-        console.error('💥 Unexpected error in custom form load:', err);
         throw error(500, 'Erreur inattendue lors du chargement de la page');
     }
 };
@@ -116,7 +110,7 @@ export const actions: Actions = {
         const rateLimitExceeded = request.headers.get('x-rate-limit-exceeded');
         if (rateLimitExceeded === 'true') {
             const rateLimitMessage = request.headers.get('x-rate-limit-message') || 'Trop de tentatives. Veuillez patienter.';
-            console.log('🚫 Rate limiting détecté dans l\'action createCustomOrder:', rateLimitMessage);
+
 
             // Créer un schéma temporaire pour l'erreur
             const tempSchema = createLocalDynamicSchema([]);
@@ -207,14 +201,12 @@ export const actions: Actions = {
                 .single();
 
             if (orderError) {
-                console.error('Error creating custom order:', orderError);
                 throw error(500, 'Erreur lors de la création de la commande');
             }
 
             return message(form, { redirectTo: `/${slug}/order/${order.id}` })
 
         } catch (err) {
-            console.error('❌ Error in createCustomOrder:', err);
 
             // ✅ CORRECTION - Toujours retourner le form pour Superforms
             const tempSchema = createLocalDynamicSchema([]);

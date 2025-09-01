@@ -131,7 +131,7 @@ if (event.request.method === 'POST') {
         const result = await rateLimiter.checkLimit(key, limit.max, limit.window);
         
         if (!result.allowed) {
-          console.log(`🚫 Rate limit dépassé pour ${clientIP} sur ${route}`);
+          
           
           const minutes = Math.floor(result.retryAfter! / 60);
           const seconds = result.retryAfter! % 60;
@@ -145,8 +145,7 @@ if (event.request.method === 'POST') {
           event.request.headers.set('x-rate-limit-retry-after', result.retryAfter!.toString());
         }
       } catch (error) {
-        console.error('Erreur Redis rate limiting:', error);
-        // En cas d'erreur Redis, on laisse passer (fail open)
+                // En cas d'erreur Redis, on laisse passer (fail open)
       }
       break;
     }

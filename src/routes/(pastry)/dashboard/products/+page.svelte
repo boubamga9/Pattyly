@@ -99,7 +99,6 @@
 		if (shopSlug) {
 			goto(`/${shopSlug}/product/${productId}?preview=true`);
 		} else {
-			console.error('Shop slug not available');
 		}
 	}
 
@@ -127,7 +126,6 @@
 				confirmingDeleteId = null;
 			}
 		} catch (error) {
-			console.error('Erreur lors de la suppression:', error);
 		}
 	}
 
@@ -394,12 +392,10 @@
 												if (!response.ok) {
 													// En cas d'erreur, remettre l'état précédent
 													product.is_active = !checked;
-													console.error('Erreur lors de la mise à jour');
 												}
 											} catch (error) {
 												// En cas d'erreur, remettre l'état précédent
 												product.is_active = !checked;
-												console.error('Erreur lors de la mise à jour:', error);
 											}
 										}}
 									/>

@@ -131,7 +131,6 @@
 			};
 			reader.readAsDataURL(compressionResult.file);
 		} catch (error) {
-			console.error('Erreur lors de la compression:', error);
 			$errors = {
 				image: "Erreur lors du traitement de l'image. Veuillez réessayer.",
 			};

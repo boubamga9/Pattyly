@@ -32,7 +32,6 @@ export const load: PageServerLoad = async ({ locals }) => {
         .order('day');
 
     if (availabilitiesError) {
-        console.error('Error loading availabilities:', availabilitiesError);
         throw error(500, 'Erreur lors du chargement des disponibilités');
     }
 
@@ -45,7 +44,6 @@ export const load: PageServerLoad = async ({ locals }) => {
         .order('start_date');
 
     if (unavailabilitiesError) {
-        console.error('Error loading unavailabilities:', unavailabilitiesError);
         throw error(500, 'Erreur lors du chargement des indisponibilités');
     }
 
@@ -85,10 +83,6 @@ export const actions: Actions = {
         const isAvailableRaw = formData.get('isAvailable') as string;
         const isAvailable = isAvailableRaw === 'true';
 
-        console.log('🔍 DEBUG updateAvailability:');
-        console.log('  - availabilityId:', availabilityId);
-        console.log('  - isAvailableRaw:', isAvailableRaw);
-        console.log('  - isAvailable parsed:', isAvailable);
 
         if (!availabilityId) {
             throw error(400, 'ID de disponibilité requis');
@@ -105,8 +99,6 @@ export const actions: Actions = {
             throw error(404, 'Disponibilité non trouvée');
         }
 
-        console.log('  - Current DB value:', availability.is_open);
-        console.log('  - New value to set:', isAvailable);
 
         // Update availability
         const { error: updateError } = await locals.supabase
@@ -117,11 +109,9 @@ export const actions: Actions = {
             .eq('id', availabilityId);
 
         if (updateError) {
-            console.error('Error updating availability:', updateError);
             throw error(500, 'Erreur lors de la mise à jour');
         }
 
-        console.log('✅ Availability updated successfully in DB');
 
         // Retourner le formulaire pour Superforms
         const form = await superValidate(zod(addUnavailabilityFormSchema));
@@ -179,7 +169,6 @@ export const actions: Actions = {
             });
 
         if (insertError) {
-            console.error('Error adding unavailability:', insertError);
             throw error(500, 'Erreur lors de l\'ajout de l\'indisponibilité');
         }
 
@@ -230,7 +219,6 @@ export const actions: Actions = {
             .eq('id', unavailabilityId);
 
         if (deleteError) {
-            console.error('Error deleting unavailability:', deleteError);
             throw error(500, 'Erreur lors de la suppression');
         }
 

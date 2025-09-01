@@ -42,7 +42,6 @@ export const load: PageServerLoad = async ({ locals }) => {
         .single();
 
     if (shopError) {
-        console.error('Error loading shop:', shopError);
         error(500, 'Erreur lors du chargement de la boutique');
     }
 
@@ -73,7 +72,6 @@ export const actions: Actions = {
         if (!session) {
             return { success: false, error: 'Non autorisé' };
         }
-        console.log("🚀 Action updateShop appelée !");
         const userId = session.user.id;
 
         const form = await superValidate(request, zod(formSchema));
@@ -146,7 +144,6 @@ export const actions: Actions = {
                     });
 
                 if (uploadError) {
-                    console.error('Error uploading logo:', uploadError);
                     return { success: false, error: 'Erreur lors de l\'upload du logo' };
                 }
 
@@ -157,7 +154,6 @@ export const actions: Actions = {
 
                 logoUrl = urlData.publicUrl;
             } catch (err) {
-                console.error('Error processing logo upload:', err);
                 return { success: false, error: 'Erreur lors du traitement du logo' };
             }
         }
@@ -177,7 +173,6 @@ export const actions: Actions = {
             .eq('id', shop.id);
 
         if (updateError) {
-            console.error('Error updating shop:', updateError);
             return { success: false, error: 'Erreur lors de la mise à jour' };
         }
 
@@ -185,7 +180,6 @@ export const actions: Actions = {
         try {
             await incrementCatalogVersion(locals.supabase, shop.id);
         } catch (error) {
-            console.error('Warning: Failed to increment catalog version:', error);
             // Don't fail the entire operation, just log the warning
         }
 

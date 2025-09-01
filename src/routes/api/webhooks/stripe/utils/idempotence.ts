@@ -1,6 +1,5 @@
 // utils/idempotence.ts
 export async function checkIdempotence(eventId: string, locals: any): Promise<void> {
-    console.log('🔍 Checking idempotence for event:', eventId);
 
     // Vérifier si l'événement a déjà été traité
     const { data: existing } = await locals.supabaseServiceRole
@@ -10,7 +9,6 @@ export async function checkIdempotence(eventId: string, locals: any): Promise<vo
         .maybeSingle();
 
     if (existing) {
-        console.log('⏩ Event déjà traité:', eventId);
         throw new Error('Event already processed');
     }
 
@@ -20,9 +18,7 @@ export async function checkIdempotence(eventId: string, locals: any): Promise<vo
         .insert({ id: eventId });
 
     if (insertError) {
-        console.error('❌ Erreur enregistrement event.id:', insertError);
         throw new Error('Idempotence error');
     }
 
-    console.log('✅ Event registered for idempotence');
 }

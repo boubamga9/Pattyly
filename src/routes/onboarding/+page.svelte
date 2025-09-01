@@ -42,13 +42,7 @@
 
 			// Sauvegarder le fingerprint en cookie pour protection immédiate
 			document.cookie = `deviceFingerprint=${result.visitorId}; path=/; max-age=31536000; SameSite=Strict`;
-
-			console.log(
-				'🔍 FingerprintJS initialisé:',
-				result.visitorId.substring(0, 8) + '...',
-			);
 		} catch (error) {
-			console.error('❌ Erreur FingerprintJS:', error);
 			// En cas d'erreur, on continue sans fingerprint
 		}
 	});
@@ -72,7 +66,7 @@
 		if (result.type === 'success') {
 			if (result.data?.url) {
 				// Redirect to Stripe Connect onboarding
-				console.log('🔄 Redirecting to Stripe Connect:', result.data.url);
+
 				window.location.href = result.data.url;
 			} else {
 				// No URL, redirect to dashboard

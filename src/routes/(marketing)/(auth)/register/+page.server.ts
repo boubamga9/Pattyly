@@ -26,7 +26,7 @@ export const actions: Actions = {
 		const rateLimitExceeded = event.request.headers.get('x-rate-limit-exceeded');
 		if (rateLimitExceeded === 'true') {
 			const rateLimitMessage = event.request.headers.get('x-rate-limit-message') || 'Trop de tentatives. Veuillez patienter.';
-			console.log('🚫 Rate limiting détecté dans l\'action register:', rateLimitMessage);
+
 
 			// Utiliser setError au lieu de fail pour une meilleure gestion
 			const form = await superValidate(zod(formSchema));
@@ -56,7 +56,6 @@ export const actions: Actions = {
 		});
 
 		if (error) {
-			console.error('🚨 Erreur lors de l\'inscription:', error);
 
 			// Check to see if sign-ups are disabled in Supabase
 			if (
@@ -92,7 +91,7 @@ export const actions: Actions = {
 
 		// Si l'inscription a réussi (avec ou sans session), rediriger vers la confirmation
 		if (user && user.email) {
-			console.log('✅ Inscription réussie pour:', user.email);
+
 			throw redirect(303, `/confirmation?email=${encodeURIComponent(user.email)}`);
 		}
 

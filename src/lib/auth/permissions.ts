@@ -21,7 +21,6 @@ export async function getShopId(profileId: string, supabase: SupabaseClient): Pr
  * Returns: 'basic' | 'premium' | 'exempt' | null
  */
 async function getUserPlan(profileId: string, supabase: SupabaseClient): Promise<string | null> {
-    console.log('🔍 getUserPlan called for profileId:', profileId);
 
     // Check if user is exempt from Stripe
     const { data: profile, error: profileError } = await supabase
@@ -30,10 +29,8 @@ async function getUserPlan(profileId: string, supabase: SupabaseClient): Promise
         .eq('id', profileId)
         .single();
 
-    console.log('🔍 Profile check:', { profile, profileError });
 
     if (profile?.is_stripe_free) {
-        console.log('🔍 User is exempt');
         return 'exempt';
     }
 
@@ -45,15 +42,12 @@ async function getUserPlan(profileId: string, supabase: SupabaseClient): Promise
         .eq('subscription_status', 'active')
         .single();
 
-    console.log('🔍 Subscription check:', { subscription, subscriptionError });
 
     if (subscription?.stripe_product_id === 'prod_Selcz36pAfV3vV') {
-        console.log('🔍 User has premium plan');
         return 'premium';
     }
 
     if (subscription?.stripe_product_id === 'prod_Selbd3Ne2plHqG') {
-        console.log('🔍 User has basic plan');
         return 'basic';
     }
 
@@ -69,16 +63,13 @@ async function getUserPlan(profileId: string, supabase: SupabaseClient): Promise
         // L'utilisateur a un historique d'abonnement (même inactif)
         // On détermine le plan selon le produit_id, peu importe le statut
         if (anySubscription.stripe_product_id === 'prod_Selcz36pAfV3vV') {
-            console.log('🔍 User has premium plan (inactive)');
             return 'premium';
         }
         if (anySubscription.stripe_product_id === 'prod_Selbd3Ne2plHqG') {
-            console.log('🔍 User has basic plan (inactive)');
             return 'basic';
         }
     }
 
-    console.log('🔍 No subscription found');
     return null; // No subscription at all
 }
 

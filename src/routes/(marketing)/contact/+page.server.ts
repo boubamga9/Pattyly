@@ -16,7 +16,7 @@ export const actions: Actions = {
 		const rateLimitExceeded = event.request.headers.get('x-rate-limit-exceeded');
 		if (rateLimitExceeded === 'true') {
 			const rateLimitMessage = event.request.headers.get('x-rate-limit-message') || 'Trop de tentatives. Veuillez patienter.';
-			console.log('🚫 Rate limiting détecté dans l\'action:', rateLimitMessage);
+
 
 			// Utiliser setError au lieu de fail pour une meilleure gestion
 			const form = await superValidate(zod(formSchema));
@@ -65,7 +65,6 @@ export const actions: Actions = {
 		try {
 			[/*result,*/ { error }] = await Promise.all([/*send, */ insert]);
 		} catch (e) {
-			console.warn("Impossible d'envoyer l'email de contact.", e);
 			if (!error) {
 				console.info(
 					`Message de contact de ${name} <${email}> avec le sujet "${subject}" et le corps "${body}" a été sauvegardé dans la table \`contact_messages\` de ta base de données.`,
@@ -74,22 +73,11 @@ export const actions: Actions = {
 		}
 
 		if (error) {
-			console.error(
-				'🚨 Erreur lors de l\'insertion du message de contact dans la base de données : ',
-				error,
-			);
-			console.error(
-				`Le message de contact de ${name} <${email}> avec le sujet "${subject}" et le corps "${body}" n'a pas été sauvegardé.`,
-			);
 			return setError(form, '', 'Erreur lors de l\'envoi du message. Veuillez réessayer plus tard.');
 		}
 
 		// if (result && result.rejected.length > 0) {
-		// 	console.error('Rejected email send response: ', result.response);
-		// 	console.error(
-		// 		`Email from ${name} <${email}> with subject ${subject} and body ${body} was rejected.`,
-		// 	);
-		// 	return setError(
+		// 			// 			// 	return setError(
 		// 		form,
 		// 		'',
 		// 		'An error occured while sending the message. Please try again later.',

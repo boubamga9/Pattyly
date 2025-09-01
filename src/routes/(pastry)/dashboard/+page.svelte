@@ -113,7 +113,6 @@
 				copySuccess = false;
 			}, 2000);
 		} catch (err) {
-			console.error('Error copying URL:', err);
 		}
 	}
 </script>

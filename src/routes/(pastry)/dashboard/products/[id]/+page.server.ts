@@ -43,7 +43,6 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
         .order('name');
 
     if (categoriesError) {
-        console.error('Error fetching categories:', categoriesError);
     }
 
     // Récupérer le formulaire de personnalisation s'il existe
@@ -56,7 +55,6 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
             .order('order');
 
         if (formFieldsError) {
-            console.error('Error fetching form fields:', formFieldsError);
         } else {
             // Normaliser les champs pour s'assurer qu'ils ont la bonne structure
             customizationFields = (formFields || []).map(field => {
@@ -165,13 +163,11 @@ export const actions: Actions = {
                     .single();
 
                 if (categoryError) {
-                    console.error('Error creating category:', categoryError);
                     return fail(500, { form, error: 'Erreur lors de la création de la catégorie' });
                 }
 
                 finalCategoryId = newCategory.id;
             } catch (err) {
-                console.error('Error creating category:', err);
                 return fail(500, { form, error: 'Erreur lors de la création de la catégorie' });
             }
         }
@@ -224,7 +220,6 @@ export const actions: Actions = {
                         });
 
                     if (uploadError) {
-                        console.error('Error uploading image:', uploadError);
                         return fail(500, { error: 'Erreur lors de l\'upload de l\'image' });
                     }
 
@@ -235,7 +230,6 @@ export const actions: Actions = {
 
                     imageUrl = urlData.publicUrl;
                 } catch (err) {
-                    console.error('Error processing image upload:', err);
                     return fail(500, { error: 'Erreur lors du traitement de l\'image' });
                 }
             }
@@ -263,7 +257,6 @@ export const actions: Actions = {
                 .single();
 
             if (updateError) {
-                console.error('Error updating product:', updateError);
                 return fail(500, {
                     error: 'Erreur lors de la modification du produit'
                 });
@@ -277,7 +270,6 @@ export const actions: Actions = {
             // Mettre à jour les champs de personnalisation si fournis
             if (customizationFields !== undefined) { // Vérifier si le champ est présent (même vide)
                 try {
-                    console.log('🔄 Updating customization fields:', customizationFields);
 
                     if (updatedProduct.form_id) {
                         // Récupérer les champs existants pour comparer
@@ -288,14 +280,11 @@ export const actions: Actions = {
                             .order('order');
 
                         if (fetchError) {
-                            console.error('Error fetching existing fields:', fetchError);
                             return fail(500, {
                                 error: 'Erreur lors de la récupération des champs existants'
                             });
                         }
 
-                        console.log('📋 Existing fields:', existingFields);
-                        console.log('🆕 New fields:', customizationFields);
 
                         // Identifier les champs à supprimer (ceux qui existent mais ne sont plus dans la nouvelle liste)
                         const fieldsToDelete = existingFields.filter(existingField =>
@@ -313,8 +302,6 @@ export const actions: Actions = {
                             order: index + 1
                         }));
 
-                        console.log('🗑️ Fields to delete:', fieldsToDelete);
-                        console.log('💾 Fields to upsert:', fieldsToUpsert);
 
                         // Supprimer les champs supprimés
                         if (fieldsToDelete.length > 0) {
@@ -324,7 +311,6 @@ export const actions: Actions = {
                                 .in('id', fieldsToDelete.map(f => f.id));
 
                             if (deleteError) {
-                                console.error('Error deleting fields:', deleteError);
                                 return fail(500, {
                                     error: 'Erreur lors de la suppression des champs'
                                 });
@@ -341,14 +327,12 @@ export const actions: Actions = {
                                 });
 
                             if (upsertError) {
-                                console.error('Error upserting fields:', upsertError);
                                 return fail(500, {
                                     error: 'Erreur lors de la mise à jour des champs de personnalisation'
                                 });
                             }
                         } else {
                             // Tous les champs ont été supprimés, supprimer tous les champs existants
-                            console.log('🗑️ All fields removed, deleting all existing fields');
                             if (existingFields.length > 0) {
                                 const { error: deleteAllError } = await locals.supabase
                                     .from('form_fields')
@@ -356,7 +340,6 @@ export const actions: Actions = {
                                     .eq('form_id', updatedProduct.form_id);
 
                                 if (deleteAllError) {
-                                    console.error('Error deleting all fields:', deleteAllError);
                                     return fail(500, {
                                         error: 'Erreur lors de la suppression de tous les champs'
                                     });
@@ -375,7 +358,6 @@ export const actions: Actions = {
                             .single();
 
                         if (formError) {
-                            console.error('Error creating form:', formError);
                             return fail(500, {
                                 error: 'Erreur lors de la création du formulaire'
                             });
@@ -396,7 +378,6 @@ export const actions: Actions = {
                             .insert(formFields);
 
                         if (fieldsError) {
-                            console.error('Error creating form fields:', fieldsError);
                             return fail(500, {
                                 error: 'Erreur lors de la création des champs de personnalisation'
                             });
@@ -409,14 +390,12 @@ export const actions: Actions = {
                             .eq('id', productId);
                     }
                 } catch (parseError) {
-                    console.error('Error parsing customization fields:', parseError);
                     return fail(400, {
                         error: 'Erreur lors du traitement des champs de personnalisation'
                     });
                 }
             }
         } catch (err) {
-            console.error('Unexpected error:', err);
             return fail(500, {
                 error: 'Erreur inattendue lors de la modification du produit'
             });
@@ -426,7 +405,6 @@ export const actions: Actions = {
         try {
             await incrementCatalogVersion(locals.supabase, shopId);
         } catch (error) {
-            console.error('Warning: Failed to increment catalog version:', error);
             // Don't fail the entire operation, just log the warning
         }
 
@@ -474,7 +452,6 @@ export const actions: Actions = {
                 .single();
 
             if (categoryError) {
-                console.error('Error creating category:', categoryError);
                 return fail(500, { form, error: 'Erreur lors de la création de la catégorie' });
             }
 
@@ -482,7 +459,6 @@ export const actions: Actions = {
             form.message = 'Catégorie créée avec succès';
             return { form, category: newCategory };
         } catch (err) {
-            console.error('Error creating category:', err);
             return fail(500, { form, error: 'Erreur lors de la création de la catégorie' });
         }
     }

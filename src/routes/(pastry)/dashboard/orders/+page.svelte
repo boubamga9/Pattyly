@@ -134,7 +134,6 @@
 
 	// Fonction pour rediriger vers le détail d'une commande
 	function viewOrder(orderId: string) {
-		console.log('Redirection vers:', `/dashboard/orders/${orderId}`);
 		goto(`/dashboard/orders/${orderId}`);
 	}
 

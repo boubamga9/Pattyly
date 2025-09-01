@@ -42,13 +42,7 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders }) => {
         const fingerprintMatch = cookieHeader.match(/deviceFingerprint=([^;]+)/);
         cookieFingerprint = fingerprintMatch ? fingerprintMatch[1] : null;
 
-        console.log('🔍 Anti-fraude: Vérification pour:', {
-            userId,
-            userEmail,
-            baseEmail, // ✅ Email de base pour la vérification
-            userIp,
-            cookieFingerprint: cookieFingerprint ? cookieFingerprint.substring(0, 8) + '...' : 'non trouvé'
-        });
+
 
         // Vérifier si l'utilisateur est dans la table anti_fraud
         // On vérifie l'email exact, l'email de base, l'IP ET le fingerprint pour éviter le contournement
@@ -66,9 +60,9 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders }) => {
         isInAntiFraud = !!antiFraudRecord;
 
         if (isInAntiFraud) {
-            console.log(`🔍 Anti-fraude: Utilisateur bloqué (email: ${userEmail}, base: ${baseEmail}, IP: ${userIp}, fingerprint: ${cookieFingerprint ? cookieFingerprint.substring(0, 8) + '...' : 'non trouvé'})`);
+
         } else {
-            console.log(`🔍 Anti-fraude: Utilisateur autorisé (email: ${userEmail}, base: ${baseEmail}, IP: ${userIp}, fingerprint: ${cookieFingerprint ? cookieFingerprint.substring(0, 8) + '...' : 'non trouvé'})`);
+
         }
 
         // ✅ SUPPRIMER LE COOKIE APRÈS VÉRIFICATION
@@ -76,11 +70,10 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders }) => {
             setHeaders({
                 'Set-Cookie': 'deviceFingerprint=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict'
             });
-            console.log('🗑️ Cookie deviceFingerprint supprimé après vérification');
+
         }
 
     } catch (error) {
-        console.error('⚠️ Erreur lors de la vérification anti-fraude:', error);
         // En cas d'erreur, on considère que l'utilisateur n'est pas bloqué
         isInAntiFraud = false;
     }
@@ -133,12 +126,7 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders }) => {
         buttonType = 'trial';
     }
 
-    console.log('🎯 Type de boutons déterminé:', {
-        currentPlan,
-        hasHadSubscription,
-        isInAntiFraud,
-        buttonType
-    });
+
 
     // Données des plans (en production, récupérer depuis Stripe)
     const plans = [

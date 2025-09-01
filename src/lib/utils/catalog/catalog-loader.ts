@@ -29,7 +29,6 @@ export async function loadShopCatalog(
         // 3. Essayer de récupérer depuis le cache
         const cachedData = await catalogCache.get(cacheKey);
         if (cachedData) {
-            console.log(`🎯 Cache hit pour ${cacheKey}`);
             // Retourner les données du cache avec from_cache: true
             return {
                 ...cachedData,
@@ -37,7 +36,6 @@ export async function loadShopCatalog(
             };
         }
 
-        console.log(`❌ Cache miss pour ${cacheKey}, chargement depuis Supabase...`);
 
         // 4. Cache miss → Charger depuis Supabase
         const [productsResult, categoriesResult, faqsResult] = await Promise.all([
@@ -74,12 +72,10 @@ export async function loadShopCatalog(
         ]);
 
         if (productsResult.error) {
-            console.error('Error loading products:', productsResult.error);
             throw new Error('Erreur lors du chargement des produits');
         }
 
         if (categoriesResult.error) {
-            console.error('Error loading categories:', categoriesResult.error);
             throw new Error('Erreur lors du chargement des catégories');
         }
 
@@ -106,11 +102,9 @@ export async function loadShopCatalog(
 
         // 6. Stocker dans le cache (TTL: 1 heure)
         await catalogCache.set(cacheKey, catalogData, 3600);
-        console.log(`💾 Catalogue mis en cache: ${cacheKey}`);
 
         return catalogData;
     } catch (error) {
-        console.error('Error in loadShopCatalog:', error);
         throw error;
     }
 }

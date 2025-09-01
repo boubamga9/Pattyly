@@ -60,7 +60,6 @@ export const load: PageServerLoad = async ({ locals }) => {
         .single();
 
     if (stripeError && stripeError.code !== 'PGRST116') {
-        console.error('Error loading Stripe account:', stripeError);
     }
 
 
@@ -73,6 +72,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         recoverySession: Boolean(recoveryAmr),
         createPassword: !passwordSet,
         stripeAccount: stripeAccount || null,
+        permissions, // ✅ Ajouter les permissions pour accéder à is_stripe_free
     };
 };
 
@@ -153,9 +153,7 @@ export const actions = {
 
                 await Promise.all(cancelPromises);
 
-                console.log(`Successfully cancelled ${currentSubscriptions.length} subscription(s) for user ${user.id}`);
             } catch (error) {
-                console.error('Error cancelling subscriptions:', error);
                 // On continue avec la suppression du compte même si l'annulation des abonnements échoue
                 // car l'utilisateur veut supprimer son compte de toute façon
             }
@@ -179,7 +177,6 @@ export const actions = {
         );
 
         if (delError) {
-            console.error('Error deleting account:', delError.message);
             return fail(500, {
                 errorMessage: 'Erreur inconnue. Si le problème persiste, veuillez nous contacter.',
             });
@@ -237,7 +234,6 @@ export const actions = {
 
         if ('old_password' in form.data) {
             if (typeof form.data.old_password !== 'string') {
-                console.error(new Error('Old password was not a string'));
                 throw setError(
                     form,
                     '',
@@ -261,7 +257,6 @@ export const actions = {
         });
 
         if (error) {
-            console.error(error);
             return setError(form, '', 'Impossible de mettre à jour le mot de passe. Veuillez réessayer.');
         }
 
@@ -343,7 +338,6 @@ export const actions = {
             });
 
         if (insertError) {
-            console.error('Error saving Stripe account:', insertError);
             return { success: false, error: 'Erreur lors de la création du compte Stripe' };
         }
 
@@ -361,23 +355,18 @@ export const actions = {
     accessStripeBilling: async ({ locals }) => {
         const { session } = await locals.safeGetSession();
         if (!session) {
-            console.log('❌ Pas de session');
             return { success: false, error: 'Non autorisé' };
         }
 
         const userId = session.user.id;
-        console.log('🔍 User ID:', userId);
 
         try {
-            console.log('🔍 Recherche du customer Stripe pour userId:', userId);
 
             // Vérifier d'abord si la table existe et a des données
             const { data: allCustomers, error: listError } = await locals.supabase
                 .from('stripe_customers')
                 .select('*');
 
-            console.log('🔍 Tous les customers dans la DB:', allCustomers);
-            console.log('🔍 Erreur liste:', listError);
 
             // Récupérer le customer Stripe de l'utilisateur
             const { data: customer, error: customerError } = await locals.supabase
@@ -386,10 +375,8 @@ export const actions = {
                 .eq('profile_id', userId)
                 .single();
 
-            console.log('🔍 Résultat recherche customer:', { customer, customerError });
 
             if (customerError) {
-                console.log('❌ Erreur lors de la recherche du customer:', customerError);
                 if (customerError.code === 'PGRST116') {
                     return { success: false, error: 'Aucun compte client Stripe trouvé. Veuillez d\'abord souscrire à un abonnement.' };
                 }
@@ -397,12 +384,9 @@ export const actions = {
             }
 
             if (!customer?.stripe_customer_id) {
-                console.log('❌ Aucun stripe_customer_id trouvé');
                 return { success: false, error: 'Aucun compte client Stripe trouvé. Veuillez d\'abord souscrire à un abonnement.' };
             }
 
-            console.log('✅ Customer Stripe trouvé:', customer);
-            console.log('✅ stripe_customer_id:', customer.stripe_customer_id);
 
             // Créer un lien de billing Stripe avec configuration par défaut
             const billingLink = await stripe.billingPortal.sessions.create({
@@ -411,10 +395,8 @@ export const actions = {
                 configuration: undefined // Utilise la configuration par défaut
             });
 
-            console.log('✅ Lien de billing créé:', billingLink.url);
             return { success: true, redirectUrl: billingLink.url };
         } catch (err) {
-            console.error('❌ Error creating billing link:', err);
             return { success: false, error: 'Erreur lors de la création du lien de billing' };
         }
     },

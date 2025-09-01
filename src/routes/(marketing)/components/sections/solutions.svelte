@@ -100,12 +100,7 @@
 				progressBar.style.transformOrigin = 'left';
 				progressBar.style.willChange = 'transform';
 			}
-		} catch (error) {
-			console.error(
-				"🚨 Erreur lors de l'initialisation de la section solutions:",
-				error,
-			);
-		}
+		} catch (error) {}
 
 		// Initialiser la barre de progression
 		if (progressBar) {

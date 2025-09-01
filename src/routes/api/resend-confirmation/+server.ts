@@ -16,7 +16,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         });
 
         if (error) {
-            console.error('🚨 Erreur lors du renvoi:', error);
 
             if (error.message.includes('Too many requests')) {
                 return json({
@@ -29,7 +28,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             }, { status: 500 });
         }
 
-        console.log('✅ Nouvel email de confirmation envoyé à:', email);
+
 
         return json({
             success: true,
@@ -37,7 +36,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         });
 
     } catch (error) {
-        console.error('🚨 Erreur critique lors du renvoi:', error);
         return json({
             error: 'Erreur serveur. Veuillez réessayer.'
         }, { status: 500 });

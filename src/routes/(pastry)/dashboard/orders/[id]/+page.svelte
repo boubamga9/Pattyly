@@ -239,10 +239,8 @@
 				// Mettre à jour l'interface localement
 				personalNote = null;
 			} else {
-				console.error('Erreur lors de la suppression');
 			}
 		} catch (error) {
-			console.error('Erreur lors de la suppression:', error);
 		}
 	}
 

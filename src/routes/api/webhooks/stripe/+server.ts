@@ -14,7 +14,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     try {
         // 1. Vérifier la signature Stripe
         const event = await verifyWebhookSignature(request);
-        console.log('�� Processing webhook event:', event.type);
 
         // 2. Vérifier l'idempotence
         await checkIdempotence(event.id, locals);
@@ -55,13 +54,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 break;
 
             default:
-                console.log('⚠️ Unhandled event type:', event.type);
         }
 
         return json({ received: true });
 
     } catch (err) {
-        console.error('💥 Webhook error:', err);
         throw error(500, 'Webhook processing failed');
     }
 };

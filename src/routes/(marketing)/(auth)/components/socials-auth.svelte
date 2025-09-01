@@ -20,7 +20,6 @@
 			case 'github':
 				return (await import('virtual:icons/simple-icons/github')).default;
 			default:
-				console.warn(`Unknown provider: ${provider}`);
 				throw new Error(`Unknown provider: ${provider}`);
 		}
 	}

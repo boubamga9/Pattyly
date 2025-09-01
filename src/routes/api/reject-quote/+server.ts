@@ -35,13 +35,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             .eq('id', orderId);
 
         if (updateError) {
-            console.error('Erreur mise à jour commande:', updateError);
             return json({ error: 'Erreur lors de la mise à jour' }, { status: 500 });
         }
 
         return json({ success: true });
     } catch (error) {
-        console.error('Erreur refus devis:', error);
         return json({ error: 'Erreur interne' }, { status: 500 });
     }
 }; 

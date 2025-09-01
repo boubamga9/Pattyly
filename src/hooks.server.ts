@@ -187,19 +187,6 @@ function applyRateLimitHeaders(request: Request, result: RateLimitResult): void 
 	}
 }
 
-/**
- * Log rate limit events
- */
-function logRateLimitEvent(clientIP: string, route: string, result: RateLimitResult): void {
-	if (result.isLimited) {
-		console.log(`🚫 Rate limit dépassé pour ${clientIP} sur ${route}`, {
-			clientIP,
-			route,
-			retryAfter: result.retryAfter,
-			message: result.message
-		});
-	}
-}
 
 // ============================================================================
 // MAIN HANDLER
@@ -220,8 +207,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 			// Apply headers if rate limited
 			applyRateLimitHeaders(event.request, rateLimitResult);
 
-			// Log the event
-			logRateLimitEvent(clientIP, pathname, rateLimitResult);
 		}
 
 		// Initialize Supabase client
@@ -272,7 +257,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 				} = await event.locals.supabase.auth.getUser();
 
 				if (userError) {
-					console.error('JWT validation failed:', userError);
 					return { session: null, user: null, amr: null };
 				}
 
@@ -284,13 +268,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 					await event.locals.supabase.auth.mfa.getAuthenticatorAssuranceLevel();
 
 				if (amrError) {
-					console.warn('MFA level retrieval failed:', amrError);
 					return { session, user, amr: null };
 				}
 
 				return { session, user, amr: aal.currentAuthenticationMethods };
 			} catch (error) {
-				console.error('Error in safeGetSession:', error);
 				return { session: null, user: null, amr: null };
 			}
 		};
@@ -301,7 +283,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 			},
 		});
 	} catch (error) {
-		console.error('Critical error in handle function:', error);
 
 		// Return a basic error response
 		return new Response('Internal Server Error', {

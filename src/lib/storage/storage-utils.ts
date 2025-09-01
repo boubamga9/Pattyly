@@ -16,7 +16,6 @@ export async function deleteImageIfUnused(
         const fileName = urlParts[urlParts.length - 1];
 
         if (!fileName) {
-            console.warn('Impossible d\'extraire le nom du fichier de l\'URL:', imageUrl);
             return;
         }
 
@@ -27,7 +26,6 @@ export async function deleteImageIfUnused(
             .eq('image_url', imageUrl);
 
         if (checkError) {
-            console.error('Erreur lors de la vérification de l\'usage de l\'image:', checkError);
             return;
         }
 
@@ -38,22 +36,17 @@ export async function deleteImageIfUnused(
 
         // Si aucun autre produit n'utilise cette image, la supprimer
         if (otherProductsUsingImage.length === 0) {
-            console.log(`Suppression de l'image orpheline: ${fileName}`);
 
             const { error: deleteError } = await supabase.storage
                 .from('product-images')
                 .remove([fileName]);
 
             if (deleteError) {
-                console.error('Erreur lors de la suppression de l\'image:', deleteError);
             } else {
-                console.log(`Image supprimée avec succès: ${fileName}`);
             }
         } else {
-            console.log(`Image conservée car utilisée par ${otherProductsUsingImage.length} autre(s) produit(s): ${fileName}`);
         }
     } catch (error) {
-        console.error('Erreur lors de la gestion de l\'image:', error);
     }
 }
 
@@ -73,7 +66,6 @@ export async function deleteShopLogo(
         const storageIndex = urlParts.findIndex(part => part === 'shop-logos');
 
         if (storageIndex === -1) {
-            console.warn('URL Supabase invalide pour le logo:', logoUrl);
             return;
         }
 
@@ -81,23 +73,18 @@ export async function deleteShopLogo(
         const filePath = urlParts.slice(storageIndex + 1).join('/');
 
         if (!filePath) {
-            console.warn('Impossible d\'extraire le chemin du fichier du logo:', logoUrl);
             return;
         }
 
-        console.log(`Suppression du logo de la boutique: ${filePath}`);
 
         const { error: deleteError } = await supabase.storage
             .from('shop-logos')
             .remove([filePath]);
 
         if (deleteError) {
-            console.error('Erreur lors de la suppression du logo:', deleteError);
         } else {
-            console.log(`Logo supprimé avec succès: ${filePath}`);
         }
     } catch (error) {
-        console.error('Erreur lors de la suppression du logo:', error);
     }
 }
 
@@ -117,7 +104,6 @@ export async function deleteAllShopImages(
             .not('image_url', 'is', null);
 
         if (productsError) {
-            console.error('Erreur lors de la récupération des produits:', productsError);
             return;
         }
 
@@ -139,8 +125,6 @@ export async function deleteAllShopImages(
             await deleteShopLogo(supabase, shop.logo_url);
         }
 
-        console.log(`Nettoyage terminé pour la boutique ${shopId}`);
     } catch (error) {
-        console.error('Erreur lors du nettoyage des images de la boutique:', error);
     }
 } 

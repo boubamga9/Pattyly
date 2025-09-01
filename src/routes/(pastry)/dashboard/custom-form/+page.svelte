@@ -34,13 +34,11 @@
 
 	// Fonction pour gérer le changement de toggle
 	function handleToggle(newValue: boolean) {
-		console.log('✅ Toggle mis à jour localement:', newValue);
 		// Pas besoin de stocker localement, on laisse Svelte gérer la réactivité
 	}
 
 	// Fonction pour gérer le succès du formulaire de mise à jour
 	function handleUpdateSuccess() {
-		console.log('✅ Formulaire personnalisé mis à jour avec succès !');
 		// Optionnel : afficher une notification ou mettre à jour l'interface
 	}
 
@@ -50,7 +48,6 @@
 		if (shop?.slug) {
 			goto(`/${shop.slug}/custom?preview=true`);
 		} else {
-			console.error('Shop slug not available');
 		}
 	}
 

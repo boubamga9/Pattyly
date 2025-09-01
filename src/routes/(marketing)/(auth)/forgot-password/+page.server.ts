@@ -18,7 +18,7 @@ export const actions: Actions = {
 		const rateLimitExceeded = request.headers.get('x-rate-limit-exceeded');
 		if (rateLimitExceeded === 'true') {
 			const rateLimitMessage = request.headers.get('x-rate-limit-message') || 'Trop de tentatives. Veuillez patienter.';
-			console.log('🚫 Rate limiting détecté dans l\'action forgot-password:', rateLimitMessage);
+
 
 			// Utiliser setError au lieu de fail pour une meilleure gestion
 			const form = await superValidate(request, zod(formSchema));

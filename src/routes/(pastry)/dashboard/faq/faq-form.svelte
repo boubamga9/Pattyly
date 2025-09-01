@@ -27,7 +27,6 @@
 	const { form: formData, enhance, submitting, message } = form;
 
 	$: if ($message) {
-		console.log('✅ succès -> fermeture du formulaire');
 		onCancel();
 	}
 

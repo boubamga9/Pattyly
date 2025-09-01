@@ -76,7 +76,6 @@ export const load: PageServerLoad = async ({ locals }) => {
             .order('pickup_date', { ascending: true }); // ✅ Tri par date de récupération, de la plus proche à la plus lointaine
 
         if (ordersError) {
-            console.error('Erreur récupération commandes:', ordersError);
             throw error(500, 'Erreur lors de la récupération des commandes');
         }
 
@@ -93,7 +92,6 @@ export const load: PageServerLoad = async ({ locals }) => {
             shop
         };
     } catch (err) {
-        console.error('Erreur load orders page:', err);
         throw err;
     }
 };

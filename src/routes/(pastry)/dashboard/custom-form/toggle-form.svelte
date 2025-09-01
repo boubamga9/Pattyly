@@ -20,12 +20,10 @@
 	const { enhance, submitting, message } = form;
 
 	$: if ($message) {
-		console.log('✅ Toggle mis à jour avec succès');
 		// Notifier le parent du changement au lieu de recharger la page
 		if (typeof isCustomAccepted === 'boolean') {
 			onToggle(!isCustomAccepted);
 		} else {
-			console.warn("⚠️ isCustomAccepted n'est pas défini, toggle non effectué");
 		}
 	}
 </script>

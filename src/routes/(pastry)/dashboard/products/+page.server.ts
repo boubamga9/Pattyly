@@ -27,7 +27,6 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
         .order('created_at', { ascending: false });
 
     if (productsError) {
-        console.error('Error fetching products:', productsError);
         throw error(500, 'Erreur lors du chargement des produits');
     }
 
@@ -39,7 +38,6 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
         .order('name', { ascending: true });
 
     if (categoriesError) {
-        console.error('Error fetching categories:', categoriesError);
         throw error(500, 'Erreur lors du chargement des catégories');
     }
 
@@ -51,7 +49,6 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
         .single();
 
     if (shopError) {
-        console.error('Error fetching shop slug:', shopError);
         throw error(500, 'Erreur lors du chargement des informations de la boutique');
     }
 
@@ -121,7 +118,6 @@ export const actions: Actions = {
                     .eq('form_id', product.form_id);
 
                 if (fieldsDeleteError) {
-                    console.error('Error deleting form fields:', fieldsDeleteError);
                     return fail(500, {
                         error: 'Erreur lors de la suppression des champs du formulaire'
                     });
@@ -134,7 +130,6 @@ export const actions: Actions = {
                     .eq('id', product.form_id);
 
                 if (formDeleteError) {
-                    console.error('Error deleting form:', formDeleteError);
                     return fail(500, {
                         error: 'Erreur lors de la suppression du formulaire'
                     });
@@ -149,7 +144,6 @@ export const actions: Actions = {
                 .eq('shop_id', shopId);
 
             if (deleteError) {
-                console.error('Error deleting product:', deleteError);
                 return fail(500, {
                     error: 'Erreur lors de la suppression du produit'
                 });
@@ -164,13 +158,11 @@ export const actions: Actions = {
             try {
                 await incrementCatalogVersion(locals.supabase, shopId);
             } catch (error) {
-                console.error('Warning: Failed to increment catalog version:', error);
                 // Don't fail the entire operation, just log the warning
             }
 
             return { message: 'Produit et formulaire supprimés avec succès' };
         } catch (err) {
-            console.error('Unexpected error:', err);
             return fail(500, {
                 error: 'Erreur inattendue lors de la suppression'
             });
@@ -234,7 +226,6 @@ export const actions: Actions = {
                 .single();
 
             if (insertError) {
-                console.error('Error duplicating product:', insertError);
                 return fail(500, {
                     error: 'Erreur lors de la duplication du produit'
                 });
@@ -253,7 +244,6 @@ export const actions: Actions = {
                     .single();
 
                 if (formError) {
-                    console.error('Error fetching original form:', formError);
                     return fail(500, {
                         error: 'Erreur lors de la récupération du formulaire original'
                     });
@@ -271,7 +261,6 @@ export const actions: Actions = {
                         .single();
 
                     if (newFormError) {
-                        console.error('Error creating new form:', newFormError);
                         return fail(500, {
                             error: 'Erreur lors de la création du nouveau formulaire'
                         });
@@ -293,7 +282,6 @@ export const actions: Actions = {
                             .insert(formFields);
 
                         if (fieldsError) {
-                            console.error('Error duplicating form fields:', fieldsError);
                             return fail(500, {
                                 error: 'Erreur lors de la duplication des champs du formulaire'
                             });
@@ -307,7 +295,6 @@ export const actions: Actions = {
                         .eq('id', newProduct.id);
 
                     if (updateError) {
-                        console.error('Error associating form with duplicated product:', updateError);
                         return fail(500, {
                             error: 'Erreur lors de l\'association du formulaire au produit dupliqué'
                         });
@@ -319,13 +306,11 @@ export const actions: Actions = {
             try {
                 await incrementCatalogVersion(locals.supabase, shopId);
             } catch (error) {
-                console.error('Warning: Failed to increment catalog version:', error);
                 // Don't fail the entire operation, just log the warning
             }
 
             return { message: 'Produit et formulaire dupliqués avec succès' };
         } catch (err) {
-            console.error('Unexpected error:', err);
             return fail(500, {
                 error: 'Erreur inattendue lors de la duplication'
             });
@@ -367,7 +352,6 @@ export const actions: Actions = {
                 .single();
 
             if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
-                console.error('Error checking existing category:', checkError);
                 return fail(500, {
                     error: 'Erreur lors de la vérification de la catégorie'
                 });
@@ -388,10 +372,16 @@ export const actions: Actions = {
                 });
 
             if (insertError) {
-                console.error('Error creating category:', insertError);
                 return fail(500, {
                     error: 'Erreur lors de la création de la catégorie'
                 });
+            }
+
+            // Increment catalog version to invalidate public cache
+            try {
+                await incrementCatalogVersion(locals.supabase, shopId);
+            } catch (error) {
+                // Don't fail the entire operation, just log the warning
             }
 
             // Retourner le formulaire mis à jour pour Superforms
@@ -399,7 +389,6 @@ export const actions: Actions = {
             updatedForm.message = 'Catégorie créée avec succès';
             return { form: updatedForm };
         } catch (err) {
-            console.error('Unexpected error:', err);
             return fail(500, { form });
         }
     },
@@ -465,7 +454,6 @@ export const actions: Actions = {
                 .single();
 
             if (duplicateError && duplicateError.code !== 'PGRST116') {
-                console.error('Error checking duplicate category:', duplicateError);
                 return fail(500, { error: 'Erreur lors de la vérification' });
             }
 
@@ -481,8 +469,14 @@ export const actions: Actions = {
                 .eq('shop_id', shopId);
 
             if (updateError) {
-                console.error('Error updating category:', updateError);
                 return fail(500, { error: 'Erreur lors de la modification de la catégorie' });
+            }
+
+            // Increment catalog version to invalidate public cache
+            try {
+                await incrementCatalogVersion(locals.supabase, shopId);
+            } catch (error) {
+                // Don't fail the entire operation, just log the warning
             }
 
             // Retourner le formulaire mis à jour pour Superforms
@@ -490,7 +484,6 @@ export const actions: Actions = {
             updatedForm.message = 'Catégorie modifiée avec succès';
             return { form: updatedForm };
         } catch (err) {
-            console.error('Unexpected error:', err);
             return fail(500, { form });
         }
     },
@@ -538,7 +531,6 @@ export const actions: Actions = {
                 .eq('shop_id', shopId);
 
             if (productsError) {
-                console.error('Error checking products:', productsError);
                 return fail(500, { error: 'Erreur lors de la vérification des produits' });
             }
 
@@ -556,8 +548,14 @@ export const actions: Actions = {
                 .eq('shop_id', shopId);
 
             if (deleteError) {
-                console.error('Error deleting category:', deleteError);
                 return fail(500, { error: 'Erreur lors de la suppression de la catégorie' });
+            }
+
+            // Increment catalog version to invalidate public cache
+            try {
+                await incrementCatalogVersion(locals.supabase, shopId);
+            } catch (error) {
+                // Don't fail the entire operation, just log the warning
             }
 
             // Retourner le formulaire mis à jour pour Superforms
@@ -565,7 +563,6 @@ export const actions: Actions = {
             deleteForm.message = 'Catégorie supprimée avec succès';
             return { form: deleteForm };
         } catch (err) {
-            console.error('Unexpected error:', err);
             return fail(500, { error: 'Erreur inattendue lors de la suppression' });
         }
     },
@@ -614,7 +611,6 @@ export const actions: Actions = {
                 .eq('shop_id', shopId);
 
             if (updateError) {
-                console.error('Error updating product active status:', updateError);
                 return fail(500, { error: 'Erreur lors de la mise à jour du produit' });
             }
 
@@ -622,7 +618,6 @@ export const actions: Actions = {
             try {
                 await incrementCatalogVersion(locals.supabase, shopId);
             } catch (error) {
-                console.error('Warning: Failed to increment catalog version:', error);
                 // Don't fail the entire operation, just log the warning
             }
 
@@ -631,7 +626,6 @@ export const actions: Actions = {
                 isActive
             };
         } catch (err) {
-            console.error('Unexpected error:', err);
             return fail(500, { error: 'Erreur inattendue lors de la mise à jour' });
         }
     }

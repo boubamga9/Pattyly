@@ -27,7 +27,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         // Vérifier que le fingerprint est présent
         if (!fingerprint) {
-            console.error('❌ Start-trial: Fingerprint manquant');
             return json({ error: 'Fingerprint requis' }, { status: 400 });
         }
 
@@ -44,14 +43,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         // Extraire l'email de base pour éviter le contournement par plus addressing
         const baseEmail = userEmail ? getBaseEmail(userEmail) : '';
 
-        console.log('🔍 Start-trial: Vérification anti-fraude pour:', {
-            userId,
-            userEmail,
-            baseEmail, // ✅ Email de base pour la vérification
-            userIp,
-            planType,
-            fingerprint: fingerprint.substring(0, 8) + '...' // Log partiel pour la sécurité
-        });
+
 
         // Vérifier si l'utilisateur est déjà dans la table anti_fraud
         // On vérifie l'email exact, l'email de base, l'IP ET le fingerprint pour éviter le contournement
@@ -64,11 +56,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             .maybeSingle();
 
         if (existingAntiFraud) {
-            console.log('❌ Anti-fraude: Utilisateur déjà bloqué (contournement détecté)');
+
 
             // ✅ NOUVEAU : Vérifier si c'est le même fingerprint (même device)
             if (existingAntiFraud.fingerprint === fingerprint) {
-                console.log('🔄 Même device détecté, redirection vers checkout');
+
                 return json({
                     error: 'Un essai gratuit a déjà été utilisé avec ce device.',
                     redirectToCheckout: true,
@@ -139,23 +131,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     email: userEmail
                 });
 
-            console.log('✅ Utilisateur enregistré dans anti_fraud:', {
-                userId,
-                userIp,
-                userEmail,
-                fingerprint: fingerprint.substring(0, 8) + '...' // Log partiel
-            });
+
         } catch (antiFraudError) {
-            console.error('⚠️ Erreur enregistrement anti_fraud:', antiFraudError);
             // On continue même si l'enregistrement anti_fraud échoue
         }
 
-        console.log('✅ Essai gratuit créé avec succès:', {
-            userId,
-            planType,
-            subscriptionId: subscription.id,
-            trialEnd: subscription.trial_end
-        });
+
 
         return json({
             success: true,
@@ -164,7 +145,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         });
 
     } catch (error) {
-        console.error('❌ Erreur création essai gratuit:', error);
         return json({ error: 'Erreur interne' }, { status: 500 });
     }
 };

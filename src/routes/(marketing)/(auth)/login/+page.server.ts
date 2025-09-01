@@ -36,7 +36,6 @@ export const actions: Actions = {
 			});
 
 			if (error) {
-				console.error(error);
 				return fail(400, {});
 			}
 
@@ -47,7 +46,7 @@ export const actions: Actions = {
 		const rateLimitExceeded = event.request.headers.get('x-rate-limit-exceeded');
 		if (rateLimitExceeded === 'true') {
 			const rateLimitMessage = event.request.headers.get('x-rate-limit-message') || 'Trop de tentatives. Veuillez patienter.';
-			console.log('🚫 Rate limiting détecté dans l\'action login:', rateLimitMessage);
+
 
 			// Utiliser setError au lieu de fail pour une meilleure gestion
 			const form = await superValidate(zod(formSchema));
@@ -71,7 +70,6 @@ export const actions: Actions = {
 		});
 
 		if (error) {
-			console.error('🚨 Erreur lors de la connexion:', error);
 
 			// Détecter l'erreur "Email not confirmed"
 			if (error.code === 'email_not_confirmed') {

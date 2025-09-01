@@ -18,9 +18,8 @@ export const load: PageServerLoad = async ({
 	let price;
 	try {
 		price = await stripe.prices.retrieve(params.priceID);
-		console.log('✅ Stripe price retrieved:', price.id);
+
 	} catch (stripeError: unknown) {
-		console.error('❌ Stripe price not found:', params.priceID, stripeError);
 		error(404, `Price ID "${params.priceID}" not found in Stripe. Please configure your Stripe products and prices.`);
 	}
 
@@ -39,7 +38,7 @@ export const load: PageServerLoad = async ({
 	}
 
 	// Vérifier si l'utilisateur a déjà un customer Stripe
-	console.log('🔍 Checking existing Stripe customer for user:', user.id);
+
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const { data: existingCustomer } = await (_supabaseServiceRole as any)
 		.from('stripe_customers')
@@ -51,10 +50,10 @@ export const load: PageServerLoad = async ({
 	if (existingCustomer) {
 		// Utiliser le customer existant
 		customer = existingCustomer.stripe_customer_id;
-		console.log('✅ Using existing Stripe customer:', customer);
+
 	} else {
 		// Créer un nouveau customer Stripe
-		console.log('🆕 Creating new Stripe customer for user:', user.email);
+
 		try {
 			const { id } = await stripe.customers.create({
 				email: user.email,
@@ -63,9 +62,8 @@ export const load: PageServerLoad = async ({
 				},
 			});
 			customer = id;
-			console.log('✅ New Stripe customer created:', customer);
+
 		} catch (customerError) {
-			console.error('❌ Error creating Stripe customer:', customerError);
 			error(500, 'Error creating customer. Please try again.');
 		}
 	}
@@ -99,12 +97,11 @@ export const load: PageServerLoad = async ({
 				});
 				return redirect(303, '/subscription');
 			} catch (updateError) {
-				console.error('❌ Error updating subscription:', updateError);
 				error(500, 'Error updating subscription. Please try again.');
 			}
 		} else {
 			// Pas d'abonnement actif, créer un nouveau
-			console.log('User had subscription before but none active, creating new one');
+
 		}
 	}
 
@@ -147,7 +144,6 @@ export const load: PageServerLoad = async ({
 		});
 		checkoutUrl = checkoutSession.url;
 	} catch (e) {
-		console.error('❌ Error creating checkout session:', e);
 		if (e instanceof Stripe.errors.StripeError) {
 			error(500, `Stripe Error: ${e.message}`);
 		} else {

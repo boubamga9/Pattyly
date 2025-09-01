@@ -60,7 +60,6 @@ export async function getImageDimensions(file: File): Promise<{ width: number; h
             height: metadata.height || 0
         };
     } catch (error) {
-        console.error('Erreur lors de la lecture des dimensions:', error);
         throw new Error('Impossible de lire les dimensions de l\'image');
     }
 }
@@ -131,7 +130,6 @@ export async function compressImageServer(
         };
 
     } catch (error) {
-        console.error('Erreur lors de la compression serveur:', error);
         throw new Error('Erreur lors de la compression de l\'image');
     }
 }
@@ -157,20 +155,6 @@ export function logCompressionInfo(
     result: ServerCompressionResult
 ): void {
     const options = SERVER_COMPRESSION_PRESETS[preset] as ServerCompressionOptions;
-
-    console.log('🔧 Compression serveur:', {
-        fileName: file.name,
-        preset,
-        originalSize: formatFileSize(result.originalSize),
-        compressedSize: formatFileSize(result.compressedSize),
-        originalDimensions: `${result.originalDimensions.width}x${result.originalDimensions.height}`,
-        compressedDimensions: `${result.compressedDimensions.width}x${result.compressedDimensions.height}`,
-        compressionRatio: `${result.compressionRatio.toFixed(1)}%`,
-        wasRecompressed: result.wasRecompressed,
-        maxDimensions: `${options.maxWidth}x${options.maxHeight}`,
-        quality: options.quality,
-        format: options.format
-    });
 }
 
 /**

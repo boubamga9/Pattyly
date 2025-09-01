@@ -50,7 +50,6 @@
 			// Émettre l'événement
 			dispatch('imageSelected', processedImage);
 		} catch (error) {
-			console.error("Erreur lors du traitement de l'image:", error);
 			errorMessage = "Erreur lors du traitement de l'image";
 		} finally {
 			isProcessing = false;

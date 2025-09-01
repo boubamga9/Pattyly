@@ -129,7 +129,6 @@ export async function validateImageServer(
         };
 
     } catch (error) {
-        console.error('Erreur lors de la validation serveur:', error);
         return {
             isValid: false,
             error: 'Erreur lors de la validation du fichier',
@@ -172,14 +171,4 @@ export function logValidationInfo(
     result: ServerImageValidationResult
 ): void {
     const options = SERVER_VALIDATION_PRESETS[preset];
-
-    console.log('🔍 Validation serveur:', {
-        fileName: file.name,
-        fileSize: formatFileSize(file.size),
-        fileType: file.type,
-        preset,
-        maxDimensions: `${options.maxWidth}x${options.maxHeight}`,
-        maxSize: formatFileSize(options.maxSizeBytes),
-        validationResult: result
-    });
 }

@@ -76,10 +76,8 @@
 				// Fermer la confirmation
 				confirmingDeleteId = null;
 			} else {
-				console.error('Erreur lors de la suppression');
 			}
 		} catch (error) {
-			console.error('Erreur lors de la suppression:', error);
 		}
 	}
 </script>

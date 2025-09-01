@@ -10,39 +10,29 @@ const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
 export const POST: RequestHandler = async ({ request, locals }) => {
     try {
         const orderData = await request.json();
-        console.log('=== API CREATE PAYMENT SESSION ===');
-        console.log('Données reçues:', JSON.stringify(orderData, null, 2));
 
         // Validation des données
         if (!orderData.productId) {
-            console.log('❌ productId manquant');
             return json({ error: 'productId manquant' }, { status: 400 });
         }
         if (!orderData.shopId) {
-            console.log('❌ shopId manquant');
             return json({ error: 'shopId manquant' }, { status: 400 });
         }
         if (!orderData.customerName) {
-            console.log('❌ customerName manquant');
             return json({ error: 'customerName manquant' }, { status: 400 });
         }
         if (!orderData.customerEmail) {
-            console.log('❌ customerEmail manquant');
             return json({ error: 'customerEmail manquant' }, { status: 400 });
         }
         if (!orderData.selectedDate) {
-            console.log('❌ selectedDate manquant');
             return json({ error: 'selectedDate manquant' }, { status: 400 });
         }
         if (typeof orderData.totalPrice !== 'number' || orderData.totalPrice <= 0) {
-            console.log('❌ totalPrice invalide:', orderData.totalPrice);
             return json({ error: 'totalPrice invalide' }, { status: 400 });
         }
 
-        console.log('✅ Validation des données OK');
 
         // Récupérer les informations de la boutique et son compte Stripe Connect
-        console.log('🔍 Récupération des infos boutique...');
         const { data: shop, error: shopError } = await locals.supabase
             .from('shops')
             .select('profile_id')
@@ -50,18 +40,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             .single();
 
         if (shopError) {
-            console.log('❌ Erreur récupération boutique:', shopError);
             return json({ error: 'Erreur récupération boutique' }, { status: 400 });
         }
 
-        console.log('📊 Données boutique:', shop);
 
         if (!shop?.profile_id) {
             return json({ error: 'Boutique invalide' }, { status: 400 });
         }
 
         // Récupérer le compte Stripe Connect du profil
-        console.log('🔍 Récupération du compte Stripe Connect...');
         const { data: stripeAccount, error: stripeError } = await locals.supabase
             .from('stripe_connect_accounts')
             .select('stripe_account_id')
@@ -70,11 +57,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             .single();
 
         if (stripeError) {
-            console.log('❌ Erreur récupération compte Stripe:', stripeError);
             return json({ error: 'Compte Stripe non trouvé' }, { status: 400 });
         }
 
-        console.log('📊 Compte Stripe:', stripeAccount);
 
         if (!stripeAccount?.stripe_account_id) {
             return json({ error: 'Boutique non configurée pour les paiements' }, { status: 400 });
@@ -83,8 +68,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const stripeAccountId = stripeAccount.stripe_account_id;
 
         // Log pour debug
-        console.log('🔍 Compte principal Pattyly:', stripeAccountId);
-        console.log('🔍 Comptes Connect connus:', ['acct_1RteYnAokGuma9up', 'acct_1RtdxQAGwWDDWxQc']);
 
         // Récupérer le prix du produit depuis la base de données pour la sécurité
         const { data: product, error: productError } = await locals.supabase
@@ -99,7 +82,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         // Calculer le prix total avec les options sélectionnées (DOUBLE CALCUL POUR LA SÉCURITÉ)
         let totalPrice = product.base_price;
-        console.log('💰 Prix de base du produit:', product.base_price);
 
         if (orderData.selectedOptions && Object.keys(orderData.selectedOptions).length > 0) {
             // Récupérer le formulaire de personnalisation du produit pour validation
@@ -128,9 +110,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                                 if (validOption) {
                                     const optionPrice = validOption.price || 0;
                                     totalPrice += optionPrice;
-                                    console.log(`💰 Option "${fieldData.label}" validée: +${optionPrice}€ (total: ${totalPrice}€)`);
                                 } else {
-                                    console.warn(`⚠️ Option invalide détectée: ${fieldData.value} pour le champ ${field.label}`);
                                 }
                             } else if (field.type === 'multi-select' && fieldData.values && Array.isArray(fieldData.values)) {
                                 // Multi-select : vérifier chaque valeur
@@ -139,7 +119,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                                     if (validOption) {
                                         const optionPrice = validOption.price || 0;
                                         totalPrice += optionPrice;
-                                        console.log(`💰 Option multi "${optionData.label}" validée: +${optionPrice}€ (total: ${totalPrice}€)`);
                                     }
                                 });
                             }
@@ -149,25 +128,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             }
         }
 
-        console.log('💰 Prix total calculé côté serveur (VALIDÉ):', totalPrice);
 
         // Calculer le montant de l'acompte (50%) avec le prix sécurisé
         const depositAmount = Math.round(totalPrice * 50); // Stripe utilise les centimes
 
-        // Vérifier la cohérence entre le prix front et le prix back (sécurité + UX)
-        if (Math.abs(orderData.totalPrice - totalPrice) > 0.01) { // Tolérance de 1 centime
-            console.warn('⚠️ Prix front/back différent:', {
-                frontPrice: orderData.totalPrice,
-                backPrice: totalPrice,
-                difference: Math.abs(orderData.totalPrice - totalPrice)
-            });
-
-            // Option 1: Rejeter la commande (sécurisé mais UX dégradée)
-            // return json({ error: 'Prix incorrect détecté' }, { status: 400 });
-
-            // Option 2: Utiliser le prix back et continuer (sécurisé + UX préservée)
-            console.log('✅ Utilisation du prix sécurisé côté serveur');
-        }
 
         // Récupérer le slug de la boutique
         const { data: shopData } = await locals.supabase
@@ -185,10 +149,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const successUrl = `${origin}/${shopData.slug}/order/{CHECKOUT_SESSION_ID}`;
         const cancelUrl = `${origin}/${shopData.slug}/product/${orderData.productId}`;
 
-        console.log('🔗 URLs de redirection:');
-        console.log('  - Origin:', origin);
-        console.log('  - Success URL:', successUrl);
-        console.log('  - Cancel URL:', cancelUrl);
 
         // Transformer les données de personnalisation (IDs → Labels avec métadonnées complètes)
         const transformedCustomizationData: Record<string, any> = {};
@@ -225,11 +185,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             }
         }
 
-        console.log('📝 Données de personnalisation transformées:', transformedCustomizationData);
-        console.log('🔍 Structure des données originales:', JSON.stringify(orderData.selectedOptions, null, 2));
 
         // 🗄️ SAUVEGARDER LES DONNÉES COMPLÈTES DANS pending_orders
-        console.log('💾 Sauvegarde des données complètes dans pending_orders...');
         const { data: pendingOrder, error: pendingOrderError } = await locals.supabase
             .from('pending_orders')
             .insert({
@@ -244,11 +201,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             .single();
 
         if (pendingOrderError) {
-            console.error('❌ Erreur sauvegarde pending_order:', pendingOrderError);
             return json({ error: 'Erreur lors de la sauvegarde des données' }, { status: 500 });
         }
 
-        console.log('✅ Données sauvegardées avec ID:', pendingOrder.id);
 
         // Créer la session de paiement
         const session = await stripe.checkout.sessions.create({
@@ -286,7 +241,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         return json({ sessionUrl: session.url });
     } catch (error) {
-        console.error('Erreur création session Stripe:', error);
         return json({ error: 'Erreur lors de la création de la session de paiement' }, { status: 500 });
     }
 }; 

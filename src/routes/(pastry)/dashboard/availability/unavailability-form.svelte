@@ -22,7 +22,6 @@
 	const { form: formData, enhance, submitting, message } = form;
 
 	$: if ($message) {
-		console.log('✅ Indisponibilité ajoutée -> fermeture du formulaire');
 		onCancel();
 	}
 

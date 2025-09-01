@@ -20,14 +20,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         throw error(403, 'Accès refusé');
     }
 
-    // Debug: Afficher les permissions pour comprendre le problème
-    console.log('🔧 Debug permissions:', {
-        userId: user.id,
-        plan: permissions.plan,
-        canManageCustomForms: permissions.canManageCustomForms,
-        canHandleCustomRequests: permissions.canHandleCustomRequests,
-        allPermissions: permissions
-    });
+
 
     // Préparer un formulaire de toggle par défaut (toujours présent)
     const toggleForm = await superValidate(zod(toggleCustomRequestsFormSchema));
@@ -59,7 +52,6 @@ export const load: PageServerLoad = async ({ locals }) => {
         .single();
 
     if (shopError) {
-        console.error('Error fetching shop:', shopError);
         throw error(500, 'Erreur lors du chargement des informations de la boutique');
     }
 
@@ -72,7 +64,6 @@ export const load: PageServerLoad = async ({ locals }) => {
         .single();
 
     if (formError && formError.code !== 'PGRST116') {
-        console.error('Error fetching custom form:', formError);
         throw error(500, 'Erreur lors du chargement du formulaire personnalisé');
     }
 
@@ -86,7 +77,6 @@ export const load: PageServerLoad = async ({ locals }) => {
             .order('order');
 
         if (fieldsError) {
-            console.error('Error fetching form fields:', fieldsError);
             throw error(500, 'Erreur lors du chargement des champs du formulaire');
         }
 
@@ -156,7 +146,6 @@ export const actions: Actions = {
                 .eq('id', permissions.shopId);
 
             if (updateError) {
-                console.error('Error updating shop:', updateError);
                 const toggleForm = await superValidate(zod(toggleCustomRequestsFormSchema));
                 toggleForm.message = 'Erreur lors de la mise à jour des paramètres';
                 return { toggleForm, form: toggleForm };
@@ -166,7 +155,6 @@ export const actions: Actions = {
             try {
                 await incrementCatalogVersion(locals.supabase, permissions.shopId);
             } catch (error) {
-                console.error('Warning: Failed to increment catalog version:', error);
                 // Don't fail the entire operation, just log the warning
             }
 
@@ -177,7 +165,6 @@ export const actions: Actions = {
                 : 'Demandes personnalisées désactivées';
             return { toggleForm, form: toggleForm };
         } catch (err) {
-            console.error('Unexpected error:', err);
             const toggleForm = await superValidate(zod(toggleCustomRequestsFormSchema));
             toggleForm.message = 'Erreur inattendue lors de la mise à jour';
             return { toggleForm, form: toggleForm };
@@ -249,7 +236,6 @@ export const actions: Actions = {
                     .single();
 
                 if (createError) {
-                    console.error('Error creating form:', createError);
                     const updateForm = await superValidate(zod(updateCustomFormFormSchema));
                     updateForm.message = 'Erreur lors de la création du formulaire';
                     return { updateForm, form: updateForm };
@@ -269,7 +255,6 @@ export const actions: Actions = {
                     .eq('id', formId);
 
                 if (updateFormError) {
-                    console.error('Error updating form title/description:', updateFormError);
                     const updateForm = await superValidate(zod(updateCustomFormFormSchema));
                     updateForm.message = 'Erreur lors de la mise à jour du formulaire';
                     return { updateForm, form: updateForm };
@@ -302,7 +287,6 @@ export const actions: Actions = {
                     .insert(formFields);
 
                 if (fieldsError) {
-                    console.error('Error updating form fields:', fieldsError);
                     const updateForm = await superValidate(zod(updateCustomFormFormSchema));
                     updateForm.message = 'Erreur lors de la mise à jour des champs';
                     return { updateForm, form: updateForm };
@@ -313,7 +297,6 @@ export const actions: Actions = {
             try {
                 await incrementCatalogVersion(locals.supabase, permissions.shopId);
             } catch (error) {
-                console.error('Warning: Failed to increment catalog version:', error);
                 // Don't fail the entire operation, just log the warning
             }
 
@@ -322,7 +305,6 @@ export const actions: Actions = {
             updateForm.message = 'Formulaire personnalisé mis à jour avec succès';
             return { updateForm, form: updateForm };
         } catch (parseError) {
-            console.error('Error parsing custom fields:', parseError);
             const updateForm = await superValidate(zod(updateCustomFormFormSchema));
             updateForm.message = 'Erreur lors du traitement des données du formulaire';
             return { updateForm, form: updateForm };

@@ -70,7 +70,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         return json({ url: session.url });
     } catch (error) {
-        console.error('Erreur création session paiement custom:', error);
         return json({ error: 'Erreur interne' }, { status: 500 });
     }
 }; 

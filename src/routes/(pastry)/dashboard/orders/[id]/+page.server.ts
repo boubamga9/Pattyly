@@ -53,7 +53,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
                 const paymentIntent = await stripe.paymentIntents.retrieve(order.stripe_payment_intent_id);
                 paidAmount = paymentIntent.amount / 100; // Stripe stocke en centimes
             } catch (stripeError) {
-                console.error('Erreur récupération Stripe:', stripeError);
                 // On continue sans le montant Stripe
             }
         }
@@ -67,7 +66,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             .single();
 
         if (noteError && noteError.code !== 'PGRST116') {
-            console.error('Erreur récupération note:', noteError);
         }
 
         // Récupérer les informations de la boutique
@@ -103,7 +101,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             personalNoteForm
         };
     } catch (err) {
-        console.error('Erreur load order detail page:', err);
         throw err;
     }
 };
@@ -157,7 +154,6 @@ export const actions: Actions = {
                 });
 
             if (upsertError) {
-                console.error('Erreur sauvegarde note:', upsertError);
                 return fail(500, { error: 'Erreur lors de la sauvegarde' });
             }
 
@@ -165,14 +161,12 @@ export const actions: Actions = {
             form.message = 'Note sauvegardée avec succès';
             return { form };
         } catch (err) {
-            console.error('Erreur savePersonalNote:', err);
             return fail(500, { error: 'Erreur serveur' });
         }
     },
 
     // Faire un devis pour une commande en attente
     makeQuote: async ({ request, params, locals }) => {
-        console.log('🔍 Action makeQuote appelée !');
         try {
             // Valider avec Superforms
             const form = await superValidate(request, zod(makeQuoteFormSchema));
@@ -231,7 +225,6 @@ export const actions: Actions = {
                 .eq('shop_id', shop.id);
 
             if (updateError) {
-                console.error('Erreur mise à jour commande:', updateError);
                 return fail(500, { error: 'Erreur lors de la mise à jour de la commande' });
             }
 
@@ -239,7 +232,6 @@ export const actions: Actions = {
             form.message = 'Devis envoyé avec succès';
             return { form };
         } catch (err) {
-            console.error('Erreur makeQuote:', err);
             return fail(500, { error: 'Erreur interne' });
         }
     },
@@ -288,7 +280,6 @@ export const actions: Actions = {
                 .eq('shop_id', shop.id);
 
             if (updateError) {
-                console.error('Erreur mise à jour commande:', updateError);
                 return fail(500, { error: 'Erreur lors de la mise à jour de la commande' });
             }
 
@@ -296,7 +287,6 @@ export const actions: Actions = {
             form.message = 'Commande refusée avec succès';
             return { form };
         } catch (err) {
-            console.error('Erreur rejectOrder:', err);
             return fail(500, { error: 'Erreur interne' });
         }
     },
@@ -332,13 +322,11 @@ export const actions: Actions = {
                 .eq('shop_id', shop.id);
 
             if (updateError) {
-                console.error('Erreur mise à jour commande:', updateError);
                 return fail(500, { error: 'Erreur lors de la mise à jour de la commande' });
             }
 
             return { message: 'Commande marquée comme prête' };
         } catch (err) {
-            console.error('Erreur makeOrderReady:', err);
             return fail(500, { error: 'Erreur interne' });
         }
     },
@@ -374,13 +362,11 @@ export const actions: Actions = {
                 .eq('shop_id', shop.id);
 
             if (updateError) {
-                console.error('Erreur mise à jour commande:', updateError);
                 return fail(500, { error: 'Erreur lors de la mise à jour de la commande' });
             }
 
             return { message: 'Commande marquée comme terminée' };
         } catch (err) {
-            console.error('Erreur makeOrderCompleted:', err);
             return fail(500, { error: 'Erreur interne' });
         }
     },
@@ -432,13 +418,11 @@ export const actions: Actions = {
                 .eq('shop_id', shop.id);
 
             if (updateError) {
-                console.error('Erreur mise à jour commande:', updateError);
                 return fail(500, { error: 'Erreur lors de la mise à jour de la commande' });
             }
 
             return { message: 'Commande annulée avec succès' };
         } catch (err) {
-            console.error('Erreur cancelOrder:', err);
             return fail(500, { error: 'Erreur interne' });
         }
     },
@@ -474,13 +458,11 @@ export const actions: Actions = {
                 .eq('shop_id', shop.id);
 
             if (deleteError) {
-                console.error('Erreur suppression note:', deleteError);
                 return fail(500, { error: 'Erreur lors de la suppression' });
             }
 
             return { success: true, message: 'Note supprimée avec succès' };
         } catch (err) {
-            console.error('Error deletePersonalNote:', err);
             return fail(500, { error: 'Erreur serveur' });
         }
     }

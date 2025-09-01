@@ -23,9 +23,7 @@
 			const fp = await FingerprintJS.default.load();
 			const result = await fp.get();
 			deviceFingerprint = result.visitorId;
-			console.log('🔍 FingerprintJS chargé:', deviceFingerprint);
 		} catch (error) {
-			console.error('❌ Erreur FingerprintJS:', error);
 			// En cas d'erreur, on continue sans fingerprint
 		} finally {
 			fingerprintLoading = false;
@@ -63,18 +61,15 @@
 				}, 3000);
 			} else {
 				const error = await response.json();
-				console.error('Erreur:', error);
 
 				// ✅ NOUVEAU : Gérer la redirection vers checkout
 				if (error.redirectToCheckout && error.priceId) {
-					console.log('🔄 Redirection vers checkout:', error.priceId);
 					window.location.href = `/checkout/${error.priceId}`;
 				} else {
 					alert("Erreur lors du démarrage de l'essai gratuit");
 				}
 			}
 		} catch (error) {
-			console.error('Erreur démarrage essai:', error);
 			alert("Erreur lors du démarrage de l'essai gratuit");
 		} finally {
 			trialLoading = false;

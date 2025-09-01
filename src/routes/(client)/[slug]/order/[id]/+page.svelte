@@ -142,11 +142,8 @@
 				const { url } = await response.json();
 				window.location.href = url;
 			} else {
-				console.error('Erreur lors de la création de la session de paiement');
 			}
-		} catch (error) {
-			console.error('Erreur:', error);
-		}
+		} catch (error) {}
 	}
 
 	// Fonction pour refuser le devis
@@ -173,11 +170,8 @@
 					// Recharger la page pour voir le nouveau statut
 					window.location.reload();
 				} else {
-					console.error('Erreur lors du refus du devis');
 				}
-			} catch (error) {
-				console.error('Erreur:', error);
-			}
+			} catch (error) {}
 		}
 	}
 </script>

@@ -28,7 +28,6 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
         .order('name');
 
     if (categoriesError) {
-        console.error('Error fetching categories:', categoriesError);
     }
 
     // Initialiser les formulaires Superforms
@@ -96,14 +95,12 @@ export const actions: Actions = {
                     .single();
 
                 if (categoryError) {
-                    console.error('Error creating category:', categoryError);
                     return fail(500, { form, error: 'Erreur lors de la création de la catégorie' });
                 }
 
                 // Utiliser l'ID de la nouvelle catégorie
                 finalCategoryId = newCategory.id;
             } catch (err) {
-                console.error('Unexpected error creating category:', err);
                 return fail(500, { form, error: 'Erreur lors de la création de la catégorie' });
             }
         } else if (category_id === 'temp-new-category') {
@@ -145,7 +142,6 @@ export const actions: Actions = {
                     });
 
                 if (uploadError) {
-                    console.error('Error uploading image:', uploadError);
                     return fail(500, { error: 'Erreur lors de l\'upload de l\'image' });
                 }
 
@@ -156,7 +152,6 @@ export const actions: Actions = {
 
                 imageUrl = urlData.publicUrl;
             } catch (err) {
-                console.error('Error processing image upload:', err);
                 return fail(500, { error: 'Erreur lors du traitement de l\'image' });
             }
         }
@@ -178,7 +173,6 @@ export const actions: Actions = {
                 .single();
 
             if (insertError) {
-                console.error('Error adding product:', insertError);
                 return fail(500, { error: 'Erreur lors de l\'ajout du produit' });
             }
 
@@ -195,7 +189,6 @@ export const actions: Actions = {
                     .single();
 
                 if (formError) {
-                    console.error('Error creating form:', formError);
                     return fail(500, { form, error: 'Erreur lors de la création du formulaire' });
                 }
 
@@ -214,7 +207,6 @@ export const actions: Actions = {
                     .insert(formFields);
 
                 if (fieldsError) {
-                    console.error('Error creating form fields:', fieldsError);
                     return fail(500, { form, error: 'Erreur lors de la création des champs du formulaire' });
                 }
 
@@ -225,12 +217,10 @@ export const actions: Actions = {
                     .eq('id', product.id);
 
                 if (updateError) {
-                    console.error('Error updating product with form_id:', updateError);
                     return fail(500, { form, error: 'Erreur lors de l\'association du formulaire au produit' });
                 }
             }
         } catch (err) {
-            console.error('Unexpected error:', err);
             return fail(500, { form, error: 'Erreur inattendue lors de l\'ajout du produit' });
         }
 
@@ -238,7 +228,6 @@ export const actions: Actions = {
         try {
             await incrementCatalogVersion(locals.supabase, shopId);
         } catch (error) {
-            console.error('Warning: Failed to increment catalog version:', error);
             // Don't fail the entire operation, just log the warning
         }
 
@@ -283,7 +272,6 @@ export const actions: Actions = {
                 .single();
 
             if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
-                console.error('Error checking existing category:', checkError);
                 return fail(500, { form, error: 'Erreur lors de la vérification de la catégorie' });
             }
 
@@ -302,7 +290,6 @@ export const actions: Actions = {
                 .single();
 
             if (insertError) {
-                console.error('Error creating category:', insertError);
                 return fail(500, { form, error: 'Erreur lors de la création de la catégorie' });
             }
 
@@ -310,7 +297,6 @@ export const actions: Actions = {
             try {
                 await incrementCatalogVersion(locals.supabase, shopId);
             } catch (error) {
-                console.error('Warning: Failed to increment catalog version:', error);
                 // Don't fail the entire operation, just log the warning
             }
 
@@ -319,7 +305,6 @@ export const actions: Actions = {
             form.message = 'Catégorie créée avec succès';
             return { form, category: newCategory };
         } catch (err) {
-            console.error('Unexpected error:', err);
             return fail(500, { form, error: 'Erreur inattendue lors de la création de la catégorie' });
         }
     }

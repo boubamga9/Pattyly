@@ -73,10 +73,7 @@ export const load = async ({ locals }) => {
 
     // Debug: Log des erreurs et données
     if (recentOrdersError) {
-        console.error('❌ Erreur récupération commandes récentes:', recentOrdersError);
     } else {
-        console.log('✅ Commandes récentes récupérées:', recentOrders?.length || 0);
-        console.log('📋 Détails des commandes:', recentOrders);
     }
 
 
@@ -115,10 +112,7 @@ export const load = async ({ locals }) => {
 
     // Debug: Log des gâteaux populaires
     if (popularProductsError) {
-        console.error('❌ Erreur récupération gâteaux populaires:', popularProductsError);
     } else {
-        console.log('✅ Gâteaux populaires récupérés:', popularProducts?.length || 0);
-        console.log('📋 Détails des gâteaux populaires:', popularProducts);
     }
 
     // Process popular products data - Version corrigée

@@ -31,7 +31,6 @@ export const load: PageServerLoad = async ({ locals: { stripe } }) => {
 
         // Vérifier qu'on a au moins 2 prix configurés
         if (sortedPrices.length < 2) {
-            console.warn(`Only ${sortedPrices.length} Stripe prices found. Need at least 2 for pricing page.`);
             // Retourner des données par défaut pour éviter l'erreur
             return {
                 plans: [] as Plan[],
@@ -81,7 +80,6 @@ export const load: PageServerLoad = async ({ locals: { stripe } }) => {
             plans,
         };
     } catch (error) {
-        console.error('🚨 Erreur lors du chargement des tarifs:', error);
         return {
             plans: [] as Plan[],
         };

@@ -18,7 +18,6 @@ export async function incrementCatalogVersion(
             .single();
 
         if (fetchError || !data) {
-            console.error('Error fetching catalog version:', fetchError);
             throw new Error('Failed to fetch current catalog version');
         }
 
@@ -32,11 +31,9 @@ export async function incrementCatalogVersion(
             .eq('id', shopId);
 
         if (updateError) {
-            console.error('Error incrementing catalog version:', updateError);
             throw new Error('Failed to increment catalog version');
         }
     } catch (error) {
-        console.error('Error in incrementCatalogVersion:', error);
         throw error;
     }
 }
@@ -56,13 +53,11 @@ export async function getCatalogVersion(
             .single();
 
         if (error) {
-            console.error('Error getting catalog version:', error);
             return 1; // fallback si jamais la requête échoue
         }
 
         return data?.catalog_version || 1;
     } catch (error) {
-        console.error('Error in getCatalogVersion:', error);
         return 1; // fallback si erreur JS
     }
 }

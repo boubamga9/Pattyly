@@ -39,7 +39,6 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders }) => {
             }
         };
     } catch (err) {
-        console.error('🚨 Erreur lors du chargement du catalogue de la boutique:', err);
 
         // Si c'est une erreur 404, la relancer
         if (err instanceof Error && err.message.includes('404')) {

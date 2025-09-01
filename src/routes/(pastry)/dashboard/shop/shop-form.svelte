@@ -50,13 +50,11 @@
 
 			// Validate file type
 			if (!file.type.startsWith('image/')) {
-				console.error('Veuillez sélectionner une image');
 				return;
 			}
 
 			// Validate file size before compression (max 5MB pour éviter les abus)
 			if (file.size > 5 * 1024 * 1024) {
-				console.error("L'image ne doit pas dépasser 5MB");
 				return;
 			}
 
@@ -80,8 +78,6 @@
 				logoPreview = e.target?.result as string;
 			};
 			reader.readAsDataURL(compressionResult.file);
-		} catch (error) {
-			console.error('Erreur lors de la compression:', error);
 		} finally {
 			isCompressing = false;
 		}
@@ -96,16 +92,13 @@
 
 	async function copyShopUrl() {
 		const fullUrl = `https://pattyly.com/${$formData.slug}`;
-		try {
-			await navigator.clipboard.writeText(fullUrl);
-			copySuccess = true;
-			// Reset after 2 seconds
-			setTimeout(() => {
-				copySuccess = false;
-			}, 2000);
-		} catch (err) {
-			console.error('Error copying URL:', err);
-		}
+
+		await navigator.clipboard.writeText(fullUrl);
+		copySuccess = true;
+		// Reset after 2 seconds
+		setTimeout(() => {
+			copySuccess = false;
+		}, 2000);
 	}
 </script>
 
@@ -155,7 +148,8 @@
 			</div>
 		{:else}
 			<div class="flex justify-center">
-				<div
+				<button
+					type="button"
 					class="flex h-32 w-32 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/20 transition-colors hover:border-primary hover:bg-muted/50"
 					on:click={() => document.getElementById('logo')?.click()}
 				>
@@ -163,7 +157,7 @@
 					<p class="text-center text-xs text-muted-foreground">
 						Cliquez pour sélectionner votre logo
 					</p>
-				</div>
+				</button>
 			</div>
 		{/if}
 

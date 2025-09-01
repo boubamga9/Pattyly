@@ -53,7 +53,6 @@
 				}
 			}
 		} catch (error) {
-			console.error('Erreur:', error);
 			resendError = true;
 			setTimeout(() => {
 				resendError = false;

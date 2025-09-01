@@ -78,7 +78,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
         hasInactiveSubscription = !!inactiveSubscription;
     }
 
-    console.log('🔧 Mode production : vérifications passées pour', userId);
+
 
     const permissions = await getUserPermissions(userId, locals.supabase);
 

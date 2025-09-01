@@ -29,7 +29,6 @@ export const load: PageServerLoad = async ({ locals }) => {
                 .single();
 
             if (shopError) {
-                console.error('Error fetching shop:', shopError);
                 throw error(500, 'Erreur lors du chargement de la boutique');
             }
 
@@ -41,7 +40,6 @@ export const load: PageServerLoad = async ({ locals }) => {
                 .single();
 
             if (stripeError && stripeError.code !== 'PGRST116') {
-                console.error('Error fetching Stripe account:', stripeError);
             }
 
             // If shop exists and has active Stripe Connect, redirect to dashboard
@@ -64,7 +62,6 @@ export const load: PageServerLoad = async ({ locals }) => {
             form: await superValidate(zod(formSchema))
         };
     } catch (error) {
-        console.error('🚨 Critical error in onboarding load:', error);
 
         // Return fallback data to prevent app crash
         return {
@@ -130,7 +127,6 @@ export const actions: Actions = {
                         });
 
                     if (uploadError) {
-                        console.error('Logo upload error:', uploadError);
                         // Create a clean form without File objects for serialization
                         const cleanForm = await superValidate(zod(formSchema));
                         setError(cleanForm, 'logo', 'Erreur lors du téléchargement du logo');
@@ -144,7 +140,6 @@ export const actions: Actions = {
 
                     logoUrl = urlData.publicUrl;
                 } catch (uploadError) {
-                    console.error('Logo upload error:', uploadError);
                     // Create a clean form without File objects for serialization
                     const cleanForm = await superValidate(zod(formSchema));
                     setError(cleanForm, 'logo', 'Erreur lors du téléchargement du logo');
@@ -161,7 +156,6 @@ export const actions: Actions = {
                     .single();
 
                 if (slugCheckError && slugCheckError.code !== 'PGRST116') {
-                    console.error('Error checking slug:', slugCheckError);
                     // Create a clean form without File objects for serialization
                     const cleanForm = await superValidate(zod(formSchema));
                     setError(cleanForm, 'slug', 'Erreur lors de la vérification du slug');
@@ -189,7 +183,6 @@ export const actions: Actions = {
                     .single();
 
                 if (createError) {
-                    console.error('Shop creation error:', createError);
                     // Create a clean form without File objects for serialization
                     const cleanForm = await superValidate(zod(formSchema));
                     setError(cleanForm, 'name', 'Erreur lors de la création de la boutique');
@@ -211,17 +204,15 @@ export const actions: Actions = {
                     .insert(availabilities);
 
                 if (availabilitiesError) {
-                    console.error('Error creating default availabilities:', availabilitiesError);
                     // Don't fail the shop creation, just log the error
                 } else {
-                    console.log('✅ Default availabilities created for shop:', shop.id);
+
                 }
 
                 // Increment catalog version for cache invalidation
                 try {
                     await incrementCatalogVersion(locals.supabase, shop.id);
                 } catch (cacheError) {
-                    console.warn('Failed to increment catalog version:', cacheError);
                     // Non-critical error, don't fail the operation
                 }
 
@@ -235,14 +226,12 @@ export const actions: Actions = {
                     shop
                 };
             } catch (error) {
-                console.error('Unexpected error during shop creation:', error);
                 // Create a clean form for serialization
                 const cleanForm = await superValidate(zod(formSchema));
                 setError(cleanForm, 'name', 'Une erreur inattendue est survenue lors de la création de la boutique');
                 return { form: cleanForm };
             }
         } catch (error) {
-            console.error('🚨 Critical error in createShop action:', error);
 
             // Always return a form for Superforms compatibility
             const form = await superValidate(zod(formSchema));
@@ -273,7 +262,6 @@ export const actions: Actions = {
                     .single();
 
                 if (fetchError && fetchError.code !== 'PGRST116') {
-                    console.error('Error fetching existing Stripe account:', fetchError);
                     // Create a clean form for Superforms compatibility
                     const cleanForm = await superValidate(zod(formSchema));
                     setError(cleanForm, 'name', 'Erreur lors de la vérification du compte Stripe');
@@ -284,7 +272,7 @@ export const actions: Actions = {
 
                 if (!existingAccount) {
                     // Create new Stripe Connect account
-                    console.log('🆕 Creating new Stripe Connect account for user:', userId);
+
                     const account = await locals.stripe.accounts.create({
                         type: 'express',
                         country: 'FR', // Default to France, can be made configurable
@@ -307,20 +295,19 @@ export const actions: Actions = {
                         });
 
                     if (insertError) {
-                        console.error('Error saving new Stripe account:', insertError);
                         // Create a clean form for Superforms compatibility
                         const cleanForm = await superValidate(zod(formSchema));
                         setError(cleanForm, 'name', 'Erreur lors de la sauvegarde du compte Stripe');
                         return { form: cleanForm };
                     }
 
-                    console.log('✅ New Stripe account created and saved:', account.id);
+
                 } else {
                     // Account exists, use it but don't change is_active yet
                     // is_active will be set to true by Stripe webhook after onboarding completion
-                    console.log('🔄 Using existing Stripe account:', existingAccount.stripe_account_id);
+
                     stripeAccountId = existingAccount.stripe_account_id;
-                    console.log('✅ Existing Stripe account will be used');
+
                 }
 
                 // Create Stripe Connect account link
@@ -331,7 +318,7 @@ export const actions: Actions = {
                     type: 'account_onboarding',
                 });
 
-                console.log('🔗 Stripe Connect URL created:', accountLink.url);
+
                 // Create a clean form for Superforms compatibility
                 const cleanForm = await superValidate(zod(formSchema));
                 cleanForm.message = 'Connexion Stripe réussie !';
@@ -341,14 +328,12 @@ export const actions: Actions = {
                     url: accountLink.url
                 };
             } catch (err) {
-                console.error('Error in Stripe Connect process:', err);
                 // Create a clean form for Superforms compatibility
                 const cleanForm = await superValidate(zod(formSchema));
                 setError(cleanForm, 'name', 'Erreur lors de la connexion Stripe');
                 return { form: cleanForm };
             }
         } catch (error) {
-            console.error('🚨 Critical error in connectStripe action:', error);
             // Create a clean form for Superforms compatibility
             const cleanForm = await superValidate(zod(formSchema));
             setError(cleanForm, 'name', 'Une erreur critique est survenue. Veuillez réessayer.');

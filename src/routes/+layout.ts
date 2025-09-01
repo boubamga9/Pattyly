@@ -45,7 +45,6 @@ function createSupabaseClient(context: LoadContext): ReturnType<typeof createBro
 						const cookie = parse(document.cookie);
 						return cookie[key];
 					} catch (error) {
-						console.warn('Failed to parse browser cookies:', error);
 						return undefined;
 					}
 				},
@@ -62,7 +61,6 @@ function createSupabaseClient(context: LoadContext): ReturnType<typeof createBro
 				try {
 					return JSON.stringify(context.data.session);
 				} catch (error) {
-					console.warn('Failed to stringify server session:', error);
 					return '{}';
 				}
 			},
@@ -79,7 +77,6 @@ async function getAuthData(supabase: ReturnType<typeof createBrowserClient> | Re
 		const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
 		if (sessionError) {
-			console.error('Session retrieval failed:', sessionError);
 			return { session: null, user: null };
 		}
 
@@ -87,13 +84,11 @@ async function getAuthData(supabase: ReturnType<typeof createBrowserClient> | Re
 		const { data: { user }, error: userError } = await supabase.auth.getUser();
 
 		if (userError) {
-			console.error('User retrieval failed:', userError);
 			return { session, user: null };
 		}
 
 		return { session, user };
 	} catch (error) {
-		console.error('Critical authentication error:', error);
 		return { session: null, user: null };
 	}
 }
@@ -115,11 +110,7 @@ export const load: LayoutLoad = async ({ fetch, data, depends }: LoadContext): P
 
 		// Log authentication status for debugging
 		if (process.env.NODE_ENV === 'development') {
-			console.log('🔐 Auth status:', {
-				hasSession: !!session,
-				hasUser: !!user,
-				environment: isBrowser() ? 'browser' : 'server'
-			});
+
 		}
 
 		return {
@@ -128,7 +119,6 @@ export const load: LayoutLoad = async ({ fetch, data, depends }: LoadContext): P
 			user,
 		};
 	} catch (error) {
-		console.error('🚨 Critical error in layout load function:', error);
 
 		// Return fallback data to prevent app crash
 		return {

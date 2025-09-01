@@ -3,7 +3,6 @@ import type { Stripe } from 'stripe';
 import { error } from '@sveltejs/kit';
 
 export async function handleCustomerCreated(customer: Stripe.Customer, locals: any): Promise<void> {
-    console.log('🔍 Handling customer.created:', customer.id);
 
     try {
         const userId = customer.metadata?.user_id;
@@ -21,13 +20,10 @@ export async function handleCustomerCreated(customer: Stripe.Customer, locals: a
             );
 
         if (upsertError) {
-            console.error('Error saving customer to database:', upsertError);
             throw error(500, 'Failed to save customer to database');
         }
 
-        console.log('✅ Customer created handled successfully');
     } catch (error) {
-        console.error('❌ Error handling customer.created:', error);
         throw error;
     }
 }

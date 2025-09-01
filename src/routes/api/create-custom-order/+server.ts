@@ -23,13 +23,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             .single();
 
         if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
-            console.error('Erreur vérification commande custom existante:', checkError);
             return json({ error: 'Erreur lors de la vérification' }, { status: 500 });
         }
 
         // Si une commande similaire existe déjà, retourner l'ID existant
         if (existingOrder) {
-            console.log('✅ Commande custom existante trouvée, pas de recréation');
             return json({ success: true, orderId: existingOrder.id });
         }
 
@@ -64,7 +62,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             }
         }
 
-        console.log('📝 Données de personnalisation transformées:', transformedCustomizationData);
 
         // Créer la commande dans la base de données
         const { data: order, error: orderError } = await locals.supabase
@@ -87,13 +84,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             .single();
 
         if (orderError) {
-            console.error('Erreur création commande custom:', orderError);
             return json({ error: 'Erreur lors de la création de la commande' }, { status: 500 });
         }
 
         return json({ success: true, orderId: order.id, redirectUrl: `/${orderData.shopSlug}/order/${order.id}` });
     } catch (error) {
-        console.error('Erreur création commande custom:', error);
         return json({ error: 'Erreur lors de la création de la commande' }, { status: 500 });
     }
 }; 
