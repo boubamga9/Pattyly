@@ -9,12 +9,12 @@ interface Order {
     customer_name: string;
     customer_email: string;
     pickup_date: string;
-    status: string;
+    status: string | null; // ✅ Permettre null pour correspondre à Supabase
     total_amount: number | null;
     product_name: string | null;
     additional_information: string | null;
     chef_message: string | null;
-    created_at: string;
+    created_at: string | null; // ✅ Permettre null pour correspondre à Supabase
     products?: { name: string; image_url: string | null } | null;
     chef_pickup_date: string | null;
 }
@@ -73,7 +73,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				chef_pickup_date
 			`)
             .eq('shop_id', shopId)
-            .order('created_at', { ascending: false });
+            .order('pickup_date', { ascending: true }); // ✅ Tri par date de récupération, de la plus proche à la plus lointaine
 
         if (ordersError) {
             console.error('Erreur récupération commandes:', ordersError);
@@ -192,7 +192,8 @@ function getStatusCounts(orders: Order[]) {
     };
 
     orders.forEach((order) => {
-        if (counts[order.status] !== undefined) {
+        // ✅ Gérer le cas où status est null
+        if (order.status && counts[order.status] !== undefined) {
             counts[order.status]++;
         }
     });

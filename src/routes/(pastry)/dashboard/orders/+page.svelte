@@ -241,7 +241,7 @@
 </script>
 
 <svelte:head>
-	<title>Mes Commandes - Dashboard</title>
+	<title>Mes Commandes - Pattyly</title>
 </svelte:head>
 
 <div class="container mx-auto space-y-6 p-3 md:p-6">

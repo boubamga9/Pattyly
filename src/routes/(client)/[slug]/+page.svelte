@@ -47,8 +47,23 @@
 	<title>{shop.name} - Pattyly</title>
 	<meta
 		name="description"
+		content={shop.bio ||
+			`Découvrez les délicieuses créations de ${shop.name}. Commandez en ligne vos gâteaux personnalisés.`}
+	/>
+	<meta
+		name="keywords"
+		content="pâtisserie, gâteaux, {shop.name}, commande en ligne, personnalisation"
+	/>
+	<meta property="og:title" content="{shop.name} - Pattyly" />
+	<meta
+		property="og:description"
 		content={shop.bio || `Découvrez les délicieuses créations de ${shop.name}`}
 	/>
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content={$page.url.href} />
+	{#if shop.logo_url}
+		<meta property="og:image" content={shop.logo_url} />
+	{/if}
 </svelte:head>
 
 <div class="flex min-h-screen flex-col overflow-x-hidden bg-background">

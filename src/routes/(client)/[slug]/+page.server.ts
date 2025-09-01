@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { loadShopCatalog } from '$lib/utils/catalog-loader';
+import { loadShopCatalog } from '$lib/utils/catalog/catalog-loader';
 
 export const load: PageServerLoad = async ({ params, locals, setHeaders }) => {
     const { slug } = params;
@@ -38,8 +38,15 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders }) => {
                 from_cache: catalogData.from_cache
             }
         };
-    } catch (error) {
-        console.error('Error loading shop catalog:', error);
-        throw error;
+    } catch (err) {
+        console.error('🚨 Erreur lors du chargement du catalogue de la boutique:', err);
+
+        // Si c'est une erreur 404, la relancer
+        if (err instanceof Error && err.message.includes('404')) {
+            throw err;
+        }
+
+        // Pour les autres erreurs, afficher une page d'erreur générique
+        throw error(500, 'Erreur lors du chargement de la boutique. Veuillez réessayer plus tard.');
     }
 };

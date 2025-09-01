@@ -5,32 +5,36 @@ import { zod } from 'sveltekit-superforms/adapters';
 import { createLocalDynamicSchema } from './schema';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
-    const { slug, id } = params;
+    try {
+        const { slug, id } = params;
+        console.log('🔍 Loading product page:', { slug, id });
 
+        // Récupérer les informations de la boutique
+        const { data: shop, error: shopError } = await locals.supabase
+            .from('shops')
+            .select('id, name, bio, slug, logo_url, is_custom_accepted')
+            .eq('slug', slug)
+            .eq('is_active', true)
+            .single();
 
-    console.log('🔍 Loading product page:', { slug, id });
+        if (shopError) {
+            console.error('❌ Database error fetching shop:', shopError);
+            throw error(500, 'Erreur serveur lors du chargement de la boutique');
+        }
 
-    // Récupérer les informations de la boutique
-    const { data: shop, error: shopError } = await locals.supabase
-        .from('shops')
-        .select('id, name, bio, slug, logo_url, is_custom_accepted')
-        .eq('slug', slug)
-        .eq('is_active', true)
-        .single();
+        if (!shop) {
+            console.log('⚠️ Shop not found:', slug);
+            throw error(404, 'Boutique non trouvée');
+        }
 
-    if (shopError || !shop) {
-        console.error('❌ Shop error:', shopError);
-        throw error(404, 'Boutique non trouvée');
-    }
+        console.log('✅ Shop found:', shop.id);
 
-    console.log('✅ Shop found:', shop.id);
+        // Récupérer le produit actif avec ses informations
+        console.log('🔍 Fetching product with ID:', id, 'for shop:', shop.id);
 
-    // Récupérer le produit actif avec ses informations
-    console.log('🔍 Fetching product with ID:', id, 'for shop:', shop.id);
-
-    const { data: product, error: productError } = await locals.supabase
-        .from('products')
-        .select(`
+        const { data: product, error: productError } = await locals.supabase
+            .from('products')
+            .select(`
 			id,
 			name,
 			description,
@@ -43,88 +47,93 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				name
 			)
 		`)
-        .eq('id', id)
-        .eq('shop_id', shop.id)
-        .eq('is_active', true)
-        .single();
-
-    if (productError || !product) {
-        console.error('❌ Product error:', productError);
-        console.error('❌ Product data:', product);
-        throw error(404, 'Produit non trouvé');
-    }
-
-    // Si le produit n'a pas de formulaire, on utilise un formulaire par défaut
-    if (!product.form_id) {
-        console.log('⚠️ Product has no form_id, using default form');
-        // Pas d'erreur, on continue avec un formulaire vide
-    }
-
-    console.log('✅ Product found:', { id: product.id, name: product.name, form_id: product.form_id });
-
-    // Récupérer le formulaire personnalisé seulement s'il existe
-    let customForm = null;
-    let customFields: any[] = [];
-
-    if (product.form_id) {
-        const { data: formData, error: formError } = await locals.supabase
-            .from('forms')
-            .select('id, is_custom_form, title, description')
+            .eq('id', id)
             .eq('shop_id', shop.id)
-            .eq('id', product.form_id)
+            .eq('is_active', true)
             .single();
 
-        if (formError && formError.code !== 'PGRST116') {
-            console.error('Error fetching custom form:', formError);
-            throw error(500, 'Erreur lors du chargement du formulaire personnalisé');
+        if (productError || !product) {
+            console.error('❌ Product error:', productError);
+            console.error('❌ Product data:', product);
+            throw error(404, 'Produit non trouvé');
         }
 
-        customForm = formData;
+        // Si le produit n'a pas de formulaire, on utilise un formulaire par défaut
+        if (!product.form_id) {
+            console.log('⚠️ Product has no form_id, using default form');
+            // Pas d'erreur, on continue avec un formulaire vide
+        }
 
-        // Récupérer les champs du formulaire s'il existe
-        if (customForm) {
-            const { data: formFields, error: fieldsError } = await locals.supabase
-                .from('form_fields')
-                .select('*')
-                .eq('form_id', customForm.id)
-                .order('order');
+        console.log('✅ Product found:', { id: product.id, name: product.name, form_id: product.form_id });
 
-            if (fieldsError) {
-                console.error('Error fetching form fields:', fieldsError);
-                throw error(500, 'Erreur lors du chargement des champs du formulaire');
+        // Récupérer le formulaire personnalisé seulement s'il existe
+        let customForm = null;
+        let customFields: any[] = [];
+
+        if (product.form_id) {
+            const { data: formData, error: formError } = await locals.supabase
+                .from('forms')
+                .select('id, is_custom_form, title, description')
+                .eq('shop_id', shop.id)
+                .eq('id', product.form_id)
+                .single();
+
+            if (formError && formError.code !== 'PGRST116') {
+                console.error('Error fetching custom form:', formError);
+                throw error(500, 'Erreur lors du chargement du formulaire personnalisé');
             }
 
-            customFields = formFields || [];
+            customForm = formData;
+
+            // Récupérer les champs du formulaire s'il existe
+            if (customForm) {
+                const { data: formFields, error: fieldsError } = await locals.supabase
+                    .from('form_fields')
+                    .select('*')
+                    .eq('form_id', customForm.id)
+                    .order('order');
+
+                if (fieldsError) {
+                    console.error('Error fetching form fields:', fieldsError);
+                    throw error(500, 'Erreur lors du chargement des champs du formulaire');
+                }
+
+                customFields = formFields || [];
+            }
+        } else {
+            console.log('ℹ️ No custom form for this product, using basic order form');
         }
-    } else {
-        console.log('ℹ️ No custom form for this product, using basic order form');
+
+        // Récupérer les disponibilités de la boutique
+        const { data: availabilities } = await locals.supabase
+            .from('availabilities')
+            .select('day, is_open')
+            .eq('shop_id', shop.id);
+
+        // Récupérer les indisponibilités de la boutique
+        const { data: unavailabilities } = await locals.supabase
+            .from('unavailabilities')
+            .select('start_date, end_date')
+            .eq('shop_id', shop.id);
+
+
+        // Créer le schéma dynamique basé sur les champs configurés
+        const dynamicSchema = createLocalDynamicSchema(customFields);
+
+        return {
+            shop,
+            product,
+            customForm,
+            customFields,
+            availabilities: availabilities || [],
+            unavailabilities: unavailabilities || [],
+            form: await superValidate(zod(dynamicSchema))
+        };
+
+    } catch (err) {
+        console.error('💥 Unexpected error in product load:', err);
+        throw error(500, 'Erreur inattendue lors du chargement du produit');
     }
-
-    // Récupérer les disponibilités de la boutique
-    const { data: availabilities } = await locals.supabase
-        .from('availabilities')
-        .select('day, is_open')
-        .eq('shop_id', shop.id);
-
-    // Récupérer les indisponibilités de la boutique
-    const { data: unavailabilities } = await locals.supabase
-        .from('unavailabilities')
-        .select('start_date, end_date')
-        .eq('shop_id', shop.id);
-
-
-    // Créer le schéma dynamique basé sur les champs configurés
-    const dynamicSchema = createLocalDynamicSchema(customFields);
-
-    return {
-        shop,
-        product,
-        customForm,
-        customFields,
-        availabilities: availabilities || [],
-        unavailabilities: unavailabilities || [],
-        form: await superValidate(zod(dynamicSchema))
-    };
 };
 
 export const actions: Actions = {
@@ -308,7 +317,12 @@ export const actions: Actions = {
 
         } catch (err) {
             console.error('❌ Error in createProductOrder:', err);
-            throw error(500, 'Erreur serveur');
+
+            // ✅ CORRECTION - Toujours retourner le form pour Superforms
+            const tempSchema = createLocalDynamicSchema([]);
+            const form = await superValidate(request, zod(tempSchema));
+            setError(form, '', 'Erreur serveur inattendue. Veuillez réessayer.');
+            return { form };
         }
     }
 

@@ -35,8 +35,23 @@
 	<meta
 		name="description"
 		content={product.description ||
+			`Découvrez ${product.name} chez ${shop.name}. Commandez en ligne ce délicieux gâteau personnalisé.`}
+	/>
+	<meta
+		name="keywords"
+		content="gâteau, pâtisserie, {product.name}, {shop.name}, commande en ligne, personnalisation"
+	/>
+	<meta property="og:title" content="{product.name} - {shop.name}" />
+	<meta
+		property="og:description"
+		content={product.description ||
 			`Découvrez ${product.name} chez ${shop.name}`}
 	/>
+	<meta property="og:type" content="product" />
+	<meta property="og:url" content={$page.url.href} />
+	{#if product.image_url}
+		<meta property="og:image" content={product.image_url} />
+	{/if}
 </svelte:head>
 
 <div class="min-h-screen bg-background">

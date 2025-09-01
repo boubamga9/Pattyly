@@ -25,7 +25,21 @@
 
 <svelte:head>
 	<title>FAQ - {shop.name}</title>
-	<meta name="description" content="Questions fréquentes de {shop.name}" />
+	<meta
+		name="description"
+		content="Questions fréquentes de {shop.name}. Trouvez rapidement les réponses à vos questions sur nos services et produits."
+	/>
+	<meta
+		name="keywords"
+		content="FAQ, questions fréquentes, {shop.name}, pâtisserie, services, informations"
+	/>
+	<meta property="og:title" content="FAQ - {shop.name}" />
+	<meta
+		property="og:description"
+		content="Questions fréquentes de {shop.name}"
+	/>
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content={$page.url.href} />
 </svelte:head>
 
 <div class="flex min-h-screen flex-col overflow-x-hidden bg-background">

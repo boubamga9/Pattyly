@@ -76,7 +76,7 @@ export const actions: Actions = {
 			// Détecter l'erreur "Email not confirmed"
 			if (error.code === 'email_not_confirmed') {
 				// Rediriger vers la confirmation pour renvoyer l'email
-				throw redirect(303, `/confirmation?email=${encodeURIComponent(email)}&context=login`);
+				throw redirect(303, `/confirmation?email=${encodeURIComponent(email)}`);
 			}
 
 			// Détecter d'autres erreurs courantes

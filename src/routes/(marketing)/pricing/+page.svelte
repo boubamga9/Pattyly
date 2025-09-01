@@ -12,7 +12,7 @@
 </script>
 
 <svelte:head>
-	<title>Tarifs - {WebsiteName}</title>
+	<title>{WebsiteName} - Tarifs</title>
 	<meta
 		name="description"
 		content="Découvrez nos tarifs flexibles pour la gestion de votre activité de pâtissier. Essai gratuit de 7 jours sans engagement."

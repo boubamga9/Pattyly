@@ -31,8 +31,19 @@
 	<title>Demande Personnalisée - {shop.name}</title>
 	<meta
 		name="description"
+		content="Faites votre demande personnalisée chez {shop.name}. Créez ensemble votre gâteau sur mesure pour vos occasions spéciales."
+	/>
+	<meta
+		name="keywords"
+		content="gâteau sur mesure, demande personnalisée, {shop.name}, pâtisserie, occasion spéciale, création"
+	/>
+	<meta property="og:title" content="Demande Personnalisée - {shop.name}" />
+	<meta
+		property="og:description"
 		content="Faites votre demande personnalisée chez {shop.name}"
 	/>
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content={$page.url.href} />
 </svelte:head>
 
 <div class="flex min-h-screen flex-col overflow-x-hidden bg-background">

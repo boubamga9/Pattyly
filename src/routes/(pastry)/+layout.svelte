@@ -164,7 +164,7 @@
 						<span class="sr-only">Settings</span>
 					</NavLink>
 				</Tooltip.Trigger>
-				<Tooltip.Content side="right">Settings</Tooltip.Content>
+				<Tooltip.Content side="right">Paramètres</Tooltip.Content>
 			</Tooltip.Root>
 		</nav>
 	</aside>
@@ -284,16 +284,7 @@
 										variant="ghost"
 										class="w-full py-6 text-base"
 									>
-										Settings
-									</Button>
-								</li>
-								<li>
-									<Button
-										href="/log-out"
-										variant="ghost"
-										class="w-full py-6 text-base"
-									>
-										Log out
+										Paramètres
 									</Button>
 								</li>
 							</ul>

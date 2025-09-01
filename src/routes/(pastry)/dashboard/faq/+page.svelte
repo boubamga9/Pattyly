@@ -85,7 +85,7 @@
 </script>
 
 <svelte:head>
-	<title>FAQ - Dashboard</title>
+	<title>FAQ - Pattyly</title>
 </svelte:head>
 
 <div class="container mx-auto space-y-6 p-3 md:p-6">
@@ -104,8 +104,6 @@
 			Ajouter une FAQ
 		</Button>
 	</div>
-
-	<Separator />
 
 	<!-- Formulaire de création -->
 	{#if showCreateForm}

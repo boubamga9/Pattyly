@@ -74,7 +74,7 @@ export const actions: Actions = {
 				error.code === 'user_already_exists'
 			) {
 				// Rediriger vers la confirmation pour renvoyer l'email
-				throw redirect(303, `/confirmation?email=${encodeURIComponent(email)}&context=signup`);
+				throw redirect(303, `/confirmation?email=${encodeURIComponent(email)}`);
 			}
 
 			// Détecter d'autres erreurs courantes
@@ -93,7 +93,7 @@ export const actions: Actions = {
 		// Si l'inscription a réussi (avec ou sans session), rediriger vers la confirmation
 		if (user && user.email) {
 			console.log('✅ Inscription réussie pour:', user.email);
-			throw redirect(303, `/confirmation?email=${encodeURIComponent(user.email)}&context=signup`);
+			throw redirect(303, `/confirmation?email=${encodeURIComponent(user.email)}`);
 		}
 
 		// Fallback (normalement on ne devrait jamais arriver ici)

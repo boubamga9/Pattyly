@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import {
 		Card,
@@ -31,6 +32,26 @@
 	let shop = data.shop;
 	let loading = false;
 	let error = '';
+
+	// Initialiser FingerprintJS au montage
+	onMount(async () => {
+		try {
+			const FingerprintJS = await import('@fingerprintjs/fingerprintjs');
+			const fp = await FingerprintJS.default.load();
+			const result = await fp.get();
+
+			// Sauvegarder le fingerprint en cookie pour protection immédiate
+			document.cookie = `deviceFingerprint=${result.visitorId}; path=/; max-age=31536000; SameSite=Strict`;
+
+			console.log(
+				'🔍 FingerprintJS initialisé:',
+				result.visitorId.substring(0, 8) + '...',
+			);
+		} catch (error) {
+			console.error('❌ Erreur FingerprintJS:', error);
+			// En cas d'erreur, on continue sans fingerprint
+		}
+	});
 
 	// Watch for successful shop creation
 	$: if (form?.success && form?.shop) {

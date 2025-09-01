@@ -1,15 +1,23 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals }) => {
+// Fonction pour extraire l'email de base (sans plus addressing)
+function getBaseEmail(email: string): string {
+    const [localPart, domain] = email.split('@');
+    const baseLocalPart = localPart.split('+')[0];
+    return `${baseLocalPart}@${domain}`;
+}
+
+export const load: PageServerLoad = async ({ locals, request, setHeaders }) => {
     const { session } = await locals.safeGetSession();
 
     // Rediriger vers login si pas connecté
     if (!session) {
-        redirect(303, '/login');
+        throw redirect(303, '/login');
     }
 
     const userId = session.user.id;
+    const userEmail = session.user.email;
 
     // Récupérer TOUS les abonnements (actifs, inactifs, en essai)
     const { data: allSubscriptions } = await (locals.supabase as any)
@@ -17,36 +25,64 @@ export const load: PageServerLoad = async ({ locals }) => {
         .select('stripe_product_id, subscription_status')
         .eq('profile_id', userId);
 
-    // Vérifier l'anti-fraude : récupérer le numéro de téléphone de l'utilisateur
-    let isPhoneNumberBlocked = false;
+    // Vérifier l'anti-fraude : récupérer l'IP et vérifier dans la table anti_fraud
+    let isInAntiFraud = false;
+    let cookieFingerprint = null;
     try {
-        const { data: connectAccount } = await locals.supabase
-            .from('stripe_connect_accounts')
-            .select('stripe_account_id')
-            .eq('profile_id', userId)
-            .single();
+        // Récupérer l'IP de l'utilisateur
+        const forwardedFor = request.headers.get('x-forwarded-for');
+        const realIp = request.headers.get('x-real-ip');
+        const userIp = forwardedFor?.split(',')[0] || realIp || request.headers.get('cf-connecting-ip') || '127.0.0.1';
 
-        if (connectAccount?.stripe_account_id) {
-            // Récupérer le numéro de téléphone depuis Stripe
-            const account = await locals.stripe.accounts.retrieve(connectAccount.stripe_account_id);
-            const accountData = account as any;
+        // Extraire l'email de base pour éviter le contournement par plus addressing
+        const baseEmail = userEmail ? getBaseEmail(userEmail) : '';
 
-            if (accountData.phone) {
-                // Vérifier si ce numéro est dans la table anti-fraude
-                const { data: blockedPhone } = await (locals.supabase as any)
-                    .from('anti_fraud_phone_numbers')
-                    .select('phone_number')
-                    .eq('phone_number', accountData.phone)
-                    .single();
+        // Récupérer le fingerprint depuis les cookies (protection immédiate)
+        const cookieHeader = request.headers.get('cookie') || '';
+        const fingerprintMatch = cookieHeader.match(/deviceFingerprint=([^;]+)/);
+        cookieFingerprint = fingerprintMatch ? fingerprintMatch[1] : null;
 
-                isPhoneNumberBlocked = !!blockedPhone;
-                console.log(`🔍 Anti-fraude: Numéro ${accountData.phone} - Bloqué: ${isPhoneNumberBlocked}`);
-            }
+        console.log('🔍 Anti-fraude: Vérification pour:', {
+            userId,
+            userEmail,
+            baseEmail, // ✅ Email de base pour la vérification
+            userIp,
+            cookieFingerprint: cookieFingerprint ? cookieFingerprint.substring(0, 8) + '...' : 'non trouvé'
+        });
+
+        // Vérifier si l'utilisateur est dans la table anti_fraud
+        // On vérifie l'email exact, l'email de base, l'IP ET le fingerprint pour éviter le contournement
+        let conditions = [`email.eq.${userEmail}`, `email.eq.${baseEmail}`, `ip_address.eq.${userIp}`];
+        if (cookieFingerprint) {
+            conditions.push(`fingerprint.eq.${cookieFingerprint}`);
         }
+
+        const { data: antiFraudRecord } = await (locals.supabase as any)
+            .from('anti_fraud')
+            .select('id')
+            .or(conditions.join(','))
+            .maybeSingle();
+
+        isInAntiFraud = !!antiFraudRecord;
+
+        if (isInAntiFraud) {
+            console.log(`🔍 Anti-fraude: Utilisateur bloqué (email: ${userEmail}, base: ${baseEmail}, IP: ${userIp}, fingerprint: ${cookieFingerprint ? cookieFingerprint.substring(0, 8) + '...' : 'non trouvé'})`);
+        } else {
+            console.log(`🔍 Anti-fraude: Utilisateur autorisé (email: ${userEmail}, base: ${baseEmail}, IP: ${userIp}, fingerprint: ${cookieFingerprint ? cookieFingerprint.substring(0, 8) + '...' : 'non trouvé'})`);
+        }
+
+        // ✅ SUPPRIMER LE COOKIE APRÈS VÉRIFICATION
+        if (cookieFingerprint) {
+            setHeaders({
+                'Set-Cookie': 'deviceFingerprint=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict'
+            });
+            console.log('🗑️ Cookie deviceFingerprint supprimé après vérification');
+        }
+
     } catch (error) {
         console.error('⚠️ Erreur lors de la vérification anti-fraude:', error);
         // En cas d'erreur, on considère que l'utilisateur n'est pas bloqué
-        isPhoneNumberBlocked = false;
+        isInAntiFraud = false;
     }
 
     // Déterminer le plan actuel ET l'historique
@@ -80,8 +116,29 @@ export const load: PageServerLoad = async ({ locals }) => {
 
     // Si exempté, rediriger vers le dashboard
     if (profile?.is_stripe_free || profile?.role === 'admin') {
-        redirect(303, '/dashboard');
+        throw redirect(303, '/dashboard');
     }
+
+    // Déterminer le type de boutons à afficher
+    let buttonType: 'current' | 'choose' | 'trial' = 'trial';
+
+    if (currentPlan) {
+        // Utilisateur a un plan actif
+        buttonType = 'current';
+    } else if (hasHadSubscription || isInAntiFraud) {
+        // Utilisateur a déjà eu un abonnement OU est dans anti_fraud
+        buttonType = 'choose';
+    } else {
+        // Utilisateur peut essayer gratuitement
+        buttonType = 'trial';
+    }
+
+    console.log('🎯 Type de boutons déterminé:', {
+        currentPlan,
+        hasHadSubscription,
+        isInAntiFraud,
+        buttonType
+    });
 
     // Données des plans (en production, récupérer depuis Stripe)
     const plans = [
@@ -125,11 +182,12 @@ export const load: PageServerLoad = async ({ locals }) => {
     return {
         plans,
         currentPlan,
-        hasHadSubscription,  // ✅ Nouveau champ
-        isPhoneNumberBlocked,  // ✅ Nouveau champ anti-fraude
+        hasHadSubscription,
+        isInAntiFraud,
+        buttonType, // ✅ Nouveau champ pour déterminer le type de boutons
         user: {
             id: userId,
-            email: session.user.email
+            email: userEmail
         }
     };
 }; 

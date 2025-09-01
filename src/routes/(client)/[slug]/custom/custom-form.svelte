@@ -287,14 +287,10 @@
 									{#if value && (typeof value === 'string' ? value.length > 0 : Array.isArray(value) && value.length > 0)}
 										{@const field = customFields.find((f) => f.id === fieldId)}
 										{#if field}
-											<li class="text-sm">
+											<li class="flex gap-2 text-sm">
 												<span class="font-medium">{field.label} :</span>
 												{#if Array.isArray(value)}
-													{#each value as optionLabel}
-														<span>{optionLabel}</span>
-														{#if optionLabel !== value[value.length - 1]},
-														{/if}
-													{/each}
+													<span>{value.join(', ')}</span>
 												{:else}
 													<span>{value}</span>
 												{/if}

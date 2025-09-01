@@ -316,27 +316,25 @@
 					{#each customFields as field}
 						{#if $formData.customization_data[field.id]}
 							{#if Array.isArray($formData.customization_data[field.id])}
-								{#each $formData.customization_data[field.id] as option}
-									{@const selectedOption = field.options?.find(
+								{@const options = $formData.customization_data[field.id]}
+								{@const selectedOptions = options.map((option) => {
+									const selectedOption = field.options?.find(
 										(opt) => opt.label === option,
-									)}
-									{#if selectedOption}
-										<div class="flex justify-between">
-											<span class="text-muted-foreground">{field.label} :</span>
-											<span class="font-medium"
-												>{option} (+{formatPrice(
-													selectedOption.price || 0,
-												)})</span
-											>
-										</div>
-									{/if}
-								{/each}
+									);
+									return selectedOption
+										? `${option} (+${formatPrice(selectedOption.price || 0)})`
+										: option;
+								})}
+								<div class="flex justify-between gap-12">
+									<span class="text-muted-foreground">{field.label} :</span>
+									<span class="font-medium">{selectedOptions.join(', ')}</span>
+								</div>
 							{:else}
 								{@const selectedOption = field.options?.find(
 									(opt) => opt.label === $formData.customization_data[field.id],
 								)}
 								{#if selectedOption}
-									<div class="flex justify-between">
+									<div class="flex justify-between gap-4">
 										<span class="text-muted-foreground">{field.label} :</span>
 										<span class="font-medium"
 											>{$formData.customization_data[field.id]} (+{formatPrice(

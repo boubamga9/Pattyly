@@ -1,9 +1,8 @@
 <script lang="ts">
-	import { goto, invalidate } from '$app/navigation';
-	import { navigating, page } from '$app/stores';
+	import { invalidate } from '$app/navigation';
+	import { navigating } from '$app/stores';
 
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { afterUpdate, onMount } from 'svelte';
+	import { onMount } from 'svelte';
 	import { expoOut } from 'svelte/easing';
 	import { slide } from 'svelte/transition';
 	import '../app.css';
@@ -29,48 +28,7 @@
 
 		return () => data.subscription.unsubscribe();
 	});
-
-	let hasAlertDialog = false;
-
-	afterUpdate(() => {
-		hasAlertDialog = $page.url.searchParams.has('alertDialog');
-	});
-
-	async function loadAlertDialog() {
-		const alertDialog = $page.url.searchParams.get('alertDialog');
-		// need to look into dynamic path imports; for now - switch
-		switch (alertDialog) {
-			case 'account-deletion':
-				return (await import('./alert-dialogs/account-deletion.svelte'))
-					.default;
-			case 'reset-password':
-				return (await import('./alert-dialogs/reset-password.svelte')).default;
-			default:
-				throw new Error('Failed to load alert dialog');
-		}
-	}
 </script>
-
-<AlertDialog.Root bind:open={hasAlertDialog}>
-	<AlertDialog.Content>
-		{#await loadAlertDialog() then Dialog}
-			<Dialog on:click={() => goto('?')} />
-		{:catch _}
-			<AlertDialog.Header>
-				<AlertDialog.Title>Action successful</AlertDialog.Title>
-				<AlertDialog.Description>
-					You action has been completed successfully, although we couldn't
-					figure out what it was, sorry. You can safely dismiss this dialog.
-				</AlertDialog.Description>
-			</AlertDialog.Header>
-			<AlertDialog.Footer>
-				<AlertDialog.Action on:click={() => goto('?')}>
-					Dismiss
-				</AlertDialog.Action>
-			</AlertDialog.Footer>
-		{/await}
-	</AlertDialog.Content>
-</AlertDialog.Root>
 
 {#if $navigating}
 	<!-- 

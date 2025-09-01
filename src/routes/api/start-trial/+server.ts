@@ -7,6 +7,13 @@ const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
     apiVersion: '2024-04-10'
 });
 
+// Fonction pour extraire l'email de base (sans plus addressing)
+function getBaseEmail(email: string): string {
+    const [localPart, domain] = email.split('@');
+    const baseLocalPart = localPart.split('+')[0];
+    return `${baseLocalPart}@${domain}`;
+}
+
 export const POST: RequestHandler = async ({ request, locals }) => {
     try {
         const { session } = await locals.safeGetSession();
@@ -15,51 +22,63 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         }
 
         const userId = session.user.id;
-        const { planType } = await request.json(); // 'basic' ou 'premium'
+        const userEmail = session.user.email;
+        const { planType, fingerprint } = await request.json(); // 'basic' ou 'premium' + fingerprint
+
+        // Vérifier que le fingerprint est présent
+        if (!fingerprint) {
+            console.error('❌ Start-trial: Fingerprint manquant');
+            return json({ error: 'Fingerprint requis' }, { status: 400 });
+        }
 
         // Déterminer le prix Stripe selon le plan
         const priceId = planType === 'basic'
             ? 'price_1Rre1ZPNddYt1P7Lea1N7Cbq'
             : 'price_1RrdwvPNddYt1P7LGICY3by5';
 
-        // Vérifier si un essai gratuit a déjà été utilisé via numéro de téléphone
-        const { data: connectAccount } = await locals.supabase
-            .from('stripe_connect_accounts')
-            .select('stripe_account_id')
-            .eq('profile_id', userId)
-            .single();
+        // Récupérer l'IP de l'utilisateur
+        const forwardedFor = request.headers.get('x-forwarded-for');
+        const realIp = request.headers.get('x-real-ip');
+        const userIp = forwardedFor?.split(',')[0] || realIp || request.headers.get('cf-connecting-ip') || '127.0.0.1';
 
-        if (connectAccount?.stripe_account_id) {
-            const account = await stripe.accounts.retrieve(connectAccount.stripe_account_id);
-            const accountData = account as any;
+        // Extraire l'email de base pour éviter le contournement par plus addressing
+        const baseEmail = userEmail ? getBaseEmail(userEmail) : '';
 
-            // Récupérer le numéro du compte Stripe Connect (individuel ou entreprise)
-            const phone =
-                accountData?.individual?.phone ||
-                accountData?.business_profile?.support_phone ||
-                null;
+        console.log('🔍 Start-trial: Vérification anti-fraude pour:', {
+            userId,
+            userEmail,
+            baseEmail, // ✅ Email de base pour la vérification
+            userIp,
+            planType,
+            fingerprint: fingerprint.substring(0, 8) + '...' // Log partiel pour la sécurité
+        });
 
-            if (phone) {
-                // Vérifier si ce numéro est déjà dans la base anti-fraude
-                const { data: existingPhone } = await (locals.supabase as any)
-                    .from('anti_fraud_phone_numbers')
-                    .select('phone_number')
-                    .eq('phone_number', phone)
-                    .single();
+        // Vérifier si l'utilisateur est déjà dans la table anti_fraud
+        // On vérifie l'email exact, l'email de base, l'IP ET le fingerprint pour éviter le contournement
+        let conditions = [`email.eq.${userEmail}`, `email.eq.${baseEmail}`, `ip_address.eq.${userIp}`, `fingerprint.eq.${fingerprint}`];
 
-                if (existingPhone) {
-                    return json(
-                        { error: 'Un essai gratuit a déjà été utilisé avec ce numéro.' },
-                        { status: 403 }
-                    );
-                }
+        const { data: existingAntiFraud } = await (locals.supabase as any)
+            .from('anti_fraud')
+            .select('id, fingerprint')
+            .or(conditions.join(','))
+            .maybeSingle();
 
-                // Sinon, enregistrer le numéro pour bloquer d’autres essais
-                await (locals.supabase as any)
-                    .from('anti_fraud_phone_numbers')
-                    .insert({ phone_number: phone });
+        if (existingAntiFraud) {
+            console.log('❌ Anti-fraude: Utilisateur déjà bloqué (contournement détecté)');
 
-                console.log(`✅ Numéro de téléphone ${phone} enregistré pour l'anti-fraude`);
+            // ✅ NOUVEAU : Vérifier si c'est le même fingerprint (même device)
+            if (existingAntiFraud.fingerprint === fingerprint) {
+                console.log('🔄 Même device détecté, redirection vers checkout');
+                return json({
+                    error: 'Un essai gratuit a déjà été utilisé avec ce device.',
+                    redirectToCheckout: true,
+                    priceId: priceId
+                }, { status: 403 });
+            } else {
+                return json(
+                    { error: 'Un essai gratuit a déjà été utilisé avec ce compte.' },
+                    { status: 403 }
+                );
             }
         }
 
@@ -75,7 +94,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             customer = existingCustomer.stripe_customer_id;
         } else {
             const { id } = await stripe.customers.create({
-                email: session.user.email,
+                email: userEmail,
                 metadata: { user_id: userId }
             });
             customer = id;
@@ -110,6 +129,34 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 subscription_status: 'active'
             }, { onConflict: 'profile_id' });
 
+        // Enregistrer l'utilisateur dans la table anti_fraud pour bloquer les futurs essais
+        try {
+            await (locals.supabase as any)
+                .from('anti_fraud')
+                .insert({
+                    fingerprint: fingerprint, // ✅ Utiliser le vrai fingerprint
+                    ip_address: userIp,
+                    email: userEmail
+                });
+
+            console.log('✅ Utilisateur enregistré dans anti_fraud:', {
+                userId,
+                userIp,
+                userEmail,
+                fingerprint: fingerprint.substring(0, 8) + '...' // Log partiel
+            });
+        } catch (antiFraudError) {
+            console.error('⚠️ Erreur enregistrement anti_fraud:', antiFraudError);
+            // On continue même si l'enregistrement anti_fraud échoue
+        }
+
+        console.log('✅ Essai gratuit créé avec succès:', {
+            userId,
+            planType,
+            subscriptionId: subscription.id,
+            trialEnd: subscription.trial_end
+        });
+
         return json({
             success: true,
             subscriptionId: subscription.id,
@@ -117,7 +164,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         });
 
     } catch (error) {
-        console.error('Erreur création essai gratuit:', error);
+        console.error('❌ Erreur création essai gratuit:', error);
         return json({ error: 'Erreur interne' }, { status: 500 });
     }
 };

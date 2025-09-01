@@ -261,7 +261,7 @@
 						<!-- Type de champ -->
 						<div>
 							<label class="mb-2 block text-sm font-medium">
-								Type de réponse *
+								Type de réponse attendue *
 							</label>
 							<select
 								value={field.type}

@@ -5,7 +5,7 @@
 	import {
 		ImageService,
 		type ProcessedImage,
-	} from '$lib/services/image-service';
+	} from '$lib/utils/images/image-service';
 
 	export let type: 'product' | 'logo' = 'product';
 	export let currentImageUrl: string | null = null;
