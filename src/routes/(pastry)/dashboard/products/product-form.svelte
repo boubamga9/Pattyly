@@ -504,7 +504,7 @@
 	/>
 
 	<!-- Boutons d'action -->
-	<div class="flex gap-4 pt-4">
+	<div class="flex flex-col gap-3 pt-4 sm:flex-row">
 		<Button
 			type="submit"
 			form="product-form"

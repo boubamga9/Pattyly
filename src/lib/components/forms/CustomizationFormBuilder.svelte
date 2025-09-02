@@ -301,48 +301,57 @@
 
 								<div class="space-y-2">
 									{#each field.options as option, optionIndex}
-										<div class="flex items-center gap-2">
-											<input
-												type="text"
-												value={option.label}
-												on:input={(e) =>
-													updateOption(field.id, optionIndex, {
-														label: e.currentTarget.value,
-													})}
-												placeholder="Ex: Rouge, Blanc, Chocolat..."
-												class="flex-1 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 {option.label.trim() ===
-												''
-													? 'border-red-500 focus:ring-red-500'
-													: 'border-gray-300'}"
-											/>
-											{#if option.label.trim() === ''}
-												<p class="mt-1 text-xs text-red-600">
-													⚠️ Le choix est obligatoire
-												</p>
-											{/if}
-											{#if !isCustomForm}
+										<div
+											class="flex flex-col gap-2 sm:flex-row sm:items-center"
+										>
+											<div class="flex-1">
 												<input
-													type="number"
-													value={option.price}
+													type="text"
+													value={option.label}
 													on:input={(e) =>
 														updateOption(field.id, optionIndex, {
-															price: parseFloat(e.currentTarget.value) || 0,
+															label: e.currentTarget.value,
 														})}
-													placeholder="Prix"
-													min="0"
-													step="0.01"
-													class="w-20 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+													placeholder="Ex: Rouge, Blanc, Chocolat..."
+													class="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 {option.label.trim() ===
+													''
+														? 'border-red-500 focus:ring-red-500'
+														: 'border-gray-300'}"
 												/>
-												<span class="text-sm text-muted-foreground">€</span>
-											{/if}
-											<Button
-												type="button"
-												variant="ghost"
-												size="sm"
-												on:click={() => removeOption(field.id, optionIndex)}
-											>
-												<Trash2 class="h-3 w-3" />
-											</Button>
+												{#if option.label.trim() === ''}
+													<p class="mt-1 text-xs text-red-600">
+														⚠️ Le choix est obligatoire
+													</p>
+												{/if}
+											</div>
+											<div class="flex items-center gap-2">
+												{#if !isCustomForm}
+													<div class="flex items-center gap-1">
+														<input
+															type="number"
+															value={option.price}
+															on:input={(e) =>
+																updateOption(field.id, optionIndex, {
+																	price: parseFloat(e.currentTarget.value) || 0,
+																})}
+															placeholder="Prix"
+															min="0"
+															step="0.01"
+															class="w-20 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+														/>
+														<span class="text-sm text-muted-foreground">€</span>
+													</div>
+												{/if}
+												<Button
+													type="button"
+													variant="ghost"
+													size="sm"
+													on:click={() => removeOption(field.id, optionIndex)}
+													class="h-8 w-8 p-0"
+												>
+													<Trash2 class="h-3 w-3" />
+												</Button>
+											</div>
 										</div>
 									{/each}
 								</div>

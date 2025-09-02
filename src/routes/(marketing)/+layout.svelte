@@ -225,6 +225,32 @@
 					</nav>
 				</div>
 				<div class="col">
+					<span class="footer-title">Légal</span>
+					<nav>
+						<Button
+							href="/cgu"
+							variant="link"
+							class="block h-auto p-0 text-start text-base font-normal text-muted-foreground"
+						>
+							CGU
+						</Button>
+						<Button
+							href="/legal"
+							variant="link"
+							class="block h-auto p-0 text-start text-base font-normal text-muted-foreground"
+						>
+							Mentions légales
+						</Button>
+						<Button
+							href="/privacy"
+							variant="link"
+							class="block h-auto p-0 text-start text-base font-normal text-muted-foreground"
+						>
+							Confidentialité
+						</Button>
+					</nav>
+				</div>
+				<div class="col">
 					<span class="footer-title">Retrouvez-nous</span>
 					<nav>
 						<Button

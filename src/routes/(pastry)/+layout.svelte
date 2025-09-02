@@ -33,13 +33,13 @@
 	>
 		<nav class="flex flex-col items-center gap-4 px-2 sm:py-5">
 			<a
-				href="/"
+				href="/{data.shop ? data.shop.slug : ''}"
 				class="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 md:h-8 md:w-8"
 			>
 				{#if data.shop?.logo_url}
 					<img
 						src={data.shop.logo_url}
-						alt={data.shop.name || 'Logo boutique'}
+						alt={data.shop.name}
 						class="h-8 w-8 rounded object-cover"
 					/>
 				{:else}

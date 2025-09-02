@@ -19,7 +19,7 @@
 	<title>Modifier le produit - {product?.name}</title>
 </svelte:head>
 
-<div class="container mx-auto space-y-6 py-6">
+<div class="container mx-auto space-y-6 px-4 py-6 sm:px-6">
 	<!-- En-tête -->
 	<div class="flex items-center justify-between">
 		<div class="flex items-center space-x-4">

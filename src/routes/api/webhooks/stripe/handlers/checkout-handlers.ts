@@ -63,6 +63,10 @@ export async function handleProductOrderPayment(
         if (productError) {
         }
 
+        // Récupérer le montant réellement payé depuis Stripe
+        const totalAmount = orderData.serverCalculatedPrice || orderData.totalPrice;
+        const paidAmount = session.amount_total ?? 0; // Stripe utilise les centimes
+
         // Créer la commande dans la base de données
         const { data: order, error: orderError } = await locals.supabaseServiceRole
             .from('orders')
@@ -77,8 +81,8 @@ export async function handleProductOrderPayment(
                 additional_information: orderData.additionalInfo || null,
                 customization_data: orderData.selectedOptions || null,
                 status: 'confirmed',
-                total_amount: orderData.serverCalculatedPrice || orderData.totalPrice,
-                paid_amount: orderData.serverCalculatedPrice || orderData.totalPrice, // ✅ Ajouter le montant payé
+                total_amount: totalAmount,
+                paid_amount: paidAmount / 100, // ✅ Montant réellement payé depuis Stripe
                 product_name: orderData.cakeName,
                 product_base_price: product?.base_price || 0,
                 stripe_payment_intent_id: session.payment_intent as string,
@@ -125,7 +129,7 @@ export async function handleCustomOrderDeposit(
             .from('orders')
             .update({
                 status: 'confirmed',
-                paid_amount: depositAmount, // ✅ Ajouter le montant de l'acompte payé
+                paid_amount: depositAmount / 100, // ✅ Ajouter le montant de l'acompte payé
                 stripe_payment_intent_id: session.payment_intent as string,
                 stripe_session_id: session.id
             })
