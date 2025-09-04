@@ -22,7 +22,7 @@
 		<Card.Header class="text-center">
 			<Card.Title
 				tag="h1"
-				class="text-2xl font-normal leading-[120%] tracking-tight text-neutral-800 lg:text-3xl"
+				class="text-3xl font-semibold leading-[120%] text-neutral-800 md:text-4xl"
 				>Nous contacter</Card.Title
 			>
 			<Card.Description class="text-neutral-700"

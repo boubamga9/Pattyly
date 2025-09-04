@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { EmailService } from '$lib/services/email-service';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
     try {
@@ -12,7 +13,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         // Récupérer la commande
         const { data: order, error: orderError } = await locals.supabase
             .from('orders')
-            .select('*')
+            .select('id, customer_email, customer_name, product_id, status, shops(profiles(email))')
             .eq('id', orderId)
             .single();
 
@@ -37,6 +38,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         if (updateError) {
             return json({ error: 'Erreur lors de la mise à jour' }, { status: 500 });
         }
+
+        await EmailService.sendQuoteRejected({
+            pastryEmail: order.shops.profiles.email,
+            customerEmail: order.customer_email,
+            customerName: order.customer_name,
+            quoteId: order.id,
+            orderUrl: `${process.env.PUBLIC_SITE_URL}/dashboard/orders/${order.id}`,
+            date: new Date().toLocaleDateString("fr-FR"),
+        });
 
         return json({ success: true });
     } catch (error) {

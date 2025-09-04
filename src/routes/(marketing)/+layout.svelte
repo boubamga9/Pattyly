@@ -256,7 +256,7 @@
 						<Button
 							variant="link"
 							class="block h-auto p-0 text-start text-base font-normal text-muted-foreground"
-							href="/"
+							href="https://www.instagram.com/pattyly.app"
 							target="_blank"
 						>
 							Instagram
@@ -264,7 +264,7 @@
 						<Button
 							variant="link"
 							class="block h-auto p-0 text-start text-base font-normal text-muted-foreground"
-							href="/"
+							href="https://www.tiktok.com/@pattyly.app"
 							target="_blank"
 						>
 							Tiktok

@@ -33,13 +33,8 @@
 	let customFields: CustomizationField[] = [];
 
 	// Fonction pour gérer le changement de toggle
-	function handleToggle(newValue: boolean) {
+	function handleToggle(_newValue: boolean) {
 		// Pas besoin de stocker localement, on laisse Svelte gérer la réactivité
-	}
-
-	// Fonction pour gérer le succès du formulaire de mise à jour
-	function handleUpdateSuccess() {
-		// Optionnel : afficher une notification ou mettre à jour l'interface
 	}
 
 	// Fonction pour voir le preview du formulaire personnalisé
@@ -47,7 +42,6 @@
 		// Rediriger vers la page publique du formulaire personnalisé avec le mode preview
 		if (shop?.slug) {
 			goto(`/${shop.slug}/custom?preview=true`);
-		} else {
 		}
 	}
 
@@ -308,11 +302,7 @@
 
 		<!-- Section Formulaire Personnalisé -->
 		{#if shop?.is_custom_accepted}
-			<UpdateForm
-				data={updateForm}
-				{customFields}
-				onSuccess={handleUpdateSuccess}
-			/>
+			<UpdateForm data={updateForm} {customFields} />
 		{:else}
 			<!-- Message quand les demandes sont désactivées -->
 			<Card>

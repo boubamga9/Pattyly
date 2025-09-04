@@ -1,5 +1,6 @@
 import type { Stripe } from 'stripe';
 import { error } from '@sveltejs/kit';
+import { EmailService } from '$lib/services/email-service';
 
 export async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, locals: any): Promise<void> {
 
@@ -56,11 +57,12 @@ export async function handleProductOrderPayment(
         // Récupérer le prix de base du produit
         const { data: product, error: productError } = await locals.supabaseServiceRole
             .from('products')
-            .select('base_price')
+            .select('base_price, shops(slug, logo_url, name, profiles(email))')
             .eq('id', orderData.productId)
             .single();
 
         if (productError) {
+            throw error(500, 'Failed to get product');
         }
 
         // Récupérer le montant réellement payé depuis Stripe
@@ -96,6 +98,38 @@ export async function handleProductOrderPayment(
         }
 
 
+        try {
+            await EmailService.sendOrderConfirmation({
+                customerEmail: orderData.customerEmail,
+                customerName: orderData.customerName,
+                shopName: product.shops.name,
+                shopLogo: product.shops.logo_url,
+                productName: orderData.cakeName,
+                pickupDate: orderData.selectedDate,
+                totalAmount: totalAmount,
+                paidAmount: paidAmount / 100,
+                remainingAmount: totalAmount - (paidAmount / 100),
+                orderId: order.id,
+                orderUrl: `${process.env.PUBLIC_SITE_URL}/${product.shops.slug}/orders/${order.id}`,
+                date: new Date().toLocaleDateString("fr-FR"),
+            });
+
+            await EmailService.sendOrderNotification({
+                pastryEmail: product.shops.profiles.email,
+                customerName: orderData.customerName,
+                customerEmail: orderData.customerEmail,
+                customerInstagram: orderData.customerInstagram,
+                productName: orderData.cakeName,
+                pickupDate: orderData.selectedDate,
+                totalAmount: totalAmount,
+                paidAmount: paidAmount / 100,
+                remainingAmount: totalAmount - (paidAmount / 100),
+                orderId: order.id,
+                dashboardUrl: `${process.env.PUBLIC_SITE_URL}/${product.shops.slug}/orders/${order.id}`,
+                date: new Date().toLocaleDateString("fr-FR"),
+            });
+        } catch (error) { }
+
 
         // 🗑️ SUPPRIMER LA LIGNE pending_orders UTILISÉE
 
@@ -105,8 +139,7 @@ export async function handleProductOrderPayment(
             .eq('id', orderId);
 
         if (deleteError) {
-        } else {
-
+            error(500, 'Failed to delete pending order');
         }
 
     } catch (err) {
@@ -122,8 +155,6 @@ export async function handleCustomOrderDeposit(
         const totalPrice = parseFloat(session.metadata!.totalPrice);
         const depositAmount = parseFloat(session.metadata!.depositAmount);
 
-
-
         // Mettre à jour la commande existante
         const { data: order, error: orderError } = await locals.supabaseServiceRole
             .from('orders')
@@ -134,11 +165,42 @@ export async function handleCustomOrderDeposit(
                 stripe_session_id: session.id
             })
             .eq('id', orderId)
-            .select()
+            .select('customer_email, customer_name, shops(name, slug, logo_url, profiles(email)), pickup_date')
             .single();
 
         if (orderError) {
             throw error(500, 'Failed to update custom order');
+        }
+
+        try {
+
+            EmailService.sendQuoteConfirmation({
+                customerEmail: order.customer_email,
+                customerName: order.customer_name,
+                shopName: order.shops.name,
+                shopLogo: order.shops.logo_url,
+                pickupDate: order.pickup_date,
+                totalPrice: totalPrice,
+                depositAmount: depositAmount / 100,
+                remainingAmount: totalPrice - (depositAmount / 100),
+                orderId: orderId,
+                orderUrl: `${process.env.PUBLIC_SITE_URL}/${order.shops.slug}/orders/${orderId}`,
+                date: new Date().toLocaleDateString("fr-FR"),
+            });
+
+            EmailService.sendQuotePayment({
+                pastryEmail: order.shops.profiles.email,
+                customerName: order.customer_name,
+                customerEmail: order.customer_email,
+                pickupDate: order.pickup_date,
+                totalPrice: totalPrice,
+                depositAmount: depositAmount / 100,
+                remainingAmount: totalPrice - (depositAmount / 100),
+                orderId: orderId,
+                dashboardUrl: `${process.env.PUBLIC_SITE_URL}/dashboard/orders/${orderId}`,
+                date: new Date().toLocaleDateString("fr-FR"),
+            });
+        } catch (error) {
         }
 
 

@@ -3,6 +3,7 @@ import { message, superValidate, setError } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad, Actions } from './$types';
 import { createLocalDynamicSchema } from './schema';
+import { EmailService } from '$lib/services/email-service';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
     try {
@@ -125,7 +126,7 @@ export const actions: Actions = {
             // Récupérer les informations de la boutique
             const { data: shop, error: shopError } = await locals.supabase
                 .from('shops')
-                .select('id, name, slug')
+                .select('id, name, slug, logo_url, profiles(email)')
                 .eq('slug', slug)
                 .eq('is_active', true)
                 .single();
@@ -203,6 +204,30 @@ export const actions: Actions = {
             if (orderError) {
                 throw error(500, 'Erreur lors de la création de la commande');
             }
+
+            try {
+                await Promise.all([
+                    EmailService.sendCustomRequestConfirmation({
+                        customerEmail: customer_email,
+                        customerName: customer_name,
+                        shopName: shop.name,
+                        shopLogo: shop.logo_url || undefined,
+                        requestId: order.id.slice(0, 8),
+                        orderUrl: `${process.env.PUBLIC_SITE_URL}/${slug}/order/${order.id}`,
+                        date: new Date().toLocaleDateString("fr-FR")
+                    }),
+
+                    EmailService.sendCustomRequestNotification({
+                        pastryEmail: shop.profiles.email,
+                        customerName: customer_name,
+                        customerEmail: customer_email,
+                        customerInstagram: customer_instagram,
+                        pickupDate: pickup_date.toLocaleDateString("fr-FR"),
+                        requestId: order.id.slice(0, 8),
+                        dashboardUrl: `${process.env.PUBLIC_SITE_URL}/dashboard/orders/${order.id}`,
+                        date: new Date().toLocaleDateString("fr-FR")
+                    })]);
+            } catch (e) { }
 
             return message(form, { redirectTo: `/${slug}/order/${order.id}` })
 

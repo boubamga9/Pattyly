@@ -141,7 +141,6 @@
 			if (response.ok) {
 				const { url } = await response.json();
 				window.location.href = url;
-			} else {
 			}
 		} catch (error) {}
 	}
@@ -169,7 +168,6 @@
 				if (response.ok) {
 					// Recharger la page pour voir le nouveau statut
 					window.location.reload();
-				} else {
 				}
 			} catch (error) {}
 		}

@@ -6,6 +6,8 @@ import Stripe from 'stripe';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { makeQuoteFormSchema, rejectOrderFormSchema, personalNoteFormSchema } from './schema.js';
+import { EmailService } from '$lib/services/email-service';
+
 
 const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
     apiVersion: '2024-04-10'
@@ -193,7 +195,7 @@ export const actions: Actions = {
             // Récupérer la boutique de l'utilisateur via profile_id
             const { data: shop, error: shopError } = await locals.supabase
                 .from('shops')
-                .select('id')
+                .select('id, name, logo_url, slug')
                 .eq('profile_id', user.id)
                 .single();
 
@@ -218,15 +220,30 @@ export const actions: Actions = {
                 updateData.chef_pickup_date = chefPickupDate;
             }
 
-            const { error: updateError } = await locals.supabase
+            const { data: order, error: updateError } = await locals.supabase
                 .from('orders')
                 .update(updateData)
                 .eq('id', params.id)
-                .eq('shop_id', shop.id);
+                .eq('shop_id', shop.id)
+                .select()
+                .single();
 
             if (updateError) {
                 return fail(500, { error: 'Erreur lors de la mise à jour de la commande' });
             }
+
+            try {
+                await Promise.all([
+                    EmailService.sendQuote({
+                        customerEmail: order.customer_email,
+                        customerName: order.customer_name,
+                        shopName: shop.name,
+                        shopLogo: shop.logo_url || undefined,
+                        quoteId: order.id.slice(0, 8),
+                        orderUrl: `${process.env.PUBLIC_SITE_URL}/${shop.slug}/order/${order.id}`,
+                        date: new Date().toLocaleDateString("fr-FR")
+                    })]);
+            } catch (e) { }
 
             // Retourner le succès avec le formulaire Superforms
             form.message = 'Devis envoyé avec succès';
@@ -260,7 +277,7 @@ export const actions: Actions = {
             // Récupérer la boutique de l'utilisateur via profile_id
             const { data: shop, error: shopError } = await locals.supabase
                 .from('shops')
-                .select('id')
+                .select('id, name, logo_url, slug')
                 .eq('profile_id', user.id)
                 .single();
 
@@ -269,7 +286,7 @@ export const actions: Actions = {
             }
 
             // Mettre à jour la commande
-            const { error: updateError } = await locals.supabase
+            const { data: order, error: updateError } = await locals.supabase
                 .from('orders')
                 .update({
                     status: 'refused',
@@ -277,11 +294,27 @@ export const actions: Actions = {
                     refused_by: 'pastry_chef'
                 })
                 .eq('id', params.id)
-                .eq('shop_id', shop.id);
+                .eq('shop_id', shop.id)
+                .select()
+                .single();
 
             if (updateError) {
                 return fail(500, { error: 'Erreur lors de la mise à jour de la commande' });
             }
+
+            try {
+                await Promise.all([
+                    EmailService.sendRequestRejected({
+                        customerEmail: order.customer_email,
+                        customerName: order.customer_name,
+                        shopName: shop.name,
+                        shopLogo: shop.logo_url || undefined,
+                        reason: chefMessage,
+                        requestId: order.id.slice(0, 8),
+                        catalogUrl: `${process.env.PUBLIC_SITE_URL}/${shop.slug}`,
+                        date: new Date().toLocaleDateString("fr-FR")
+                    })]);
+            } catch (e) { }
 
             // Retourner le succès avec le formulaire Superforms
             form.message = 'Commande refusée avec succès';
@@ -386,7 +419,7 @@ export const actions: Actions = {
             // Récupérer la boutique de l'utilisateur via profile_id
             const { data: shop, error: shopError } = await locals.supabase
                 .from('shops')
-                .select('id')
+                .select('id, name, logo_url, slug')
                 .eq('profile_id', user.id)
                 .single();
 
@@ -397,7 +430,7 @@ export const actions: Actions = {
             // Vérifier que la commande a le statut "quoted"
             const { data: order, error: orderError } = await locals.supabase
                 .from('orders')
-                .select('status')
+                .select('id, status, customer_email, customer_name')
                 .eq('id', params.id)
                 .eq('shop_id', shop.id)
                 .single();
@@ -407,7 +440,7 @@ export const actions: Actions = {
             }
 
             if (order.status !== 'quoted') {
-                return fail(400, { error: 'Seules les commandes avec devis peuvent être annulées' });
+                return fail(400, { error: 'Seules les commandes avec devis non payé peuvent être annulées' });
             }
 
             // Mettre à jour la commande
@@ -420,6 +453,19 @@ export const actions: Actions = {
             if (updateError) {
                 return fail(500, { error: 'Erreur lors de la mise à jour de la commande' });
             }
+
+            try {
+                await Promise.all([
+                    EmailService.sendOrderCancelled({
+                        customerEmail: order.customer_email,
+                        customerName: order.customer_name,
+                        shopName: shop.name,
+                        shopLogo: shop.logo_url || undefined,
+                        orderId: order.id.slice(0, 8),
+                        orderUrl: `${process.env.PUBLIC_SITE_URL}/${shop.slug}/order/${order.id}`,
+                        date: new Date().toLocaleDateString("fr-FR")
+                    })]);
+            } catch (e) { }
 
             return { message: 'Commande annulée avec succès' };
         } catch (err) {
