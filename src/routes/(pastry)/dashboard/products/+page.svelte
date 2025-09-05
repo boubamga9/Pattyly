@@ -125,8 +125,7 @@
 				);
 				confirmingDeleteId = null;
 			}
-		} catch (error) {
-		}
+		} catch (error) {}
 	}
 
 	// Fonctions pour l'ajout de catégorie
@@ -441,7 +440,13 @@
 										type="submit"
 										variant="ghost"
 										size="sm"
-										title="Dupliquer le gâteau"
+										title={canAddProducts
+											? 'Dupliquer le gâteau'
+											: 'Limite de gâteaux atteinte'}
+										disabled={!canAddProducts}
+										class={!canAddProducts
+											? 'cursor-not-allowed opacity-50'
+											: ''}
 									>
 										<Copy class="h-4 w-4" />
 									</Button>

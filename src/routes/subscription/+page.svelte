@@ -58,7 +58,7 @@
 				// Attendre 3 secondes puis rediriger
 				setTimeout(() => {
 					window.location.href = '/dashboard';
-				}, 3000);
+				}, 1000);
 			} else {
 				const error = await response.json();
 

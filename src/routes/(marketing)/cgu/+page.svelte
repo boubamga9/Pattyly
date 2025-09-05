@@ -701,7 +701,6 @@
 						Pattyly s'efforce de maintenir la Plateforme disponible 24h/24,
 						7j/7.
 					</p>
-					<p>En version 1.0, aucune garantie de disponibilité n'est fournie.</p>
 
 					<h3 class="mb-2 mt-6 text-lg font-semibold text-gray-900">
 						13.2 Maintenance

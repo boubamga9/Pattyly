@@ -171,12 +171,14 @@ export const actions = {
             await deleteAllShopImages(supabaseServiceRole, shop.id);
         }
 
+        const { error: deleteProfileError } = await supabaseServiceRole.from('profiles').delete().eq('id', user.id);
+
         const { error: delError } = await supabaseServiceRole.auth.admin.deleteUser(
             user.id,
             true,
         );
 
-        if (delError) {
+        if (delError || deleteProfileError) {
             return fail(500, {
                 errorMessage: 'Erreur inconnue. Si le problème persiste, veuillez nous contacter.',
             });
@@ -184,7 +186,7 @@ export const actions = {
 
         await supabase.auth.signOut();
 
-        redirect(303, '/register?alertDialog=account-deletion');
+        redirect(303, '/register');
     },
     updatePassword: async (event) => {
         const { safeGetSession, supabase } = event.locals;
@@ -262,7 +264,7 @@ export const actions = {
 
         if (recoveryAmr) {
             await supabase.auth.signOut();
-            redirect(303, '/login?alertDialog=reset-password');
+            redirect(303, '/login');
         }
 
         return 'old_password' in form.data

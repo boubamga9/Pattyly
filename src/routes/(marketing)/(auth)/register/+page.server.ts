@@ -44,6 +44,8 @@ export const actions: Actions = {
 
 		const { email, password } = form.data;
 
+		const redirectUrl = `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/auth/callback?next=onboarding`;
+
 		const {
 			error,
 			data: { user, session },
@@ -51,7 +53,7 @@ export const actions: Actions = {
 			email,
 			password,
 			options: {
-				emailRedirectTo: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/auth/callback?next=onboarding`
+				emailRedirectTo: redirectUrl
 			}
 		});
 

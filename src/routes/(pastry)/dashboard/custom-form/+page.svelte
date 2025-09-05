@@ -256,7 +256,8 @@
 							Passer au Plan Premium
 						</Button>
 						<p class="mt-3 text-sm text-gray-500">
-							À partir de 19€/mois - Annulation à tout moment
+							Pour 5€/mois de plus, vous pouvez activer les demandes
+							personnalisées - Annulation à tout moment
 						</p>
 					</div>
 				</div>
