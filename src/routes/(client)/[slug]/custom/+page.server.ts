@@ -191,7 +191,11 @@ export const actions: Actions = {
                     customer_email,
                     customer_phone,
                     customer_instagram,
-                    pickup_date: pickup_date.toISOString().split('T')[0], // Convertir Date en string
+                    pickup_date: (() => {
+                        // Convertir Date en string sans conversion de fuseau horaire
+                        const date = new Date(pickup_date);
+                        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                    })(), // Convertir Date en string
                     additional_information,
                     customization_data: transformedCustomizationData, // Utiliser les données transformées
                     total_amount: 0, // Prix à définir plus tard par le chef

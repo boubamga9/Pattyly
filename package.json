@@ -21,6 +21,7 @@
 		"@iconify-json/lucide": "^1.1.187",
 		"@iconify-json/simple-icons": "^1.1.101",
 		"@sveltejs/adapter-auto": "^3.2.2",
+		"@sveltejs/adapter-vercel": "^5.10.2",
 		"@sveltejs/kit": "^2.5.20",
 		"@sveltejs/vite-plugin-svelte": "^3.1.1",
 		"@tailwindcss/typography": "^0.5.10",
@@ -74,5 +75,8 @@
 		"tailwind-variants": "^0.2.1",
 		"vaul-svelte": "^0.3.0",
 		"zod": "^3.23.8"
+	},
+	"engines": {
+		"node": "20.x"
 	}
 }

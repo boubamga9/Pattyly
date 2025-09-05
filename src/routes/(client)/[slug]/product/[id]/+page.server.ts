@@ -215,10 +215,12 @@ export const actions: Actions = {
                 customization_data
             } = form.data;
 
-            // 🔐 Sécurité : forcer pickup_date → Date
+            // 🔐 Sécurité : forcer pickup_date → Date (sans conversion de fuseau horaire)
             let selectedDate: string | null = null;
             try {
-                selectedDate = new Date(pickup_date).toISOString().split('T')[0];
+                const date = new Date(pickup_date);
+                // Utiliser les méthodes getFullYear, getMonth, getDate pour éviter les problèmes de fuseau horaire
+                selectedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
             } catch {
                 return fail(400, { form, error: 'Date de retrait invalide' });
             }
