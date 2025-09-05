@@ -163,7 +163,9 @@
 </script>
 
 <section bind:this={sectionRef} class="relative bg-white">
-	<div class="absolute left-1/2 top-8 z-10 -translate-x-1/2 text-center">
+	<div
+		class="absolute left-1/2 top-8 z-10 min-w-[330px] -translate-x-1/2 text-center"
+	>
 		<h2 class="mb-4 text-3xl font-normal md:text-4xl">
 			Un assistant digital complet, pensé juste pour les pâtissier·ères.
 		</h2>
@@ -268,25 +270,5 @@
 		transform: scale(0.98);
 		border-radius: 10px;
 		opacity: 1;
-	}
-
-	/* Animation subtile pour le titre et l'image de la section active */
-	li.slide-active h2 {
-		animation: slideFocus 0.4s ease-out;
-	}
-
-	li.slide-active img {
-		animation: slideFocus 0.4s ease-out 0.1s both;
-	}
-
-	@keyframes slideFocus {
-		from {
-			transform: translateY(5px);
-			opacity: 0.9;
-		}
-		to {
-			transform: translateY(0);
-			opacity: 1;
-		}
 	}
 </style>

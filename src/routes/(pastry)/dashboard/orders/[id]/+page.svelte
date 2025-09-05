@@ -240,8 +240,7 @@
 				personalNote = null;
 			} else {
 			}
-		} catch (error) {
-		}
+		} catch (error) {}
 	}
 
 	// Fonctions pour la confirmation d'annulation de commande
@@ -271,21 +270,28 @@
 
 <div class="container mx-auto space-y-6 p-3 md:p-6">
 	<!-- En-tête avec bouton retour -->
-	<div class="flex items-center justify-between gap-4">
-		<Button variant="ghost" on:click={goBack} class="gap-2">
+	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+		<!-- Bouton retour - toujours en premier -->
+		<Button variant="ghost" on:click={goBack} class="gap-2 self-start">
 			<ArrowLeft class="h-4 w-4" />
 			Retour aux commandes
 		</Button>
-		<h1 class="text-3xl font-bold">
-			Détails de la commande {order.id.slice(0, 8)}
-		</h1>
-		<Badge class={getStatusColor(order.status)}>
-			<svelte:component
-				this={getStatusIcon(order.status)}
-				class="mr-2 h-4 w-4"
-			/>
-			{getStatusText(order.status)}
-		</Badge>
+		
+		<!-- Titre et statut - sur la même ligne sur desktop, empilés sur mobile -->
+		<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 sm:flex-1 sm:justify-center">
+			<h1 class="text-2xl font-bold sm:text-3xl text-center sm:text-left">
+				Détails de la commande {order.id.slice(0, 8)}
+			</h1>
+			<div class="flex justify-center sm:justify-start">
+				<Badge class={getStatusColor(order.status)}>
+					<svelte:component
+						this={getStatusIcon(order.status)}
+						class="mr-2 h-4 w-4"
+					/>
+					{getStatusText(order.status)}
+				</Badge>
+			</div>
+		</div>
 	</div>
 
 	<!-- Messages d'erreur/succès -->

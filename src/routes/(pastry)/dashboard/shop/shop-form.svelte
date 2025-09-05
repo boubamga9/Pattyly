@@ -204,25 +204,29 @@
 			<Form.Field {form} name="slug">
 				<Form.Control let:attrs>
 					<Form.Label>URL de la boutique</Form.Label>
-					<div class="flex items-center space-x-3">
-						<span class="text-sm font-medium text-muted-foreground"
-							>pattyly.com/</span
-						>
-						<Input
-							{...attrs}
-							type="text"
-							placeholder="ma-patisserie"
-							required
-							bind:value={$formData.slug}
-							class="h-11 flex-1"
-						/>
+					<div
+						class="flex flex-col space-y-3 sm:flex-row sm:items-center sm:space-x-3 sm:space-y-0"
+					>
+						<div class="flex flex-1 items-center space-x-3">
+							<span class="text-sm font-medium text-muted-foreground"
+								>pattyly.com/</span
+							>
+							<Input
+								{...attrs}
+								type="text"
+								placeholder="ma-patisserie"
+								required
+								bind:value={$formData.slug}
+								class="h-11 flex-1"
+							/>
+						</div>
 						<Button
 							type="button"
 							size="sm"
 							on:click={copyShopUrl}
 							title="Copier l'URL complète"
 							disabled={!$formData.slug}
-							class={`h-11 px-4 ${
+							class={`h-11 w-full px-4 sm:w-auto ${
 								copySuccess
 									? 'border-green-300 bg-green-100 text-green-700 hover:border-green-400 hover:bg-green-200'
 									: 'border border-input bg-background text-black hover:bg-accent hover:text-accent-foreground'

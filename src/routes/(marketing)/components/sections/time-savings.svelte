@@ -1,5 +1,28 @@
 <script lang="ts">
-	// Time savings section for pastry chefs
+	// Time savings data - facile à modifier et ajouter
+	const timeSavings = [
+		{
+			icon: '⏰',
+			bgColor: '#FFF1D6',
+			hoverColor: '#FFE8C7',
+			title:
+				"Libère jusqu'à<br />2h par jour<br />rien que pour toi<br />(ou pour un café ☕)",
+		},
+		{
+			icon: '🛍️',
+			bgColor: '#FFD6D6',
+			hoverColor: '#FFCCCC',
+			title:
+				'Ne laisse plus filer<br />tes clients<br />→ ils commandent<br />même quand tu es occupée',
+		},
+		{
+			icon: '✨',
+			bgColor: '#D6E8FF',
+			hoverColor: '#FFCCCC',
+			title:
+				'Montre une image pro,<br />avec une boutique chic<br />sans effort',
+		},
+	];
 </script>
 
 <section class="relative w-full bg-white py-20">
@@ -18,54 +41,29 @@
 					Tu retrouves du temps (et du plaisir) pour créer.
 				</h2>
 
-				<!-- 3 cards horizontal -->
+				<!-- Cards dynamiques -->
 				<div class="mb-20 grid w-full max-w-6xl gap-8 lg:grid-cols-3">
-					<!-- Card 1 -->
-					<div
-						class="group rounded-2xl bg-[#FFF1D6] p-8 transition-all duration-300 hover:bg-[#FFE8C7]"
-					>
-						<div class="mb-6 text-5xl">⏰</div>
-						<h3
-							class="text-base font-semibold leading-tight sm:text-lg lg:text-xl"
-							style="color: #333333;"
+					{#each timeSavings as card}
+						<div
+							class="group rounded-2xl p-8 transition-all duration-300"
+							style="background-color: {card.bgColor};"
+							role="presentation"
+							on:mouseenter={(e) => {
+								e.currentTarget.style.backgroundColor = card.hoverColor;
+							}}
+							on:mouseleave={(e) => {
+								e.currentTarget.style.backgroundColor = card.bgColor;
+							}}
 						>
-							Libère jusqu'à<br />
-							2h par jour<br />
-							rien que pour toi<br />
-							(ou pour un café ☕)
-						</h3>
-					</div>
-
-					<!-- Card 2 -->
-					<div
-						class="group rounded-2xl bg-[#FFD6D6] p-8 transition-all duration-300 hover:bg-[#FFCCCC]"
-					>
-						<div class="mb-6 text-5xl">🛍️</div>
-						<h3
-							class="text-base font-semibold leading-tight sm:text-lg lg:text-xl"
-							style="color: #333333;"
-						>
-							Ne laisse plus filer<br />
-							tes clients<br />
-							→ ils commandent<br />
-							même quand tu es occupée
-						</h3>
-					</div>
-
-					<!-- Card 3 -->
-					<div
-						class="group rounded-2xl bg-[#D6E8FF] p-8 transition-all duration-300 hover:bg-[#FFCCCC]"
-					>
-						<div class="mb-6 text-5xl">✨</div>
-						<h3
-							class="text-base font-semibold leading-tight sm:text-lg lg:text-xl"
-							style="color: #333333;"
-						>
-							Montre une image pro,<br />
-							avec une boutique chic<br />
-							sans effort
-						</h3>
-					</div>
+							<div class="mb-6 text-5xl">{card.icon}</div>
+							<h3
+								class="text-base font-semibold leading-tight sm:text-lg lg:text-xl"
+								style="color: #333333;"
+							>
+								{@html card.title}
+							</h3>
+						</div>
+					{/each}
 				</div>
 
 				<!-- CTA -->
