@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { forceRevalidateShop } from './catalog-revalidation';
 
 /**
  * Incrémente la version du catalogue d'une boutique
@@ -10,10 +11,10 @@ export async function incrementCatalogVersion(
     shopId: string
 ): Promise<void> {
     try {
-        // Étape 1 : récupérer la version actuelle
+        // Étape 1 : récupérer la version actuelle et le slug
         const { data, error: fetchError } = await supabase
             .from('shops')
-            .select('catalog_version')
+            .select('catalog_version, slug')
             .eq('id', shopId)
             .single();
 
@@ -33,7 +34,13 @@ export async function incrementCatalogVersion(
         if (updateError) {
             throw new Error('Failed to increment catalog version');
         }
+
+        // Étape 3 : forcer la revalidation ISR
+        console.log(`🔄 Incrementing catalog version for shop ${shopId} (${data.slug})`);
+        await forceRevalidateShop(data.slug);
+
     } catch (error) {
+        console.error('Error in incrementCatalogVersion:', error);
         throw error;
     }
 }

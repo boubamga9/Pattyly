@@ -1,8 +1,19 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { loadShopCatalog } from '$lib/utils/catalog/catalog-loader';
+import { env } from '$env/dynamic/private';
 
-export const load: PageServerLoad = async ({ params, locals, setHeaders }) => {
+// ==========================
+// ISR CONFIG
+// ==========================
+export const config = {
+  isr: {
+    expiration: 3600, // 1 heure
+    bypassToken: env.REVALIDATION_TOKEN
+  }
+};
+
+export const load: PageServerLoad = async ({ params, locals, setHeaders, url }) => {
     const { slug } = params;
 
     try {
@@ -18,13 +29,20 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders }) => {
             throw error(404, 'Boutique non trouvée');
         }
 
-        // 2. Charger le catalogue avec gestion du cache
+        // 2. Vérifier si c'est une revalidation forcée
+        const bypassToken = url.searchParams.get('bypassToken');
+        if (bypassToken === env.REVALIDATION_TOKEN) {
+            console.log(`🔄 Revalidation forcée pour la boutique ${shopInfo.id}`);
+            // Vercel va régénérer la page immédiatement
+        }
+
+        // 3. Charger le catalogue (ISR gère le cache)
         const catalogData = await loadShopCatalog(locals.supabase, shopInfo.id);
 
-        // 3. Headers CDN pour optimiser la performance
+        // 4. Headers CDN pour optimiser la performance
         setHeaders({
             'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
-            'X-Cache-Status': catalogData.from_cache ? 'HIT' : 'MISS'
+            'X-ISR-Revalidated': bypassToken === env.REVALIDATION_TOKEN ? 'true' : 'false'
         });
 
         return {
@@ -35,7 +53,7 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders }) => {
             cacheInfo: {
                 cached_at: catalogData.cached_at,
                 catalog_version: catalogData.shop.catalog_version,
-                from_cache: catalogData.from_cache
+                revalidated: bypassToken === env.REVALIDATION_TOKEN
             }
         };
     } catch (err) {

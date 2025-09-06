@@ -270,16 +270,20 @@
 
 <div class="container mx-auto space-y-6 p-3 md:p-6">
 	<!-- En-tête avec bouton retour -->
-	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+	<div
+		class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+	>
 		<!-- Bouton retour - toujours en premier -->
 		<Button variant="ghost" on:click={goBack} class="gap-2 self-start">
 			<ArrowLeft class="h-4 w-4" />
 			Retour aux commandes
 		</Button>
-		
+
 		<!-- Titre et statut - sur la même ligne sur desktop, empilés sur mobile -->
-		<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 sm:flex-1 sm:justify-center">
-			<h1 class="text-2xl font-bold sm:text-3xl text-center sm:text-left">
+		<div
+			class="flex flex-col gap-3 sm:flex-1 sm:flex-row sm:items-center sm:justify-center sm:gap-4"
+		>
+			<h1 class="text-center text-2xl font-bold sm:text-left sm:text-3xl">
 				Détails de la commande {order.id.slice(0, 8)}
 			</h1>
 			<div class="flex justify-center sm:justify-start">

@@ -1,8 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { catalogCache, CatalogCache } from './catalog-cache';
 
 /**
- * Charge le catalogue d'une boutique avec gestion du cache
+ * Charge le catalogue d'une boutique (ISR gère le cache)
  * @param supabase Instance Supabase
  * @param shopId ID de la boutique
  * @returns Données du catalogue (produits, catégories, infos boutique)
@@ -23,21 +22,7 @@ export async function loadShopCatalog(
             throw new Error('Boutique non trouvée');
         }
 
-        // 2. Générer la clé de cache
-        const cacheKey = CatalogCache.generateKey(shopId, shop.catalog_version);
-
-        // 3. Essayer de récupérer depuis le cache
-        const cachedData = await catalogCache.get(cacheKey);
-        if (cachedData) {
-            // Retourner les données du cache avec from_cache: true
-            return {
-                ...cachedData,
-                from_cache: true
-            };
-        }
-
-
-        // 4. Cache miss → Charger depuis Supabase
+        // 2. Charger directement depuis Supabase (ISR gère le cache)
         const [productsResult, categoriesResult, faqsResult] = await Promise.all([
             // Récupérer les produits actifs
             supabase
@@ -79,7 +64,7 @@ export async function loadShopCatalog(
             throw new Error('Erreur lors du chargement des catégories');
         }
 
-        // 5. Structurer les données du catalogue
+        // 3. Structurer les données du catalogue
         const catalogData = {
             shop: {
                 id: shop.id,
@@ -96,12 +81,8 @@ export async function loadShopCatalog(
             products: productsResult.data || [],
             categories: categoriesResult.data || [],
             faqs: faqsResult.data || [],
-            from_cache: false, // Données chargées depuis Supabase
             cached_at: new Date().toISOString()
         };
-
-        // 6. Stocker dans le cache (TTL: 1 heure)
-        await catalogCache.set(cacheKey, catalogData, 3600);
 
         return catalogData;
     } catch (error) {
@@ -109,16 +90,3 @@ export async function loadShopCatalog(
     }
 }
 
-/**
- * Récupère les statistiques du cache (utile pour le debugging)
- */
-export function getCacheStats() {
-    return catalogCache.getStats();
-}
-
-/**
- * Vide le cache (utile pour les tests ou en cas de problème)
- */
-export async function clearCache() {
-    await catalogCache.clear();
-}

@@ -11,166 +11,8 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import type { Handle } from '@sveltejs/kit';
 import Stripe from 'stripe';
-
-// ============================================================================
-// TYPES & INTERFACES
-// ============================================================================
-
-interface RateLimitEntry {
-	count: number;
-	resetTime: number;
-}
-
-interface RateLimitConfig {
-	max: number;
-	window: number;
-}
-
-type RateLimitStore = Map<string, RateLimitEntry>;
-
-interface RateLimitResult {
-	isLimited: boolean;
-	retryAfter?: number;
-	message?: string;
-}
-
-// ============================================================================
-// CONSTANTS & CONFIGURATION
-// ============================================================================
-
-const RATE_LIMIT_CONFIG = {
-	CLEANUP_INTERVAL: 5 * 60 * 1000, // 5 minutes
-	DEFAULT_WINDOW: 3600000, // 1 hour in milliseconds
-} as const;
-
-const RATE_LIMITS: Record<string, RateLimitConfig> = {
-	'/contact': { max: 3, window: RATE_LIMIT_CONFIG.DEFAULT_WINDOW },
-	'/register': { max: 10, window: RATE_LIMIT_CONFIG.DEFAULT_WINDOW },
-	'/login': { max: 10, window: RATE_LIMIT_CONFIG.DEFAULT_WINDOW },
-	'/forgot-password': { max: 3, window: RATE_LIMIT_CONFIG.DEFAULT_WINDOW },
-	'/custom': { max: 15, window: RATE_LIMIT_CONFIG.DEFAULT_WINDOW },
-	'/product': { max: 15, window: RATE_LIMIT_CONFIG.DEFAULT_WINDOW }
-} as const;
-
-// ============================================================================
-// RATE LIMITING CLASS
-// ============================================================================
-
-class RateLimiter {
-	private store: RateLimitStore = new Map();
-	private cleanupInterval!: NodeJS.Timeout;
-
-	constructor() {
-		this.startCleanupInterval();
-	}
-
-	/**
-	 * Check if a client is rate limited for a specific route
-	 */
-	checkRateLimit(clientIP: string, route: string): RateLimitResult {
-		const config = this.findRateLimitConfig(route);
-		if (!config) {
-			return { isLimited: false };
-		}
-
-		const key = `${clientIP}:${route}`;
-		const now = Date.now();
-
-		// Clean up expired entries
-		this.cleanupExpiredEntries(key, now);
-
-		// Check current rate limit
-		const entry = this.store.get(key);
-		if (!entry) {
-			// First attempt
-			this.store.set(key, {
-				count: 1,
-				resetTime: now + config.window
-			});
-			return { isLimited: false };
-		}
-
-		if (entry.count >= config.max) {
-			const retryAfter = Math.ceil((entry.resetTime - now) / 1000);
-			const message = this.formatRateLimitMessage(retryAfter);
-
-			return {
-				isLimited: true,
-				retryAfter,
-				message
-			};
-		}
-
-		// Increment counter
-		entry.count++;
-		return { isLimited: false };
-	}
-
-	/**
-	 * Find rate limit configuration for a route
-	 */
-	private findRateLimitConfig(pathname: string): RateLimitConfig | null {
-		for (const [route, config] of Object.entries(RATE_LIMITS)) {
-			if (pathname === route || pathname.includes(route)) {
-				return config;
-			}
-		}
-		return null;
-	}
-
-	/**
-	 * Clean up expired entries for a specific key
-	 */
-	private cleanupExpiredEntries(key: string, now: number): void {
-		const entry = this.store.get(key);
-		if (entry && now > entry.resetTime) {
-			this.store.delete(key);
-		}
-	}
-
-	/**
-	 * Format rate limit message based on remaining time
-	 */
-	private formatRateLimitMessage(remainingTime: number): string {
-		const minutes = Math.floor(remainingTime / 60);
-		const seconds = remainingTime % 60;
-
-		if (minutes > 0) {
-			return `Trop de tentatives. Veuillez attendre ${minutes}m ${seconds}s avant de réessayer.`;
-		}
-		return `Trop de tentatives. Veuillez attendre ${seconds}s avant de réessayer.`;
-	}
-
-	/**
-	 * Start automatic cleanup interval
-	 */
-	private startCleanupInterval(): void {
-		this.cleanupInterval = setInterval(() => {
-			this.cleanupAllExpiredEntries();
-		}, RATE_LIMIT_CONFIG.CLEANUP_INTERVAL);
-	}
-
-	/**
-	 * Clean up all expired entries
-	 */
-	private cleanupAllExpiredEntries(): void {
-		const now = Date.now();
-		for (const [key, entry] of this.store.entries()) {
-			if (now > entry.resetTime) {
-				this.store.delete(key);
-			}
-		}
-	}
-
-	/**
-	 * Clean up resources
-	 */
-	destroy(): void {
-		if (this.cleanupInterval) {
-			clearInterval(this.cleanupInterval);
-		}
-	}
-}
+import { RateLimiterRedis, type RateLimitResult } from '$lib/rate-limiting';
+import { RATE_LIMITS } from '$lib/rate-limiting/config';
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -187,13 +29,12 @@ function applyRateLimitHeaders(request: Request, result: RateLimitResult): void 
 	}
 }
 
-
 // ============================================================================
 // MAIN HANDLER
 // ============================================================================
 
-// Initialize rate limiter
-const rateLimiter = new RateLimiter();
+// Initialize Redis rate limiter
+const rateLimiter = new RateLimiterRedis();
 
 export const handle: Handle = async ({ event, resolve }) => {
 	try {
@@ -202,11 +43,17 @@ export const handle: Handle = async ({ event, resolve }) => {
 			const pathname = event.url.pathname;
 			const clientIP = event.getClientAddress();
 
-			const rateLimitResult = rateLimiter.checkRateLimit(clientIP, pathname);
+			// Find rate limit config for this route
+			const config = Object.entries(RATE_LIMITS).find(([route]) =>
+				pathname === route || pathname.includes(route)
+			)?.[1];
 
-			// Apply headers if rate limited
-			applyRateLimitHeaders(event.request, rateLimitResult);
+			if (config) {
+				const rateLimitResult = await rateLimiter.checkRateLimit(clientIP, pathname, config);
 
+				// Apply headers if rate limited
+				applyRateLimitHeaders(event.request, rateLimitResult);
+			}
 		}
 
 		// Initialize Supabase client
