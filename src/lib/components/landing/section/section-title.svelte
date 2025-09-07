@@ -12,7 +12,7 @@
 <svelte:element
 	this={elements[level - 2]}
 	{...$$restProps}
-	class="text-center text-xl font-bold md:text-3xl lg:text-4xl"
+	class="text-center text-3xl font-bold md:text-4xl lg:text-5xl"
 >
 	<slot />
 </svelte:element>
