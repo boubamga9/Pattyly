@@ -7,10 +7,10 @@ import { env } from '$env/dynamic/private';
 // ISR CONFIG
 // ==========================
 export const config = {
-  isr: {
-    expiration: 3600, // 1 heure
-    bypassToken: env.REVALIDATION_TOKEN
-  }
+    isr: {
+        expiration: 3600, // 1 heure
+        bypassToken: env.REVALIDATION_TOKEN
+    }
 };
 
 export const load: PageServerLoad = async ({ params, locals, setHeaders, url }) => {
