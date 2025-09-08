@@ -88,6 +88,7 @@ export const actions: Actions = {
 			}
 
 			// Erreur générique pour les autres cas
+			console.log(error)
 			return setError(form, '', 'Impossible de créer le compte. Veuillez réessayer.');
 		}
 

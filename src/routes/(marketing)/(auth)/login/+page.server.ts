@@ -87,6 +87,7 @@ export const actions: Actions = {
 			}
 
 			// Erreur générique
+			console.log(error)
 			return setError(form, '', 'Erreur lors de la connexion. Veuillez réessayer.');
 		}
 

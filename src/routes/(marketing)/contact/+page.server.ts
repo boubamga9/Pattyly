@@ -42,6 +42,7 @@ export const actions: Actions = {
 		});
 
 		if (error) {
+			console.log(error)
 			return setError(
 				form,
 				"",
