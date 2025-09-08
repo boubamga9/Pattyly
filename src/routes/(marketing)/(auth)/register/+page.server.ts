@@ -74,8 +74,7 @@ export const actions: Actions = {
 			if (
 				error.code === 'user_already_exists'
 			) {
-				// Rediriger vers la confirmation pour renvoyer l'email
-				throw redirect(303, `/confirmation?email=${encodeURIComponent(email)}`);
+				return setError(form, '', 'Cet email est déjà utilisé. Veuillez utiliser un autre email.');
 			}
 
 			// Détecter d'autres erreurs courantes

@@ -2,6 +2,7 @@ import type { Stripe } from 'stripe';
 import { error } from '@sveltejs/kit';
 
 export async function handleAccountUpdated(account: Stripe.Account, locals: any): Promise<void> {
+    console.log('handleAccountUpdated', account);
 
     try {
 
@@ -25,6 +26,7 @@ export async function handleAccountUpdated(account: Stripe.Account, locals: any)
 }
 
 export async function handleAccountAuthorized(account: Stripe.Account, locals: any): Promise<void> {
+    console.log('handleAccountAuthorized', account);
 
     try {
 

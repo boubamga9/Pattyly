@@ -9,14 +9,6 @@ redis.on('error', (error) => {
 	console.error('Redis connection error:', error);
 });
 
-redis.on('connect', () => {
-	console.log('✅ Redis connected successfully');
-});
-
-redis.on('ready', () => {
-	console.log('✅ Redis ready to accept commands');
-});
-
 // Fonction pour tester la connexion
 export async function testRedisConnection(): Promise<boolean> {
 	try {
