@@ -23,6 +23,7 @@
 		customForm: _customForm,
 		customFields: initialCustomFields,
 		needsUpgrade,
+		permissions,
 		toggleForm,
 		updateForm,
 		// Compat temporaire
@@ -255,10 +256,12 @@
 							</svg>
 							Passer au Plan Premium
 						</Button>
-						<p class="mt-3 text-sm text-gray-500">
-							Pour 5€/mois de plus, vous pouvez activer les demandes
-							personnalisées - Annulation à tout moment
-						</p>
+						{#if permissions.plan === 'basic'}
+							<p class="mt-3 text-sm text-gray-500">
+								Pour 5€/mois de plus, vous pouvez activer les demandes
+								personnalisées - Annulation à tout moment
+							</p>
+						{/if}
 					</div>
 				</div>
 			</CardContent>

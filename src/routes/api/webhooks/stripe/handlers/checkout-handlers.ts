@@ -7,9 +7,6 @@ export async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Se
 
     try {
 
-
-
-
         // Vérifier que c'est un paiement de commande (pas un abonnement)
         if (session.mode !== 'payment') {
 

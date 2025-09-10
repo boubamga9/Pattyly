@@ -1,6 +1,6 @@
 import { error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { getShopId } from '$lib/auth';
+import { getShopId, getUserPermissions } from '$lib/auth';
 import { deleteImageIfUnused } from '$lib/storage';
 import { incrementCatalogVersion } from '$lib/utils/catalog';
 import { superValidate } from 'sveltekit-superforms';
@@ -182,6 +182,13 @@ export const actions: Actions = {
 
         if (!shopId) {
             return fail(500, { error: 'Boutique non trouvée' });
+        }
+
+        // Récupérer les permissions
+        const permissions = await getUserPermissions(userId, locals.supabase);
+
+        if (!permissions.canAddMoreProducts) {
+            return fail(403, { error: 'Limite de produits atteinte. Passez au plan Premium pour ajouter plus de produits !' });
         }
 
         const formData = await request.formData();

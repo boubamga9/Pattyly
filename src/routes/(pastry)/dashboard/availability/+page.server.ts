@@ -15,9 +15,6 @@ export const load: PageServerLoad = async ({ locals }) => {
     // Vérifier les permissions
     const permissions = await getUserPermissions(user.id, locals.supabase);
 
-    if (!permissions.canAccessDashboard) {
-        throw redirect(302, '/onboarding');
-    }
 
     // Récupérer l'ID de la boutique
     if (!permissions.shopId) {
@@ -70,9 +67,7 @@ export const actions: Actions = {
 
         const permissions = await getUserPermissions(user.id, locals.supabase);
 
-        if (!permissions.canAccessDashboard) {
-            throw error(403, 'Accès refusé');
-        }
+
 
         if (!permissions.shopId) {
             throw error(400, 'Boutique non trouvée');
@@ -128,9 +123,7 @@ export const actions: Actions = {
 
         const permissions = await getUserPermissions(user.id, locals.supabase);
 
-        if (!permissions.canAccessDashboard) {
-            throw error(403, 'Accès refusé');
-        }
+
 
         if (!permissions.shopId) {
             throw error(400, 'Boutique non trouvée');
@@ -185,10 +178,6 @@ export const actions: Actions = {
         }
 
         const permissions = await getUserPermissions(user.id, locals.supabase);
-
-        if (!permissions.canAccessDashboard) {
-            throw error(403, 'Accès refusé');
-        }
 
         if (!permissions.shopId) {
             throw error(400, 'Boutique non trouvée');

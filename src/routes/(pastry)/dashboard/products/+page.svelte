@@ -98,7 +98,6 @@
 		// Rediriger vers la page publique du produit avec le mode preview
 		if (shopSlug) {
 			goto(`/${shopSlug}/product/${productId}?preview=true`);
-		} else {
 		}
 	}
 

@@ -27,20 +27,25 @@ export const load: LayoutServerLoad = async ({
 		.single();
 
 	// Détecter si l'utilisateur a un abonnement inactif (pour afficher l'alerte)
-	let hasInactiveSubscription = false;
-	const { data: inactiveSubscription } = await supabase
+	let hasInactiveSubscription = true;
+	const { data: subscription } = await supabase
 		.from('user_products')
 		.select('subscription_status')
 		.eq('profile_id', user.id)
-		.eq('subscription_status', 'inactive')
+		//.eq('subscription_status', 'active')
 		.single();
 
-	hasInactiveSubscription = !!inactiveSubscription;
+	let isSubscriptionExists = !!subscription;
+
+	if (subscription && subscription.subscription_status === 'active') {
+		hasInactiveSubscription = false;
+	}
 
 	return {
 		user,
 		shop,
 		permissions,
-		hasInactiveSubscription
+		hasInactiveSubscription,
+		isSubscriptionExists
 	};
 };

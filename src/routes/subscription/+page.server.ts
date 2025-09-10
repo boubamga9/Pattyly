@@ -25,66 +25,13 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders }) => {
         .select('stripe_product_id, subscription_status')
         .eq('profile_id', userId);
 
-    // Vérifier l'anti-fraude : récupérer l'IP et vérifier dans la table anti_fraud
-    let isInAntiFraud = false;
-    let cookieFingerprint = null;
-    try {
-        // Récupérer l'IP de l'utilisateur
-        const forwardedFor = request.headers.get('x-forwarded-for');
-        const realIp = request.headers.get('x-real-ip');
-        const userIp = forwardedFor?.split(',')[0] || realIp || request.headers.get('cf-connecting-ip') || '127.0.0.1';
+    // Plus besoin de vérification anti-fraude pour les essais gratuits
+    // L'essai gratuit est maintenant géré dans /onboarding
 
-        // Extraire l'email de base pour éviter le contournement par plus addressing
-        const baseEmail = userEmail ? getBaseEmail(userEmail) : '';
-
-        // Récupérer le fingerprint depuis les cookies (protection immédiate)
-        const cookieHeader = request.headers.get('cookie') || '';
-        const fingerprintMatch = cookieHeader.match(/deviceFingerprint=([^;]+)/);
-        cookieFingerprint = fingerprintMatch ? fingerprintMatch[1] : null;
-
-
-
-        // Vérifier si l'utilisateur est dans la table anti_fraud
-        // On vérifie l'email exact, l'email de base, l'IP ET le fingerprint pour éviter le contournement
-        let conditions = [`email.eq.${userEmail}`, `email.eq.${baseEmail}`, `ip_address.eq.${userIp}`];
-        if (cookieFingerprint) {
-            conditions.push(`fingerprint.eq.${cookieFingerprint}`);
-        }
-
-        const { data: antiFraudRecord } = await (locals.supabase as any)
-            .from('anti_fraud')
-            .select('id')
-            .or(conditions.join(','))
-            .maybeSingle();
-
-        isInAntiFraud = !!antiFraudRecord;
-
-        if (isInAntiFraud) {
-
-        } else {
-
-        }
-
-        // ✅ SUPPRIMER LE COOKIE APRÈS VÉRIFICATION
-        if (cookieFingerprint) {
-            setHeaders({
-                'Set-Cookie': 'deviceFingerprint=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict'
-            });
-
-        }
-
-    } catch (error) {
-        // En cas d'erreur, on considère que l'utilisateur n'est pas bloqué
-        isInAntiFraud = false;
-    }
-
-    // Déterminer le plan actuel ET l'historique
+    // Déterminer le plan actuel
     let currentPlan = null;
-    let hasHadSubscription = false;
 
     if (allSubscriptions && allSubscriptions.length > 0) {
-        hasHadSubscription = true;
-
         // Chercher un abonnement actif ou en essai
         const activeSubscription = allSubscriptions.find((sub: any) =>
             sub.subscription_status === 'active' || sub.subscription_status === 'trialing'
@@ -113,17 +60,14 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders }) => {
     }
 
     // Déterminer le type de boutons à afficher
-    let buttonType: 'current' | 'choose' | 'trial' = 'trial';
+    let buttonType: 'current' | 'choose' = 'choose';
 
     if (currentPlan) {
         // Utilisateur a un plan actif
         buttonType = 'current';
-    } else if (hasHadSubscription || isInAntiFraud) {
-        // Utilisateur a déjà eu un abonnement OU est dans anti_fraud
-        buttonType = 'choose';
     } else {
-        // Utilisateur peut essayer gratuitement
-        buttonType = 'trial';
+        // Utilisateur n'a pas de plan, afficher les options de souscription
+        buttonType = 'choose';
     }
 
 
@@ -170,9 +114,7 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders }) => {
     return {
         plans,
         currentPlan,
-        hasHadSubscription,
-        isInAntiFraud,
-        buttonType, // ✅ Nouveau champ pour déterminer le type de boutons
+        buttonType, // Type de boutons à afficher
         user: {
             id: userId,
             email: userEmail

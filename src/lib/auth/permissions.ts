@@ -101,7 +101,7 @@ export async function getUserPermissions(profileId: string, supabase: SupabaseCl
     const shopId = await getShopId(profileId, supabase);
     const plan = await getUserPlan(profileId, supabase);
     const productCount = await getProductCount(profileId, supabase);
-    const productLimit = plan === 'basic' ? 10 : Infinity;
+    const productLimit = plan === 'premium' ? Infinity : plan === 'exempt' ? Infinity : 10;
 
     return {
         shopId,

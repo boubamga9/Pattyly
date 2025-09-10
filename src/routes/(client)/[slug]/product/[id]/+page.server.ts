@@ -4,7 +4,7 @@ import { superValidate, fail, message, setError } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { createLocalDynamicSchema } from './schema';
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params, locals, url }) => {
     try {
         const { slug, id } = params;
 
@@ -12,9 +12,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         // Récupérer les informations de la boutique
         const { data: shop, error: shopError } = await locals.supabase
             .from('shops')
-            .select('id, name, bio, slug, logo_url, is_custom_accepted')
+            .select('id, name, bio, slug, logo_url, is_custom_accepted, is_active')
             .eq('slug', slug)
-            .eq('is_active', true)
             .single();
 
         if (shopError) {
@@ -22,10 +21,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         }
 
         if (!shop) {
-
             throw error(404, 'Boutique non trouvée');
         }
 
+        if (!shop.is_active && !url.searchParams.get('preview')) {
+            throw error(404, 'Boutique non trouvée');
+        }
 
 
         // Récupérer le produit actif avec ses informations
@@ -54,14 +55,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         if (productError || !product) {
             throw error(404, 'Produit non trouvé');
         }
-
-        // Si le produit n'a pas de formulaire, on utilise un formulaire par défaut
-        if (!product.form_id) {
-
-            // Pas d'erreur, on continue avec un formulaire vide
-        }
-
-
 
         // Récupérer le formulaire personnalisé seulement s'il existe
         let customForm = null;
@@ -95,8 +88,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
                 customFields = formFields || [];
             }
-        } else {
-
         }
 
         // Récupérer les disponibilités de la boutique

@@ -6,6 +6,144 @@ import { zod } from 'sveltekit-superforms/adapters';
 import { formSchema } from './schema';
 import { validateImageServer, validateAndRecompressImage, logValidationInfo } from '$lib/utils/images/server';
 import { incrementCatalogVersion } from '$lib/utils/catalog';
+import Stripe from 'stripe';
+import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Cookies } from '@sveltejs/kit';
+
+const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
+    apiVersion: '2024-04-10'
+});
+
+// Fonction pour extraire l'email de base (sans plus addressing)
+function getBaseEmail(email: string): string {
+    const [localPart, domain] = email.split('@');
+    const baseLocalPart = localPart.split('+')[0];
+    return `${baseLocalPart}@${domain}`;
+}
+
+// Fonction pour vérifier l'éligibilité et créer l'essai gratuit
+async function checkAndStartTrial(
+    supabase: SupabaseClient,
+    userId: string,
+    userEmail: string,
+    request: Request,
+    cookies: Cookies
+): Promise<{ success: boolean; error?: string; subscriptionId?: string }> {
+    try {
+        // Récupérer l'IP de l'utilisateur
+        const forwardedFor = request.headers.get('x-forwarded-for');
+        const realIp = request.headers.get('x-real-ip');
+        const userIp = forwardedFor?.split(',')[0] || realIp || request.headers.get('cf-connecting-ip') || '127.0.0.1';
+
+        // Extraire l'email de base pour éviter le contournement par plus addressing
+        const baseEmail = userEmail ? getBaseEmail(userEmail) : '';
+
+        // Récupérer le fingerprint depuis les cookies
+        const cookieHeader = request.headers.get('cookie') || '';
+        const fingerprintMatch = cookieHeader.match(/deviceFingerprint=([^;]+)/);
+        const fingerprint = fingerprintMatch ? fingerprintMatch[1] : null;
+
+        // ✅ SUPPRIMER LE COOKIE APRÈS RÉCUPÉRATION
+        if (fingerprint) {
+            cookies.delete('deviceFingerprint', { path: '/' });
+        }
+
+        // Vérifier si l'utilisateur est dans la table anti_fraud
+        let conditions = [`email.eq.${userEmail}`, `email.eq.${baseEmail}`, `ip_address.eq.${userIp}`];
+        if (fingerprint) {
+            conditions.push(`fingerprint.eq.${fingerprint}`);
+        }
+
+        const { data: antiFraudRecord } = await supabase
+            .from('anti_fraud')
+            .select('id')
+            .or(conditions.join(','))
+            .maybeSingle();
+
+        if (antiFraudRecord) {
+            return { success: false, error: 'Un essai gratuit a déjà été utilisé' };
+        }
+
+        // Vérifier si l'utilisateur a déjà eu un abonnement
+        const { data: existingSubscriptions } = await supabase
+            .from('user_products')
+            .select('id')
+            .eq('profile_id', userId);
+
+        if (existingSubscriptions && existingSubscriptions.length > 0) {
+            return { success: false, error: 'Un abonnement a déjà été utilisé' };
+        }
+
+        // Créer ou récupérer le customer Stripe
+        let customer: string;
+        const { data: existingCustomer } = await supabase
+            .from('stripe_customers')
+            .select('stripe_customer_id')
+            .eq('profile_id', userId)
+            .single();
+
+        if (existingCustomer) {
+            customer = existingCustomer.stripe_customer_id;
+        } else {
+            const { id } = await stripe.customers.create({
+                email: userEmail,
+                metadata: { user_id: userId }
+            });
+            customer = id;
+
+            // Sauvegarder le customer
+            await supabase
+                .from('stripe_customers')
+                .insert({
+                    profile_id: userId,
+                    stripe_customer_id: id
+                });
+        }
+
+        // Créer l'abonnement avec essai gratuit (7 jours premium)
+        const subscription = await stripe.subscriptions.create({
+            customer,
+            items: [{ price: 'price_1RrdwvPNddYt1P7LGICY3by5' }], // Premium price
+            trial_period_days: 7,
+            payment_behavior: 'default_incomplete',
+            expand: ['latest_invoice.payment_intent']
+        });
+
+        console.log("user product info", userId, subscription.id, 'prod_Selcz36pAfV3vV');
+        // Sauvegarder l'abonnement en base
+        await supabase
+            .from('user_products')
+            .upsert({
+                profile_id: userId,
+                stripe_product_id: 'prod_Selcz36pAfV3vV', // Premium product
+                stripe_subscription_id: subscription.id,
+                subscription_status: 'active'
+            }, { onConflict: 'profile_id' });
+
+        // Enregistrer l'utilisateur dans la table anti_fraud
+        try {
+            await supabase
+                .from('anti_fraud')
+                .insert({
+                    fingerprint: fingerprint || '',
+                    ip_address: userIp,
+                    email: userEmail
+                });
+        } catch (antiFraudError) {
+            // On continue même si l'enregistrement anti_fraud échoue
+        }
+
+        return {
+            success: true,
+            subscriptionId: subscription.id
+        };
+
+    } catch (error) {
+        console.error('Error in checkAndStartTrial:', error);
+        return { success: false, error: 'Erreur lors de la création de l\'essai gratuit' };
+    }
+}
 
 export const load: PageServerLoad = async ({ locals }) => {
     try {
@@ -240,7 +378,7 @@ export const actions: Actions = {
         }
     },
 
-    connectStripe: async ({ locals }) => {
+    connectStripe: async ({ request, locals, cookies }) => {
         try {
             const { session } = await locals.safeGetSession();
 
@@ -310,13 +448,30 @@ export const actions: Actions = {
 
                 }
 
+
+
                 // Create Stripe Connect account link
                 const accountLink = await locals.stripe.accountLinks.create({
                     account: stripeAccountId,
-                    refresh_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/onboarding?refresh=true`,
-                    return_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/subscription`,
+                    refresh_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/onboarding`,
+                    return_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard`,
                     type: 'account_onboarding',
                 });
+
+                // Essai gratuit : vérifier l'éligibilité et créer l'essai si possible
+                const trialResult = await checkAndStartTrial(
+                    locals.supabase,
+                    userId,
+                    session.user.email || '',
+                    request,
+                    cookies
+                );
+
+                if (trialResult.success) {
+                    console.log(`✅ Essai gratuit créé pour l'utilisateur ${userId}`);
+                } else {
+                    console.log(`ℹ️ Essai gratuit non éligible pour l'utilisateur ${userId}: ${trialResult.error}`);
+                }
 
 
                 // Create a clean form for Superforms compatibility

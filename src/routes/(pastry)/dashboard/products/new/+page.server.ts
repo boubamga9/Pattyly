@@ -27,8 +27,6 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
         .eq('shop_id', shopId)
         .order('name');
 
-    if (categoriesError) {
-    }
 
     // Initialiser les formulaires Superforms
     const createProductForm = await superValidate(zod(createProductFormSchema));

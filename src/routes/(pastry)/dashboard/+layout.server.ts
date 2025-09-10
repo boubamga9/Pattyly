@@ -46,24 +46,23 @@ export const load: LayoutServerLoad = async ({ locals }) => {
     }
 
     // Vérifier si l'utilisateur est exempté
-    if (profile.is_stripe_free) {
-        // Utilisateur exempté, autoriser l'accès au dashboard
-        // Pas de redirection nécessaire
-    } else {
-        // Vérifier que l'utilisateur a AU MOINS un user_product (actif, inactif, ou en essai)
-        const { data: anySubscription } = await locals.supabase
-            .from('user_products')
-            .select('subscription_status')
-            .eq('profile_id', userId)
-            .single();
+    //if (profile.is_stripe_free) {
+    // Utilisateur exempté, autoriser l'accès au dashboard
+    // Pas de redirection nécessaire
+    //} else {
+    // Vérifier que l'utilisateur a AU MOINS un user_product (actif, inactif, ou en essai)
+    //const { data: anySubscription } = await locals.supabase
+    //.from('user_products')
+    //.select('subscription_status')
+    //.eq('profile_id', userId)
+    //.single();
 
-        if (!anySubscription) {
-            // Pas du tout de user_product, rediriger vers la page d'abonnement
-            throw redirect(303, '/subscription');
-        }
-        // Si l'utilisateur a un user_product (même inactif), autoriser l'accès au dashboard
-        // L'alerte sera affichée si le statut est 'inactive'
-    }
+    //if (!anySubscription) {
+    // Pas du tout de user_product, rediriger vers la page d'abonnement
+    //throw redirect(303, '/subscription');
+    //}
+
+    //}
 
     // Détecter si l'utilisateur a un abonnement inactif (pour afficher l'alerte)
     let hasInactiveSubscription = false;

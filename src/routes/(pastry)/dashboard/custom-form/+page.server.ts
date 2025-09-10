@@ -16,9 +16,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     // Vérifier les permissions
     const permissions = await getUserPermissions(user.id, locals.supabase);
 
-    if (!permissions.canAccessDashboard) {
-        throw error(403, 'Accès refusé');
-    }
+
 
 
 
@@ -118,12 +116,8 @@ export const actions: Actions = {
         // Vérifier les permissions
         const permissions = await getUserPermissions(userId, locals.supabase);
 
-        if (!permissions.canAccessDashboard) {
-            throw error(403, 'Accès refusé');
-        }
-
         if (!permissions.canManageCustomForms) {
-            throw error(403, 'Accès refusé - canManageCustomForms');
+            throw error(403, 'Accès refusé');
         }
 
         // Get shop_id for this user
@@ -182,12 +176,9 @@ export const actions: Actions = {
         // Vérifier les permissions
         const permissions = await getUserPermissions(userId, locals.supabase);
 
-        if (!permissions.canAccessDashboard) {
-            throw error(403, 'Accès refusé');
-        }
 
         if (!permissions.canManageCustomForms) {
-            throw error(403, 'Accès refusé - canManageCustomForms');
+            throw error(403, 'Accès refusé');
         }
 
         // Get shop_id for this user

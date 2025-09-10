@@ -25,9 +25,6 @@ export const load: PageServerLoad = async ({ locals }) => {
     // Vérifier les permissions
     const permissions = await getUserPermissions(user.id, locals.supabase);
 
-    if (!permissions.canAccessDashboard) {
-        throw redirect(302, '/onboarding');
-    }
 
     // Récupérer l'ID de la boutique
     if (!permissions.shopId) {

@@ -7,7 +7,7 @@
 	import { ClientFooter } from '$lib/components';
 
 	// Données de la page
-	$: ({ shop, categories, products, faqs } = $page.data);
+	$: ({ shop, categories, products, faqs, isShopActive } = $page.data);
 
 	// État du filtre
 	let selectedCategory: string | null = null;
@@ -144,8 +144,8 @@
 			</p>
 		{/if}
 
-		<!-- Bouton Composer mon gâteau (si activé) -->
-		{#if shop.is_custom_accepted}
+		<!-- Bouton Composer mon gâteau (si activé et boutique active) -->
+		{#if shop.is_custom_accepted && isShopActive}
 			<Button
 				on:click={goToCustomRequest}
 				class="mb-4 rounded-full bg-black px-6 py-2 text-sm text-white shadow-[0px_10px_18px_-1px_rgba(0,0,0,0.25)] hover:bg-gray-800 sm:px-8 sm:py-3 sm:text-base"
@@ -211,95 +211,131 @@
 		<Separator class="mb-6 sm:mb-8" />
 	</div>
 
-	<!-- Filtres de catégories -->
-	<div class="mb-6 px-4 sm:mb-8">
-		<div class="flex gap-2 overflow-x-auto pb-2">
-			<Button
-				variant={selectedCategory === null ? 'default' : 'outline'}
-				on:click={() => (selectedCategory = null)}
-				class="whitespace-nowrap rounded-full text-xs sm:text-sm {selectedCategory ===
-				null
-					? ''
-					: 'text-muted-foreground'}"
-			>
-				Tout
-			</Button>
-			{#each categories as category}
+	<!-- Filtres de catégories (seulement si boutique active) -->
+	{#if isShopActive}
+		<div class="mb-6 px-4 sm:mb-8">
+			<div class="flex gap-2 overflow-x-auto pb-2">
 				<Button
-					variant={selectedCategory === category.id ? 'default' : 'outline'}
-					on:click={() => (selectedCategory = category.id)}
+					variant={selectedCategory === null ? 'default' : 'outline'}
+					on:click={() => (selectedCategory = null)}
 					class="whitespace-nowrap rounded-full text-xs sm:text-sm {selectedCategory ===
-					category.id
+					null
 						? ''
 						: 'text-muted-foreground'}"
 				>
-					{category.name}
+					Tout
 				</Button>
-			{/each}
+				{#each categories as category}
+					<Button
+						variant={selectedCategory === category.id ? 'default' : 'outline'}
+						on:click={() => (selectedCategory = category.id)}
+						class="whitespace-nowrap rounded-full text-xs sm:text-sm {selectedCategory ===
+						category.id
+							? ''
+							: 'text-muted-foreground'}"
+					>
+						{category.name}
+					</Button>
+				{/each}
+			</div>
 		</div>
-	</div>
+	{/if}
 
-	<!-- Liste des produits -->
+	<!-- Liste des produits ou message boutique inactive -->
 	<div class="flex-1 px-4 pb-6 sm:pb-8">
-		<div
-			class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-		>
-			{#each filteredProducts as product}
-				<div class="flex h-[150px] w-full max-w-[380px] items-center gap-5">
-					<!-- Image du produit -->
-					<div class="flex-shrink-0">
-						{#if product.image_url}
-							<img
-								src={product.image_url}
-								alt={product.name}
-								class="h-[150px] w-[150px] rounded-lg object-cover"
-							/>
-						{:else}
-							<div
-								class="flex h-[150px] w-[150px] items-center justify-center rounded-lg bg-muted"
-							>
-								<Heart class="h-12 w-12 text-muted-foreground" />
-							</div>
-						{/if}
-					</div>
-
-					<!-- Informations du produit -->
-					<div class="flex min-w-0 flex-1 flex-col justify-center gap-2">
-						<h3 class="truncate text-sm font-medium text-foreground">
-							{product.name}
-						</h3>
-						{#if product.description}
-							<p class="line-clamp-2 text-xs text-muted-foreground">
-								{product.description}
-							</p>
-						{/if}
-
-						<p class="text-sm font-medium text-foreground">
-							À partir de {formatPrice(product.base_price)}
-						</p>
-						<Button
-							on:click={() => viewProduct(product.id)}
-							class="mt-2 h-[25px] w-[100px] rounded-full bg-black text-xs text-white shadow-[0px_10px_18px_-1px_rgba(0,0,0,0.25)] hover:bg-gray-800"
-						>
-							Commander
-						</Button>
-					</div>
-				</div>
-			{/each}
-		</div>
-
-		<!-- Message si aucun produit -->
-		{#if filteredProducts.length === 0}
+		{#if isShopActive}
 			<div
-				class="flex flex-1 items-center justify-center py-6 text-center sm:py-8"
+				class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
 			>
-				<p class="text-sm text-muted-foreground sm:text-base">
-					{#if selectedCategory}
-						Aucun produit dans cette catégorie pour le moment.
-					{:else}
-						Aucun produit disponible pour le moment.
-					{/if}
-				</p>
+				{#each filteredProducts as product}
+					<div class="flex h-[150px] w-full max-w-[380px] items-center gap-5">
+						<!-- Image du produit -->
+						<div class="flex-shrink-0">
+							{#if product.image_url}
+								<img
+									src={product.image_url}
+									alt={product.name}
+									class="h-[150px] w-[150px] rounded-lg object-cover"
+								/>
+							{:else}
+								<div
+									class="flex h-[150px] w-[150px] items-center justify-center rounded-lg bg-muted"
+								>
+									<Heart class="h-12 w-12 text-muted-foreground" />
+								</div>
+							{/if}
+						</div>
+
+						<!-- Informations du produit -->
+						<div class="flex min-w-0 flex-1 flex-col justify-center gap-2">
+							<h3 class="truncate text-sm font-medium text-foreground">
+								{product.name}
+							</h3>
+							{#if product.description}
+								<p class="line-clamp-2 text-xs text-muted-foreground">
+									{product.description}
+								</p>
+							{/if}
+
+							<p class="text-sm font-medium text-foreground">
+								À partir de {formatPrice(product.base_price)}
+							</p>
+							<Button
+								on:click={() => viewProduct(product.id)}
+								class="mt-2 h-[25px] w-[100px] rounded-full bg-black text-xs text-white shadow-[0px_10px_18px_-1px_rgba(0,0,0,0.25)] hover:bg-gray-800"
+							>
+								Commander
+							</Button>
+						</div>
+					</div>
+				{/each}
+			</div>
+
+			<!-- Message si aucun produit -->
+			{#if filteredProducts.length === 0}
+				<div
+					class="flex flex-1 items-center justify-center py-6 text-center sm:py-8"
+				>
+					<p class="text-sm text-muted-foreground sm:text-base">
+						{#if selectedCategory}
+							Aucun produit dans cette catégorie pour le moment.
+						{:else}
+							Aucun produit disponible pour le moment.
+						{/if}
+					</p>
+				</div>
+			{/if}
+		{:else}
+			<!-- Message boutique inactive -->
+			<div
+				class="flex flex-1 items-center justify-center py-12 text-center sm:py-16"
+			>
+				<div class="max-w-md">
+					<div class="mb-4 flex justify-center">
+						<div class="rounded-full bg-orange-100 p-3">
+							<svg
+								class="h-8 w-8 text-orange-600"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+								/>
+							</svg>
+						</div>
+					</div>
+					<h3 class="mb-2 text-lg font-semibold text-foreground">
+						Boutique temporairement fermée
+					</h3>
+					<p class="text-sm text-muted-foreground sm:text-base">
+						Cette boutique n'est pas disponible pour le moment. Revenez bientôt
+						pour découvrir nos délicieuses créations !
+					</p>
+				</div>
 			</div>
 		{/if}
 	</div>

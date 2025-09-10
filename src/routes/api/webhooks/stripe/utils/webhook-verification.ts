@@ -1,11 +1,8 @@
 // utils/webhook-verification.ts
 import Stripe from 'stripe';
 import { error } from '@sveltejs/kit';
-import { PRIVATE_STRIPE_WEBHOOK_SECRET } from '$env/static/private';
 
-const endpointSecret = PRIVATE_STRIPE_WEBHOOK_SECRET;
-
-export async function verifyWebhookSignature(request: Request): Promise<Stripe.Event> {
+export async function verifyWebhookSignature(request: Request, endpointSecret: string): Promise<Stripe.Event> {
     const body = await request.text();
     const sig = request.headers.get('stripe-signature');
 

@@ -17,17 +17,18 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders, url }) 
     const { slug } = params;
 
     try {
-        // 1. Récupérer l'ID de la boutique depuis le slug
+        // 1. Récupérer l'ID de la boutique depuis le slug (actives et inactives)
         const { data: shopInfo, error: shopError } = await locals.supabase
             .from('shops')
-            .select('id')
+            .select('id, is_active')
             .eq('slug', slug)
-            .eq('is_active', true)
             .single();
 
         if (shopError || !shopInfo) {
             throw error(404, 'Boutique non trouvée');
         }
+
+        const isShopActive = shopInfo.is_active;
 
         // 2. Vérifier si c'est une revalidation forcée
         const bypassToken = url.searchParams.get('bypassToken');
@@ -47,9 +48,10 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders, url }) 
 
         return {
             shop: catalogData.shop,
-            categories: catalogData.categories,
-            products: catalogData.products,
+            categories: isShopActive ? catalogData.categories : [],
+            products: isShopActive ? catalogData.products : [],
             faqs: catalogData.faqs,
+            isShopActive,
             cacheInfo: {
                 cached_at: catalogData.cached_at,
                 catalog_version: catalogData.shop.catalog_version,

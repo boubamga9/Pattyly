@@ -11,7 +11,6 @@
 	import MenuIcon from '~icons/lucide/menu';
 	import XIcon from '~icons/lucide/x';
 
-	import { Logo } from '$lib/components/brand';
 	import { Button } from '$lib/components/ui/button';
 	import * as Drawer from '$lib/components/ui/drawer';
 	import * as Tooltip from '$lib/components/ui/tooltip';
@@ -293,7 +292,7 @@
 				</Drawer.Root>
 			</div>
 		</header>
-		<main class="flex flex-col items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
+		<main class="flex flex-col items-start p-4 sm:px-6 sm:py-0">
 			<!-- Alerte d'abonnement inactif -->
 			{#if data.hasInactiveSubscription}
 				<div class="w-full">
@@ -316,32 +315,33 @@
 							</div>
 							<div class="flex-1">
 								<h3 class="text-sm font-medium text-[#8B1A1A]">
-									Boutique temporairement désactivée
+									{#if data.isSubscriptionExists}
+										Boutique temporairement désactivée
+									{:else}
+										Boutique inactive
+									{/if}
 								</h3>
 								<div class="mt-2 text-sm text-[#8B1A1A]">
 									<p class="mb-3">
-										Votre boutique n'est plus visible par les clients. Pour la
-										réactiver et continuer à recevoir des commandes, vous devez
-										souscrire à un plan d'abonnement.
+										{#if data.isSubscriptionExists}
+											Votre boutique n'est plus visible par les clients. Pour la
+											réactiver et continuer à recevoir des commandes, vous
+											devez souscrire à un plan d'abonnement.
+										{:else}
+											Votre boutique n'est pas encore visible par les clients.
+											Pour l'activer et commencer à recevoir des commandes, vous
+											devez souscrire à un plan d'abonnement.
+										{/if}
 									</p>
 									<a
 										href="/subscription"
 										class="inline-flex items-center rounded-md bg-[#FF6F61] px-3 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-[#e85a4f] focus:outline-none focus:ring-2 focus:ring-[#FF6F61] focus:ring-offset-2"
 									>
-										<svg
-											class="mr-2 h-4 w-4"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
-										>
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-											/>
-										</svg>
-										Réactiver ma boutique
+										{#if data.isSubscriptionExists}
+											Réactiver ma boutique
+										{:else}
+											Activer ma boutique
+										{/if}
 									</a>
 								</div>
 							</div>
