@@ -7,11 +7,11 @@ import { env } from '$env/dynamic/private';
  */
 export async function forceRevalidateShop(shopSlug: string): Promise<boolean> {
   try {
-    const baseUrl = env.PUBLIC_SITE_URL || 'http://localhost:5176';
+    const baseUrl = env.PUBLIC_SITE_URL;
     const revalidateUrl = `${baseUrl}/${shopSlug}?bypassToken=${env.REVALIDATION_TOKEN}`;
-    
+
     console.log(`🔄 Forcing revalidation for shop: ${shopSlug}`);
-    
+
     const response = await fetch(revalidateUrl, {
       method: 'GET',
       headers: {

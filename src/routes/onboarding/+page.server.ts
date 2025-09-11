@@ -453,8 +453,8 @@ export const actions: Actions = {
                 // Create Stripe Connect account link
                 const accountLink = await locals.stripe.accountLinks.create({
                     account: stripeAccountId,
-                    refresh_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/onboarding`,
-                    return_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard`,
+                    refresh_url: `${process.env.PUBLIC_SITE_URL}/onboarding`,
+                    return_url: `${process.env.PUBLIC_SITE_URL}/dashboard`,
                     type: 'account_onboarding',
                 });
 

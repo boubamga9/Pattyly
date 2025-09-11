@@ -304,8 +304,8 @@ export const actions = {
 
             const accountLink = await stripe.accountLinks.create({
                 account: existingAccount.stripe_account_id,
-                refresh_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard/settings`,
-                return_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard/settings`,
+                refresh_url: `${process.env.PUBLIC_SITE_URL}/dashboard/settings`,
+                return_url: `${process.env.PUBLIC_SITE_URL}/dashboard/settings`,
                 type: 'account_onboarding',
             });
 
@@ -342,8 +342,8 @@ export const actions = {
         // Create account link
         const accountLink = await stripe.accountLinks.create({
             account: account.id,
-            refresh_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard/settings`,
-            return_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard/settings`,
+            refresh_url: `${process.env.PUBLIC_SITE_URL}/dashboard/settings`,
+            return_url: `${process.env.PUBLIC_SITE_URL}/dashboard/settings`,
             type: 'account_onboarding',
         });
 
@@ -389,7 +389,7 @@ export const actions = {
             // Créer un lien de billing Stripe avec configuration par défaut
             const billingLink = await stripe.billingPortal.sessions.create({
                 customer: customer.stripe_customer_id,
-                return_url: `${process.env.PUBLIC_SITE_URL || 'http://localhost:5176'}/dashboard/settings`,
+                return_url: `${process.env.PUBLIC_SITE_URL}/dashboard/settings`,
                 configuration: undefined // Utilise la configuration par défaut
             });
 
