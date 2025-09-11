@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { Stripe } from 'stripe';
 
 export async function upsertSubscription(subscription: Stripe.Subscription, locals: any): Promise<void> {
-
+    console.log('upsertSubscription', subscription);
     try {
         const customerId = subscription.customer as string;
 
@@ -75,6 +75,8 @@ export async function upsertSubscription(subscription: Stripe.Subscription, loca
 }
 
 export async function handleSubscriptionDeleted(subscription: Stripe.Subscription, locals: any): Promise<void> {
+
+    console.log('handleSubscriptionDeleted', subscription);
 
     try {
 

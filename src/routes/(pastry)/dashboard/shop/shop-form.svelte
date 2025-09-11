@@ -19,6 +19,7 @@
 		compressLogo,
 		formatCompressionInfo,
 	} from '$lib/utils/images/client';
+	import { env } from '$env/dynamic/public';
 
 	export let data: SuperValidated<Infer<FormSchema>>;
 	const _dispatch = createEventDispatcher();
@@ -91,7 +92,7 @@
 	}
 
 	async function copyShopUrl() {
-		const fullUrl = `https://pattyly.com/${$formData.slug}`;
+		const fullUrl = `${env.PUBLIC_SITE_URL}/${$formData.slug}`;
 
 		await navigator.clipboard.writeText(fullUrl);
 		copySuccess = true;
@@ -209,7 +210,7 @@
 					>
 						<div class="flex flex-1 items-center space-x-3">
 							<span class="text-sm font-medium text-muted-foreground"
-								>pattyly.com/</span
+								>{env.PUBLIC_SITE_URL}/</span
 							>
 							<Input
 								{...attrs}

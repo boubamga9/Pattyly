@@ -24,7 +24,7 @@
 		Copy,
 		CheckCircle,
 	} from 'lucide-svelte';
-
+	import { env } from '$env/dynamic/public';
 	// Données de la page
 	$: ({ shop, metrics } = $page.data);
 
@@ -104,16 +104,14 @@
 
 	// Fonction pour copier l'URL du shop
 	async function copyShopUrl() {
-		const fullUrl = `https://pattyly.com/${shop?.slug}`;
-		try {
-			await navigator.clipboard.writeText(fullUrl);
-			copySuccess = true;
-			// Reset after 2 seconds
-			setTimeout(() => {
-				copySuccess = false;
-			}, 2000);
-		} catch (err) {
-		}
+		const fullUrl = `${env.PUBLIC_SITE_URL}/${shop?.slug}`;
+
+		await navigator.clipboard.writeText(fullUrl);
+		copySuccess = true;
+		// Reset after 2 seconds
+		setTimeout(() => {
+			copySuccess = false;
+		}, 2000);
 	}
 </script>
 
@@ -146,7 +144,7 @@
 						<p
 							class="break-all font-mono text-sm text-foreground sm:text-base md:text-lg"
 						>
-							https://pattyly.com/{shop.slug}
+							{env.PUBLIC_SITE_URL}/{shop.slug}
 						</p>
 					</div>
 					<Button

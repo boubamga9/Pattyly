@@ -4,6 +4,7 @@ import { EmailService } from '$lib/services/email-service';
 
 export async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, locals: any): Promise<void> {
 
+    console.log('handleCheckoutSessionCompleted', session);
 
     try {
 
@@ -34,6 +35,8 @@ export async function handleProductOrderPayment(
     locals: any
 ): Promise<void> {
     try {
+        console.log('handleProductOrderPayment', session);
+
         // 🗄️ RÉCUPÉRER LES DONNÉES COMPLÈTES DEPUIS pending_orders
         const orderId = session.metadata!.orderId;
 
@@ -147,6 +150,7 @@ export async function handleCustomOrderDeposit(
     session: Stripe.Checkout.Session,
     locals: any
 ): Promise<void> {
+    console.log('handleCustomOrderDeposit', session);
     try {
         const orderId = session.metadata!.orderId;
         const totalPrice = parseFloat(session.metadata!.totalPrice);

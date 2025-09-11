@@ -4,6 +4,8 @@ import { error } from '@sveltejs/kit';
 
 export async function handleCustomerCreated(customer: Stripe.Customer, locals: any): Promise<void> {
 
+    console.log('handleCustomerCreated', customer);
+
     try {
         const userId = customer.metadata?.user_id;
         if (!userId) return;

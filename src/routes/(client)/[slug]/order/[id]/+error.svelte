@@ -1,0 +1,61 @@
+<script lang="ts">
+	import { page } from '$app/stores';
+	import { Button } from '$lib/components/ui/button';
+	import { ArrowLeft, Home, Package } from 'lucide-svelte';
+
+	$: status = $page.status;
+	$: message = $page.error?.message || 'Une erreur est survenue';
+	$: shopSlug = $page.params.slug;
+</script>
+
+<svelte:head>
+	<title>Commande non trouvée - Pattyly</title>
+	<meta
+		name="description"
+		content="Cette commande n'existe pas ou n'est plus accessible"
+	/>
+</svelte:head>
+
+<div class="flex min-h-screen flex-col items-center justify-center px-4 py-12">
+	<div class="mx-auto max-w-md text-center">
+		<!-- Icône d'erreur -->
+		<div class="mb-6 flex justify-center">
+			<div class="rounded-full bg-blue-100 p-4">
+				<Package class="h-12 w-12 text-blue-600" />
+			</div>
+		</div>
+
+		<!-- Titre -->
+		<h1 class="mb-4 text-3xl font-bold text-gray-900">Commande non trouvée</h1>
+
+		<!-- Message -->
+		<p class="mb-8 text-lg text-gray-600">
+			{#if status === 404}
+				Cette commande n'existe pas ou n'est plus accessible.
+			{:else}
+				{message}
+			{/if}
+		</p>
+
+		<!-- Actions -->
+		<div class="flex flex-col gap-4 sm:flex-row sm:justify-center">
+			{#if shopSlug}
+				<Button
+					href="/{shopSlug}"
+					class="flex items-center gap-2 bg-[#FF6F61] hover:bg-[#e85a4f]"
+				>
+					<ArrowLeft class="h-4 w-4" />
+					Retour à la boutique
+				</Button>
+			{/if}
+		</div>
+
+		<!-- Message d'aide -->
+		<div class="mt-8 rounded-lg bg-gray-50 p-4">
+			<p class="text-sm text-gray-600">
+				💡 <strong>Conseil :</strong> Vérifiez votre email pour retrouver le lien
+				de suivi de commande.
+			</p>
+		</div>
+	</div>
+</div>

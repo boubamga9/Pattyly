@@ -3,6 +3,7 @@ import { error } from '@sveltejs/kit';
 import type { Stripe } from 'stripe';
 
 export async function handlePaymentSucceeded(invoice: Stripe.Invoice, locals: any): Promise<void> {
+    console.log('handlePaymentSucceeded', invoice);
 
     try {
 
@@ -38,7 +39,10 @@ export async function handlePaymentSucceeded(invoice: Stripe.Invoice, locals: an
 
         if (updateError) {
             throw error(500, 'Failed to reactivate subscription after payment success');
-        } else {
+        }
+
+        if (shopUpdateError) {
+            throw error(500, 'Failed to reactivate shop after payment success');
         }
 
     } catch (error) {
@@ -47,6 +51,8 @@ export async function handlePaymentSucceeded(invoice: Stripe.Invoice, locals: an
 }
 
 export async function handlePaymentFailed(invoice: Stripe.Invoice, locals: any): Promise<void> {
+
+    console.log('handlePaymentFailed', invoice);
 
     /*
     

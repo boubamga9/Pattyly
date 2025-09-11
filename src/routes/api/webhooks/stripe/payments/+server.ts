@@ -27,27 +27,33 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         switch (event.type) {
 
             case 'customer.created':
+                console.log('customer.created');
                 await handleCustomerCreated(event.data.object as Stripe.Customer, locals);
                 break;
 
             case 'customer.subscription.created':
             case 'customer.subscription.updated':
+                console.log('customer.subscription.created/updated');
                 await upsertSubscription(event.data.object as Stripe.Subscription, locals);
                 break;
 
             case 'customer.subscription.deleted':
+                console.log('customer.subscription.deleted');
                 await handleSubscriptionDeleted(event.data.object as Stripe.Subscription, locals);
                 break;
 
             case 'invoice.payment_succeeded':
+                console.log('invoice.payment_succeeded');
                 await handlePaymentSucceeded(event.data.object as Stripe.Invoice, locals);
                 break;
 
             case 'invoice.payment_failed':
+                console.log('invoice.payment_failed');
                 await handlePaymentFailed(event.data.object as Stripe.Invoice, locals);
                 break;
 
             case 'checkout.session.completed':
+                console.log('checkout.session.completed');
                 await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session, locals);
                 break;
 

@@ -22,10 +22,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         switch (event.type) {
 
             case 'account.updated':
+                console.log('account.updated');
                 await handleAccountUpdated(event.data.object as Stripe.Account, locals);
                 break;
 
             case 'account.application.authorized':
+                console.log('account.application.authorized');
                 await handleAccountAuthorized(event.data.object as unknown as Stripe.Account, locals);
                 break;
 
