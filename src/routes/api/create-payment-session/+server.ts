@@ -145,7 +145,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         }
 
         // Log pour debug
-        const origin = request.headers.get('origin') || 'http://localhost:5176';
+        const origin = request.headers.get('origin');
         const successUrl = `${origin}/${shopData.slug}/order/{CHECKOUT_SESSION_ID}`;
         const cancelUrl = `${origin}/${shopData.slug}/product/${orderData.productId}`;
 

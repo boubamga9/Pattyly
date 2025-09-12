@@ -1,4 +1,5 @@
 import { env } from '$env/dynamic/private';
+import { PUBLIC_SITE_URL } from '$env/static/public';
 
 /**
  * Force la revalidation ISR d'une boutique
@@ -7,9 +8,9 @@ import { env } from '$env/dynamic/private';
  */
 export async function forceRevalidateShop(shopSlug: string): Promise<boolean> {
   try {
-    const baseUrl = env.PUBLIC_SITE_URL;
-    const revalidateUrl = `${baseUrl}/${shopSlug}?bypassToken=${env.REVALIDATION_TOKEN}`;
+    const revalidateUrl = `${PUBLIC_SITE_URL}/${shopSlug}?bypassToken=${env.REVALIDATION_TOKEN}`;
 
+    //console.log(`${PUBLIC_SITE_URL}`);
     console.log(`🔄 Forcing revalidation for shop: ${shopSlug}`);
 
     const response = await fetch(revalidateUrl, {
