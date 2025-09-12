@@ -8,7 +8,7 @@ import { env } from '$env/dynamic/private';
 // ==========================
 export const config = {
     isr: {
-        expiration: 3600, // 1 heure
+        expiration: false,
         bypassToken: env.REVALIDATION_TOKEN
     }
 };
@@ -34,7 +34,7 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders, url, re
         const bypassToken = url.searchParams.get('bypassToken');
         const revalidateHeader = request.headers.get('x-prerender-revalidate');
         const isRevalidation = bypassToken === env.REVALIDATION_TOKEN || revalidateHeader === env.REVALIDATION_TOKEN;
-        
+
         if (isRevalidation) {
             console.log(`🔄 Revalidation forcée pour la boutique ${shopInfo.id}`);
             // Vercel va régénérer la page immédiatement

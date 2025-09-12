@@ -87,15 +87,21 @@
 			</Form.Field>
 		</div>
 
-		<div class="flex space-x-2">
+		<div class="flex flex-col gap-2 sm:flex-row sm:gap-0 sm:space-x-2">
 			<Button
 				type="submit"
 				disabled={$submitting || !$formData.startDate || !$formData.endDate}
+				class="w-full sm:w-auto"
 			>
 				<Plus class="mr-2 h-4 w-4" />
 				Ajouter une indisponibilité
 			</Button>
-			<Button type="button" variant="outline" on:click={onCancel}>
+			<Button
+				type="button"
+				variant="outline"
+				on:click={onCancel}
+				class="w-full sm:w-auto"
+			>
 				<X class="mr-2 h-4 w-4" />
 				Annuler
 			</Button>

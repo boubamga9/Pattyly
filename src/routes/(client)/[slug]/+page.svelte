@@ -148,7 +148,7 @@
 		{#if shop.is_custom_accepted && isShopActive}
 			<Button
 				on:click={goToCustomRequest}
-				class="mb-4 rounded-full bg-black px-6 py-2 text-sm text-white shadow-[0px_10px_18px_-1px_rgba(0,0,0,0.25)] hover:bg-gray-800 sm:px-8 sm:py-3 sm:text-base"
+				class="mb-4 rounded-full bg-black px-6 py-2 text-sm text-white hover:bg-gray-800 sm:px-8 sm:py-3 sm:text-base"
 			>
 				Composer mon gâteau
 			</Button>
@@ -282,7 +282,7 @@
 							</p>
 							<Button
 								on:click={() => viewProduct(product.id)}
-								class="mt-2 h-[25px] w-[100px] rounded-full bg-black text-xs text-white shadow-[0px_10px_18px_-1px_rgba(0,0,0,0.25)] hover:bg-gray-800"
+								class="mt-2 h-[25px] w-[100px] rounded-full bg-black text-xs text-white hover:bg-gray-800"
 							>
 								Commander
 							</Button>

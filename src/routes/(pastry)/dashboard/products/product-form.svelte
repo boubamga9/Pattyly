@@ -524,8 +524,8 @@
 				Remplissez les champs requis
 			{:else}
 				<Save class="mr-2 h-4 w-4" />
+				{isEditing ? 'Sauvegarder' : 'Créer'} le Gâteau
 			{/if}
-			{isEditing ? 'Sauvegarder' : 'Créer'} le Gâteau
 		</Button>
 		<Button
 			type="button"

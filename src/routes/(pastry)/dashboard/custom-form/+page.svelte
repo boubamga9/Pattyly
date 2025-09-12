@@ -93,27 +93,35 @@
 
 <div class="container mx-auto space-y-6 p-3 md:p-6">
 	<!-- En-tête -->
-	<div class="flex items-center justify-between">
+	<div
+		class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+	>
 		<div>
 			<h1 class="text-3xl font-bold">Questionnaire Personnalisé</h1>
 			<p class="text-muted-foreground">
 				Gérez les demandes personnalisées de vos clients
 			</p>
 		</div>
-		<div class="flex items-center gap-3">
+		<div
+			class="flex flex-col items-center gap-2 sm:flex-row sm:items-center sm:gap-3"
+		>
 			{#if shop?.is_custom_accepted}
 				<Button
 					variant="outline"
 					size="sm"
 					on:click={viewCustomFormPreview}
 					title="Voir le formulaire comme vos clients"
+					class="w-full sm:w-auto"
 				>
 					<Eye class="mr-2 h-4 w-4" />
 					Preview
 				</Button>
 			{/if}
 			{#if shop}
-				<Badge variant={shop.is_custom_accepted ? 'default' : 'secondary'}>
+				<Badge
+					variant={shop.is_custom_accepted ? 'default' : 'secondary'}
+					class="w-20 justify-center"
+				>
 					{shop.is_custom_accepted ? 'Activé' : 'Désactivé'}
 				</Badge>
 			{/if}
