@@ -13,7 +13,7 @@ export const config = {
     }
 };
 
-export const load: PageServerLoad = async ({ params, locals, setHeaders, url }) => {
+export const load: PageServerLoad = async ({ params, locals, setHeaders, url, request }) => {
     const { slug } = params;
 
     try {
@@ -32,7 +32,10 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders, url }) 
 
         // 2. Vérifier si c'est une revalidation forcée
         const bypassToken = url.searchParams.get('bypassToken');
-        if (bypassToken === env.REVALIDATION_TOKEN) {
+        const revalidateHeader = request.headers.get('x-prerender-revalidate');
+        const isRevalidation = bypassToken === env.REVALIDATION_TOKEN || revalidateHeader === env.REVALIDATION_TOKEN;
+        
+        if (isRevalidation) {
             console.log(`🔄 Revalidation forcée pour la boutique ${shopInfo.id}`);
             // Vercel va régénérer la page immédiatement
         }
@@ -43,7 +46,7 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders, url }) 
         // 4. Headers CDN pour optimiser la performance
         setHeaders({
             'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
-            'X-ISR-Revalidated': bypassToken === env.REVALIDATION_TOKEN ? 'true' : 'false'
+            'X-ISR-Revalidated': isRevalidation ? 'true' : 'false'
         });
 
         return {
@@ -55,7 +58,7 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders, url }) 
             cacheInfo: {
                 cached_at: catalogData.cached_at,
                 catalog_version: catalogData.shop.catalog_version,
-                revalidated: bypassToken === env.REVALIDATION_TOKEN
+                revalidated: isRevalidation
             }
         };
     } catch (err) {
