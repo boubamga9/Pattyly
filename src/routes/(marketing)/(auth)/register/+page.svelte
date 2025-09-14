@@ -24,17 +24,8 @@
 	/>
 </svelte:head>
 
-{#if data.isCheckout}
-	<Alert.Root class="mb-6" variant="warning">
-		<Alert.Title>Crée un compte pour continuer</Alert.Title>
-		<Alert.Description>
-			Pour continuer avec l&apos;achat de ton forfait sélectionné, tu dois
-			d&apos;abord créer un compte.
-		</Alert.Description>
-	</Alert.Root>
-{/if}
 {#if signupDisabled}
-	<Alert.Root class="mb-6" variant="destructive">
+	<Alert.Root class="mb-6 mt-36" variant="destructive">
 		<Alert.Title>Inscriptions temporairement désactivées</Alert.Title>
 		<Alert.Description>
 			Nous sommes désolés, mais l&apos;inscription de nouveaux utilisateurs est

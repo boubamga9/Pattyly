@@ -34,5 +34,7 @@ export const GET = async (event) => {
 		? `${redirectUrl}?${search.toString()}`
 		: redirectUrl;
 
+	console.log({ code, next, redirectUrl, finalUrl })
+
 	throw redirect(303, finalUrl);
 };
