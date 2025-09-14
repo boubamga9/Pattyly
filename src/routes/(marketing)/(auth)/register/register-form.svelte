@@ -8,6 +8,8 @@
 	} from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import LoaderCircle from '~icons/lucide/loader-circle';
+	import Eye from '~icons/lucide/eye';
+	import EyeOff from '~icons/lucide/eye-off';
 	import { formSchema, type FormSchema } from './schema';
 
 	export let data: SuperValidated<Infer<FormSchema>>;
@@ -17,6 +19,13 @@
 	});
 
 	const { form: formData, enhance, submitting } = form;
+
+	// État pour la visibilité du mot de passe
+	let showPassword = false;
+
+	function togglePasswordVisibility() {
+		showPassword = !showPassword;
+	}
 </script>
 
 <form method="POST" use:enhance class="grid gap-4">
@@ -37,13 +46,30 @@
 	<Form.Field {form} name="password">
 		<Form.Control let:attrs>
 			<Form.Label>Mot de passe</Form.Label>
-			<Input
-				{...attrs}
-				type="password"
-				placeholder="••••••••"
-				required
-				bind:value={$formData.password}
-			/>
+			<div class="relative">
+				<Input
+					{...attrs}
+					type={showPassword ? 'text' : 'password'}
+					placeholder="••••••••"
+					required
+					bind:value={$formData.password}
+					class="pr-10"
+				/>
+				<button
+					type="button"
+					on:click={togglePasswordVisibility}
+					class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 focus:outline-none"
+					aria-label={showPassword
+						? 'Masquer le mot de passe'
+						: 'Afficher le mot de passe'}
+				>
+					{#if showPassword}
+						<EyeOff class="h-4 w-4" />
+					{:else}
+						<Eye class="h-4 w-4" />
+					{/if}
+				</button>
+			</div>
 		</Form.Control>
 		<Form.FieldErrors />
 		<Form.Description class="text-right text-xs"

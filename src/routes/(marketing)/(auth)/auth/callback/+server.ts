@@ -5,7 +5,8 @@ export const GET = async (event) => {
 		url,
 		locals: { supabase },
 	} = event;
-	const code = url.searchParams.get('code') as string;
+
+	const code = url.searchParams.get('code');
 	const next = url.searchParams.get('next') ?? '/';
 
 	if (code) {
@@ -15,11 +16,23 @@ export const GET = async (event) => {
 		}
 	}
 
+	// Nettoyer les paramètres
 	const search = new URLSearchParams(url.search);
 	search.delete('code');
 	search.delete('next');
 
-	// Construire l'URL complète en sortant du groupe /auth/
-	const redirectUrl = next.startsWith('/') ? next : `/${next}`;
-	throw redirect(303, `${redirectUrl}?${search.toString()}`);
+	// Vérifier et sécuriser `next`
+	let redirectUrl = '/';
+	if (next.startsWith('/')) {
+		redirectUrl = next;
+	} else {
+		// éviter les redirections vers des URL externes ou invalides
+		redirectUrl = `/${next.replace(/^\/+/, '')}`;
+	}
+
+	const finalUrl = search.toString()
+		? `${redirectUrl}?${search.toString()}`
+		: redirectUrl;
+
+	throw redirect(303, finalUrl);
 };
