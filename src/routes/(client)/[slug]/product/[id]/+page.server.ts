@@ -9,7 +9,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         const { slug, id } = params;
 
 
-        // Récupérer les informations de la boutique
+        // Get shop information
         const { data: shop, error: shopError } = await locals.supabase
             .from('shops')
             .select('id, name, bio, slug, logo_url, is_custom_accepted, is_active')
@@ -29,7 +29,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         }
 
 
-        // Récupérer le produit actif avec ses informations
+        // Get active product with its information
 
 
         const { data: product, error: productError } = await locals.supabase
@@ -56,7 +56,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
             throw error(404, 'Produit non trouvé');
         }
 
-        // Récupérer le formulaire personnalisé seulement s'il existe
+        // Get custom form only if it exists
         let customForm = null;
         let customFields: any[] = [];
 
@@ -74,7 +74,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
             customForm = formData;
 
-            // Récupérer les champs du formulaire s'il existe
+            // Get form fields if it exists
             if (customForm) {
                 const { data: formFields, error: fieldsError } = await locals.supabase
                     .from('form_fields')
@@ -90,20 +90,20 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
             }
         }
 
-        // Récupérer les disponibilités de la boutique
+        // Get availabilities of the shop
         const { data: availabilities } = await locals.supabase
             .from('availabilities')
             .select('day, is_open')
             .eq('shop_id', shop.id);
 
-        // Récupérer les indisponibilités de la boutique
+        // Get unavailabilities of the shop
         const { data: unavailabilities } = await locals.supabase
             .from('unavailabilities')
             .select('start_date, end_date')
             .eq('shop_id', shop.id);
 
 
-        // Créer le schéma dynamique basé sur les champs configurés
+        // Create dynamic schema based on configured fields
         const dynamicSchema = createLocalDynamicSchema(customFields);
 
         return {
@@ -125,7 +125,7 @@ export const actions: Actions = {
     createProductOrder: async ({ request, params, locals, fetch }) => {
 
 
-        // Vérifier si c'est une erreur de rate limiting
+        // Check if it's a rate limiting error
         const rateLimitExceeded = request.headers.get('x-rate-limit-exceeded');
         if (rateLimitExceeded === 'true') {
             const rateLimitMessage = request.headers.get('x-rate-limit-message') || 'Trop de tentatives. Veuillez patienter.';
@@ -144,7 +144,7 @@ export const actions: Actions = {
                 throw error(400, 'Paramètre produit manquant');
             }
 
-            // Récupérer la boutique
+            // Get shop
             const { data: shop, error: shopError } = await locals.supabase
                 .from('shops')
                 .select('id, name, slug')
@@ -156,7 +156,7 @@ export const actions: Actions = {
                 throw error(404, 'Boutique non trouvée');
             }
 
-            // Récupérer le produit
+            // Get product
             const { data: product, error: productError } = await locals.supabase
                 .from('products')
                 .select(`
@@ -175,7 +175,7 @@ export const actions: Actions = {
                 throw error(404, 'Produit non trouvé');
             }
 
-            // Récupérer les champs personnalisés
+            // Get custom fields
             let customFields: any[] = [];
             if (product.form_id) {
                 const { data: formFields } = await locals.supabase
@@ -188,7 +188,7 @@ export const actions: Actions = {
 
             }
 
-            // Validation dynamique
+            // Dynamic validation
             const dynamicSchema = createLocalDynamicSchema(customFields);
             const form = await superValidate(request, zod(dynamicSchema));
 
@@ -206,7 +206,7 @@ export const actions: Actions = {
                 customization_data
             } = form.data;
 
-            // 🔐 Sécurité : forcer pickup_date → Date (sans conversion de fuseau horaire)
+            // 🔐 Security: force pickup_date → Date (without timezone conversion)
             let selectedDate: string | null = null;
             try {
                 const date = new Date(pickup_date);
@@ -216,13 +216,13 @@ export const actions: Actions = {
                 return fail(400, { form, error: 'Date de retrait invalide' });
             }
 
-            // Transformer les données de personnalisation - Garder les IDs pour la traçabilité
+            // Transform customization data - Keep IDs for traceability
             const selectedOptions: Record<string, any> = {};
             Object.entries(customization_data || {}).forEach(([fieldId, value]) => {
                 const field = customFields.find((f) => f.id === fieldId);
                 if (!field) return;
 
-                // Texte ou nombre
+                // Text or number
                 if (['short-text', 'long-text', 'number'].includes(field.type)) {
                     selectedOptions[fieldId] = {
                         value: value,
@@ -262,7 +262,7 @@ export const actions: Actions = {
                 }
             });
 
-            // Calcul du prix total avec la nouvelle structure
+            // Calculate total price with the new structure
             let totalPrice = product.base_price || 0;
             Object.values(selectedOptions).forEach((val: any) => {
                 if (val?.price !== undefined) {
@@ -273,7 +273,7 @@ export const actions: Actions = {
 
 
 
-            // Préparer les données de commande
+            // Prepare order data
             const orderData = {
                 productId: id,
                 shopId: shop.id,
@@ -288,7 +288,7 @@ export const actions: Actions = {
                 cakeName: product.name,
             };
 
-            // Créer la session Stripe
+            // Create Stripe session
             const response = await fetch('/api/create-payment-session', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -304,7 +304,7 @@ export const actions: Actions = {
 
         } catch (err) {
 
-            // ✅ CORRECTION - Toujours retourner le form pour Superforms
+            //Always return the form for Superforms
             const tempSchema = createLocalDynamicSchema([]);
             const form = await superValidate(request, zod(tempSchema));
             setError(form, '', 'Erreur serveur inattendue. Veuillez réessayer.');

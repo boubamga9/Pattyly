@@ -5,7 +5,7 @@
 	import { Separator } from '$lib/components/ui/separator';
 	import CustomForm from './custom-form.svelte';
 
-	// Données de la page
+	// Page data
 	$: ({
 		shop,
 		customForm,
@@ -15,13 +15,13 @@
 		form,
 	} = $page.data);
 
-	// Fonction pour retourner à la boutique ou au dashboard
+	// Function to go back to the shop or dashboard
 	function goBack() {
-		// Si on est en mode preview, retourner au dashboard
+		// If in preview mode, go back to dashboard
 		if ($page.url.searchParams.get('preview') === 'true') {
 			goto('/dashboard/custom-form');
 		} else {
-			// Sinon, retourner à la boutique
+			// Otherwise, go back to the shop
 			goto(`/${shop.slug}`);
 		}
 	}
@@ -47,7 +47,7 @@
 </svelte:head>
 
 <div class="flex min-h-screen flex-col overflow-x-hidden bg-background">
-	<!-- Header avec logo et informations -->
+	<!-- Header with logo and information -->
 	<header class="px-4 py-6 text-center sm:py-8 md:py-12">
 		<!-- Logo -->
 		<div class="mb-4 flex justify-center">
@@ -70,12 +70,12 @@
 			{/if}
 		</div>
 
-		<!-- Nom de la boutique -->
+		<!-- Shop name -->
 		<h1 class="mb-2 text-xl font-semibold text-foreground">
 			{shop.name}
 		</h1>
 
-		<!-- Bouton retour -->
+		<!-- Back button -->
 		<button
 			on:click={goBack}
 			class="text-xs italic text-gray-400 underline transition-colors hover:text-gray-600 sm:text-sm"
@@ -91,12 +91,12 @@
 	<!-- Separator -->
 	<Separator class="mx-4" />
 
-	<!-- Contenu principal -->
+	<!-- Main content -->
 	<div class="px-4 pb-6 sm:pb-8">
 		<div class="mx-auto max-w-6xl p-4 sm:p-8 lg:p-12">
-			<!-- Layout responsive : 2 colonnes sur desktop, 1 colonne sur mobile -->
+			<!-- Responsive layout: 2 columns on desktop, 1 column on mobile -->
 			<div class="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
-				<!-- Colonne gauche : Description -->
+				<!-- Left column: Description -->
 				<div class="space-y-4 pr-4">
 					<h2 class="text-2xl font-semibold text-foreground">
 						{customForm?.title || 'Votre Gâteau Sur Mesure'}
@@ -129,7 +129,7 @@
 					</div>
 				</div>
 
-				<!-- Colonne droit : Formulaire -->
+				<!-- Right column: Form -->
 				<CustomForm
 					data={form}
 					{customFields}

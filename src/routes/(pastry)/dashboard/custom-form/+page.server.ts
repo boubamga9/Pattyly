@@ -3,7 +3,7 @@ import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad, Actions } from './$types';
 import { getUserPermissions } from '$lib/auth';
-import { incrementCatalogVersion } from '$lib/utils/catalog';
+import { forceRevalidateShop } from '$lib/utils/catalog';
 import { toggleCustomRequestsFormSchema, updateCustomFormFormSchema } from './schema';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -121,7 +121,7 @@ export const actions: Actions = {
         }
 
         // Get shop_id for this user
-        if (!permissions.shopId) {
+        if (!permissions.shopId || !permissions.shopSlug) {
             throw error(400, 'Boutique non trouvée');
         }
 
@@ -144,13 +144,7 @@ export const actions: Actions = {
                 toggleForm.message = 'Erreur lors de la mise à jour des paramètres';
                 return { toggleForm, form: toggleForm };
             }
-
-            // Increment catalog version to invalidate public cache
-            try {
-                await incrementCatalogVersion(locals.supabase, permissions.shopId);
-            } catch (error) {
-                // Don't fail the entire operation, just log the warning
-            }
+            await forceRevalidateShop(permissions.shopSlug);
 
             // Retourner le formulaire pour Superforms
             const toggleForm = await superValidate(zod(toggleCustomRequestsFormSchema));
@@ -182,7 +176,7 @@ export const actions: Actions = {
         }
 
         // Get shop_id for this user
-        if (!permissions.shopId) {
+        if (!permissions.shopId || !permissions.shopSlug) {
             throw error(400, 'Boutique non trouvée');
         }
 
@@ -284,12 +278,7 @@ export const actions: Actions = {
                 }
             }
 
-            // Increment catalog version to invalidate public cache
-            try {
-                await incrementCatalogVersion(locals.supabase, permissions.shopId);
-            } catch (error) {
-                // Don't fail the entire operation, just log the warning
-            }
+            await forceRevalidateShop(permissions.shopSlug);
 
             // Retourner le formulaire pour Superforms
             const updateForm = await superValidate(zod(updateCustomFormFormSchema));

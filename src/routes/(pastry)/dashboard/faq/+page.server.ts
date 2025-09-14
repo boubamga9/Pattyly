@@ -4,7 +4,7 @@ import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad, Actions } from './$types';
 import { getUserPermissions } from '$lib/auth';
 import { formSchema } from './schema';
-import { incrementCatalogVersion } from '$lib/utils/catalog';
+import { forceRevalidateShop } from '$lib/utils/catalog';
 
 export const load: PageServerLoad = async ({ locals }) => {
     const { data: { user } } = await locals.supabase.auth.getUser();
@@ -18,7 +18,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 
     // Récupérer les FAQ de la boutique
-    if (!permissions.shopId) {
+    if (!permissions.shopId || !permissions.shopSlug) {
         throw error(400, 'Boutique non trouvée');
     }
 
@@ -54,7 +54,7 @@ export const actions: Actions = {
         const permissions = await getUserPermissions(user.id, locals.supabase);
 
 
-        if (!permissions.shopId) {
+        if (!permissions.shopId || !permissions.shopSlug) {
             throw error(400, 'Boutique non trouvée');
         }
 
@@ -77,13 +77,7 @@ export const actions: Actions = {
         if (createError) {
             throw error(500, 'Erreur lors de la création de la FAQ');
         }
-
-        // Increment catalog version to invalidate public cache
-        try {
-            await incrementCatalogVersion(locals.supabase, permissions.shopId);
-        } catch (error) {
-            // Don't fail the entire operation, just log the warning
-        }
+        await forceRevalidateShop(permissions.shopSlug);
 
         // Retourner le formulaire pour Superforms
         const form = await superValidate(zod(formSchema));
@@ -101,7 +95,7 @@ export const actions: Actions = {
         const permissions = await getUserPermissions(user.id, locals.supabase);
 
 
-        if (!permissions.shopId) {
+        if (!permissions.shopId || !permissions.shopSlug) {
             throw error(400, 'Boutique non trouvée');
         }
 
@@ -128,12 +122,7 @@ export const actions: Actions = {
             throw error(500, 'Erreur lors de la mise à jour de la FAQ');
         }
 
-        // Increment catalog version to invalidate public cache
-        try {
-            await incrementCatalogVersion(locals.supabase, permissions.shopId);
-        } catch (error) {
-            // Don't fail the entire operation, just log the warning
-        }
+        await forceRevalidateShop(permissions.shopSlug);
 
         // Retourner le formulaire pour Superforms
         const form = await superValidate(zod(formSchema));
@@ -151,7 +140,7 @@ export const actions: Actions = {
         const permissions = await getUserPermissions(user.id, locals.supabase);
 
 
-        if (!permissions.shopId) {
+        if (!permissions.shopId || !permissions.shopSlug) {
             throw error(400, 'Boutique non trouvée');
         }
 
@@ -172,12 +161,7 @@ export const actions: Actions = {
             throw error(500, 'Erreur lors de la suppression de la FAQ');
         }
 
-        // Increment catalog version to invalidate public cache
-        try {
-            await incrementCatalogVersion(locals.supabase, permissions.shopId);
-        } catch (error) {
-            // Don't fail the entire operation, just log the warning
-        }
+        await forceRevalidateShop(permissions.shopSlug);
 
         // Retourner le formulaire pour Superforms
         const form = await superValidate(zod(formSchema));

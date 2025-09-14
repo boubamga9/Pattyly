@@ -1,5 +1,4 @@
 import { error, redirect } from '@sveltejs/kit';
-import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
 import type { PageServerLoad, Actions } from './$types';
 import Stripe from 'stripe';
 import { getUserPermissions } from '$lib/auth';
@@ -8,7 +7,7 @@ import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { formSchema } from './schema';
 import { validateImageServer, validateAndRecompressImage, logValidationInfo } from '$lib/utils/images/server';
-import { incrementCatalogVersion } from '$lib/utils/catalog';
+import { forceRevalidateShop } from '$lib/utils/catalog';
 
 
 
@@ -34,7 +33,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     // Get shop data
     const { data: shop, error: shopError } = await locals.supabase
         .from('shops')
-        .select('*')
+        .select('id, name, bio, slug, logo_url, instagram, tiktok, website')
         .eq('id', permissions.shopId)
         .single();
 
@@ -84,7 +83,7 @@ export const actions: Actions = {
         // Get shop data including logo_url
         const { data: shop } = await locals.supabase
             .from('shops')
-            .select('id, logo_url')
+            .select('id, logo_url, slug')
             .eq('profile_id', userId)
             .single();
 
@@ -175,7 +174,7 @@ export const actions: Actions = {
 
         // Increment catalog version to invalidate public cache
         try {
-            await incrementCatalogVersion(locals.supabase, shop.id);
+            await forceRevalidateShop(shop.slug);
         } catch (error) {
             // Don't fail the entire operation, just log the warning
         }

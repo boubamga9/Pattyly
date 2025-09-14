@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
 
 	import { Separator } from '$lib/components/ui/separator';
 	import { Button } from '$lib/components/ui/button';
@@ -20,7 +19,7 @@
 
 	const { order, orderType } = data;
 
-	// Variables réactives pour les propriétés de l'order
+	// Reactive variables for the order properties
 	$: hasChefDate =
 		orderType === 'custom_order' && order && (order as any).chef_pickup_date;
 	$: chefPickupDate = order ? (order as any).chef_pickup_date : null;
@@ -31,7 +30,7 @@
 	$: productBasePrice = order ? (order as any).product_base_price : null;
 	$: totalAmount = order ? (order as any).total_amount : null;
 
-	// Fonction pour formater le prix
+	// Function to format the price
 	function formatPrice(price: number): string {
 		return new Intl.NumberFormat('fr-FR', {
 			style: 'currency',
@@ -39,7 +38,7 @@
 		}).format(price);
 	}
 
-	// Fonction pour formater la date
+	// Function to format the date
 	function formatDate(dateString: string): string {
 		const date = new Date(dateString);
 		return date.toLocaleDateString('fr-FR', {
@@ -50,7 +49,7 @@
 		});
 	}
 
-	// Fonction pour afficher les options de personnalisation
+	// Function to display the customization options
 	function displayCustomizationOption(
 		label: string,
 		data: unknown,
@@ -61,9 +60,9 @@
 		if (data && typeof data === 'object') {
 			const obj = data as Record<string, unknown>;
 
-			// Nouvelle structure avec type, label, price, values, value, etc.
+			// New structure with type, label, price, values, value, etc.
 			if (obj.type === 'multi-select' && Array.isArray(obj.values)) {
-				// Multi-select : afficher toutes les options sur une ligne séparées par des virgules
+				// Multi-select : display all options on a line separated by commas
 				const optionsWithPrices = obj.values.map(
 					(item: Record<string, unknown>) => {
 						const itemLabel = item.label || item.value || 'Option';
@@ -76,7 +75,7 @@
 				);
 				return optionsWithPrices.join(', ');
 			} else if (obj.type === 'single-select' && obj.value) {
-				// Single-select : afficher la valeur avec le prix
+				// Single-select : display the value with the price
 				const value = obj.value as string;
 				const price = (obj.price as number) || 0;
 				if (price === 0) {
@@ -88,12 +87,12 @@
 				obj.type === 'long-text' ||
 				obj.type === 'number'
 			) {
-				// Champs texte/nombre : afficher la valeur
+				// Text/number fields : display the value
 				const value = obj.value || '';
 				return value ? String(value) : 'Non spécifié';
 			}
 
-			// Fallback pour l'ancienne structure
+			// Fallback for the old structure
 			if (obj.value && typeof obj.price === 'number') {
 				if (obj.price === 0) {
 					return `${obj.value}`;
@@ -115,14 +114,14 @@
 		return `${data}`;
 	}
 
-	// Fonction pour retourner à la boutique
+	// Function to go back to the shop
 	function goBack() {
 		if (order?.shops?.slug) {
 			goto(`/${order.shops.slug}`);
 		}
 	}
 
-	// Fonction pour accepter le devis et payer
+	// Function to accept the quote and pay
 	async function acceptQuote() {
 		if (!order?.id) return;
 

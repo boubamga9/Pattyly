@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { Button } from '$lib/components/ui/button';
-	import { Home, Search } from 'lucide-svelte';
+	import { Search } from 'lucide-svelte';
 
 	$: status = $page.status;
 	$: message = $page.error?.message || 'Une erreur est survenue';

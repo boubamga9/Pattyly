@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { Button } from '$lib/components/ui/button';
-	import { ArrowLeft, Home, Package } from 'lucide-svelte';
+	import { ArrowLeft, Package } from 'lucide-svelte';
 
 	$: status = $page.status;
 	$: message = $page.error?.message || 'Une erreur est survenue';
@@ -18,14 +18,14 @@
 
 <div class="flex min-h-screen flex-col items-center justify-center px-4 py-12">
 	<div class="mx-auto max-w-md text-center">
-		<!-- Icône d'erreur -->
+		<!-- Error icon -->
 		<div class="mb-6 flex justify-center">
 			<div class="rounded-full bg-blue-100 p-4">
 				<Package class="h-12 w-12 text-blue-600" />
 			</div>
 		</div>
 
-		<!-- Titre -->
+		<!-- Title -->
 		<h1 class="mb-4 text-3xl font-bold text-gray-900">Commande non trouvée</h1>
 
 		<!-- Message -->
@@ -50,7 +50,7 @@
 			{/if}
 		</div>
 
-		<!-- Message d'aide -->
+		<!-- Help message -->
 		<div class="mt-8 rounded-lg bg-gray-50 p-4">
 			<p class="text-sm text-gray-600">
 				💡 <strong>Conseil :</strong> Vérifiez votre email pour retrouver le lien

@@ -1,7 +1,6 @@
-import { z } from 'zod';
 import { createDynamicCustomOrderSchema } from '$lib/validations/schemas/order.js';
 
-// Interface pour les champs personnalisés
+// Interface for custom fields
 export interface CustomField {
     id: string;
     label: string;
@@ -10,7 +9,7 @@ export interface CustomField {
     options?: Array<{ label: string; price?: number }>;
 }
 
-// Fonction pour créer le schéma dynamique
+// Function to create dynamic schema
 export function createLocalDynamicSchema(fields: CustomField[]) {
     return createDynamicCustomOrderSchema(fields);
 }

@@ -3,14 +3,13 @@ import { error } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
     try {
-        const { slug, id } = params;
+        const { slug, id: orderId } = params;
 
-
-        // Récupérer la boutique
+        // Get shop
         const { data: shop, error: shopError } = await locals.supabase
             .from('shops')
             .select('id, name, logo_url, slug')
-            .eq('slug', params.slug)
+            .eq('slug', slug)
             .single();
 
         if (shopError) {
@@ -18,59 +17,50 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         }
 
         if (!shop) {
-
             throw error(404, 'Boutique non trouvée');
         }
 
 
 
-        // Essayer de récupérer la commande par session_id d'abord (commandes de produits)
+        // Try to get the order by session_id first (product orders)
         let { data: order, error: orderError } = await locals.supabase
             .from('orders')
             .select('*, shops(slug, name, logo_url)')
-            .eq('stripe_session_id', params.id)
+            .eq('stripe_session_id', orderId)
             .eq('shop_id', shop.id)
             .single();
 
-        // Si pas trouvé par session_id, essayer par order_id (commandes custom)
+        // If not found by session_id, try by order_id (custom orders)
         if (orderError && orderError.code === 'PGRST116') {
-
 
             const { data: orderById, error: orderByIdError } = await locals.supabase
                 .from('orders')
                 .select('*, shops(slug, name, logo_url)')
-                .eq('id', params.id)
+                .eq('id', orderId)
                 .eq('shop_id', shop.id)
                 .single();
 
             if (orderByIdError) {
-
                 throw error(404, 'Commande non trouvée');
             }
 
             order = orderById;
         } else if (orderError) {
-
             throw error(500, 'Erreur lors de la récupération de la commande');
         }
 
-        // Vérifier que order n'est pas null après toutes les tentatives
+        // Check that order is not null after all attempts
         if (!order) {
-
             throw error(404, 'Commande non trouvée');
         }
 
-
-
-        // Déterminer le type de commande
+        // Determine the type of order
         const orderType = order.product_id ? 'product_order' : 'custom_order';
-
-
 
         return {
             order,
             orderType,
-            session: null // Pas de session pour cette approche
+            session: null // No session for this approach
         };
 
     } catch (err) {

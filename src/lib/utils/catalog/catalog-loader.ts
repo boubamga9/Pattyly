@@ -14,7 +14,7 @@ export async function loadShopCatalog(
         // 1. Récupérer la version actuelle du catalogue
         const { data: shop, error: shopError } = await supabase
             .from('shops')
-            .select('id, name, bio, slug, logo_url, instagram, tiktok, website, catalog_version, is_custom_accepted')
+            .select('id, name, bio, slug, logo_url, instagram, tiktok, website, catalog_version, is_custom_accepted, is_active')
             .eq('id', shopId)
             .single();
 
@@ -51,7 +51,7 @@ export async function loadShopCatalog(
             // Récupérer les FAQ
             supabase
                 .from('faq')
-                .select('*')
+                .select('id, question, answer')
                 .eq('shop_id', shopId)
                 .order('created_at', { ascending: true })
         ]);
@@ -76,7 +76,8 @@ export async function loadShopCatalog(
                 tiktok: shop.tiktok,
                 website: shop.website,
                 catalog_version: shop.catalog_version,
-                is_custom_accepted: shop.is_custom_accepted
+                is_custom_accepted: shop.is_custom_accepted,
+                is_active: shop.is_active
             },
             products: productsResult.data || [],
             categories: categoriesResult.data || [],

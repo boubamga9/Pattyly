@@ -6,15 +6,19 @@ import type { SupabaseClient } from '@supabase/supabase-js';
  * Get shop_id for a user profile
  * Returns the shop ID or null if no shop found
  */
-export async function getShopId(profileId: string, supabase: SupabaseClient): Promise<string | null> {
+export async function getShopIdAndSlug(profileId: string, supabase: SupabaseClient): Promise<{ id: string | null, slug: string | null }> {
     const { data: shop } = await supabase
         .from('shops')
-        .select('id')
+        .select('id, slug')
         .eq('profile_id', profileId)
         .single();
 
-    return shop?.id || null;
+    return {
+        id: shop?.id || null,
+        slug: shop?.slug || null
+    };
 }
+
 
 /**
  * Get user's subscription plan
@@ -23,7 +27,7 @@ export async function getShopId(profileId: string, supabase: SupabaseClient): Pr
 async function getUserPlan(profileId: string, supabase: SupabaseClient): Promise<string | null> {
 
     // Check if user is exempt from Stripe
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile } = await supabase
         .from('profiles')
         .select('is_stripe_free')
         .eq('id', profileId)
@@ -35,7 +39,7 @@ async function getUserPlan(profileId: string, supabase: SupabaseClient): Promise
     }
 
     // Check active subscription OR trial subscription (ignore inactive for plan detection)
-    const { data: subscription, error: subscriptionError } = await supabase
+    const { data: subscription } = await supabase
         .from('user_products')
         .select('stripe_product_id, subscription_status')
         .eq('profile_id', profileId)
@@ -78,7 +82,7 @@ async function getUserPlan(profileId: string, supabase: SupabaseClient): Promise
  */
 async function getProductCount(profileId: string, supabase: SupabaseClient): Promise<number> {
     // First, get the shop_id for this profile
-    const shopId = await getShopId(profileId, supabase);
+    const { id: shopId } = await getShopIdAndSlug(profileId, supabase);
 
     if (!shopId) {
         return 0; // No shop found, so no products
@@ -98,13 +102,14 @@ async function getProductCount(profileId: string, supabase: SupabaseClient): Pro
  * This is the main function to use throughout the app
  */
 export async function getUserPermissions(profileId: string, supabase: SupabaseClient) {
-    const shopId = await getShopId(profileId, supabase);
+    const { id: shopId, slug: shopSlug } = await getShopIdAndSlug(profileId, supabase);
     const plan = await getUserPlan(profileId, supabase);
     const productCount = await getProductCount(profileId, supabase);
     const productLimit = plan === 'premium' ? Infinity : plan === 'exempt' ? Infinity : 10;
 
     return {
         shopId,
+        shopSlug,
         plan,
         productCount,
         productLimit,

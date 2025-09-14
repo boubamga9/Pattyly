@@ -1,4 +1,4 @@
-import { error, fail, redirect } from '@sveltejs/kit';
+import { error, fail } from '@sveltejs/kit';
 import { message, superValidate, setError } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad, Actions } from './$types';
@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         const { slug } = params;
 
 
-        // Récupérer les informations de la boutique
+        // Get shop information
         const { data: shop, error: shopError } = await locals.supabase
             .from('shops')
             .select('id, name, bio, slug, logo_url, is_custom_accepted')
@@ -23,22 +23,18 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         }
 
         if (!shop) {
-
             throw error(404, 'Boutique non trouvée');
         }
 
-
-
-        // Vérifier que les demandes personnalisées sont activées
+        // If custom requests are not accepted, throw an error
         if (!shop.is_custom_accepted) {
-
             throw error(404, 'Demandes personnalisées non disponibles');
         }
 
-        // Récupérer le formulaire personnalisé
+        // Get custom form
         const { data: customForm, error: formError } = await locals.supabase
             .from('forms')
-            .select('id, is_custom_form, title, description')
+            .select('id, title, description')
             .eq('shop_id', shop.id)
             .eq('is_custom_form', true)
             .single();
@@ -47,7 +43,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             throw error(500, 'Erreur lors du chargement du formulaire personnalisé');
         }
 
-        // Récupérer les champs du formulaire s'il existe
+        // Get custom form fields
         let customFields: any[] = [];
         if (customForm) {
             const { data: formFields, error: fieldsError } = await locals.supabase
@@ -62,11 +58,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
             customFields = formFields || [];
 
-        } else {
-
         }
 
-        // Récupérer les disponibilités de la boutique
+        // Get availabilities
         const { data: availabilities, error: availabilitiesError } = await locals.supabase
             .from('availabilities')
             .select('day, is_open')
@@ -76,7 +70,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             throw error(500, 'Erreur lors du chargement des disponibilités');
         }
 
-        // Récupérer les indisponibilités de la boutique
+        // Get unavailabilities
         const { data: unavailabilities, error: unavailabilitiesError } = await locals.supabase
             .from('unavailabilities')
             .select('start_date, end_date')
@@ -88,7 +82,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 
 
-        // Créer le schéma dynamique basé sur les champs configurés
+        // Create dynamic schema based on configured fields
         const dynamicSchema = createLocalDynamicSchema(customFields);
 
         return {
@@ -107,13 +101,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 export const actions: Actions = {
     createCustomOrder: async ({ request, params, locals }) => {
-        // Vérifier si c'est une erreur de rate limiting
+
+        // Check if rate limit is exceeded
         const rateLimitExceeded = request.headers.get('x-rate-limit-exceeded');
         if (rateLimitExceeded === 'true') {
             const rateLimitMessage = request.headers.get('x-rate-limit-message') || 'Trop de tentatives. Veuillez patienter.';
 
 
-            // Créer un schéma temporaire pour l'erreur
+            // Create temporary schema for error
             const tempSchema = createLocalDynamicSchema([]);
             const form = await superValidate(request, zod(tempSchema));
             setError(form, '', rateLimitMessage);
@@ -123,7 +118,7 @@ export const actions: Actions = {
         try {
             const { slug } = params;
 
-            // Récupérer les informations de la boutique
+            // Get shop information
             const { data: shop, error: shopError } = await locals.supabase
                 .from('shops')
                 .select('id, name, slug, logo_url, profiles(email)')
@@ -135,7 +130,7 @@ export const actions: Actions = {
                 throw error(404, 'Boutique non trouvée');
             }
 
-            // Récupérer les champs du formulaire pour créer le schéma dynamique
+            // Get custom form fields
             const { data: customForm } = await locals.supabase
                 .from('forms')
                 .select('id')
@@ -153,7 +148,7 @@ export const actions: Actions = {
                 customFields = formFields || [];
             }
 
-            // Créer le schéma dynamique et valider le formulaire
+            // Create dynamic schema and validate form
             const dynamicSchema = createLocalDynamicSchema(customFields);
             const form = await superValidate(request, zod(dynamicSchema));
 
@@ -171,7 +166,7 @@ export const actions: Actions = {
                 customization_data
             } = form.data;
 
-            // Transformer les données de personnalisation : ID → Label
+            // Transform customization data: ID → Label
             const transformedCustomizationData: Record<string, any> = {};
             if (customization_data && Object.keys(customization_data).length > 0) {
                 Object.entries(customization_data).forEach(([fieldId, value]) => {
@@ -182,7 +177,7 @@ export const actions: Actions = {
                 });
             }
 
-            // Créer la commande personnalisée
+            // Create custom order
             const { data: order, error: orderError } = await locals.supabase
                 .from('orders')
                 .insert({
@@ -192,10 +187,10 @@ export const actions: Actions = {
                     customer_phone,
                     customer_instagram,
                     pickup_date: (() => {
-                        // Convertir Date en string sans conversion de fuseau horaire
+                        // Convert Date to string without timezone conversion
                         const date = new Date(pickup_date);
                         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-                    })(), // Convertir Date en string
+                    })(), // Convert Date to string
                     additional_information,
                     customization_data: transformedCustomizationData, // Utiliser les données transformées
                     total_amount: 0, // Prix à définir plus tard par le chef
@@ -237,7 +232,7 @@ export const actions: Actions = {
 
         } catch (err) {
 
-            // ✅ CORRECTION - Toujours retourner le form pour Superforms
+            // Always return the form for Superforms
             const tempSchema = createLocalDynamicSchema([]);
             const form = await superValidate(request, zod(tempSchema));
             setError(form, '', 'Erreur serveur inattendue. Veuillez réessayer.');

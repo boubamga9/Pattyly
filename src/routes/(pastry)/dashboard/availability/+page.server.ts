@@ -24,7 +24,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     // Load availabilities
     let { data: availabilities, error: availabilitiesError } = await locals.supabase
         .from('availabilities')
-        .select('*')
+        .select('id, day, is_open')
         .eq('shop_id', permissions.shopId)
         .order('day');
 
@@ -35,7 +35,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     // Load unavailabilities
     const { data: unavailabilities, error: unavailabilitiesError } = await locals.supabase
         .from('unavailabilities')
-        .select('*')
+        .select('id, start_date, end_date')
         .eq('shop_id', permissions.shopId)
         .gte('end_date', new Date().toISOString().split('T')[0]) // Only future dates
         .order('start_date');

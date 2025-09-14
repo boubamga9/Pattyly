@@ -1,8 +1,8 @@
 import { error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { getShopId, getUserPermissions } from '$lib/auth';
+import { getShopIdAndSlug, getUserPermissions } from '$lib/auth';
 import { deleteImageIfUnused } from '$lib/storage';
-import { incrementCatalogVersion } from '$lib/utils/catalog';
+import { forceRevalidateShop } from '$lib/utils/catalog';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { createCategoryFormSchema, updateCategoryFormSchema, deleteCategoryFormSchema } from './schema';
@@ -13,7 +13,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
     const canAddProducts = permissions.canAddMoreProducts;
 
     // Get shop_id for this user
-    const shopId = await getShopId(userId, locals.supabase);
+    const { id: shopId } = await getShopIdAndSlug(userId, locals.supabase);
 
     if (!shopId) {
         throw error(500, 'Erreur lors du chargement de la boutique');
@@ -81,9 +81,9 @@ export const actions: Actions = {
         }
 
         // Get shop_id for this user
-        const shopId = await getShopId(userId, locals.supabase);
+        const { id: shopId, slug: shopSlug } = await getShopIdAndSlug(userId, locals.supabase);
 
-        if (!shopId) {
+        if (!shopId || !shopSlug) {
             return fail(500, { error: 'Boutique non trouvée' });
         }
 
@@ -156,7 +156,7 @@ export const actions: Actions = {
 
             // Increment catalog version to invalidate public cache
             try {
-                await incrementCatalogVersion(locals.supabase, shopId);
+                await forceRevalidateShop(shopSlug);
             } catch (error) {
                 // Don't fail the entire operation, just log the warning
             }
@@ -178,9 +178,9 @@ export const actions: Actions = {
         }
 
         // Get shop_id for this user
-        const shopId = await getShopId(userId, locals.supabase);
+        const { id: shopId, slug: shopSlug } = await getShopIdAndSlug(userId, locals.supabase);
 
-        if (!shopId) {
+        if (!shopId || !shopSlug) {
             return fail(500, { error: 'Boutique non trouvée' });
         }
 
@@ -311,7 +311,7 @@ export const actions: Actions = {
 
             // Increment catalog version to invalidate public cache
             try {
-                await incrementCatalogVersion(locals.supabase, shopId);
+                await forceRevalidateShop(shopSlug);
             } catch (error) {
                 // Don't fail the entire operation, just log the warning
             }
@@ -333,9 +333,9 @@ export const actions: Actions = {
         }
 
         // Get shop_id for this user
-        const shopId = await getShopId(userId, locals.supabase);
+        const { id: shopId, slug: shopSlug } = await getShopIdAndSlug(userId, locals.supabase);
 
-        if (!shopId) {
+        if (!shopId || !shopSlug) {
             return fail(500, { error: 'Boutique non trouvée' });
         }
 
@@ -386,7 +386,7 @@ export const actions: Actions = {
 
             // Increment catalog version to invalidate public cache
             try {
-                await incrementCatalogVersion(locals.supabase, shopId);
+                await forceRevalidateShop(shopSlug);
             } catch (error) {
                 // Don't fail the entire operation, just log the warning
             }
@@ -409,9 +409,9 @@ export const actions: Actions = {
         }
 
         // Get shop_id for this user
-        const shopId = await getShopId(userId, locals.supabase);
+        const { id: shopId, slug: shopSlug } = await getShopIdAndSlug(userId, locals.supabase);
 
-        if (!shopId) {
+        if (!shopId || !shopSlug) {
             return fail(500, { error: 'Boutique non trouvée' });
         }
 
@@ -481,7 +481,7 @@ export const actions: Actions = {
 
             // Increment catalog version to invalidate public cache
             try {
-                await incrementCatalogVersion(locals.supabase, shopId);
+                await forceRevalidateShop(shopSlug);
             } catch (error) {
                 // Don't fail the entire operation, just log the warning
             }
@@ -504,9 +504,9 @@ export const actions: Actions = {
         }
 
         // Get shop_id for this user
-        const shopId = await getShopId(userId, locals.supabase);
+        const { id: shopId, slug: shopSlug } = await getShopIdAndSlug(userId, locals.supabase);
 
-        if (!shopId) {
+        if (!shopId || !shopSlug) {
             return fail(500, { error: 'Boutique non trouvée' });
         }
 
@@ -560,7 +560,7 @@ export const actions: Actions = {
 
             // Increment catalog version to invalidate public cache
             try {
-                await incrementCatalogVersion(locals.supabase, shopId);
+                await forceRevalidateShop(shopSlug);
             } catch (error) {
                 // Don't fail the entire operation, just log the warning
             }
@@ -583,9 +583,9 @@ export const actions: Actions = {
         }
 
         // Get shop_id for this user
-        const shopId = await getShopId(userId, locals.supabase);
+        const { id: shopId, slug: shopSlug } = await getShopIdAndSlug(userId, locals.supabase);
 
-        if (!shopId) {
+        if (!shopId || !shopSlug) {
             return fail(500, { error: 'Boutique non trouvée' });
         }
 
@@ -623,7 +623,7 @@ export const actions: Actions = {
 
             // Increment catalog version to invalidate public cache
             try {
-                await incrementCatalogVersion(locals.supabase, shopId);
+                await forceRevalidateShop(shopSlug);
             } catch (error) {
                 // Don't fail the entire operation, just log the warning
             }

@@ -38,7 +38,7 @@
 		dataType: 'json',
 	});
 
-	const { form: formData, enhance, submitting, message, errors } = form;
+	const { form: formData, enhance, submitting, message } = form;
 
 	$: totalPrice = (() => {
 		let total = product.base_price || 0;

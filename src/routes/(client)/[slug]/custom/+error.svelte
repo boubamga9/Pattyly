@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { Button } from '$lib/components/ui/button';
-	import { ArrowLeft, Home, MessageCircle } from 'lucide-svelte';
+	import { ArrowLeft, MessageCircle } from 'lucide-svelte';
 
 	$: status = $page.status;
 	$: message = $page.error?.message || 'Une erreur est survenue';

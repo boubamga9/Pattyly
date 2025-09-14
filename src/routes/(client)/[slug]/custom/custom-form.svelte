@@ -40,10 +40,10 @@
 
 	const { form: formData, enhance, submitting, message } = form;
 
-	// Gérer la redirection en cas de succès
+	// Handle redirection on success
 	$: if ($message?.redirectTo) {
 		const url = $message.redirectTo;
-		message.set(null); // reset pour éviter une boucle
+		message.set(null); // reset to avoid loop
 		goto(url);
 	}
 </script>
@@ -134,7 +134,7 @@
 			<Separator />
 		{/if}
 
-		<!-- Section 2: Information de récupération -->
+		<!-- Section 2: Information of pickup -->
 		<div class="space-y-4">
 			<h3 class="text-lg font-semibold text-foreground">
 				Information de récupération
@@ -158,7 +158,7 @@
 		</div>
 		<Separator />
 
-		<!-- Section 3: Information de contact -->
+		<!-- Section 3: Information of contact -->
 		<div class="space-y-4">
 			<h3 class="text-lg font-semibold text-foreground">
 				Information de contact
@@ -248,7 +248,7 @@
 
 		<Separator />
 
-		<!-- Section 4: Récapitulatif de la demande -->
+		<!-- Section 4: Summary of the request -->
 		<div class="space-y-4">
 			<h3 class="text-lg font-semibold text-foreground">
 				Récapitulatif de la demande
@@ -310,7 +310,7 @@
 			</div>
 		</div>
 
-		<!-- Section 5: Boutons d'action -->
+		<!-- Section 5: Action buttons -->
 		<div class="flex gap-2">
 			{#if $page.url.searchParams.get('preview') !== 'true'}
 				<Button type="submit" disabled={$submitting} class="flex-1">
@@ -325,7 +325,7 @@
 					Annuler
 				</Button>
 			{:else}
-				<!-- Message en mode preview -->
+				<!-- Message in preview mode -->
 				<div
 					class="rounded-lg border border-blue-200 bg-blue-50 p-4 text-center"
 				>

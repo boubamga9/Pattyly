@@ -1,11 +1,10 @@
 import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { getShopId } from '$lib/auth';
+import { getShopIdAndSlug } from '$lib/auth';
 import { superValidate, setError } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { formSchema } from './schema';
 import { validateImageServer, validateAndRecompressImage, logValidationInfo } from '$lib/utils/images/server';
-import { incrementCatalogVersion } from '$lib/utils/catalog';
 import Stripe from 'stripe';
 import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -156,7 +155,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         const userId = session.user.id;
 
         // Check if user already has a shop
-        const shopId = await getShopId(userId, locals.supabase);
+        const { id: shopId } = await getShopIdAndSlug(userId, locals.supabase);
 
         if (shopId) {
             // Check if shop has Stripe Connect configured
@@ -345,13 +344,6 @@ export const actions: Actions = {
                     // Don't fail the shop creation, just log the error
                 } else {
 
-                }
-
-                // Increment catalog version for cache invalidation
-                try {
-                    await incrementCatalogVersion(locals.supabase, shop.id);
-                } catch (cacheError) {
-                    // Non-critical error, don't fail the operation
                 }
 
                 // Return success with form data for Superforms compatibility

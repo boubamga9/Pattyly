@@ -1,9 +1,9 @@
 import { error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { getShopId } from '$lib/auth';
+import { getShopIdAndSlug } from '$lib/auth';
 import { deleteImageIfUnused } from '$lib/storage';
 import { validateImageServer, validateAndRecompressImage, logValidationInfo } from '$lib/utils/images/server';
-import { incrementCatalogVersion } from '$lib/utils/catalog';
+import { forceRevalidateShop } from '$lib/utils/catalog';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { updateProductFormSchema, createCategoryFormSchema } from './schema.js';
@@ -17,7 +17,7 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
     }
 
     // Get shop_id for this user
-    const shopId = await getShopId(userId, locals.supabase);
+    const { id: shopId } = await getShopIdAndSlug(userId, locals.supabase);
 
     if (!shopId) {
         throw error(500, 'Erreur lors du chargement de la boutique');
@@ -119,9 +119,9 @@ export const actions: Actions = {
         }
 
         // Get shop_id for this user
-        const shopId = await getShopId(userId, locals.supabase);
+        const { id: shopId, slug: shopSlug } = await getShopIdAndSlug(userId, locals.supabase);
 
-        if (!shopId) {
+        if (!shopId || !shopSlug) {
             return fail(500, { error: 'Boutique non trouvée' });
         }
 
@@ -403,7 +403,7 @@ export const actions: Actions = {
 
         // Increment catalog version to invalidate public cache
         try {
-            await incrementCatalogVersion(locals.supabase, shopId);
+            await forceRevalidateShop(shopSlug);
         } catch (error) {
             // Don't fail the entire operation, just log the warning
         }
@@ -422,7 +422,7 @@ export const actions: Actions = {
         }
 
         // Get shop_id for this user
-        const shopId = await getShopId(userId, locals.supabase);
+        const { id: shopId } = await getShopIdAndSlug(userId, locals.supabase);
 
         if (!shopId) {
             return fail(500, { error: 'Boutique non trouvée' });

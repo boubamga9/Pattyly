@@ -6,7 +6,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         const { slug } = params;
 
 
-        // Récupérer les informations de la boutique
+        // Get shop information
         const { data: shop, error: shopError } = await locals.supabase
             .from('shops')
             .select('id, name, bio, slug, logo_url')
@@ -23,9 +23,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             throw error(404, 'Boutique non trouvée');
         }
 
-
-
-        // Récupérer les FAQ de la boutique
+        // Get shop FAQ
         const { data: faqs, error: faqsError } = await locals.supabase
             .from('faq')
             .select('*')
@@ -35,8 +33,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         if (faqsError) {
             throw error(500, 'Erreur lors du chargement des FAQ');
         }
-
-
 
         return {
             shop,
