@@ -44,16 +44,14 @@ export const actions: Actions = {
 
 		const { email, password } = form.data;
 
-		const redirectUrl = `${process.env.PUBLIC_SITE_URL}/auth/callback?next=onboarding`;
-
 		const {
 			error,
-			data: { user, session },
+			data: { user },
 		} = await supabase.auth.signUp({
 			email,
 			password,
 			options: {
-				emailRedirectTo: redirectUrl
+				emailRedirectTo: undefined  // Force l'OTP au lieu du lien magique
 			}
 		});
 

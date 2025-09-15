@@ -1,5 +1,9 @@
 import { redirect } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
+import type { PageServerLoad, Actions } from './$types';
+import { superValidate, setError } from 'sveltekit-superforms';
+import { zod } from 'sveltekit-superforms/adapters';
+import { otpSchema } from './schema';
+import { fail } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ url }) => {
     const email = url.searchParams.get('email');
@@ -9,7 +13,69 @@ export const load: PageServerLoad = async ({ url }) => {
         throw redirect(302, '/');
     }
 
+    const form = await superValidate(zod(otpSchema));
+
+    // Pré-remplir l'email dans le formulaire
+    form.data.email = email;
+
     return {
-        userEmail: email
+        userEmail: email,
+        form
     };
+};
+
+export const actions: Actions = {
+    verifyOtp: async ({ request, locals, url }) => {
+        const form = await superValidate(request, zod(otpSchema));
+
+        if (!form.valid) {
+            console.log('form not valid')
+            return fail(400, { form });
+        }
+
+        const { code, email } = form.data;
+
+        if (!email) {
+            return setError(form, 'email', 'Email manquant');
+        }
+
+        try {
+            // Vérifier le code OTP avec Supabase
+            const { data, error } = await locals.supabase.auth.verifyOtp({
+                email,
+                token: code,
+                type: 'signup'
+            });
+
+            if (error) {
+                let errorMessage = 'Erreur lors de la vérification. Veuillez réessayer.';
+
+                if (error.code === 'otp_invalid' || error.message?.includes('invalid')) {
+                    errorMessage = 'Code de vérification invalide. Vérifiez votre code et réessayez.';
+                } else if (error.code === 'too_many_requests') {
+                    errorMessage = 'Trop de tentatives. Veuillez patienter avant de réessayer.';
+                } else if (error.code === 'otp_expired' || error.message?.includes('expired')) {
+                    errorMessage = 'Le code de vérification a expiré. Veuillez demander un nouveau code.';
+                } else if (error.code === 'user_not_found') {
+                    errorMessage = 'Utilisateur introuvable. Vérifiez votre email.';
+                }
+
+                return setError(form, '', errorMessage);
+            }
+
+
+            if (data.user) {
+                return {
+                    form,
+                    redirectTo: '/onboarding'
+                };
+            }
+
+            return setError(form, '', 'Vérification échouée');
+
+        } catch (error) {
+            console.log(error)
+            return setError(form, '', 'Erreur interne du serveur');
+        }
+    }
 };

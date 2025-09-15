@@ -1,66 +1,13 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import * as Card from '$lib/components/ui/card';
+	import ConfirmationForm from './confirmation-form.svelte';
 
 	export let data;
 
 	// Récupérer l'email depuis les paramètres d'URL ou les données
 	$: userEmail =
 		$page.url.searchParams.get('email') || data?.userEmail || 'votre email';
-
-	// État du bouton renvoyer
-	let resendSuccess = false;
-	let resendLoading = false;
-	let resendError = false;
-	let resendCountdown = 0;
-
-	// Fonction pour renvoyer l'email
-	async function handleResendEmail() {
-		if (resendLoading || resendCountdown > 0) return; // Éviter les clics multiples
-
-		resendLoading = true;
-		resendError = false;
-		try {
-			const response = await fetch('/api/resend-confirmation', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({ email: userEmail }),
-			});
-
-			if (response.ok) {
-				resendSuccess = true;
-				// Reset après 3 secondes
-				setTimeout(() => {
-					resendSuccess = false;
-				}, 3000);
-			} else {
-				if (response.status === 429) {
-					// Rate limit atteint, démarrer le compte à rebours
-					resendCountdown = 60;
-					const timer = setInterval(() => {
-						resendCountdown--;
-						if (resendCountdown <= 0) {
-							clearInterval(timer);
-						}
-					}, 1000);
-				} else {
-					resendError = true;
-					setTimeout(() => {
-						resendError = false;
-					}, 3000);
-				}
-			}
-		} catch (error) {
-			resendError = true;
-			setTimeout(() => {
-				resendError = false;
-			}, 3000);
-		} finally {
-			resendLoading = false;
-		}
-	}
 </script>
 
 <svelte:head>
@@ -104,22 +51,10 @@
 				Confirmez votre email
 			</Card.Title>
 		</Card.Header>
-		<Card.Content class="flex flex-col gap-4 text-center">
-			<p class="text-neutral-700">
-				Nous avons envoyé un email de confirmation à <strong
-					class="text-neutral-900">{userEmail}</strong
-				>.
-			</p>
-			<p class="text-sm text-neutral-600">
-				Cliquez sur le lien dans l'email pour valider votre compte et continuer.
-			</p>
-			<div class="mt-4 rounded-lg bg-neutral-50 p-4">
-				<p class="text-xs text-neutral-600">
-					💡 <strong>Conseil :</strong> Vérifiez vos spams si vous ne recevez pas
-					l'email dans les prochaines minutes.
-				</p>
-			</div>
-			<div class="mt-4 text-center text-sm text-neutral-600">
+		<Card.Content>
+			<ConfirmationForm data={data.form} email={userEmail} />
+
+			<div class="mt-6 text-center text-sm text-neutral-600">
 				Vous avez déjà un compte ?
 				<a
 					href="/login"
@@ -127,27 +62,6 @@
 				>
 					Se connecter
 				</a>
-			</div>
-
-			<!-- Bouton renvoyer l'email -->
-			<div class="mt-4 text-center">
-				<button
-					on:click={handleResendEmail}
-					disabled={resendLoading || resendCountdown > 0}
-					class="text-sm text-[#FF6F61] underline transition-colors hover:text-[#e85a4f] disabled:cursor-not-allowed disabled:opacity-50"
-				>
-					{#if resendSuccess}
-						✅ Email renvoyé !
-					{:else if resendLoading}
-						⏳ Envoi en cours...
-					{:else if resendCountdown > 0}
-						⏰ Réessayer dans {resendCountdown}s
-					{:else if resendError}
-						❌ Erreur, réessayer
-					{:else}
-						Renvoyer l'email de confirmation
-					{/if}
-				</button>
 			</div>
 		</Card.Content>
 	</Card.Root>

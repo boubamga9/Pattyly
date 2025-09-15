@@ -144,22 +144,23 @@ async function checkAndStartTrial(
     }
 }
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase }, }) => {
+
+    const { session, user } = await safeGetSession();
+    if (!session || !user) {
+        redirect(303, '/login');
+    }
+
     try {
-        const { session } = await locals.safeGetSession();
 
-        if (!session) {
-            throw redirect(303, '/login');
-        }
-
-        const userId = session.user.id;
+        const userId = user.id;
 
         // Check if user already has a shop
-        const { id: shopId } = await getShopIdAndSlug(userId, locals.supabase);
+        const { id: shopId } = await getShopIdAndSlug(userId, supabase);
 
         if (shopId) {
             // Check if shop has Stripe Connect configured
-            const { data: shop, error: shopError } = await locals.supabase
+            const { data: shop, error: shopError } = await supabase
                 .from('shops')
                 .select('id, name, bio, slug, logo_url')
                 .eq('id', shopId)
@@ -170,7 +171,7 @@ export const load: PageServerLoad = async ({ locals }) => {
             }
 
             // Check if user has Stripe Connect account
-            const { data: stripeAccount, error: stripeError } = await locals.supabase
+            const { data: stripeAccount, error: stripeError } = await supabase
                 .from('stripe_connect_accounts')
                 .select('id, is_active')
                 .eq('profile_id', userId)
@@ -210,21 +211,20 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-    createShop: async ({ request, locals }) => {
+    createShop: async ({ request, locals: { safeGetSession, supabase } }) => {
         try {
-            const { session } = await locals.safeGetSession();
+            const { session, user } = await safeGetSession();
 
-            if (!session) {
+            if (!session || !user) {
                 const form = await superValidate(zod(formSchema));
                 setError(form, 'name', 'Non autorisé');
                 return { form };
             }
 
-            const userId = session.user.id;
+            const userId = user.id;
             const form = await superValidate(request, zod(formSchema));
 
             if (!form.valid) {
-                // Create a clean form without File objects for serialization
                 const cleanForm = await superValidate(zod(formSchema));
                 cleanForm.errors = form.errors;
                 cleanForm.valid = false;
@@ -232,143 +232,88 @@ export const actions: Actions = {
             }
 
             const { name, bio, slug, logo } = form.data;
+            let logoUrl: string | null = null;
 
-            // Handle logo upload if provided
-            let logoUrl = null;
-
+            // Gestion du logo si fourni
             if (logo && logo.size > 0) {
-                try {
-                    // 🔍 Validation serveur stricte + re-compression automatique si nécessaire
-                    const validationResult = await validateAndRecompressImage(logo, 'LOGO');
+                const validationResult = await validateAndRecompressImage(logo, 'LOGO');
+                if (!validationResult.isValid) {
+                    const cleanForm = await superValidate(zod(formSchema));
+                    setError(cleanForm, 'logo', validationResult.error || 'Validation du logo échouée');
+                    return { form: cleanForm };
+                }
 
-                    // Log de validation pour le debugging
-                    logValidationInfo(logo, 'LOGO', validationResult);
+                const imageToUpload = validationResult.compressedFile || logo;
+                const fileName = `logos/${userId}/${Date.now()}_${imageToUpload.name}`;
 
-                    if (!validationResult.isValid) {
-                        // Create a clean form without File objects for serialization
-                        const cleanForm = await superValidate(zod(formSchema));
-                        setError(cleanForm, 'logo', validationResult.error || 'Validation du logo échouée');
-                        return { form: cleanForm };
-                    }
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('shop-logos')
+                    .upload(fileName, imageToUpload, { cacheControl: '3600', upsert: false });
 
-                    // 🔄 Utiliser l'image re-compressée si disponible
-                    const imageToUpload = validationResult.compressedFile || logo;
-
-                    // Upload to Supabase Storage
-                    const fileName = `logos/${userId}/${Date.now()}_${imageToUpload.name}`;
-                    const { data: uploadData, error: uploadError } = await locals.supabase.storage
-                        .from('shop-logos')
-                        .upload(fileName, imageToUpload, {
-                            cacheControl: '3600',
-                            upsert: false
-                        });
-
-                    if (uploadError) {
-                        // Create a clean form without File objects for serialization
-                        const cleanForm = await superValidate(zod(formSchema));
-                        setError(cleanForm, 'logo', 'Erreur lors du téléchargement du logo');
-                        return { form: cleanForm };
-                    }
-
-                    // Get public URL
-                    const { data: urlData } = locals.supabase.storage
-                        .from('shop-logos')
-                        .getPublicUrl(fileName);
-
-                    logoUrl = urlData.publicUrl;
-                } catch (uploadError) {
-                    // Create a clean form without File objects for serialization
+                if (uploadError) {
                     const cleanForm = await superValidate(zod(formSchema));
                     setError(cleanForm, 'logo', 'Erreur lors du téléchargement du logo');
                     return { form: cleanForm };
                 }
+
+                const { data: urlData } = supabase.storage.from('shop-logos').getPublicUrl(fileName);
+                logoUrl = urlData.publicUrl;
             }
 
-            try {
-                // Check if slug already exists
-                const { data: existingShop, error: slugCheckError } = await locals.supabase
-                    .from('shops')
-                    .select('id')
-                    .eq('slug', slug)
-                    .single();
+            // Vérification du slug
+            const { data: existingShop, error: slugCheckError } = await supabase
+                .from('shops')
+                .select('id')
+                .eq('slug', slug)
+                .single();
 
-                if (slugCheckError && slugCheckError.code !== 'PGRST116') {
-                    // Create a clean form without File objects for serialization
-                    const cleanForm = await superValidate(zod(formSchema));
-                    setError(cleanForm, 'slug', 'Erreur lors de la vérification du slug');
-                    return { form: cleanForm };
-                }
-
-                if (existingShop) {
-                    // Create a clean form without File objects for serialization
-                    const cleanForm = await superValidate(zod(formSchema));
-                    setError(cleanForm, 'slug', "Ce nom d'URL est déjà pris. Veuillez en choisir un autre.");
-                    return { form: cleanForm };
-                }
-
-                // Create shop
-                const { data: shop, error: createError } = await locals.supabase
-                    .from('shops')
-                    .insert({
-                        name,
-                        bio: bio || null,
-                        slug,
-                        logo_url: logoUrl,
-                        profile_id: userId
-                    })
-                    .select('id, name, bio, slug, logo_url')
-                    .single();
-
-                if (createError) {
-                    // Create a clean form without File objects for serialization
-                    const cleanForm = await superValidate(zod(formSchema));
-                    setError(cleanForm, 'name', 'Erreur lors de la création de la boutique');
-                    return { form: cleanForm };
-                }
-
-                // Create default availabilities for the shop (Monday to Friday)
-                const availabilities = [];
-                for (let day = 0; day < 7; day++) {
-                    availabilities.push({
-                        shop_id: shop.id,
-                        day,
-                        is_open: day >= 1 && day <= 5 // Monday (1) to Friday (5) = true, Saturday (6) and Sunday (0) = false
-                    });
-                }
-
-                const { error: availabilitiesError } = await locals.supabase
-                    .from('availabilities')
-                    .insert(availabilities);
-
-                if (availabilitiesError) {
-                    // Don't fail the shop creation, just log the error
-                } else {
-
-                }
-
-                // Return success with form data for Superforms compatibility
-                // Create a clean form without the File object for serialization
+            if (slugCheckError && slugCheckError.code !== 'PGRST116') {
                 const cleanForm = await superValidate(zod(formSchema));
-                cleanForm.message = 'Boutique créée avec succès !';
-                return {
-                    form: cleanForm,
-                    success: true,
-                    shop
-                };
-            } catch (error) {
-                // Create a clean form for serialization
-                const cleanForm = await superValidate(zod(formSchema));
-                setError(cleanForm, 'name', 'Une erreur inattendue est survenue lors de la création de la boutique');
+                setError(cleanForm, 'slug', 'Erreur lors de la vérification du slug');
                 return { form: cleanForm };
             }
-        } catch (error) {
 
-            // Always return a form for Superforms compatibility
+            if (existingShop) {
+                const cleanForm = await superValidate(zod(formSchema));
+                setError(cleanForm, 'slug', "Ce nom d'URL est déjà pris. Veuillez en choisir un autre.");
+                return { form: cleanForm };
+            }
+
+            // Création de la boutique
+            const { data: shop, error: createError } = await supabase
+                .from('shops')
+                .insert({ name, bio: bio || null, slug, logo_url: logoUrl, profile_id: userId })
+                .select('id, name, bio, slug, logo_url')
+                .single();
+
+            if (createError) {
+                const cleanForm = await superValidate(zod(formSchema));
+                setError(cleanForm, 'name', 'Erreur lors de la création de la boutique');
+                return { form: cleanForm };
+            }
+
+            // Création des disponibilités par défaut (lun-ven)
+            const availabilities = Array.from({ length: 7 }, (_, day) => ({
+                shop_id: shop.id,
+                day,
+                is_open: day >= 1 && day <= 5
+            }));
+            await supabase.from('availabilities').insert(availabilities);
+
+            // Retour succès
+            const cleanForm = await superValidate(zod(formSchema));
+            cleanForm.message = 'Boutique créée avec succès !';
+            return { form: cleanForm, success: true, shop };
+
+        } catch (error) {
+            // Gestion globale des erreurs inattendues
+            console.error(error);
             const form = await superValidate(zod(formSchema));
-            setError(form, 'name', 'Une erreur critique est survenue. Veuillez réessayer.');
+            setError(form, 'name', 'Une erreur inattendue est survenue. Veuillez réessayer.');
             return { form };
         }
     },
+
 
     connectStripe: async ({ request, locals, cookies }) => {
         try {
