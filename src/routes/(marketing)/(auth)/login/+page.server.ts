@@ -91,6 +91,6 @@ export const actions: Actions = {
 			return setError(form, '', 'Erreur lors de la connexion. Veuillez réessayer.');
 		}
 
-		redirect(303, '/auth/callback?next=/dashboard');
+		redirect(303, '/dashboard');
 	},
 };

@@ -52,7 +52,7 @@
 			</Card.Title>
 		</Card.Header>
 		<Card.Content>
-			<ConfirmationForm data={data.form} email={userEmail} />
+			<ConfirmationForm data={data.form} email={userEmail} type={data.type} />
 
 			<div class="mt-6 text-center text-sm text-neutral-600">
 				Vous avez déjà un compte ?

@@ -4,6 +4,7 @@ import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad, Actions } from './$types';
 import { createLocalDynamicSchema } from './schema';
 import { EmailService } from '$lib/services/email-service';
+import { PUBLIC_SITE_URL } from '$env/static/public';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
     try {
@@ -212,7 +213,7 @@ export const actions: Actions = {
                         shopName: shop.name,
                         shopLogo: shop.logo_url || undefined,
                         requestId: order.id.slice(0, 8),
-                        orderUrl: `${process.env.PUBLIC_SITE_URL}/${slug}/order/${order.id}`,
+                        orderUrl: `${PUBLIC_SITE_URL}/${slug}/order/${order.id}`,
                         date: new Date().toLocaleDateString("fr-FR")
                     }),
 
@@ -223,7 +224,7 @@ export const actions: Actions = {
                         customerInstagram: customer_instagram,
                         pickupDate: pickup_date.toLocaleDateString("fr-FR"),
                         requestId: order.id.slice(0, 8),
-                        dashboardUrl: `${process.env.PUBLIC_SITE_URL}/dashboard/orders/${order.id}`,
+                        dashboardUrl: `${PUBLIC_SITE_URL}/dashboard/orders/${order.id}`,
                         date: new Date().toLocaleDateString("fr-FR")
                     })]);
             } catch (e) { }

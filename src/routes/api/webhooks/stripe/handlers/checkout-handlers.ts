@@ -1,6 +1,7 @@
 import type { Stripe } from 'stripe';
 import { error } from '@sveltejs/kit';
 import { EmailService } from '$lib/services/email-service';
+import { PUBLIC_SITE_URL } from '$env/static/public';
 
 export async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, locals: any): Promise<void> {
 
@@ -99,6 +100,7 @@ export async function handleProductOrderPayment(
 
 
         try {
+
             await EmailService.sendOrderConfirmation({
                 customerEmail: orderData.customerEmail,
                 customerName: orderData.customerName,
@@ -110,7 +112,7 @@ export async function handleProductOrderPayment(
                 paidAmount: paidAmount / 100,
                 remainingAmount: totalAmount - (paidAmount / 100),
                 orderId: order.id,
-                orderUrl: `${process.env.PUBLIC_SITE_URL}/${product.shops.slug}/orders/${order.id}`,
+                orderUrl: `${PUBLIC_SITE_URL}/${product.shops.slug}/orders/${order.id}`,
                 date: new Date().toLocaleDateString("fr-FR"),
             });
 
@@ -125,7 +127,7 @@ export async function handleProductOrderPayment(
                 paidAmount: paidAmount / 100,
                 remainingAmount: totalAmount - (paidAmount / 100),
                 orderId: order.id,
-                dashboardUrl: `${process.env.PUBLIC_SITE_URL}/${product.shops.slug}/orders/${order.id}`,
+                dashboardUrl: `${PUBLIC_SITE_URL}/${product.shops.slug}/orders/${order.id}`,
                 date: new Date().toLocaleDateString("fr-FR"),
             });
         } catch (error) { }
@@ -185,7 +187,7 @@ export async function handleCustomOrderDeposit(
                 depositAmount: depositAmount / 100,
                 remainingAmount: totalPrice - (depositAmount / 100),
                 orderId: orderId,
-                orderUrl: `${process.env.PUBLIC_SITE_URL}/${order.shops.slug}/orders/${orderId}`,
+                orderUrl: `${PUBLIC_SITE_URL}/${order.shops.slug}/orders/${orderId}`,
                 date: new Date().toLocaleDateString("fr-FR"),
             });
 
@@ -198,7 +200,7 @@ export async function handleCustomOrderDeposit(
                 depositAmount: depositAmount / 100,
                 remainingAmount: totalPrice - (depositAmount / 100),
                 orderId: orderId,
-                dashboardUrl: `${process.env.PUBLIC_SITE_URL}/dashboard/orders/${orderId}`,
+                dashboardUrl: `${PUBLIC_SITE_URL}/dashboard/orders/${orderId}`,
                 date: new Date().toLocaleDateString("fr-FR"),
             });
         } catch (error) {

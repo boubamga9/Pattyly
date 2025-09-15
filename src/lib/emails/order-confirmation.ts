@@ -1,3 +1,5 @@
+import { PUBLIC_SITE_URL } from '$env/static/public';
+
 interface OrderConfirmationProps {
     customerName: string;
     shopName: string;
@@ -30,7 +32,7 @@ export function OrderConfirmationEmail({
             <!-- Logo du pâtissier ou Pattyly -->
             <div style="text-align: center; margin-bottom: 30px;">
                 <img
-                    src="${shopLogo || `${process.env.PUBLIC_SITE_URL}/images/logo_icone.png`}"
+                    src="${shopLogo || `${PUBLIC_SITE_URL}/images/logo_icone.png`}"
                     alt="${shopName}"
                     style="height: 40px; margin-bottom: 10px;"
                 />

@@ -73,18 +73,18 @@ function createSupabaseClient(context: LoadContext): ReturnType<typeof createBro
  */
 async function getAuthData(supabase: ReturnType<typeof createBrowserClient> | ReturnType<typeof createServerClient>): Promise<{ session: any; user: any }> {
 	try {
-		// Get session data
+		// Get user data first (validated)
+		const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+		if (userError || !user) {
+			return { session: null, user: null };
+		}
+
+		// Get session data (for tokens)
 		const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
 		if (sessionError) {
 			return { session: null, user: null };
-		}
-
-		// Get user data
-		const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-		if (userError) {
-			return { session, user: null };
 		}
 
 		return { session, user };
@@ -107,11 +107,6 @@ export const load: LayoutLoad = async ({ fetch, data, depends }: LoadContext): P
 
 		// Retrieve authentication data safely
 		const { session, user } = await getAuthData(supabase);
-
-		// Log authentication status for debugging
-		if (process.env.NODE_ENV === 'development') {
-
-		}
 
 		return {
 			supabase,

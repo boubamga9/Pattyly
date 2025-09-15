@@ -1,7 +1,7 @@
 export const ssr = false;
 
-import { fail, type Actions } from '@sveltejs/kit';
-import { message, setError, superValidate } from 'sveltekit-superforms';
+import { fail, redirect, type Actions } from '@sveltejs/kit';
+import { setError, superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad } from './$types';
 import { formSchema } from './schema';
@@ -34,13 +34,10 @@ export const actions: Actions = {
 		}
 
 		const { email } = form.data;
-		const redirectTo = url.searchParams.get('redirectTo');
-		if (!redirectTo) {
-			return setError(form, '', 'URL de redirection invalide.');
-		}
 
+		// Envoyer un code OTP pour la réinitialisation au lieu d'un lien magique
 		const { error } = await supabase.auth.resetPasswordForEmail(email, {
-			redirectTo,
+			redirectTo: undefined  // Force l'OTP au lieu du lien magique
 		});
 
 		if (error) {
@@ -52,8 +49,7 @@ export const actions: Actions = {
 			);
 		}
 
-		return message(form, {
-			success: 'Email envoyé. Vérifiez votre boîte mail pour les instructions de réinitialisation.',
-		});
+		// Rediriger vers la page de confirmation avec les bons paramètres
+		throw redirect(303, `/confirmation?email=${encodeURIComponent(email)}&type=recovery`);
 	},
 };

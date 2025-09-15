@@ -1,5 +1,6 @@
 import { fetchCurrentUsersSubscription } from '$lib/stripe/client-helpers';
 import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
+import { PUBLIC_SITE_URL } from '$env/static/public';
 import Stripe from 'stripe';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { message, setError, superValidate } from 'sveltekit-superforms';
@@ -304,8 +305,8 @@ export const actions = {
 
             const accountLink = await stripe.accountLinks.create({
                 account: existingAccount.stripe_account_id,
-                refresh_url: `${process.env.PUBLIC_SITE_URL}/dashboard/settings`,
-                return_url: `${process.env.PUBLIC_SITE_URL}/dashboard/settings`,
+                refresh_url: `${PUBLIC_SITE_URL}/dashboard/settings`,
+                return_url: `${PUBLIC_SITE_URL}/dashboard/settings`,
                 type: 'account_onboarding',
             });
 
@@ -342,8 +343,8 @@ export const actions = {
         // Create account link
         const accountLink = await stripe.accountLinks.create({
             account: account.id,
-            refresh_url: `${process.env.PUBLIC_SITE_URL}/dashboard/settings`,
-            return_url: `${process.env.PUBLIC_SITE_URL}/dashboard/settings`,
+            refresh_url: `${PUBLIC_SITE_URL}/dashboard/settings`,
+            return_url: `${PUBLIC_SITE_URL}/dashboard/settings`,
             type: 'account_onboarding',
         });
 
@@ -389,7 +390,7 @@ export const actions = {
             // Créer un lien de billing Stripe avec configuration par défaut
             const billingLink = await stripe.billingPortal.sessions.create({
                 customer: customer.stripe_customer_id,
-                return_url: `${process.env.PUBLIC_SITE_URL}/dashboard/settings`,
+                return_url: `${PUBLIC_SITE_URL}/dashboard/settings`,
                 configuration: undefined // Utilise la configuration par défaut
             });
 

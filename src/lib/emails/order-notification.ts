@@ -1,3 +1,5 @@
+import { PUBLIC_SITE_URL } from '$env/static/public';
+
 interface OrderNotificationProps {
     customerName: string;
     customerEmail: string;
@@ -30,7 +32,7 @@ export function OrderNotificationEmail({
             <!-- Logo Pattyly -->
             <div style="text-align: center; margin-bottom: 30px;">
                 <img
-                    src="${process.env.PUBLIC_SITE_URL}/images/logo_icone.png"
+                    src="${PUBLIC_SITE_URL}/images/logo_icone.png"
                     alt="Pattyly"
                     style="height: 40px; margin-bottom: 10px;"
                 />

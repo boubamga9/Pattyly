@@ -15,6 +15,7 @@
 
 	export let data: SuperValidated<Infer<OtpSchema>>;
 	export let email: string;
+	export let type: 'signup' | 'recovery' = 'signup';
 
 	const form = superForm(data, {
 		validators: zodClient(otpSchema),
@@ -98,10 +99,18 @@
 	<!-- Instructions -->
 	<div class="text-center">
 		<h2 class="mb-2 text-xl font-semibold text-gray-900">
-			Vérification par code
+			{#if type === 'recovery'}
+				Réinitialisation du mot de passe
+			{:else}
+				Confirmation de votre compte
+			{/if}
 		</h2>
 		<p class="text-gray-600">
-			Entrez le code de vérification à 6 chiffres envoyé à
+			{#if type === 'recovery'}
+				Entrez le code de réinitialisation à 6 chiffres envoyé à
+			{:else}
+				Entrez le code de vérification à 6 chiffres envoyé à
+			{/if}
 		</p>
 		<p class="font-medium text-gray-900">{email}</p>
 	</div>
@@ -110,6 +119,13 @@
 	<Form.Field {form} name="email">
 		<Form.Control let:attrs>
 			<input {...attrs} type="hidden" bind:value={$formData.email} />
+		</Form.Control>
+	</Form.Field>
+
+	<!-- Input type caché -->
+	<Form.Field {form} name="type">
+		<Form.Control let:attrs>
+			<input {...attrs} type="hidden" bind:value={$formData.type} />
 		</Form.Control>
 	</Form.Field>
 
@@ -139,7 +155,13 @@
 	>
 		{#if $submitting}
 			<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-			Vérification en cours...
+			{#if type === 'recovery'}
+				Réinitialisation en cours...
+			{:else}
+				Vérification en cours...
+			{/if}
+		{:else if type === 'recovery'}
+			Réinitialiser le mot de passe
 		{:else}
 			Vérifier le code
 		{/if}

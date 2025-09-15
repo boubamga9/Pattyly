@@ -2,6 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { getUserPermissions } from '$lib/auth';
 import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
+import { PUBLIC_SITE_URL } from '$env/static/public';
 import Stripe from 'stripe';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
@@ -240,7 +241,7 @@ export const actions: Actions = {
                         shopName: shop.name,
                         shopLogo: shop.logo_url || undefined,
                         quoteId: order.id.slice(0, 8),
-                        orderUrl: `${process.env.PUBLIC_SITE_URL}/${shop.slug}/order/${order.id}`,
+                        orderUrl: `${PUBLIC_SITE_URL}/${shop.slug}/order/${order.id}`,
                         date: new Date().toLocaleDateString("fr-FR")
                     })]);
             } catch (e) { }
@@ -311,7 +312,7 @@ export const actions: Actions = {
                         shopLogo: shop.logo_url || undefined,
                         reason: chefMessage,
                         requestId: order.id.slice(0, 8),
-                        catalogUrl: `${process.env.PUBLIC_SITE_URL}/${shop.slug}`,
+                        catalogUrl: `${PUBLIC_SITE_URL}/${shop.slug}`,
                         date: new Date().toLocaleDateString("fr-FR")
                     })]);
             } catch (e) { }
@@ -462,7 +463,7 @@ export const actions: Actions = {
                         shopName: shop.name,
                         shopLogo: shop.logo_url || undefined,
                         orderId: order.id.slice(0, 8),
-                        orderUrl: `${process.env.PUBLIC_SITE_URL}/${shop.slug}/order/${order.id}`,
+                        orderUrl: `${PUBLIC_SITE_URL}/${shop.slug}/order/${order.id}`,
                         date: new Date().toLocaleDateString("fr-FR")
                     })]);
             } catch (e) { }

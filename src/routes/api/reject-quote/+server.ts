@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { EmailService } from '$lib/services/email-service';
+import { PUBLIC_SITE_URL } from '$env/static/public';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
     try {
@@ -44,7 +45,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             customerEmail: order.customer_email,
             customerName: order.customer_name,
             quoteId: order.id,
-            orderUrl: `${process.env.PUBLIC_SITE_URL}/dashboard/orders/${order.id}`,
+            orderUrl: `${PUBLIC_SITE_URL}/dashboard/orders/${order.id}`,
             date: new Date().toLocaleDateString("fr-FR"),
         });
 

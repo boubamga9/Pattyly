@@ -1,4 +1,5 @@
 import { redirect, error } from '@sveltejs/kit';
+import type { Cookies } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { getShopIdAndSlug } from '$lib/auth';
 import { superValidate, setError } from 'sveltekit-superforms';
@@ -7,8 +8,9 @@ import { formSchema } from './schema';
 import { validateImageServer, validateAndRecompressImage, logValidationInfo } from '$lib/utils/images/server';
 import Stripe from 'stripe';
 import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
+import { PUBLIC_SITE_URL } from '$env/static/public';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Cookies } from '@sveltejs/kit';
+
 
 const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
     apiVersion: '2024-04-10'
@@ -390,8 +392,8 @@ export const actions: Actions = {
                 // Create Stripe Connect account link
                 const accountLink = await locals.stripe.accountLinks.create({
                     account: stripeAccountId,
-                    refresh_url: `${process.env.PUBLIC_SITE_URL}/onboarding`,
-                    return_url: `${process.env.PUBLIC_SITE_URL}/dashboard`,
+                    refresh_url: `${PUBLIC_SITE_URL}/onboarding`,
+                    return_url: `${PUBLIC_SITE_URL}/dashboard`,
                     type: 'account_onboarding',
                 });
 
