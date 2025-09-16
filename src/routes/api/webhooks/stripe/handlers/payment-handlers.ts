@@ -45,8 +45,8 @@ export async function handlePaymentSucceeded(invoice: Stripe.Invoice, locals: an
             throw error(500, 'Failed to reactivate shop after payment success');
         }
 
-    } catch (error) {
-        throw error;
+    } catch (err) {
+        throw error(500, 'handlePaymentSucceeded failed: ' + err);
     }
 }
 
@@ -54,53 +54,4 @@ export async function handlePaymentFailed(invoice: Stripe.Invoice, locals: any):
 
     console.log('handlePaymentFailed', invoice);
 
-    /*
-    
-        // Récupérer le customer_id depuis l'invoice
-        const customerId = invoice.customer as string;
-    
-        // Récupérer le profile_id depuis stripe_customers
-        const { data: customerData } = await locals.supabaseServiceRole
-            .from('stripe_customers')
-            .select('profile_id')
-            .eq('stripe_customer_id', customerId)
-            .single();
-    
-        if (!customerData) {
-            return;
-        }
-    
-        const profileId = customerData.profile_id;
-    
-        // Marquer l'abonnement comme inactif
-        const { error: updateError } = await locals.supabaseServiceRole
-            .from('user_products')
-            .update({
-                subscription_status: 'inactive'
-            })
-            .eq('profile_id', profileId);
-    
-        if (updateError) {
-            throw error(500, 'Failed to update subscription status after payment failure');
-        } else {
-        }
-    
-        // Désactiver is_custom_accepted quand le paiement échoue
-        const { error: shopUpdateError } = await locals.supabaseServiceRole
-            .from('shops')
-            .update({ is_custom_accepted: false })
-            .eq('profile_id', profileId);
-    
-        if (shopUpdateError) {
-            throw error(500, 'Failed to disable custom requests after payment failure');
-        } else {
-        }
-    */
-
-
-    try {
-
-    } catch (error) {
-        throw error;
-    }
 }

@@ -3,14 +3,12 @@ import type { Stripe } from 'stripe';
 import { error } from '@sveltejs/kit';
 
 export async function handleCustomerCreated(customer: Stripe.Customer, locals: any): Promise<void> {
-
     console.log('handleCustomerCreated', customer);
 
     try {
         const userId = customer.metadata?.user_id;
         if (!userId) return;
 
-        // Créer l'enregistrement dans stripe_customers
         const { error: upsertError } = await locals.supabaseServiceRole
             .from('stripe_customers')
             .upsert(
@@ -24,8 +22,7 @@ export async function handleCustomerCreated(customer: Stripe.Customer, locals: a
         if (upsertError) {
             throw error(500, 'Failed to save customer to database');
         }
-
-    } catch (error) {
-        throw error;
+    } catch (err) {
+        throw error(500, 'handleCustomerCreated failed: ' + err);
     }
 }

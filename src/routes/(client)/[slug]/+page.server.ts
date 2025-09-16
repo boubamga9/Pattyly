@@ -12,6 +12,7 @@ export const config = {
         bypassToken: env.REVALIDATION_TOKEN
     }
 };
+console.log('ISR CONFIG', config);
 
 export const load: PageServerLoad = async ({ params, locals, setHeaders, url, request }) => {
     const { slug } = params;

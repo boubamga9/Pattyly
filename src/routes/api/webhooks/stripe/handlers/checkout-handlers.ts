@@ -4,16 +4,11 @@ import { EmailService } from '$lib/services/email-service';
 import { PUBLIC_SITE_URL } from '$env/static/public';
 
 export async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, locals: any): Promise<void> {
-
     console.log('handleCheckoutSessionCompleted', session);
 
     try {
-
         // Vérifier que c'est un paiement de commande (pas un abonnement)
-        if (session.mode !== 'payment') {
-
-            return;
-        }
+        if (session.mode !== 'payment') return;
 
         const sessionType = session.metadata?.type;
 
@@ -22,25 +17,19 @@ export async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Se
         } else if (sessionType === 'custom_order_deposit') {
             await handleCustomOrderDeposit(session, locals);
         } else {
-
+            console.warn('Unknown session type:', sessionType);
         }
-
-
-    } catch (error) {
-        throw error;
+    } catch (err) {
+        console.error('handleCheckoutSessionCompleted failed:', err);
+        throw error(500, 'handleCheckoutSessionCompleted failed: ' + err);
     }
 }
 
-export async function handleProductOrderPayment(
-    session: Stripe.Checkout.Session,
-    locals: any
-): Promise<void> {
+export async function handleProductOrderPayment(session: Stripe.Checkout.Session, locals: any): Promise<void> {
     try {
         console.log('handleProductOrderPayment', session);
 
-        // 🗄️ RÉCUPÉRER LES DONNÉES COMPLÈTES DEPUIS pending_orders
         const orderId = session.metadata!.orderId;
-
 
         const { data: pendingOrder, error: pendingOrderError } = await locals.supabaseServiceRole
             .from('pending_orders')
@@ -54,23 +43,19 @@ export async function handleProductOrderPayment(
 
         const orderData = pendingOrder.order_data;
 
-
-        // Récupérer le prix de base du produit
         const { data: product, error: productError } = await locals.supabaseServiceRole
             .from('products')
             .select('base_price, shops(slug, logo_url, name, profiles(email))')
             .eq('id', orderData.productId)
             .single();
 
-        if (productError) {
+        if (productError || !product) {
             throw error(500, 'Failed to get product');
         }
 
-        // Récupérer le montant réellement payé depuis Stripe
         const totalAmount = orderData.serverCalculatedPrice || orderData.totalPrice;
-        const paidAmount = session.amount_total ?? 0; // Stripe utilise les centimes
+        const paidAmount = session.amount_total ?? 0;
 
-        // Créer la commande dans la base de données
         const { data: order, error: orderError } = await locals.supabaseServiceRole
             .from('orders')
             .insert({
@@ -85,7 +70,7 @@ export async function handleProductOrderPayment(
                 customization_data: orderData.selectedOptions || null,
                 status: 'confirmed',
                 total_amount: totalAmount,
-                paid_amount: paidAmount / 100, // ✅ Montant réellement payé depuis Stripe
+                paid_amount: paidAmount / 100,
                 product_name: orderData.cakeName,
                 product_base_price: product?.base_price || 0,
                 stripe_payment_intent_id: session.payment_intent as string,
@@ -94,13 +79,11 @@ export async function handleProductOrderPayment(
             .select()
             .single();
 
-        if (orderError) {
+        if (orderError || !order) {
             throw error(500, 'Failed to create product order');
         }
 
-
         try {
-
             await EmailService.sendOrderConfirmation({
                 customerEmail: orderData.customerEmail,
                 customerName: orderData.customerName,
@@ -130,10 +113,10 @@ export async function handleProductOrderPayment(
                 dashboardUrl: `${PUBLIC_SITE_URL}/${product.shops.slug}/orders/${order.id}`,
                 date: new Date().toLocaleDateString("fr-FR"),
             });
-        } catch (error) { }
-
-
-        // 🗑️ SUPPRIMER LA LIGNE pending_orders UTILISÉE
+        } catch (err) {
+            console.error('Email sending failed:', err);
+            throw error(500, 'Failed to send order emails: ' + err);
+        }
 
         const { error: deleteError } = await locals.supabaseServiceRole
             .from('pending_orders')
@@ -141,29 +124,29 @@ export async function handleProductOrderPayment(
             .eq('id', orderId);
 
         if (deleteError) {
-            error(500, 'Failed to delete pending order');
+            console.error('Failed to delete pending order:', deleteError);
+            throw error(500, 'Failed to delete pending order');
         }
 
     } catch (err) {
+        console.error('handleProductOrderPayment failed:', err);
+        throw error(500, 'handleProductOrderPayment failed: ' + err);
     }
 }
 
-export async function handleCustomOrderDeposit(
-    session: Stripe.Checkout.Session,
-    locals: any
-): Promise<void> {
+export async function handleCustomOrderDeposit(session: Stripe.Checkout.Session, locals: any): Promise<void> {
     console.log('handleCustomOrderDeposit', session);
+
     try {
         const orderId = session.metadata!.orderId;
         const totalPrice = parseFloat(session.metadata!.totalPrice);
         const depositAmount = parseFloat(session.metadata!.depositAmount);
 
-        // Mettre à jour la commande existante
         const { data: order, error: orderError } = await locals.supabaseServiceRole
             .from('orders')
             .update({
                 status: 'confirmed',
-                paid_amount: depositAmount / 100, // ✅ Ajouter le montant de l'acompte payé
+                paid_amount: depositAmount / 100,
                 stripe_payment_intent_id: session.payment_intent as string,
                 stripe_session_id: session.id
             })
@@ -171,13 +154,12 @@ export async function handleCustomOrderDeposit(
             .select('customer_email, customer_name, shops(name, slug, logo_url, profiles(email)), pickup_date')
             .single();
 
-        if (orderError) {
+        if (orderError || !order) {
             throw error(500, 'Failed to update custom order');
         }
 
         try {
-
-            EmailService.sendQuoteConfirmation({
+            await EmailService.sendQuoteConfirmation({
                 customerEmail: order.customer_email,
                 customerName: order.customer_name,
                 shopName: order.shops.name,
@@ -191,7 +173,7 @@ export async function handleCustomOrderDeposit(
                 date: new Date().toLocaleDateString("fr-FR"),
             });
 
-            EmailService.sendQuotePayment({
+            await EmailService.sendQuotePayment({
                 pastryEmail: order.shops.profiles.email,
                 customerName: order.customer_name,
                 customerEmail: order.customer_email,
@@ -203,10 +185,13 @@ export async function handleCustomOrderDeposit(
                 dashboardUrl: `${PUBLIC_SITE_URL}/dashboard/orders/${orderId}`,
                 date: new Date().toLocaleDateString("fr-FR"),
             });
-        } catch (error) {
+        } catch (err) {
+            console.error('Email sending for deposit failed:', err);
+            throw error(500, 'Failed to send deposit emails: ' + err);
         }
 
-
     } catch (err) {
+        console.error('handleCustomOrderDeposit failed:', err);
+        throw error(500, 'handleCustomOrderDeposit failed: ' + err);
     }
 }

@@ -1,24 +1,30 @@
 // utils/idempotence.ts
 export async function checkIdempotence(eventId: string, locals: any): Promise<void> {
-
-    // Vérifier si l'événement a déjà été traité
-    const { data: existing } = await locals.supabaseServiceRole
+    const { data: existing, error: selectError } = await locals.supabaseServiceRole
         .from('stripe_events')
         .select('id')
         .eq('id', eventId)
         .maybeSingle();
 
-    if (existing) {
-        throw new Error('Event already processed');
+    if (selectError) {
+        console.error('Error checking idempotence', selectError);
+        throw new Error('Idempotence check failed');
     }
 
-    // Enregistrer l'événement pour éviter les doublons
+    if (existing) {
+        return;
+    }
+
     const { error: insertError } = await locals.supabaseServiceRole
         .from('stripe_events')
         .insert({ id: eventId });
 
     if (insertError) {
-        throw new Error('Idempotence error');
+        // Here we ignore the error if the event is already processed
+        if (insertError.code === '23505') {
+            return;
+        }
+        //console.error('Error inserting idempotence', insertError);
+        throw new Error('Idempotence insert failed');
     }
-
 }

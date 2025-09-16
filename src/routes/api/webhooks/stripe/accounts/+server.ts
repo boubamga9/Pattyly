@@ -1,9 +1,9 @@
 // +server.ts (fichier principal simplifié)
-import { error, json } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { verifyWebhookSignature } from '../utils/webhook-verification';
 import { checkIdempotence } from '../utils/idempotence';
-import { handleAccountUpdated, handleAccountAuthorized } from '../handlers/account-handlers';
+import { handleAccountUpdated } from '../handlers/account-handlers';
 import type { Stripe } from 'stripe';
 
 import { PRIVATE_STRIPE_WEBHOOK_SECRET_ACCOUNTS } from '$env/static/private';
@@ -20,23 +20,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         // 3. Router vers le bon handler
         switch (event.type) {
-
             case 'account.updated':
                 console.log('account.updated');
                 await handleAccountUpdated(event.data.object as Stripe.Account, locals);
                 break;
-
-            case 'account.application.authorized':
-                console.log('account.application.authorized');
-                await handleAccountAuthorized(event.data.object as unknown as Stripe.Account, locals);
-                break;
-
             default:
+            //console.log(`Unhandled event type: ${event.type}`);
         }
 
         return json({ received: true });
-
     } catch (err) {
-        throw error(500, 'Webhook processing failed');
+        console.error('❌ Webhook processing failed:', err);
+        // Stripe recevra un 500 → l’événement sera retenté
+        return new Response('Webhook processing failed', { status: 500 });
     }
 };

@@ -220,6 +220,7 @@ export const actions: Actions = {
             if (!session || !user) {
                 const form = await superValidate(zod(formSchema));
                 setError(form, 'name', 'Non autorisé');
+                console.log('Return error');
                 return { form };
             }
 
@@ -230,6 +231,7 @@ export const actions: Actions = {
                 const cleanForm = await superValidate(zod(formSchema));
                 cleanForm.errors = form.errors;
                 cleanForm.valid = false;
+                console.log('Return error');
                 return { form: cleanForm };
             }
 
@@ -242,6 +244,7 @@ export const actions: Actions = {
                 if (!validationResult.isValid) {
                     const cleanForm = await superValidate(zod(formSchema));
                     setError(cleanForm, 'logo', validationResult.error || 'Validation du logo échouée');
+                    console.log('Return error');
                     return { form: cleanForm };
                 }
 
@@ -255,6 +258,7 @@ export const actions: Actions = {
                 if (uploadError) {
                     const cleanForm = await superValidate(zod(formSchema));
                     setError(cleanForm, 'logo', 'Erreur lors du téléchargement du logo');
+                    console.log('Return error');
                     return { form: cleanForm };
                 }
 
@@ -272,12 +276,14 @@ export const actions: Actions = {
             if (slugCheckError && slugCheckError.code !== 'PGRST116') {
                 const cleanForm = await superValidate(zod(formSchema));
                 setError(cleanForm, 'slug', 'Erreur lors de la vérification du slug');
+                console.log('Return error');
                 return { form: cleanForm };
             }
 
             if (existingShop) {
                 const cleanForm = await superValidate(zod(formSchema));
                 setError(cleanForm, 'slug', "Ce nom d'URL est déjà pris. Veuillez en choisir un autre.");
+                console.log('Return error');
                 return { form: cleanForm };
             }
 
@@ -291,6 +297,7 @@ export const actions: Actions = {
             if (createError) {
                 const cleanForm = await superValidate(zod(formSchema));
                 setError(cleanForm, 'name', 'Erreur lors de la création de la boutique');
+                console.log('Return error');
                 return { form: cleanForm };
             }
 
@@ -330,108 +337,106 @@ export const actions: Actions = {
 
             const userId = session.user.id;
 
-            try {
-                // Check if Stripe Connect account already exists
-                const { data: existingAccount, error: fetchError } = await locals.supabase
-                    .from('stripe_connect_accounts')
-                    .select('id, stripe_account_id, is_active')
-                    .eq('profile_id', userId)
-                    .single();
+            console.log('Connect Stripe');
+            // Check if Stripe Connect account already exists
+            const { data: existingAccount, error: fetchError } = await locals.supabase
+                .from('stripe_connect_accounts')
+                .select('id, stripe_account_id, is_active')
+                .eq('profile_id', userId)
+                .single();
 
-                if (fetchError && fetchError.code !== 'PGRST116') {
+            if (fetchError && fetchError.code !== 'PGRST116') {
+                // Create a clean form for Superforms compatibility
+                const cleanForm = await superValidate(zod(formSchema));
+                setError(cleanForm, 'name', 'Erreur lors de la vérification du compte Stripe');
+                return { form: cleanForm };
+            }
+
+            let stripeAccountId: string;
+
+            if (!existingAccount) {
+                // Create new Stripe Connect account
+
+                const account = await locals.stripe.accounts.create({
+                    type: 'express',
+                    country: 'FR', // Default to France, can be made configurable
+                    email: session.user.email,
+                    capabilities: {
+                        card_payments: { requested: true },
+                        transfers: { requested: true }
+                    }
+                });
+
+                stripeAccountId = account.id;
+
+                // Save new Stripe Connect account to database
+                const { error: insertError } = await locals.supabase
+                    .from('stripe_connect_accounts')
+                    .insert({
+                        profile_id: userId,
+                        stripe_account_id: account.id,
+                        is_active: false // Will be set to true after onboarding completion
+                    });
+
+                if (insertError) {
                     // Create a clean form for Superforms compatibility
                     const cleanForm = await superValidate(zod(formSchema));
-                    setError(cleanForm, 'name', 'Erreur lors de la vérification du compte Stripe');
+                    setError(cleanForm, 'name', 'Erreur lors de la sauvegarde du compte Stripe');
                     return { form: cleanForm };
                 }
 
-                let stripeAccountId: string;
 
-                if (!existingAccount) {
-                    // Create new Stripe Connect account
+            } else {
+                // Account exists, use it but don't change is_active yet
+                // is_active will be set to true by Stripe webhook after onboarding completion
+                console.log('Account exists, use it but don\'t change is_active yet');
+                stripeAccountId = existingAccount.stripe_account_id;
 
-                    const account = await locals.stripe.accounts.create({
-                        type: 'express',
-                        country: 'FR', // Default to France, can be made configurable
-                        email: session.user.email,
-                        capabilities: {
-                            card_payments: { requested: true },
-                            transfers: { requested: true }
-                        }
-                    });
-
-                    stripeAccountId = account.id;
-
-                    // Save new Stripe Connect account to database
-                    const { error: insertError } = await locals.supabase
-                        .from('stripe_connect_accounts')
-                        .insert({
-                            profile_id: userId,
-                            stripe_account_id: account.id,
-                            is_active: false // Will be set to true after onboarding completion
-                        });
-
-                    if (insertError) {
-                        // Create a clean form for Superforms compatibility
-                        const cleanForm = await superValidate(zod(formSchema));
-                        setError(cleanForm, 'name', 'Erreur lors de la sauvegarde du compte Stripe');
-                        return { form: cleanForm };
-                    }
-
-
-                } else {
-                    // Account exists, use it but don't change is_active yet
-                    // is_active will be set to true by Stripe webhook after onboarding completion
-
-                    stripeAccountId = existingAccount.stripe_account_id;
-
-                }
-
-
-
-                // Create Stripe Connect account link
-                const accountLink = await locals.stripe.accountLinks.create({
-                    account: stripeAccountId,
-                    refresh_url: `${PUBLIC_SITE_URL}/onboarding`,
-                    return_url: `${PUBLIC_SITE_URL}/dashboard`,
-                    type: 'account_onboarding',
-                });
-
-                // Essai gratuit : vérifier l'éligibilité et créer l'essai si possible
-                const trialResult = await checkAndStartTrial(
-                    locals.supabase,
-                    userId,
-                    session.user.email || '',
-                    request,
-                    cookies
-                );
-
-                if (trialResult.success) {
-                    console.log(`✅ Essai gratuit créé pour l'utilisateur ${userId}`);
-                } else {
-                    console.log(`ℹ️ Essai gratuit non éligible pour l'utilisateur ${userId}: ${trialResult.error}`);
-                }
-
-
-                // Create a clean form for Superforms compatibility
-                const cleanForm = await superValidate(zod(formSchema));
-                cleanForm.message = 'Connexion Stripe réussie !';
-                return {
-                    form: cleanForm,
-                    success: true,
-                    url: accountLink.url
-                };
-            } catch (err) {
-                // Create a clean form for Superforms compatibility
-                const cleanForm = await superValidate(zod(formSchema));
-                setError(cleanForm, 'name', 'Erreur lors de la connexion Stripe');
-                return { form: cleanForm };
             }
-        } catch (error) {
+
+            // Create Stripe Connect account link
+            console.log('Create Stripe Connect account link');
+            const accountLink = await locals.stripe.accountLinks.create({
+                account: stripeAccountId,
+                refresh_url: `${PUBLIC_SITE_URL}/onboarding`,
+                return_url: `${PUBLIC_SITE_URL}/dashboard`,
+                type: 'account_onboarding',
+            });
+
+            // Essai gratuit : vérifier l'éligibilité et créer l'essai si possible
+            console.log('Check and start trial');
+            const trialResult = await checkAndStartTrial(
+                locals.supabase,
+                userId,
+                session.user.email || '',
+                request,
+                cookies
+            );
+
+            if (trialResult.success) {
+                console.log(`✅ Essai gratuit créé pour l'utilisateur ${userId}`);
+            } else {
+                console.log(`ℹ️ Essai gratuit non éligible pour l'utilisateur ${userId}: ${trialResult.error}`);
+            }
+
+
             // Create a clean form for Superforms compatibility
             const cleanForm = await superValidate(zod(formSchema));
-            setError(cleanForm, 'name', 'Une erreur critique est survenue. Veuillez réessayer.');
+            cleanForm.message = 'Connexion Stripe réussie !';
+            console.log('Return success');
+            return {
+                form: cleanForm,
+                success: true,
+                url: accountLink.url
+            };
+        } catch (err) {
+            // Create a clean form for Superforms compatibility
+            const cleanForm = await superValidate(zod(formSchema));
+            setError(cleanForm, 'name', 'Erreur lors de la connexion Stripe');
+            console.log('Return error');
             return { form: cleanForm };
         }
+
+
     }
 };

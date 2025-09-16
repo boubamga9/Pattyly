@@ -14,7 +14,7 @@ export async function forceRevalidateShop(shopSlug: string): Promise<boolean> {
     console.log(`🔍 Revalidation URL: ${revalidateUrl}`);
 
     const response = await fetch(revalidateUrl, {
-      method: 'GET',
+      method: 'HEAD',
       headers: {
         'User-Agent': 'Pattyly-Revalidation/1.0',
         'x-prerender-revalidate': env.REVALIDATION_TOKEN

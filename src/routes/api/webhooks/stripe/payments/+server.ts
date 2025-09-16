@@ -63,6 +63,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         return json({ received: true });
 
     } catch (err) {
-        throw error(500, 'Webhook processing failed');
+        console.error('❌ Webhook processing failed:', err);
+        return new Response('Webhook processing failed', { status: 500 })
     }
 };

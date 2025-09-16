@@ -44,7 +44,6 @@ export async function upsertSubscription(subscription: Stripe.Subscription, loca
 
         if (upsertError) {
             throw error(500, 'Failed to upsert subscription in database');
-        } else {
         }
 
         // Gérer is_custom_accepted selon le plan
@@ -62,15 +61,12 @@ export async function upsertSubscription(subscription: Stripe.Subscription, loca
 
                 if (shopUpdateError) {
                     throw error(500, 'Failed to disable custom requests for basic plan');
-                } else {
                 }
-            } else if (isPremiumPlan) {
-                // Le plan premium peut avoir is_custom_accepted activé (mais on ne le force pas)
             }
         }
 
-    } catch (error) {
-        throw error;
+    } catch (err) {
+        throw error(500, 'upsertSubscription failed: ' + err);
     }
 }
 
@@ -124,7 +120,7 @@ export async function handleSubscriptionDeleted(subscription: Stripe.Subscriptio
         } else {
         }
 
-    } catch (error) {
-        throw error;
+    } catch (err) {
+        throw error(500, 'handleSubscriptionDeleted failed: ' + err);
     }
 }
