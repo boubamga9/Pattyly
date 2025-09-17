@@ -69,11 +69,13 @@
 					<CollapsibleTrigger
 						class="flex w-full items-center justify-between p-6 text-left transition-colors hover:bg-neutral-50"
 					>
-						<h3 class="text-lg font-medium text-neutral-800 lg:text-xl">
+						<h3
+							class="flex-1 break-words pr-4 text-lg font-medium text-neutral-800 lg:text-xl"
+						>
 							{faqItem.question}
 						</h3>
 						<ChevronDown
-							class="h-5 w-5 text-neutral-500 transition-transform duration-200"
+							class="h-5 w-5 flex-shrink-0 text-neutral-500 transition-transform duration-200"
 						/>
 					</CollapsibleTrigger>
 					<CollapsibleContent class="px-6 pb-6">

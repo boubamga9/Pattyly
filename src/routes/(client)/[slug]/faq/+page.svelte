@@ -1,22 +1,16 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { Button } from '$lib/components/ui/button';
 	import { Separator } from '$lib/components/ui/separator';
-	import * as Collapsible from '$lib/components/ui/collapsible';
+	import {
+		Collapsible,
+		CollapsibleContent,
+		CollapsibleTrigger,
+	} from '$lib/components/ui/collapsible';
 	import { ChevronDown } from 'lucide-svelte';
 	import { ClientFooter } from '$lib/components';
 
 	$: ({ shop, faqs } = $page.data);
-	let openItems: string[] = [];
-
-	function toggleItem(id: string) {
-		if (openItems.includes(id)) {
-			openItems = openItems.filter((item) => item !== id);
-		} else {
-			openItems = [...openItems, id];
-		}
-	}
 
 	function goBack() {
 		goto(`/${shop.slug}`);
@@ -110,34 +104,27 @@
 				<div class="space-y-4">
 					{#if faqs && faqs.length > 0}
 						{#each faqs as faq}
-							<Collapsible.Root
-								open={openItems.includes(faq.id)}
-								onOpenChange={() => toggleItem(faq.id)}
-							>
-								<Collapsible.Trigger asChild let:builder>
-									<Button
-										variant="ghost"
-										class="w-full justify-between p-4 text-left font-normal"
-										builders={[builder]}
+							<Collapsible>
+								<CollapsibleTrigger
+									class="flex w-full items-center justify-between py-2 text-left transition-colors hover:bg-neutral-50"
+								>
+									<h3
+										class="flex-1 break-words pr-4 text-lg font-medium text-neutral-800 lg:text-xl"
 									>
-										<span class="text-base font-medium">{faq.question}</span>
-										<ChevronDown
-											class="h-4 w-4 transition-transform duration-200 {openItems.includes(
-												faq.id,
-											)
-												? 'rotate-180'
-												: ''}"
-										/>
-									</Button>
-								</Collapsible.Trigger>
-								<Collapsible.Content class="px-4 pb-4">
-									<div
-										class="whitespace-pre-wrap text-base text-muted-foreground"
+										{faq.question}
+									</h3>
+									<ChevronDown
+										class="h-5 w-5 flex-shrink-0 text-neutral-500 transition-transform duration-200"
+									/>
+								</CollapsibleTrigger>
+								<CollapsibleContent class=" pb-2">
+									<p
+										class="text-base leading-relaxed text-neutral-600 lg:text-lg"
 									>
 										{faq.answer}
-									</div>
-								</Collapsible.Content>
-							</Collapsible.Root>
+									</p>
+								</CollapsibleContent>
+							</Collapsible>
 						{/each}
 					{:else}
 						<div class="py-8 text-center">
