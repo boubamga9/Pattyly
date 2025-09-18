@@ -275,7 +275,7 @@
 					on:click={() => (selectedStatus = 'pending')}
 					class="whitespace-nowrap"
 				>
-					En attente ({statusCounts.pending})
+					En attente* ({statusCounts.pending})
 				</Button>
 
 				<Button
@@ -284,7 +284,7 @@
 					on:click={() => (selectedStatus = 'quoted')}
 					class="whitespace-nowrap"
 				>
-					Devis envoyés ({statusCounts.quoted})
+					Devis envoyés* ({statusCounts.quoted})
 				</Button>
 
 				<Button
@@ -320,9 +320,21 @@
 					on:click={() => (selectedStatus = 'refused')}
 					class="whitespace-nowrap"
 				>
-					Refusées ({statusCounts.refused})
+					Refusées* ({statusCounts.refused})
 				</Button>
 			</div>
+		</div>
+
+		<!-- Légende pour les étoiles -->
+		<div class="text-xs text-muted-foreground">
+			<span class="font-medium">*</span> Ces statuts concernent uniquement les
+			<button
+				on:click={() => goto('/dashboard/custom-form')}
+				class="font-medium text-gray-600 underline transition-colors hover:text-gray-800"
+				title="Configurer le formulaire de commandes personnalisées"
+			>
+				commandes personnalisées
+			</button>
 		</div>
 	</div>
 
