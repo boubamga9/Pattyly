@@ -13,10 +13,7 @@
 	import { createLocalDynamicSchema } from './schema';
 	import { goto } from '$app/navigation';
 	import { Upload, X } from 'lucide-svelte';
-	import {
-		compressProductImage,
-		formatCompressionInfo,
-	} from '$lib/utils/images/client';
+	import { compressProductImage } from '$lib/utils/images/client';
 
 	export let data: SuperValidated<Record<string, any>>;
 	export let customFields: Array<{
@@ -59,71 +56,6 @@
 		goto(url);
 	}
 
-	/* // Fonction pour gérer la sélection de fichiers d'inspiration
-	async function handleInspirationFileSelect(event: Event) {
-		const target = event.target as HTMLInputElement;
-		const files = Array.from(target.files || []);
-
-		if (files.length === 0) return;
-
-		// Vérifier le nombre maximum de photos
-		if (inspirationPhotos.length + files.length > 3) {
-			alert(
-				`Vous ne pouvez ajouter que ${3 - inspirationPhotos.length} photo(s) supplémentaire(s).`,
-			);
-			return;
-		}
-
-		try {
-			isCompressing = true;
-			_compressionInfo = null;
-
-			// Traiter chaque fichier
-			for (const file of files) {
-				// Valider le type de fichier
-				if (!file.type.startsWith('image/')) {
-					alert(`${file.name} n'est pas une image valide.`);
-					continue;
-				}
-
-				// Valider la taille (max 5MB)
-				if (file.size > 5 * 1024 * 1024) {
-					alert(`${file.name} est trop volumineux (max 5MB).`);
-					continue;
-				}
-
-				// Compresser l'image
-				const compressionResult = await compressProductImage(file);
-				_compressionInfo = formatCompressionInfo(compressionResult);
-
-				// Ajouter le fichier compressé
-				inspirationFiles.push(compressionResult.file);
-
-				// Synchroniser l'input file avec les fichiers compressés
-				const dataTransfer = new DataTransfer();
-				inspirationFiles.forEach((file) => dataTransfer.items.add(file));
-				inspirationInputElement.files = dataTransfer.files;
-
-				// Créer l'URL de prévisualisation
-				const reader = new FileReader();
-				reader.onload = (e) => {
-					const photoUrl = e.target?.result as string;
-					inspirationPhotos = [...inspirationPhotos, photoUrl];
-					$formData.inspiration_photos = inspirationPhotos;
-				};
-				reader.readAsDataURL(compressionResult.file);
-			}
-		} catch (error) {
-			console.error('Erreur lors de la compression des images:', error);
-			alert('Erreur lors du traitement des images. Veuillez réessayer.');
-		} finally {
-			isCompressing = false;
-			// Réinitialiser l'input file
-			if (inspirationInputElement) {
-				inspirationInputElement.value = '';
-			}
-		}
-	} */
 	async function handleInspirationFileSelect(event: Event) {
 		const target = event.target as HTMLInputElement;
 		const files = Array.from(target.files || []);
@@ -278,7 +210,7 @@
 
 							{#if field.type === 'short-text'}
 								<Form.Field {form} name={`customization_data.${field.id}`}>
-									<Form.Control let:_attrs>
+									<Form.Control let:attrs>
 										<Input
 											{...attrs}
 											id={field.id}
@@ -292,7 +224,7 @@
 								</Form.Field>
 							{:else if field.type === 'long-text'}
 								<Form.Field {form} name={`customization_data.${field.id}`}>
-									<Form.Control let:_attrs>
+									<Form.Control let:attrs>
 										<Textarea
 											{...attrs}
 											id={field.id}
@@ -306,7 +238,7 @@
 								</Form.Field>
 							{:else if field.type === 'number'}
 								<Form.Field {form} name={`customization_data.${field.id}`}>
-									<Form.Control let:_attrs>
+									<Form.Control let:attrs>
 										<Input
 											{...attrs}
 											id={field.id}
@@ -320,7 +252,7 @@
 								</Form.Field>
 							{:else if field.type === 'single-select' || field.type === 'multi-select'}
 								<Form.Field {form} name={`customization_data.${field.id}`}>
-									<Form.Control let:_attrs>
+									<Form.Control>
 										<OptionGroup
 											fieldId={field.id}
 											fieldType={field.type}
@@ -349,7 +281,7 @@
 			</h3>
 			<div class="space-y-2">
 				<Form.Field {form} name="pickup_date">
-					<Form.Control let:attrs>
+					<Form.Control>
 						<Form.Label>Date de récupération *</Form.Label>
 						<DatePicker
 							{availabilities}
