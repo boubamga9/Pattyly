@@ -23,6 +23,39 @@ export const load = async ({ locals }) => {
         .eq('id', shopId)
         .single();
 
+    // Get user subscription info for trial detection
+    const { data: subscription, error: subscriptionError } = await locals.supabase
+        .from('user_products')
+        .select('stripe_subscription_id, created_at, subscription_status')
+        .eq('profile_id', user.id)
+        .single();
+
+    // Check trial status directly from Stripe
+    let isTrial = false;
+    let daysRemaining = 0;
+    let trialEnd = null;
+
+    if (subscription?.stripe_subscription_id) {
+        try {
+            const stripeSubscription = await locals.stripe.subscriptions.retrieve(subscription.stripe_subscription_id);
+
+            // Check if subscription is in trial period
+            isTrial = stripeSubscription.status === 'trialing';
+
+            if (isTrial && stripeSubscription.trial_end) {
+                trialEnd = new Date(stripeSubscription.trial_end * 1000); // Stripe timestamps are in seconds
+                const now = new Date();
+                daysRemaining = Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                daysRemaining = Math.max(0, daysRemaining); // Ne pas afficher de nombre négatif
+            }
+        } catch (stripeError) {
+            console.error('❌ Error fetching Stripe subscription:', stripeError);
+            // Fallback: assume no trial if Stripe call fails
+            isTrial = false;
+        }
+    }
+
+
     // Get active products count
     const { count: productsCount } = await locals.supabase
         .from('products')
@@ -140,6 +173,10 @@ export const load = async ({ locals }) => {
         user,
         shop,
         permissions,
+        trial: {
+            isTrial,
+            daysRemaining
+        },
         metrics: {
             productsCount: productsCount || 0,
             recentOrders: recentOrders || [],

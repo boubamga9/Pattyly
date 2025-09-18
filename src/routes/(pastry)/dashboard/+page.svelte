@@ -23,10 +23,11 @@
 		Minus,
 		Copy,
 		CheckCircle,
+		Clock,
 	} from 'lucide-svelte';
 	import { env } from '$env/dynamic/public';
 	// Données de la page
-	$: ({ shop, metrics } = $page.data);
+	$: ({ shop, metrics, trial } = $page.data);
 
 	// État pour le filtre de revenus
 	let selectedRevenuePeriod: 'weekly' | 'monthly' | 'threeMonths' | 'yearly' =
@@ -127,6 +128,38 @@
 			Bienvenue {shop?.name || 'Pâtissier'}, voici un aperçu de votre activité
 		</p>
 	</div>
+
+	<!-- Bannière d'essai gratuit -->
+	{#if trial?.isTrial}
+		<div
+			class="mb-6 rounded-lg border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 shadow-sm"
+		>
+			<div class="flex items-start justify-between">
+				<div class="flex items-start space-x-3">
+					<div class="flex-shrink-0">
+						<Clock class="h-5 w-5 text-blue-600" />
+					</div>
+					<div class="flex-1">
+						<h3 class="text-sm font-semibold text-blue-900">
+							Essai gratuit en cours !
+						</h3>
+						<p class="mt-1 text-sm text-blue-700">
+							{#if trial.daysRemaining > 1}
+								Il vous reste <span class="font-semibold"
+									>{trial.daysRemaining} jours</span
+								> pour profiter de votre essai gratuit.
+							{:else if trial.daysRemaining === 1}
+								Il vous reste <span class="font-semibold">1 jour</span> pour profiter
+								de votre essai gratuit.
+							{:else}
+								Votre essai gratuit se termine aujourd'hui.
+							{/if}
+						</p>
+					</div>
+				</div>
+			</div>
+		</div>
+	{/if}
 
 	<!-- URL du shop -->
 	{#if shop?.slug}
