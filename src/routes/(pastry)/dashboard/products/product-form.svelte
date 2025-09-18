@@ -107,8 +107,8 @@
 			}
 
 			// Validate file size before compression (max 10MB pour éviter les abus)
-			if (file.size > 10 * 1024 * 1024) {
-				$errors = { image: "L'image ne doit pas dépasser 10MB" };
+			if (file.size > 5 * 1024 * 1024) {
+				$errors = { image: "L'image ne doit pas dépasser 5MB" };
 				return;
 			}
 

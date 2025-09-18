@@ -536,6 +536,55 @@
 				</Card>
 			{/if}
 
+			<!-- Photos d'inspiration -->
+			{#if order.inspiration_photos && order.inspiration_photos.length > 0}
+				<Card>
+					<CardHeader>
+						<CardTitle>Photos d'inspiration</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
+							{#each order.inspiration_photos as photo, index}
+								<div class="group relative">
+									<img
+										src={photo}
+										alt="Photo d'inspiration {index + 1}"
+										class="aspect-square w-full rounded-lg border border-border object-cover"
+									/>
+									<div
+										class="absolute inset-0 rounded-lg bg-black/0 transition-colors group-hover:bg-black/20"
+									>
+										<div
+											class="flex h-full items-center justify-center opacity-0 transition-opacity group-hover:opacity-100"
+										>
+											<button
+												on:click={() => window.open(photo, '_blank')}
+												class="rounded-full bg-white/90 p-2 text-gray-700 shadow-lg hover:bg-white"
+												title="Voir en grand"
+											>
+												<svg
+													class="h-4 w-4"
+													fill="none"
+													stroke="currentColor"
+													viewBox="0 0 24 24"
+												>
+													<path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"
+													/>
+												</svg>
+											</button>
+										</div>
+									</div>
+								</div>
+							{/each}
+						</div>
+					</CardContent>
+				</Card>
+			{/if}
+
 			<!-- Message client -->
 			{#if order.additional_information}
 				<Card>

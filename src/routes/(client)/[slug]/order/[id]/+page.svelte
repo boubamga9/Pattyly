@@ -345,6 +345,22 @@
 						{/each}
 					{/if}
 
+					<!-- Photos d'inspiration -->
+					{#if order?.inspiration_photos && order.inspiration_photos.length > 0}
+						<div class="space-y-2">
+							<span class="text-muted-foreground">Photos d'inspiration :</span>
+							<div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+								{#each order.inspiration_photos as photo, index}
+									<img
+										src={photo}
+										alt="Photo d'inspiration {index + 1}"
+										class="aspect-square w-full rounded-lg border border-border object-cover"
+									/>
+								{/each}
+							</div>
+						</div>
+					{/if}
+
 					<!-- Message supplémentaire -->
 					{#if additionalInfo}
 						<div class="border-t pt-2">

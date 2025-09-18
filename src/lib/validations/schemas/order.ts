@@ -87,7 +87,8 @@ function createBaseOrderSchema(fields: Array<{
         customer_instagram: z.string().optional(),
         pickup_date: futureDateSchema,
         customization_data: createDynamicCustomizationSchema(fields),
-        additional_information: messageSchema.optional()
+        additional_information: messageSchema.optional(),
+        // inspiration_photos géré manuellement côté serveur, pas dans la validation
     });
 }
 

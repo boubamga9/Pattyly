@@ -12,8 +12,13 @@
 	import type { SuperValidated } from 'sveltekit-superforms';
 	import { createLocalDynamicSchema } from './schema';
 	import { goto } from '$app/navigation';
+	import { Upload, X } from 'lucide-svelte';
+	import {
+		compressProductImage,
+		formatCompressionInfo,
+	} from '$lib/utils/images/client';
 
-	export let data: SuperValidated<any>;
+	export let data: SuperValidated<Record<string, any>>;
 	export let customFields: Array<{
 		id: string;
 		label: string;
@@ -40,18 +45,221 @@
 
 	const { form: formData, enhance, submitting, message } = form;
 
+	// Variables pour l'upload de photos d'inspiration
+	let inspirationPhotos: string[] = $formData.inspiration_photos || [];
+	let inspirationFiles: File[] = [];
+	let _compressionInfo: string | null = null;
+	let isCompressing = false;
+	let inspirationInputElement: HTMLInputElement;
+
 	// Handle redirection on success
 	$: if ($message?.redirectTo) {
 		const url = $message.redirectTo;
 		message.set(null); // reset to avoid loop
 		goto(url);
 	}
+
+	/* // Fonction pour gérer la sélection de fichiers d'inspiration
+	async function handleInspirationFileSelect(event: Event) {
+		const target = event.target as HTMLInputElement;
+		const files = Array.from(target.files || []);
+
+		if (files.length === 0) return;
+
+		// Vérifier le nombre maximum de photos
+		if (inspirationPhotos.length + files.length > 3) {
+			alert(
+				`Vous ne pouvez ajouter que ${3 - inspirationPhotos.length} photo(s) supplémentaire(s).`,
+			);
+			return;
+		}
+
+		try {
+			isCompressing = true;
+			_compressionInfo = null;
+
+			// Traiter chaque fichier
+			for (const file of files) {
+				// Valider le type de fichier
+				if (!file.type.startsWith('image/')) {
+					alert(`${file.name} n'est pas une image valide.`);
+					continue;
+				}
+
+				// Valider la taille (max 5MB)
+				if (file.size > 5 * 1024 * 1024) {
+					alert(`${file.name} est trop volumineux (max 5MB).`);
+					continue;
+				}
+
+				// Compresser l'image
+				const compressionResult = await compressProductImage(file);
+				_compressionInfo = formatCompressionInfo(compressionResult);
+
+				// Ajouter le fichier compressé
+				inspirationFiles.push(compressionResult.file);
+
+				// Synchroniser l'input file avec les fichiers compressés
+				const dataTransfer = new DataTransfer();
+				inspirationFiles.forEach((file) => dataTransfer.items.add(file));
+				inspirationInputElement.files = dataTransfer.files;
+
+				// Créer l'URL de prévisualisation
+				const reader = new FileReader();
+				reader.onload = (e) => {
+					const photoUrl = e.target?.result as string;
+					inspirationPhotos = [...inspirationPhotos, photoUrl];
+					$formData.inspiration_photos = inspirationPhotos;
+				};
+				reader.readAsDataURL(compressionResult.file);
+			}
+		} catch (error) {
+			console.error('Erreur lors de la compression des images:', error);
+			alert('Erreur lors du traitement des images. Veuillez réessayer.');
+		} finally {
+			isCompressing = false;
+			// Réinitialiser l'input file
+			if (inspirationInputElement) {
+				inspirationInputElement.value = '';
+			}
+		}
+	} */
+	async function handleInspirationFileSelect(event: Event) {
+		const target = event.target as HTMLInputElement;
+		const files = Array.from(target.files || []);
+
+		if (files.length === 0) return;
+
+		// Limiter à 3 fichiers max
+		if (files.length + inspirationFiles.length > 3) {
+			alert(
+				`Vous pouvez ajouter seulement ${3 - inspirationFiles.length} photo(s)`,
+			);
+			return;
+		}
+
+		isCompressing = true;
+		_compressionInfo = null;
+
+		for (const file of files) {
+			if (!file.type.startsWith('image/')) continue;
+			if (file.size > 5 * 1024 * 1024) continue;
+
+			const compressed = await compressProductImage(file);
+			inspirationFiles.push(compressed.file);
+			const reader = new FileReader();
+			reader.onload = (e) => {
+				inspirationPhotos = [...inspirationPhotos, e.target?.result as string];
+			};
+			reader.readAsDataURL(compressed.file);
+		}
+
+		// Remplacer l'input file par les fichiers compressés
+		const dt = new DataTransfer();
+		inspirationFiles.forEach((f) => dt.items.add(f));
+		inspirationInputElement.files = dt.files;
+
+		isCompressing = false;
+	}
+
+	// Fonction pour supprimer une photo d'inspiration
+	function removeInspirationPhoto(index: number) {
+		inspirationPhotos = inspirationPhotos.filter((_, i) => i !== index);
+		inspirationFiles = inspirationFiles.filter((_, i) => i !== index);
+		$formData.inspiration_photos = inspirationPhotos;
+
+		// Synchroniser l'input file
+		const dataTransfer = new DataTransfer();
+		inspirationFiles.forEach((file) => dataTransfer.items.add(file));
+		inspirationInputElement.files = dataTransfer.files;
+	}
 </script>
 
-<form method="POST" action="?/createCustomOrder" use:enhance>
+<form
+	method="POST"
+	action="?/createCustomOrder"
+	enctype="multipart/form-data"
+	use:enhance
+>
 	<Form.Errors {form} />
 
 	<div class="space-y-8">
+		<!-- Section Photos d'inspiration -->
+		<div class="space-y-4">
+			<div class="space-y-2">
+				<h3 class="text-lg font-semibold text-foreground">
+					Photos d'inspiration
+				</h3>
+				<p class="text-sm text-muted-foreground">
+					Ajoutez jusqu'à 3 photos d'inspiration pour votre gâteau (optionnel)
+				</p>
+			</div>
+
+			{#if inspirationPhotos.length > 0}
+				<!-- Galerie des photos -->
+				<div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+					{#each inspirationPhotos as photo, index}
+						<div class="group relative">
+							<img
+								src={photo}
+								alt="Photo d'inspiration {index + 1}"
+								class="aspect-square w-full rounded-lg border border-border object-cover"
+							/>
+							<button
+								type="button"
+								on:click={() => removeInspirationPhoto(index)}
+								disabled={$submitting}
+								class="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-sm transition-colors hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50"
+								title="Supprimer cette photo"
+							>
+								<X class="h-4 w-4" />
+							</button>
+						</div>
+					{/each}
+				</div>
+			{/if}
+
+			{#if inspirationPhotos.length < 3}
+				<!-- Zone d'upload -->
+				<div class="flex justify-center">
+					<button
+						type="button"
+						on:click={() => inspirationInputElement?.click()}
+						disabled={$submitting || isCompressing}
+						class="flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/20 transition-colors hover:border-primary hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-50"
+					>
+						{#if isCompressing}
+							<div
+								class="mb-2 h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent"
+							></div>
+							<p class="text-center text-sm text-muted-foreground">
+								Compression en cours...
+							</p>
+						{:else}
+							<Upload class="mb-2 h-8 w-8 text-muted-foreground" />
+							<p class="text-center text-sm text-muted-foreground">
+								Cliquez pour ajouter des photos
+							</p>
+							<p class="text-center text-xs text-muted-foreground">
+								{inspirationPhotos.length}/3 photos
+							</p>
+						{/if}
+					</button>
+				</div>
+
+				<input
+					bind:this={inspirationInputElement}
+					name="inspiration_photos"
+					type="file"
+					accept="image/*"
+					multiple
+					on:change={handleInspirationFileSelect}
+					class="hidden"
+					disabled={$submitting || isCompressing}
+				/>
+			{/if}
+		</div>
+
 		{#if customFields && customFields.length > 0}
 			<div class="space-y-4">
 				<h3 class="text-lg font-semibold text-foreground">
@@ -70,7 +278,7 @@
 
 							{#if field.type === 'short-text'}
 								<Form.Field {form} name={`customization_data.${field.id}`}>
-									<Form.Control let:attrs>
+									<Form.Control let:_attrs>
 										<Input
 											{...attrs}
 											id={field.id}
@@ -84,7 +292,7 @@
 								</Form.Field>
 							{:else if field.type === 'long-text'}
 								<Form.Field {form} name={`customization_data.${field.id}`}>
-									<Form.Control let:attrs>
+									<Form.Control let:_attrs>
 										<Textarea
 											{...attrs}
 											id={field.id}
@@ -98,7 +306,7 @@
 								</Form.Field>
 							{:else if field.type === 'number'}
 								<Form.Field {form} name={`customization_data.${field.id}`}>
-									<Form.Control let:attrs>
+									<Form.Control let:_attrs>
 										<Input
 											{...attrs}
 											id={field.id}
@@ -112,7 +320,7 @@
 								</Form.Field>
 							{:else if field.type === 'single-select' || field.type === 'multi-select'}
 								<Form.Field {form} name={`customization_data.${field.id}`}>
-									<Form.Control let:attrs>
+									<Form.Control let:_attrs>
 										<OptionGroup
 											fieldId={field.id}
 											fieldType={field.type}
@@ -318,6 +526,23 @@
 							</ul>
 						</div>
 					{/if}
+
+					<!-- Photos d'inspiration -->
+					{#if inspirationPhotos && inspirationPhotos.length > 0}
+						<div class="pt-2">
+							<span class="text-muted-foreground">Photos d'inspiration :</span>
+							<div class="mt-2 grid grid-cols-3 gap-2">
+								{#each inspirationPhotos as photo, index}
+									<img
+										src={photo}
+										alt="Photo d'inspiration {index + 1}"
+										class="aspect-square w-full rounded-lg border border-border object-cover"
+									/>
+								{/each}
+							</div>
+						</div>
+					{/if}
+
 					<Separator class="my-2" />
 					<p class="text-xs italic text-muted-foreground">
 						* Le prix final sera confirmé par le pâtissier après étude de votre
