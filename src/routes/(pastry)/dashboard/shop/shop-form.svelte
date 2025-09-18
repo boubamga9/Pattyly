@@ -205,10 +205,10 @@
 			<Form.Field {form} name="slug">
 				<Form.Control let:attrs>
 					<Form.Label>URL de la boutique</Form.Label>
-					<div
-						class="flex flex-col space-y-3 sm:flex-row sm:items-center sm:space-x-3 sm:space-y-0"
-					>
-						<div class="flex flex-1 items-center space-x-3">
+					<div class="space-y-3">
+						<div
+							class="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-x-3 sm:space-y-0"
+						>
 							<span class="text-sm font-medium text-muted-foreground"
 								>{env.PUBLIC_SITE_URL}/</span
 							>

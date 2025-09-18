@@ -97,7 +97,9 @@
 	</header>
 
 	<!-- Separator -->
-	<Separator class="mx-4" />
+	<div class="px-4">
+		<Separator class="mb-6 sm:mb-8" />
+	</div>
 
 	<!-- Contenu principal -->
 	<div class="px-4 pb-6 sm:pb-8">

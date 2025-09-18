@@ -557,33 +557,33 @@
 					<CardTitle>Informations client</CardTitle>
 				</CardHeader>
 				<CardContent class="space-y-4">
-					<div class="grid grid-cols-2 gap-4">
-						<div>
+					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+						<div class="min-w-0">
 							<Label class="text-sm font-medium text-muted-foreground"
 								>Nom</Label
 							>
-							<p class="text-sm">{order.customer_name}</p>
+							<p class="truncate text-sm">{order.customer_name}</p>
 						</div>
-						<div>
+						<div class="min-w-0">
 							<Label class="text-sm font-medium text-muted-foreground"
 								>Email</Label
 							>
-							<p class="text-sm">{order.customer_email}</p>
+							<p class="break-all text-sm">{order.customer_email}</p>
 						</div>
 						{#if order.customer_phone}
-							<div>
+							<div class="min-w-0">
 								<Label class="text-sm font-medium text-muted-foreground"
 									>Téléphone</Label
 								>
-								<p class="text-sm">{order.customer_phone}</p>
+								<p class="truncate text-sm">{order.customer_phone}</p>
 							</div>
 						{/if}
 						{#if order.customer_instagram}
-							<div>
+							<div class="min-w-0">
 								<Label class="text-sm font-medium text-muted-foreground"
 									>Instagram</Label
 								>
-								<p class="text-sm">{order.customer_instagram}</p>
+								<p class="truncate text-sm">{order.customer_instagram}</p>
 							</div>
 						{/if}
 					</div>

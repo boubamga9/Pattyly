@@ -287,14 +287,31 @@
 									{#if value && (typeof value === 'string' ? value.length > 0 : Array.isArray(value) && value.length > 0)}
 										{@const field = customFields.find((f) => f.id === fieldId)}
 										{#if field}
-											<li class="flex gap-2 text-sm">
-												<span class="font-medium">{field.label} :</span>
-												{#if Array.isArray(value)}
-													<span>{value.join(', ')}</span>
-												{:else}
+											{#if Array.isArray(value)}
+												<!-- Multi-select options: display line by line -->
+												<li class="space-y-1">
+													{#each value as option, index}
+														{#if index === 0}
+															<!-- Première option : label + option sur la même ligne -->
+															<div
+																class="flex items-center justify-between text-sm"
+															>
+																<span class="font-medium">{field.label} :</span>
+																<span>{option}</span>
+															</div>
+														{:else}
+															<!-- Autres options : seulement l'option alignée à droite -->
+															<div class="text-right text-sm">{option}</div>
+														{/if}
+													{/each}
+												</li>
+											{:else}
+												<!-- Single value: display normally -->
+												<li class="flex gap-2 text-sm">
+													<span class="font-medium">{field.label} :</span>
 													<span>{value}</span>
-												{/if}
-											</li>
+												</li>
+											{/if}
 										{/if}
 									{/if}
 								{/each}

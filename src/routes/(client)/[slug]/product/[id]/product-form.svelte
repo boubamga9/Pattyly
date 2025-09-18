@@ -325,9 +325,21 @@
 										? `${option} (+${formatPrice(selectedOption.price || 0)})`
 										: option;
 								})}
-								<div class="flex justify-between gap-12">
-									<span class="text-muted-foreground">{field.label} :</span>
-									<span class="font-medium">{selectedOptions.join(', ')}</span>
+								<div class="space-y-1">
+									{#each selectedOptions as option, index}
+										{#if index === 0}
+											<!-- Première option : label + option sur la même ligne -->
+											<div class="flex items-center justify-between">
+												<span class="text-muted-foreground"
+													>{field.label} :</span
+												>
+												<span class="font-medium">{option}</span>
+											</div>
+										{:else}
+											<!-- Autres options : seulement l'option alignée à droite -->
+											<div class="text-right font-medium">{option}</div>
+										{/if}
+									{/each}
 								</div>
 							{:else}
 								{@const selectedOption = field.options?.find(

@@ -42,7 +42,6 @@
 	function formatDate(dateString: string): string {
 		const date = new Date(dateString);
 		return date.toLocaleDateString('fr-FR', {
-			weekday: 'long',
 			year: 'numeric',
 			month: 'long',
 			day: 'numeric',
@@ -62,7 +61,7 @@
 
 			// New structure with type, label, price, values, value, etc.
 			if (obj.type === 'multi-select' && Array.isArray(obj.values)) {
-				// Multi-select : display all options on a line separated by commas
+				// Multi-select : return array for line-by-line display
 				const optionsWithPrices = obj.values.map(
 					(item: Record<string, unknown>) => {
 						const itemLabel = item.label || item.value || 'Option';
@@ -73,7 +72,7 @@
 						return `${itemLabel} (+${formatPrice(itemPrice)})`;
 					},
 				);
-				return optionsWithPrices.join(', ');
+				return optionsWithPrices;
 			} else if (obj.type === 'single-select' && obj.value) {
 				// Single-select : display the value with the price
 				const value = obj.value as string;
@@ -208,7 +207,9 @@
 	</header>
 
 	<!-- Separator -->
-	<Separator class="mx-auto mb-10 max-w-6xl px-4" />
+	<div class="px-4">
+		<Separator class="mb-6 sm:mb-8" />
+	</div>
 
 	<!-- Contenu principal -->
 	<div class="container mx-auto max-w-2xl flex-1 px-4 pb-8">
@@ -318,10 +319,29 @@
 					{#if order?.customization_data}
 						{#each Object.entries(order.customization_data) as [label, data]}
 							{@const displayData = displayCustomizationOption(label, data)}
-							<div class="flex items-center justify-between">
-								<span class="text-muted-foreground">{label} :</span>
-								<span class="font-normal">{displayData}</span>
-							</div>
+							{#if Array.isArray(displayData)}
+								<!-- Multi-select options: display line by line -->
+								<div class="space-y-1">
+									{#each displayData as option, index}
+										{#if index === 0}
+											<!-- First option: label and option on same line -->
+											<div class="flex items-center justify-between">
+												<span class="text-muted-foreground">{label} :</span>
+												<span class="font-normal">{option}</span>
+											</div>
+										{:else}
+											<!-- Other options: only option aligned to the right -->
+											<div class="text-right font-normal">{option}</div>
+										{/if}
+									{/each}
+								</div>
+							{:else}
+								<!-- Single value: display normally -->
+								<div class="flex items-center justify-between">
+									<span class="text-muted-foreground">{label} :</span>
+									<span class="font-normal">{displayData}</span>
+								</div>
+							{/if}
 						{/each}
 					{/if}
 
