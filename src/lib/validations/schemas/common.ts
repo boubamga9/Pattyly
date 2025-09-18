@@ -117,7 +117,7 @@ export const socialUsernameSchema = z.preprocess(
     (val) => (val === "" ? undefined : val),
     z
         .string()
-        .min(1, "Le nom d'utilisateur est requis")
+        .min(3, "Le nom d'utilisateur doit faire au moins 3 caractères")
         .max(30, "Le nom d'utilisateur ne peut pas dépasser 30 caractères")
         .regex(/^[a-zA-Z0-9._]+$/, "Le nom d'utilisateur ne peut contenir que des lettres, chiffres, points et tirets de soulignement")
         .optional()

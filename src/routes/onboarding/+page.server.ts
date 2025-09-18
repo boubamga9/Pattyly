@@ -29,7 +29,9 @@ async function checkAndStartTrial(
     userId: string,
     userEmail: string,
     request: Request,
-    cookies: Cookies
+    cookies: Cookies,
+    instagram?: string | null,
+    tiktok?: string | null
 ): Promise<{ success: boolean; error?: string; subscriptionId?: string }> {
     try {
         // Récupérer l'IP de l'utilisateur
@@ -54,6 +56,12 @@ async function checkAndStartTrial(
         let conditions = [`email.eq.${userEmail}`, `email.eq.${baseEmail}`, `ip_address.eq.${userIp}`];
         if (fingerprint) {
             conditions.push(`fingerprint.eq.${fingerprint}`);
+        }
+        if (instagram) {
+            conditions.push(`instagram.eq.${instagram}`);
+        }
+        if (tiktok) {
+            conditions.push(`tiktok.eq.${tiktok}`);
         }
 
         const { data: antiFraudRecord } = await supabase
@@ -129,7 +137,9 @@ async function checkAndStartTrial(
                 .insert({
                     fingerprint: fingerprint || '',
                     ip_address: userIp,
-                    email: userEmail
+                    email: userEmail,
+                    instagram: instagram || null,
+                    tiktok: tiktok || null
                 });
         } catch (antiFraudError) {
             // On continue même si l'enregistrement anti_fraud échoue
@@ -235,7 +245,7 @@ export const actions: Actions = {
                 return { form: cleanForm };
             }
 
-            const { name, bio, slug, logo } = form.data;
+            const { name, bio, slug, logo, instagram, tiktok, website } = form.data;
             let logoUrl: string | null = null;
 
             // Gestion du logo si fourni
@@ -290,8 +300,17 @@ export const actions: Actions = {
             // Création de la boutique
             const { data: shop, error: createError } = await supabase
                 .from('shops')
-                .insert({ name, bio: bio || null, slug, logo_url: logoUrl, profile_id: userId })
-                .select('id, name, bio, slug, logo_url')
+                .insert({
+                    name,
+                    bio: bio || null,
+                    slug,
+                    logo_url: logoUrl,
+                    instagram: instagram || null,
+                    tiktok: tiktok || null,
+                    website: website || null,
+                    profile_id: userId
+                })
+                .select('id, name, bio, slug, logo_url, instagram, tiktok, website')
                 .single();
 
             if (createError) {
@@ -403,6 +422,13 @@ export const actions: Actions = {
                 type: 'account_onboarding',
             });
 
+            // Récupérer les informations de la boutique pour les réseaux sociaux
+            const { data: shopData } = await locals.supabase
+                .from('shops')
+                .select('instagram, tiktok')
+                .eq('profile_id', userId)
+                .single();
+
             // Essai gratuit : vérifier l'éligibilité et créer l'essai si possible
             console.log('Check and start trial');
             const trialResult = await checkAndStartTrial(
@@ -410,7 +436,9 @@ export const actions: Actions = {
                 userId,
                 session.user.email || '',
                 request,
-                cookies
+                cookies,
+                shopData?.instagram,
+                shopData?.tiktok
             );
 
             if (trialResult.success) {

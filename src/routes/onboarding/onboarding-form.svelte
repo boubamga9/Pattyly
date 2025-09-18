@@ -201,6 +201,55 @@
 		<Form.FieldErrors />
 	</Form.Field>
 
+	<!-- Section Réseaux sociaux -->
+	<div class="space-y-4">
+		<div class="space-y-2">
+			<h3 class="text-lg font-semibold text-foreground">Réseaux sociaux</h3>
+			<p class="text-sm text-muted-foreground">
+				Connectez vos réseaux sociaux pour augmenter votre visibilité
+			</p>
+		</div>
+
+		<div class="space-y-4">
+			<Form.Field {form} name="instagram">
+				<Form.Control let:attrs>
+					<Form.Label>Instagram (optionnel)</Form.Label>
+					<Input
+						{...attrs}
+						placeholder="@votre_compte"
+						bind:value={$formData.instagram}
+					/>
+				</Form.Control>
+				<Form.FieldErrors />
+			</Form.Field>
+
+			<Form.Field {form} name="tiktok">
+				<Form.Control let:attrs>
+					<Form.Label>TikTok (optionnel)</Form.Label>
+					<Input
+						{...attrs}
+						placeholder="@votre_compte"
+						bind:value={$formData.tiktok}
+					/>
+				</Form.Control>
+				<Form.FieldErrors />
+			</Form.Field>
+
+			<Form.Field {form} name="website">
+				<Form.Control let:attrs>
+					<Form.Label>Site internet (optionnel)</Form.Label>
+					<Input
+						{...attrs}
+						placeholder="https://votre-site.com"
+						type="url"
+						bind:value={$formData.website}
+					/>
+				</Form.Control>
+				<Form.FieldErrors />
+			</Form.Field>
+		</div>
+	</div>
+
 	<Form.Button type="submit" class="w-full" disabled={$submitting}>
 		{#if $submitting}
 			<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
