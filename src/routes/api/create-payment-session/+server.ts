@@ -48,24 +48,20 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             return json({ error: 'Boutique invalide' }, { status: 400 });
         }
 
-        // Récupérer le compte Stripe Connect du profil
-        const { data: stripeAccount, error: stripeError } = await locals.supabase
-            .from('stripe_connect_accounts')
-            .select('stripe_account_id')
-            .eq('profile_id', shop.profile_id)
-            .eq('is_active', true)
-            .single();
+        // Récupérer le compte Stripe Connect du profil via la fonction sécurisée
+        const { data: stripeAccountData, error: stripeError } = await (locals.supabase as any)
+            .rpc('get_stripe_connect_for_shop', { shop_uuid: orderData.shopId });
 
         if (stripeError) {
+            console.error('Erreur lors de la récupération du compte Stripe:', stripeError);
             return json({ error: 'Compte Stripe non trouvé' }, { status: 400 });
         }
 
-
-        if (!stripeAccount?.stripe_account_id) {
+        if (!stripeAccountData || !Array.isArray(stripeAccountData) || stripeAccountData.length === 0) {
             return json({ error: 'Boutique non configurée pour les paiements' }, { status: 400 });
         }
 
-        const stripeAccountId = stripeAccount.stripe_account_id;
+        const stripeAccountId = stripeAccountData[0].stripe_account_id;
 
         // Log pour debug
 
@@ -103,21 +99,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     // VALIDATION SÉCURISÉE : Vérifier que chaque option correspond à un champ valide
                     Object.entries(orderData.selectedOptions).forEach(([fieldId, fieldData]) => {
                         const field = customizationFields.find((f) => f.id === fieldId);
-                        if (field && fieldData && typeof fieldData === 'object') {
+                        if (field && fieldData && typeof fieldData === 'object' && fieldData !== null) {
+                            const fieldDataObj = fieldData as any;
                             // Vérifier que l'option sélectionnée existe dans la DB
-                            if (field.type === 'single-select' && field.options) {
-                                const validOption = field.options.find((opt: any) => opt.label === fieldData.value);
-                                if (validOption) {
-                                    const optionPrice = validOption.price || 0;
+                            if (field.type === 'single-select' && field.options && Array.isArray(field.options)) {
+                                const validOption = field.options.find((opt: any) => opt.label === fieldDataObj.value);
+                                if (validOption && typeof validOption === 'object' && validOption !== null) {
+                                    const optionPrice = (validOption as any).price || 0;
                                     totalPrice += optionPrice;
-                                } else {
                                 }
-                            } else if (field.type === 'multi-select' && fieldData.values && Array.isArray(fieldData.values)) {
+                            } else if (field.type === 'multi-select' && fieldDataObj.values && Array.isArray(fieldDataObj.values) && field.options && Array.isArray(field.options)) {
                                 // Multi-select : vérifier chaque valeur
-                                fieldData.values.forEach((optionData: any) => {
-                                    const validOption = field.options?.find((opt: any) => opt.label === optionData.label);
-                                    if (validOption) {
-                                        const optionPrice = validOption.price || 0;
+                                fieldDataObj.values.forEach((optionData: any) => {
+                                    const validOption = (field.options as any[]).find((opt: any) => opt.label === optionData.label);
+                                    if (validOption && typeof validOption === 'object' && validOption !== null) {
+                                        const optionPrice = (validOption as any).price || 0;
                                         totalPrice += optionPrice;
                                     }
                                 });
@@ -187,7 +183,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 
         // 🗄️ SAUVEGARDER LES DONNÉES COMPLÈTES DANS pending_orders
-        const { data: pendingOrder, error: pendingOrderError } = await locals.supabase
+        const { data: pendingOrder, error: pendingOrderError } = await (locals.supabase as any)
             .from('pending_orders')
             .insert({
                 order_data: {
@@ -226,7 +222,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             cancel_url: cancelUrl,
             customer_email: orderData.customerEmail,
             metadata: {
-                orderId: pendingOrder.id,
+                orderId: (pendingOrder as any)?.id || 'unknown',
                 cakeName: orderData.cakeName,
                 depositAmount: depositAmount.toString(),
                 type: 'product_order'

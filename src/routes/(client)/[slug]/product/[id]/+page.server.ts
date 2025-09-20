@@ -184,8 +184,6 @@ export const actions: Actions = {
                     .eq('form_id', product.form_id)
                     .order('order');
                 customFields = formFields || [];
-            } else {
-
             }
 
             // Dynamic validation
@@ -303,7 +301,7 @@ export const actions: Actions = {
             return message(form, { redirectTo: sessionUrl });
 
         } catch (err) {
-
+            console.error('Erreur lors de la création de la session de paiement:', err);
             //Always return the form for Superforms
             const tempSchema = createLocalDynamicSchema([]);
             const form = await superValidate(request, zod(tempSchema));

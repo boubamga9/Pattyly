@@ -3,6 +3,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { getShopIdAndSlug } from '$lib/auth';
 import { deleteImageIfUnused } from '$lib/storage';
 import { validateImageServer, validateAndRecompressImage, logValidationInfo } from '$lib/utils/images/server';
+import { sanitizeFileName } from '$lib/utils/filename-sanitizer';
 import { forceRevalidateShop } from '$lib/utils/catalog';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
@@ -211,7 +212,8 @@ export const actions: Actions = {
                     const imageToUpload = validationResult.compressedFile || imageFile;
 
                     // Upload to Supabase Storage
-                    const fileName = `${shopId}/${Date.now()}-${imageToUpload.name}`;
+                    const sanitizedFileName = sanitizeFileName(imageToUpload.name);
+                    const fileName = `${shopId}/${Date.now()}-${sanitizedFileName}`;
                     const { error: uploadError } = await locals.supabase.storage
                         .from('product-images')
                         .upload(fileName, imageToUpload, {

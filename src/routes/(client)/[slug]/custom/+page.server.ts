@@ -3,6 +3,7 @@ import { message, superValidate, setError } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad, Actions } from './$types';
 import { createLocalDynamicSchema } from './schema';
+import { sanitizeFileName } from '$lib/utils/filename-sanitizer';
 import { EmailService } from '$lib/services/email-service';
 import { PUBLIC_SITE_URL } from '$env/static/public';
 
@@ -79,7 +80,7 @@ export const actions: Actions = {
 
             const { data: shop, error: shopError } = await locals.supabase
                 .from('shops')
-                .select('id, name, slug, logo_url, profiles!inner(email)')
+                .select('id, name, slug, logo_url')
                 .eq('slug', slug)
                 .eq('is_active', true)
                 .single();
@@ -138,7 +139,10 @@ export const actions: Actions = {
 
                         // Generate a temporary order ID for folder organization
                         const tempOrderId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                        const fileName = `${tempOrderId}/inspiration-${i + 1}-${photoFile.name}`;
+
+                        // Sanitize the filename
+                        const sanitizedFileName = sanitizeFileName(photoFile.name);
+                        const fileName = `${tempOrderId}/inspiration-${i + 1}-${sanitizedFileName}`;
 
                         const { error: uploadError } = await locals.supabase.storage
                             .from('inspiration-images')
@@ -186,6 +190,12 @@ export const actions: Actions = {
             if (orderError) throw error(500, 'Erreur lors de la création de la commande');
 
             try {
+                // Get shop owner email for notification
+                const { data: ownerEmailData, error: emailError } = await locals.supabase
+                    .rpc('get_shop_owner_email', { shop_uuid: shop.id }) as any;
+
+                const pastryEmail = ownerEmailData || 'admin@pattyly.com'; // Fallback email
+
                 await Promise.all([
                     EmailService.sendCustomRequestConfirmation({
                         customerEmail: customer_email,
@@ -197,7 +207,7 @@ export const actions: Actions = {
                         date: new Date().toLocaleDateString("fr-FR")
                     }),
                     EmailService.sendCustomRequestNotification({
-                        pastryEmail: shop.profiles.email,
+                        pastryEmail: pastryEmail,
                         customerName: customer_name,
                         customerEmail: customer_email,
                         customerInstagram: customer_instagram,

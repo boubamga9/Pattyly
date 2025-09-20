@@ -6,6 +6,7 @@ import { superValidate, setError } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { formSchema } from './schema';
 import { validateImageServer, validateAndRecompressImage, logValidationInfo } from '$lib/utils/images/server';
+import { sanitizeFileName } from '$lib/utils/filename-sanitizer';
 import Stripe from 'stripe';
 import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
 import { PUBLIC_SITE_URL } from '$env/static/public';
@@ -259,7 +260,8 @@ export const actions: Actions = {
                 }
 
                 const imageToUpload = validationResult.compressedFile || logo;
-                const fileName = `logos/${userId}/${Date.now()}_${imageToUpload.name}`;
+                const sanitizedFileName = sanitizeFileName(imageToUpload.name);
+                const fileName = `logos/${userId}/${Date.now()}_${sanitizedFileName}`;
 
                 const { data: uploadData, error: uploadError } = await supabase.storage
                     .from('shop-logos')

@@ -7,6 +7,7 @@ import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { formSchema } from './schema';
 import { validateImageServer, validateAndRecompressImage, logValidationInfo } from '$lib/utils/images/server';
+import { sanitizeFileName } from '$lib/utils/filename-sanitizer';
 import { forceRevalidateShop } from '$lib/utils/catalog';
 
 
@@ -131,7 +132,8 @@ export const actions: Actions = {
                 const imageToUpload = validationResult.compressedFile || logoFile;
 
                 // Upload to Supabase Storage
-                const fileName = `${userId}/${Date.now()}-${imageToUpload.name}`;
+                const sanitizedFileName = sanitizeFileName(imageToUpload.name);
+                const fileName = `${userId}/${Date.now()}-${sanitizedFileName}`;
                 const { error: uploadError } = await locals.supabase.storage
                     .from('shop-logos')
                     .upload(fileName, imageToUpload, {
