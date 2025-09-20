@@ -27,8 +27,13 @@
 	}>;
 
 	export let product: any;
-	export let availabilities: Array<{ day: number; is_open: boolean }>;
+	export let availabilities: Array<{
+		day: number;
+		is_open: boolean;
+		daily_order_limit?: number | null;
+	}>;
 	export let unavailabilities: Array<{ start_date: string; end_date: string }>;
+	export let datesWithLimitReached: string[] = [];
 	export let onCancel: () => void;
 
 	const dynamicSchema = createLocalDynamicSchema(customFields);
@@ -189,6 +194,7 @@
 						<DatePicker
 							{availabilities}
 							{unavailabilities}
+							{datesWithLimitReached}
 							minDaysNotice={product.min_days_notice}
 							on:dateSelected={(event) => {
 								$formData.pickup_date = event.detail;

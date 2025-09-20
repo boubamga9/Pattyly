@@ -6,8 +6,6 @@
 	import Benefits from './components/sections/benefits.svelte';
 	import LastCta from './components/sections/last-cta.svelte';
 	import Faq from './components/sections/faq.svelte';
-
-	export let data;
 </script>
 
 <svelte:head>

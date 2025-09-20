@@ -46,9 +46,81 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
         const { data: availabilities, error: availabilitiesError } = await locals.supabase
             .from('availabilities')
-            .select('day, is_open')
+            .select('day, is_open, daily_order_limit')
             .eq('shop_id', shop.id);
         if (availabilitiesError) throw error(500, 'Erreur lors du chargement des disponibilités');
+
+        // Fonction optimisée pour obtenir les dates avec limite atteinte
+        async function getDatesWithLimitReached(): Promise<Set<string>> {
+            const datesWithLimitReached = new Set<string>();
+
+            if (!availabilities) return datesWithLimitReached;
+
+            // Collecter toutes les dates à vérifier en une fois
+            const datesToCheck = new Set<string>();
+            const today = new Date();
+
+            for (const availability of availabilities) {
+                if (availability.daily_order_limit && availability.is_open) {
+                    // Calculer les 60 prochains jours pour cette disponibilité
+                    for (let i = 0; i < 60; i++) {
+                        const checkDate = new Date(today);
+                        checkDate.setDate(today.getDate() + i);
+
+                        // Vérifier si c'est le bon jour de la semaine
+                        if (checkDate.getDay() === availability.day) {
+                            const dateString = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
+                            datesToCheck.add(dateString);
+                        }
+                    }
+                }
+            }
+
+            if (datesToCheck.size === 0) return datesWithLimitReached;
+
+            // Une seule requête pour récupérer toutes les commandes concernées
+            const { data: orders, error: ordersError } = await locals.supabase
+                .from('orders')
+                .select('pickup_date')
+                .eq('shop_id', shop.id)
+                .in('status', ['pending', 'quoted', 'confirmed'])
+                .in('pickup_date', Array.from(datesToCheck));
+
+            if (ordersError) {
+                console.error('Erreur lors du chargement des commandes:', ordersError);
+                return datesWithLimitReached;
+            }
+
+            // Compter les commandes par date
+            const ordersByDate = new Map<string, number>();
+            orders?.forEach(order => {
+                const count = ordersByDate.get(order.pickup_date) || 0;
+                ordersByDate.set(order.pickup_date, count + 1);
+            });
+
+            // Vérifier les limites pour chaque date
+            for (const availability of availabilities) {
+                if (availability.daily_order_limit && availability.is_open) {
+                    for (let i = 0; i < 60; i++) {
+                        const checkDate = new Date(today);
+                        checkDate.setDate(today.getDate() + i);
+
+                        if (checkDate.getDay() === availability.day) {
+                            const dateString = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
+                            const orderCount = ordersByDate.get(dateString) || 0;
+
+                            if (orderCount >= availability.daily_order_limit) {
+                                datesWithLimitReached.add(dateString);
+                            }
+                        }
+                    }
+                }
+            }
+
+            return datesWithLimitReached;
+        }
+
+        const datesWithLimitReached = await getDatesWithLimitReached();
 
         const { data: unavailabilities, error: unavailabilitiesError } = await locals.supabase
             .from('unavailabilities')
@@ -64,6 +136,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             customFields,
             availabilities: availabilities || [],
             unavailabilities: unavailabilities || [],
+            datesWithLimitReached: Array.from(datesWithLimitReached),
             form: await superValidate(zod(dynamicSchema))
         };
 
@@ -120,6 +193,43 @@ export const actions: Actions = {
                 additional_information,
                 customization_data
             } = form.data;
+
+            // 🔐 Security: force pickup_date → Date (without timezone conversion)
+            let selectedDate: string | null = null;
+            let selectedDateObj: Date;
+            try {
+                selectedDateObj = new Date(pickup_date);
+                // Utiliser les méthodes getFullYear, getMonth, getDate pour éviter les problèmes de fuseau horaire
+                selectedDate = `${selectedDateObj.getFullYear()}-${String(selectedDateObj.getMonth() + 1).padStart(2, '0')}-${String(selectedDateObj.getDate()).padStart(2, '0')}`;
+            } catch {
+                return fail(400, { form, error: 'Date de retrait invalide' });
+            }
+
+            // Vérifier la limite quotidienne de commandes
+            const pickupDay = selectedDateObj.getDay();
+            const { data: availability } = await locals.supabase
+                .from('availabilities')
+                .select('daily_order_limit')
+                .eq('shop_id', shop.id)
+                .eq('day', pickupDay)
+                .single();
+
+            if (availability?.daily_order_limit) {
+                // Compter les commandes existantes pour cette date
+                const { data: existingOrders } = await locals.supabase
+                    .from('orders')
+                    .select('id')
+                    .eq('shop_id', shop.id)
+                    .eq('pickup_date', selectedDate)
+                    .in('status', ['pending', 'quoted', 'confirmed']);
+
+                if (existingOrders && existingOrders.length >= availability.daily_order_limit) {
+                    return fail(400, {
+                        form,
+                        error: `Limite quotidienne atteinte (${availability.daily_order_limit} commandes maximum ce jour)`
+                    });
+                }
+            }
 
             const transformedCustomizationData: Record<string, any> = {};
             if (customization_data && Object.keys(customization_data).length > 0) {

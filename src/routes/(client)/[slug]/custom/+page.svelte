@@ -12,6 +12,7 @@
 		customFields,
 		availabilities,
 		unavailabilities,
+		datesWithLimitReached,
 		form,
 	} = $page.data);
 
@@ -137,6 +138,7 @@
 					{customFields}
 					{availabilities}
 					{unavailabilities}
+					{datesWithLimitReached}
 					onCancel={goBack}
 				/>
 			</div>

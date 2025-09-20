@@ -24,7 +24,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     // Load availabilities
     let { data: availabilities, error: availabilitiesError } = await locals.supabase
         .from('availabilities')
-        .select('id, day, is_open')
+        .select('id, day, is_open, daily_order_limit')
         .eq('shop_id', permissions.shopId)
         .order('day');
 
@@ -77,6 +77,8 @@ export const actions: Actions = {
         const availabilityId = formData.get('availabilityId') as string;
         const isAvailableRaw = formData.get('isAvailable') as string;
         const isAvailable = isAvailableRaw === 'true';
+        const dailyOrderLimitRaw = formData.get('dailyOrderLimit') as string;
+        const dailyOrderLimit = dailyOrderLimitRaw ? parseInt(dailyOrderLimitRaw) : null;
 
 
         if (!availabilityId) {
@@ -86,7 +88,7 @@ export const actions: Actions = {
         // Verify the availability belongs to this shop
         const { data: availability } = await locals.supabase
             .from('availabilities')
-            .select('shop_id, is_open')
+            .select('shop_id, is_open, daily_order_limit')
             .eq('id', availabilityId)
             .single();
 
@@ -99,7 +101,8 @@ export const actions: Actions = {
         const { error: updateError } = await locals.supabase
             .from('availabilities')
             .update({
-                is_open: isAvailable
+                is_open: isAvailable,
+                daily_order_limit: dailyOrderLimit
             })
             .eq('id', availabilityId);
 

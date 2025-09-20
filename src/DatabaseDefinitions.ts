@@ -17,10 +17,10 @@ export type Database = {
     Functions: {
       graphql: {
         Args: {
+          extensions?: Json
           operationName?: string
           query?: string
           variables?: Json
-          extensions?: Json
         }
         Returns: Json
       }
@@ -34,9 +34,40 @@ export type Database = {
   }
   public: {
     Tables: {
+      anti_fraud: {
+        Row: {
+          created_at: string | null
+          email: string
+          fingerprint: string
+          id: string
+          instagram: string | null
+          ip_address: unknown
+          tiktok: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          fingerprint: string
+          id?: string
+          instagram?: string | null
+          ip_address: unknown
+          tiktok?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          fingerprint?: string
+          id?: string
+          instagram?: string | null
+          ip_address?: unknown
+          tiktok?: string | null
+        }
+        Relationships: []
+      }
       availabilities: {
         Row: {
           created_at: string | null
+          daily_order_limit: number | null
           day: number
           id: string
           is_open: boolean | null
@@ -45,6 +76,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          daily_order_limit?: number | null
           day: number
           id?: string
           is_open?: boolean | null
@@ -53,6 +85,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          daily_order_limit?: number | null
           day?: number
           id?: string
           is_open?: boolean | null
@@ -260,6 +293,7 @@ export type Database = {
           customer_phone: string | null
           customization_data: Json | null
           id: string
+          inspiration_photos: string[] | null
           paid_amount: number | null
           pickup_date: string
           product_base_price: number | null
@@ -284,6 +318,7 @@ export type Database = {
           customer_phone?: string | null
           customization_data?: Json | null
           id?: string
+          inspiration_photos?: string[] | null
           paid_amount?: number | null
           pickup_date: string
           product_base_price?: number | null
@@ -308,6 +343,7 @@ export type Database = {
           customer_phone?: string | null
           customization_data?: Json | null
           id?: string
+          inspiration_photos?: string[] | null
           paid_amount?: number | null
           pickup_date?: string
           product_base_price?: number | null
@@ -437,6 +473,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      pending_orders: {
+        Row: {
+          created_at: string | null
+          id: string
+          order_data: Json
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          order_data: Json
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          order_data?: Json
+        }
+        Relationships: []
       }
       personal_order_notes: {
         Row: {
@@ -616,6 +670,7 @@ export type Database = {
       shops: {
         Row: {
           bio: string | null
+          catalog_version: number | null
           created_at: string | null
           id: string
           instagram: string | null
@@ -631,6 +686,7 @@ export type Database = {
         }
         Insert: {
           bio?: string | null
+          catalog_version?: number | null
           created_at?: string | null
           id?: string
           instagram?: string | null
@@ -646,6 +702,7 @@ export type Database = {
         }
         Update: {
           bio?: string | null
+          catalog_version?: number | null
           created_at?: string | null
           id?: string
           instagram?: string | null
@@ -733,6 +790,21 @@ export type Database = {
           },
         ]
       }
+      stripe_events: {
+        Row: {
+          created_at: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
       unavailabilities: {
         Row: {
           created_at: string | null
@@ -814,6 +886,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_shop_owner_email: {
+        Args: { shop_uuid: string }
+        Returns: string
+      }
+      get_stripe_connect_for_shop: {
+        Args: { shop_uuid: string }
+        Returns: {
+          is_active: boolean
+          stripe_account_id: string
+        }[]
+      }
       get_user_plan: {
         Args: { user_profile_id: string }
         Returns: string

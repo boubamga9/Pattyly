@@ -5,8 +5,13 @@
 
 	export let selectedDate: Date | undefined = undefined;
 	export let minDaysNotice: number = 0;
-	export let availabilities: { day: number; is_open: boolean }[] = [];
+	export let availabilities: {
+		day: number;
+		is_open: boolean;
+		daily_order_limit?: number | null;
+	}[] = [];
 	export let unavailabilities: { start_date: string; end_date: string }[] = [];
+	export let datesWithLimitReached: string[] = [];
 
 	const dispatch = createEventDispatcher<{
 		dateSelected: Date;
@@ -104,6 +109,13 @@
 		return true;
 	}
 
+	// Vérifier si une date a atteint sa limite quotidienne
+	function hasReachedDailyLimit(date: Date): boolean {
+		// Utiliser les méthodes getFullYear, getMonth, getDate pour éviter les problèmes de fuseau horaire
+		const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+		return datesWithLimitReached.includes(dateString);
+	}
+
 	// Vérifier si une date est sélectionnée (réactive)
 	$: isDateSelected = (date: Date) => {
 		if (!localSelectedDate) return false;
@@ -112,7 +124,7 @@
 
 	// Sélectionner une date
 	function selectDate(date: Date) {
-		if (isDateAvailable(date)) {
+		if (isDateAvailable(date) && !hasReachedDailyLimit(date)) {
 			localSelectedDate = date;
 			selectedDate = date;
 			dispatch('dateSelected', date);
@@ -169,17 +181,20 @@
 		{#each days as day}
 			{#if day}
 				{@const isAvailable = isDateAvailable(day)}
+				{@const hasLimitReached = hasReachedDailyLimit(day)}
 				{@const isSelected = isDateSelected(day)}
+				{@const isClickable = isAvailable && !hasLimitReached}
 				<Button
 					variant={isSelected ? 'default' : 'ghost'}
 					size="sm"
 					class="h-8 w-8 p-0 text-xs {isSelected
 						? 'bg-primary text-primary-foreground hover:bg-primary/90'
-						: !isAvailable
+						: !isClickable
 							? 'cursor-not-allowed opacity-50'
 							: 'hover:bg-accent'}"
-					disabled={!isAvailable}
+					disabled={!isClickable}
 					on:click={() => selectDate(day)}
+					title={hasLimitReached ? 'Limite quotidienne atteinte' : ''}
 				>
 					{day.getDate()}
 				</Button>

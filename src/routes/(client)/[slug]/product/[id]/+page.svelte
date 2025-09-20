@@ -15,8 +15,15 @@
 	}
 
 	// Données de la page
-	$: ({ shop, product, form, customFields, availabilities, unavailabilities } =
-		$page.data);
+	$: ({
+		shop,
+		product,
+		form,
+		customFields,
+		availabilities,
+		unavailabilities,
+		datesWithLimitReached,
+	} = $page.data);
 
 	// Fonction pour retourner à la boutique ou au dashboard
 	function goBack() {
@@ -155,6 +162,7 @@
 						{customFields}
 						{availabilities}
 						{unavailabilities}
+						{datesWithLimitReached}
 						onCancel={goBack}
 					/>
 				</div>

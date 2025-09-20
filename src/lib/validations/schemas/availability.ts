@@ -43,13 +43,15 @@ export const availabilitySchema = z.object({
     id: uuidSchema,
     shop_id: uuidSchema,
     day: dayOfWeekSchema,
-    is_open: z.boolean()
+    is_open: z.boolean(),
+    daily_order_limit: z.number().int().nullable()
 });
 
 // Mise à jour de la disponibilité d'un jour (pour l'action updateAvailability)
 export const updateAvailabilityActionSchema = z.object({
     availabilityId: uuidSchema,
-    isAvailable: z.string().transform((val) => val === 'true')
+    isAvailable: z.string().transform((val) => val === 'true'),
+    dailyOrderLimit: z.number().int().nullable()
 });
 
 // ===== PÉRIODES D'INDISPONIBILITÉ =====

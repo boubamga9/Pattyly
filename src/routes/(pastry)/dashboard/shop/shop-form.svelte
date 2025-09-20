@@ -220,27 +220,27 @@
 								bind:value={$formData.slug}
 								class="h-11 flex-1"
 							/>
+							<Button
+								type="button"
+								size="sm"
+								on:click={copyShopUrl}
+								title="Copier l'URL complète"
+								disabled={!$formData.slug}
+								class={`h-11 w-full px-4 sm:w-auto ${
+									copySuccess
+										? 'border-green-300 bg-green-100 text-green-700 hover:border-green-400 hover:bg-green-200'
+										: 'border border-input bg-background text-black hover:bg-accent hover:text-accent-foreground'
+								}`}
+							>
+								{#if copySuccess}
+									<CheckCircle class="mr-2 h-4 w-4" />
+									Copiée
+								{:else}
+									<Copy class="mr-2 h-4 w-4" />
+									Copier
+								{/if}
+							</Button>
 						</div>
-						<Button
-							type="button"
-							size="sm"
-							on:click={copyShopUrl}
-							title="Copier l'URL complète"
-							disabled={!$formData.slug}
-							class={`h-11 w-full px-4 sm:w-auto ${
-								copySuccess
-									? 'border-green-300 bg-green-100 text-green-700 hover:border-green-400 hover:bg-green-200'
-									: 'border border-input bg-background text-black hover:bg-accent hover:text-accent-foreground'
-							}`}
-						>
-							{#if copySuccess}
-								<CheckCircle class="mr-2 h-4 w-4" />
-								Copiée
-							{:else}
-								<Copy class="mr-2 h-4 w-4" />
-								Copier
-							{/if}
-						</Button>
 					</div>
 				</Form.Control>
 				<Form.FieldErrors />
