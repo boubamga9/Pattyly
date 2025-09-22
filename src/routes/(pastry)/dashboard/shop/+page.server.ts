@@ -156,6 +156,10 @@ export const actions: Actions = {
             }
         }
 
+        // Store old slug for cache invalidation
+        const oldSlug = shop.slug;
+        const slugChanged = oldSlug !== slug;
+
         // Update shop
         const { error: updateError } = await locals.supabase
             .from('shops')
@@ -174,11 +178,25 @@ export const actions: Actions = {
             return { success: false, error: 'Erreur lors de la mise à jour' };
         }
 
-        // Increment catalog version to invalidate public cache
-        try {
-            await forceRevalidateShop(shop.slug);
-        } catch (error) {
-            // Don't fail the entire operation, just log the warning
+        // Invalidate cache for both old and new slugs if slug changed
+        if (slugChanged) {
+            try {
+                // Revalidate new slug
+                await forceRevalidateShop(slug);
+                // Also revalidate old slug to return 404
+                await forceRevalidateShop(oldSlug);
+                console.log(`🔄 Revalidated both slugs: ${oldSlug} -> ${slug}`);
+            } catch (error) {
+                console.error('Cache revalidation failed:', error);
+                // Don't fail the entire operation, just log the warning
+            }
+        } else {
+            // If slug didn't change, just revalidate current slug
+            try {
+                await forceRevalidateShop(slug);
+            } catch (error) {
+                console.error('Cache revalidation failed:', error);
+            }
         }
 
 
