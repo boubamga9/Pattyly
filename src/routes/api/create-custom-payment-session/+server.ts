@@ -39,6 +39,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         // Calculer l'acompte (50% du prix total)
         const depositAmount = Math.round(order.total_amount * 0.5 * 100); // Stripe utilise les centimes
 
+        // Récupérer le compte Stripe Connect de la boutique
+        const { data: stripeAccountData, error: stripeError } = await (locals.supabase as any)
+            .rpc('get_stripe_connect_for_shop', { shop_uuid: order.shop_id });
+
+        if (stripeError || !stripeAccountData || !Array.isArray(stripeAccountData) || stripeAccountData.length === 0) {
+            return json({ error: 'Boutique non configurée pour les paiements' }, { status: 400 });
+        }
+
+        const stripeAccountId = stripeAccountData[0].stripe_account_id;
+
         // Créer la session Stripe
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
@@ -65,6 +75,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 shopSlug: shopSlug,
                 totalPrice: order.total_amount.toString(),
                 depositAmount: depositAmount.toString(),
+            },
+            payment_intent_data: {
+                //application_fee_amount: Math.round(depositAmount * 0.05), // 5% de frais pour Pattyly
+                transfer_data: {
+                    destination: stripeAccountId,
+                },
             },
         });
 
