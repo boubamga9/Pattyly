@@ -68,56 +68,6 @@ export const load: PageServerLoad = async ({
 		}
 	}
 
-	// Récupérer TOUS les abonnements (actifs, annulés, expirés)
-	const { data: allSubscriptions } = await stripe.subscriptions.list({
-		customer,
-		limit: 100,
-	});
-
-	const currentSubscriptions = await fetchCurrentUsersSubscription(
-		stripe,
-		customer,
-	);
-
-	// Vérifier si l'utilisateur a déjà eu un abonnement (actif, annulé, ou expiré)
-	const hasHadSubscription = allSubscriptions.length > 0;
-
-	// Si l'utilisateur a déjà eu un abonnement, pas d'essai gratuit
-	if (hasHadSubscription) {
-		// Vérifier qu'il y a un abonnement actif à modifier
-		if (currentSubscriptions.length > 0 && currentSubscriptions[0]) {
-			try {
-				// Vérifier que l'abonnement a des items
-				if (!currentSubscriptions[0].items?.data?.[0]?.id) {
-					console.error('Subscription has no items to update');
-					error(500, 'Invalid subscription state. Please contact support.');
-				}
-
-				await stripe.subscriptions.update(currentSubscriptions[0].id, {
-					items: [
-						{
-							id: currentSubscriptions[0].items.data[0].id,
-							price: price.id,
-						},
-					],
-				});
-
-			} catch (updateError) {
-				console.error('Stripe subscription update error:', updateError);
-				if (updateError instanceof Stripe.errors.StripeError) {
-					error(500, `Subscription update failed: ${updateError.message}`);
-				} else {
-					error(500, 'Error updating subscription. Please try again.');
-				}
-			}
-
-			return redirect(303, '/subscription');
-		} else {
-			// Pas d'abonnement actif, créer un nouveau
-			console.log('No active subscription found, creating new checkout session');
-		}
-	}
-
 	const lineItems: Stripe.Checkout.SessionCreateParams['line_items'] = [
 		{
 			...(price.custom_unit_amount
