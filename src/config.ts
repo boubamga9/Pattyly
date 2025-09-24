@@ -1,5 +1,5 @@
 import type { Provider } from '@supabase/supabase-js';
-import { STRIPE_BASIC_PRODUCT_ID, STRIPE_PREMIUM_PRODUCT_ID, STRIPE_BASIC_PRICE_ID, STRIPE_PREMIUM_PRICE_ID } from '$env/static/private';
+import { STRIPE_BASIC_PRODUCT_ID, STRIPE_PREMIUM_PRODUCT_ID, STRIPE_BASIC_PRICE_ID, STRIPE_PREMIUM_PRICE_ID } from '$env/static/public';
 
 export const WebsiteName: string = 'Pattyly';
 
