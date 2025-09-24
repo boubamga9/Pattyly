@@ -101,7 +101,7 @@ export const load: PageServerLoad = async ({
 						},
 					],
 				});
-				return redirect(303, '/subscription');
+
 			} catch (updateError) {
 				console.error('Stripe subscription update error:', updateError);
 				if (updateError instanceof Stripe.errors.StripeError) {
@@ -110,6 +110,8 @@ export const load: PageServerLoad = async ({
 					error(500, 'Error updating subscription. Please try again.');
 				}
 			}
+
+			return redirect(303, '/subscription');
 		} else {
 			// Pas d'abonnement actif, créer un nouveau
 			console.log('No active subscription found, creating new checkout session');
