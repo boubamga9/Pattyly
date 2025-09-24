@@ -117,7 +117,12 @@ async function checkAndStartTrial(
             items: [{ price: 'price_1RrdwvPNddYt1P7LGICY3by5' }], // Premium price
             trial_period_days: 7,
             payment_behavior: 'default_incomplete',
-            expand: ['latest_invoice.payment_intent']
+            expand: ['latest_invoice.payment_intent'],
+            trial_settings: {
+                end_behavior: {
+                    missing_payment_method: 'cancel'
+                }
+            }
         });
 
         console.log("user product info", userId, subscription.id, 'prod_Selcz36pAfV3vV');

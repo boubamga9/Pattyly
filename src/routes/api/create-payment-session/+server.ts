@@ -228,7 +228,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 type: 'product_order'
             },
             payment_intent_data: {
-                application_fee_amount: Math.round(depositAmount * 0.05), // 5% de frais pour Pattyly
+                //application_fee_amount: Math.round(depositAmount * 0.05), // 5% de frais pour Pattyly
                 transfer_data: {
                     destination: stripeAccountId,
                 },

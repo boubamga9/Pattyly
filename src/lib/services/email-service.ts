@@ -14,6 +14,8 @@ import { RequestRejectedEmail } from '$lib/emails/request-rejected';
 import { OrderCancelledEmail } from '$lib/emails/order-cancelled';
 import { ContactConfirmationEmail } from '$lib/emails/contact-confirmation';
 import { ContactNotificationEmail } from '$lib/emails/contact-notification';
+import { PaymentFailedNotificationEmail } from '$lib/emails/payment-failed-notification';
+import { TrialEndingNotificationEmail } from '$lib/emails/trial-ending-notification';
 
 // Initialisation de Resend
 const resend = new Resend(env.RESEND_API_KEY);
@@ -621,6 +623,82 @@ export class EmailService {
             return { success: true, messageId: data?.id };
         } catch (error) {
             console.error('Erreur EmailService.sendContactNotification:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Envoie une notification de paiement échoué au pâtissier
+     */
+    static async sendPaymentFailedNotification({
+        pastryEmail,
+        shopName,
+        customerPortalUrl,
+        date,
+    }: {
+        pastryEmail: string;
+        shopName: string;
+        customerPortalUrl: string;
+        date: string;
+    }) {
+        try {
+            const { data, error } = await resend.emails.send({
+                from: 'Pattyly <noreply@pattyly.com>',
+                to: [pastryEmail],
+                subject: `Paiement échoué - Action requise`,
+                html: PaymentFailedNotificationEmail({
+                    shopName,
+                    customerPortalUrl,
+                    date,
+                })
+            });
+
+            if (error) {
+                console.error('Erreur envoi email paiement échoué:', error);
+                throw error;
+            }
+
+            return { success: true, messageId: data?.id };
+        } catch (error) {
+            console.error('Erreur EmailService.sendPaymentFailedNotification:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Envoie une notification de fin de période d'essai au pâtissier
+     */
+    static async sendTrialEndingNotification({
+        pastryEmail,
+        shopName,
+        customerPortalUrl,
+        date,
+    }: {
+        pastryEmail: string;
+        shopName: string;
+        customerPortalUrl: string;
+        date: string;
+    }) {
+        try {
+            const { data, error } = await resend.emails.send({
+                from: 'Pattyly <noreply@pattyly.com>',
+                to: [pastryEmail],
+                subject: `⏰ Votre période d'essai se termine dans 3 jours`,
+                html: TrialEndingNotificationEmail({
+                    shopName,
+                    customerPortalUrl,
+                    date,
+                })
+            });
+
+            if (error) {
+                console.error('Erreur envoi email fin période d\'essai:', error);
+                throw error;
+            }
+
+            return { success: true, messageId: data?.id };
+        } catch (error) {
+            console.error('Erreur EmailService.sendTrialEndingNotification:', error);
             throw error;
         }
     }

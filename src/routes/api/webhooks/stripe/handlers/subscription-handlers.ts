@@ -19,12 +19,13 @@ export async function upsertSubscription(subscription: Stripe.Subscription, loca
 
         const profileId = customerData.profile_id;
         const productId = subscription.items.data[0].price.product as string;
+        const productLookupKey = subscription.items.data[0].price.lookup_key as string;
         const subscriptionId = subscription.id;
 
         // Déterminer le statut de l'abonnement
         let subscriptionStatus: 'active' | 'inactive' = 'inactive';
 
-        if (subscription.status === 'active') {
+        if (subscription.status === 'active' || subscription.status === 'trialing') {
             subscriptionStatus = 'active';
         }
 
@@ -48,11 +49,8 @@ export async function upsertSubscription(subscription: Stripe.Subscription, loca
 
         // Gérer is_custom_accepted selon le plan
         if (subscriptionStatus === 'active') {
-            const isBasicPlan = productId === 'prod_Selbd3Ne2plHqG'; // Plan basique
-            const isPremiumPlan = productId === 'prod_Selcz36pAfV3vV'; // Plan premium
 
-
-            if (isBasicPlan) {
+            if (productLookupKey === 'price_basic_monthly') {
                 // Désactiver is_custom_accepted pour le plan basique
                 const { error: shopUpdateError } = await locals.supabaseServiceRole
                     .from('shops')
@@ -91,7 +89,6 @@ export async function handleSubscriptionDeleted(subscription: Stripe.Subscriptio
 
         const profileId = customerData.profile_id;
         const productId = subscription.items.data[0].price.product as string;
-
 
         // Marquer l'abonnement comme inactif
         const { error: updateError } = await locals.supabaseServiceRole

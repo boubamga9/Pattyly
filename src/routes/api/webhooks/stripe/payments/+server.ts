@@ -4,7 +4,7 @@ import type { RequestHandler } from './$types';
 import { verifyWebhookSignature } from '../utils/webhook-verification';
 import { checkIdempotence } from '../utils/idempotence';
 import { handleCheckoutSessionCompleted } from '../handlers/checkout-handlers';
-import { handlePaymentFailed, handlePaymentSucceeded } from '../handlers/payment-handlers';
+import { handlePaymentFailed, handlePaymentSucceeded, handleTrialWillEnd } from '../handlers/payment-handlers';
 import { handleSubscriptionDeleted } from '../handlers/subscription-handlers';
 import { handleCustomerCreated } from '../handlers/customer-handlers';
 import { upsertSubscription } from '../handlers/subscription-handlers';
@@ -40,6 +40,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             case 'customer.subscription.deleted':
                 console.log('customer.subscription.deleted');
                 await handleSubscriptionDeleted(event.data.object as Stripe.Subscription, locals);
+                break;
+
+            case 'customer.subscription.trial_will_end':
+                console.log('customer.subscription.trial_will_end');
+                await handleTrialWillEnd(event.data.object as Stripe.Subscription, locals);
                 break;
 
             case 'invoice.payment_succeeded':

@@ -92,7 +92,6 @@ export function OrderNotificationEmail({
                 </table>
             </div>
 
-
             <div style="text-align: center; margin-top: 24px; padding: 16px; background-color: #f8f9fa; border-radius: 6px;">
                 <h3 style="margin-top: 0; color: #333; font-size: 16px; font-weight: bold;">⚡ Action rapide</h3>
                 <p style="margin-bottom: 20px;">Connectez-vous à votre dashboard pour gérer cette commande :</p>

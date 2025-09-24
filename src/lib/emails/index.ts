@@ -19,3 +19,7 @@ export { QuoteRejectedEmail } from './quote-rejected';
 // Rejection and cancellation emails
 export { RequestRejectedEmail } from './request-rejected';
 export { OrderCancelledEmail } from './order-cancelled';
+
+// Subscription and trial emails
+export { TrialEndingNotificationEmail } from './trial-ending-notification';
+export { PaymentFailedNotificationEmail } from './payment-failed-notification';
