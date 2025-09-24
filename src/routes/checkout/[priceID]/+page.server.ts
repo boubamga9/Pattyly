@@ -87,6 +87,12 @@ export const load: PageServerLoad = async ({
 		// Vérifier qu'il y a un abonnement actif à modifier
 		if (currentSubscriptions.length > 0 && currentSubscriptions[0]) {
 			try {
+				// Vérifier que l'abonnement a des items
+				if (!currentSubscriptions[0].items?.data?.[0]?.id) {
+					console.error('Subscription has no items to update');
+					error(500, 'Invalid subscription state. Please contact support.');
+				}
+
 				await stripe.subscriptions.update(currentSubscriptions[0].id, {
 					items: [
 						{
@@ -97,11 +103,16 @@ export const load: PageServerLoad = async ({
 				});
 				return redirect(303, '/subscription');
 			} catch (updateError) {
-				error(500, 'Error updating subscription. Please try again.');
+				console.error('Stripe subscription update error:', updateError);
+				if (updateError instanceof Stripe.errors.StripeError) {
+					error(500, `Subscription update failed: ${updateError.message}`);
+				} else {
+					error(500, 'Error updating subscription. Please try again.');
+				}
 			}
 		} else {
 			// Pas d'abonnement actif, créer un nouveau
-
+			console.log('No active subscription found, creating new checkout session');
 		}
 	}
 

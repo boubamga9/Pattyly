@@ -45,7 +45,7 @@ export async function fetchCurrentUsersSubscription(
 	const [{ data: subscriptions }] = await Promise.all([subscriptionsPromise]);
 
 	const currentSubscriptions = subscriptions.filter((sub) =>
-		['active', 'trailing', 'past_due'].includes(sub.status),
+		['active', 'trialing', 'past_due'].includes(sub.status),
 	);
 
 	return currentSubscriptions;
