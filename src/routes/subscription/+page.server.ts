@@ -1,5 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { STRIPE_PRODUCTS, STRIPE_PRICES } from '../../config';
 
 // Fonction pour extraire l'email de base (sans plus addressing)
 function getBaseEmail(email: string): string {
@@ -38,9 +39,9 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders }) => {
         );
 
         if (activeSubscription) {
-            if (activeSubscription.stripe_product_id === 'prod_Selbd3Ne2plHqG') {
+            if (activeSubscription.stripe_product_id === STRIPE_PRODUCTS.BASIC) {
                 currentPlan = 'basic';
-            } else if (activeSubscription.stripe_product_id === 'prod_Selcz36pAfV3vV') {
+            } else if (activeSubscription.stripe_product_id === STRIPE_PRODUCTS.PREMIUM) {
                 currentPlan = 'premium';
             }
         }
@@ -79,7 +80,7 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders }) => {
             name: 'Basic',
             price: 14.99,
             currency: 'EUR',
-            stripePriceId: 'price_1Rre1ZPNddYt1P7Lea1N7Cbq',
+            stripePriceId: STRIPE_PRICES.BASIC,
             features: [
                 'Jusqu\'à 10 produits',
                 'Boutique en ligne personnalisée',
@@ -96,7 +97,7 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders }) => {
             name: 'Premium',
             price: 19.99,
             currency: 'EUR',
-            stripePriceId: 'price_1RrdwvPNddYt1P7LGICY3by5',
+            stripePriceId: STRIPE_PRICES.PREMIUM,
             features: [
                 'Produits illimités',
                 'Boutique en ligne personnalisée',

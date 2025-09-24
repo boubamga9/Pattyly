@@ -10,6 +10,7 @@ import { sanitizeFileName } from '$lib/utils/filename-sanitizer';
 import Stripe from 'stripe';
 import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
 import { PUBLIC_SITE_URL } from '$env/static/public';
+import { STRIPE_PRODUCTS, STRIPE_PRICES } from '../../config';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 
@@ -114,7 +115,7 @@ async function checkAndStartTrial(
         // Créer l'abonnement avec essai gratuit (7 jours premium)
         const subscription = await stripe.subscriptions.create({
             customer,
-            items: [{ price: 'price_1RrdwvPNddYt1P7LGICY3by5' }], // Premium price
+            items: [{ price: STRIPE_PRICES.PREMIUM }], // Premium price
             trial_period_days: 7,
             payment_behavior: 'default_incomplete',
             expand: ['latest_invoice.payment_intent'],
@@ -125,13 +126,13 @@ async function checkAndStartTrial(
             }
         });
 
-        console.log("user product info", userId, subscription.id, 'prod_Selcz36pAfV3vV');
+        console.log("user product info", userId, subscription.id, STRIPE_PRODUCTS.PREMIUM);
         // Sauvegarder l'abonnement en base
         await supabase
             .from('user_products')
             .upsert({
                 profile_id: userId,
-                stripe_product_id: 'prod_Selcz36pAfV3vV', // Premium product
+                stripe_product_id: STRIPE_PRODUCTS.PREMIUM, // Premium product
                 stripe_subscription_id: subscription.id,
                 subscription_status: 'active'
             }, { onConflict: 'profile_id' });

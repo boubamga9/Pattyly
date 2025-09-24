@@ -1,4 +1,3 @@
-import { fetchCurrentUsersSubscription } from '$lib/stripe/client-helpers';
 import { error, redirect } from '@sveltejs/kit';
 import Stripe from 'stripe';
 import type { PageServerLoad } from './$types';

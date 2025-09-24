@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { STRIPE_PRODUCTS } from '../../config';
 
 // ===== SIMPLE PERMISSIONS SYSTEM =====
 
@@ -47,11 +48,11 @@ async function getUserPlan(profileId: string, supabase: SupabaseClient): Promise
         .single();
 
 
-    if (subscription?.stripe_product_id === 'prod_Selcz36pAfV3vV') {
+    if (subscription?.stripe_product_id === STRIPE_PRODUCTS.PREMIUM) {
         return 'premium';
     }
 
-    if (subscription?.stripe_product_id === 'prod_Selbd3Ne2plHqG') {
+    if (subscription?.stripe_product_id === STRIPE_PRODUCTS.BASIC) {
         return 'basic';
     }
 
@@ -66,10 +67,10 @@ async function getUserPlan(profileId: string, supabase: SupabaseClient): Promise
     if (anySubscription) {
         // L'utilisateur a un historique d'abonnement (même inactif)
         // On détermine le plan selon le produit_id, peu importe le statut
-        if (anySubscription.stripe_product_id === 'prod_Selcz36pAfV3vV') {
+        if (anySubscription.stripe_product_id === STRIPE_PRODUCTS.PREMIUM) {
             return 'premium';
         }
-        if (anySubscription.stripe_product_id === 'prod_Selbd3Ne2plHqG') {
+        if (anySubscription.stripe_product_id === STRIPE_PRODUCTS.BASIC) {
             return 'basic';
         }
     }
