@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { STRIPE_PRODUCTS, STRIPE_PRICES } from '../../config';
+import { STRIPE_PRODUCTS, STRIPE_PRICES } from '$lib/config/server';
 
 // Fonction pour extraire l'email de base (sans plus addressing)
 function getBaseEmail(email: string): string {

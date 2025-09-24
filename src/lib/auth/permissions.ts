@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { STRIPE_PRODUCTS } from '../../config';
+import { STRIPE_PRODUCTS } from '$lib/config/server';
 
 // ===== SIMPLE PERMISSIONS SYSTEM =====
 

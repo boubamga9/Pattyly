@@ -10,7 +10,7 @@ import { sanitizeFileName } from '$lib/utils/filename-sanitizer';
 import Stripe from 'stripe';
 import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
 import { PUBLIC_SITE_URL } from '$env/static/public';
-import { STRIPE_PRODUCTS, STRIPE_PRICES } from '../../config';
+import { STRIPE_PRODUCTS, STRIPE_PRICES } from '$lib/config/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 
