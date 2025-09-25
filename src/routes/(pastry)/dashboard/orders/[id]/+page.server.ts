@@ -25,27 +25,20 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             throw error(401, 'Non autorisé');
         }
 
-        // Récupérer les permissions et l'ID de la boutique
-        const permissions = await getUserPermissions(user.id, locals.supabase);
-        const shopId = permissions.shopId;
+        // ✅ OPTIMISÉ : Un seul appel DB pour toutes les données de commande
+        const { data: orderDetailData, error } = await locals.supabase.rpc('get_order_detail_data', {
+            p_order_id: params.id,
+            p_profile_id: user.id
+        });
 
-        if (!shopId) {
-            throw error(404, 'Boutique non trouvée');
+        if (error) {
+            console.error('Error fetching order detail data:', error);
+            throw error(404, 'Commande non trouvée');
         }
 
-        // Récupérer la commande
-        const { data: order, error: orderError } = await locals.supabase
-            .from('orders')
-            .select(`
-				*,
-				products(name, description, image_url, base_price),
-				shops(name, slug)
-			`)
-            .eq('id', params.id)
-            .eq('shop_id', shopId)
-            .single();
+        const { order, personalNote, shop } = orderDetailData;
 
-        if (orderError || !order) {
+        if (!order || !shop) {
             throw error(404, 'Commande non trouvée');
         }
 
@@ -58,28 +51,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             } catch (stripeError) {
                 // On continue sans le montant Stripe
             }
-        }
-
-        // Récupérer la note personnelle
-        const { data: personalNote, error: noteError } = await locals.supabase
-            .from('personal_order_notes')
-            .select('note, updated_at')
-            .eq('order_id', params.id)
-            .eq('shop_id', shopId)
-            .single();
-
-        if (noteError && noteError.code !== 'PGRST116') {
-        }
-
-        // Récupérer les informations de la boutique
-        const { data: shop, error: shopError } = await locals.supabase
-            .from('shops')
-            .select('id, name, slug')
-            .eq('id', shopId)
-            .single();
-
-        if (shopError || !shop) {
-            throw error(404, 'Boutique non trouvée');
         }
 
         // Initialiser les formulaires Superforms

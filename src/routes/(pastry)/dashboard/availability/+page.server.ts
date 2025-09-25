@@ -1,4 +1,4 @@
-import { error, redirect } from '@sveltejs/kit';
+import { error as svelteError, redirect } from '@sveltejs/kit';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad, Actions } from './$types';
@@ -12,42 +12,26 @@ export const load: PageServerLoad = async ({ locals }) => {
         throw redirect(302, '/login');
     }
 
-    // Vérifier les permissions
-    const permissions = await getUserPermissions(user.id, locals.supabase);
+    // ✅ OPTIMISÉ : Un seul appel DB pour toutes les données disponibilités
+    const { data: availabilityData, error } = await locals.supabase.rpc('get_availability_data', {
+        p_profile_id: user.id
+    });
 
-
-    // Récupérer l'ID de la boutique
-    if (!permissions.shopId) {
-        throw error(400, 'Boutique non trouvée');
+    if (error) {
+        console.error('Error fetching availability data:', error);
+        throw svelteError(500, 'Erreur lors du chargement des données');
     }
 
-    // Load availabilities
-    let { data: availabilities, error: availabilitiesError } = await locals.supabase
-        .from('availabilities')
-        .select('id, day, is_open, daily_order_limit')
-        .eq('shop_id', permissions.shopId)
-        .order('day');
+    const { availabilities, unavailabilities, shopId } = availabilityData;
 
-    if (availabilitiesError) {
-        throw error(500, 'Erreur lors du chargement des disponibilités');
-    }
-
-    // Load unavailabilities
-    const { data: unavailabilities, error: unavailabilitiesError } = await locals.supabase
-        .from('unavailabilities')
-        .select('id, start_date, end_date')
-        .eq('shop_id', permissions.shopId)
-        .gte('end_date', new Date().toISOString().split('T')[0]) // Only future dates
-        .order('start_date');
-
-    if (unavailabilitiesError) {
-        throw error(500, 'Erreur lors du chargement des indisponibilités');
+    if (!shopId) {
+        throw svelteError(400, 'Boutique non trouvée');
     }
 
     return {
         availabilities: availabilities || [],
         unavailabilities: unavailabilities || [],
-        shopId: permissions.shopId,
+        shopId: shopId,
         form: await superValidate(zod(addUnavailabilityFormSchema), {
             defaults: {
                 startDate: '',

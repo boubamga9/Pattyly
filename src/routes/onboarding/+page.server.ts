@@ -25,7 +25,7 @@ function getBaseEmail(email: string): string {
     return `${baseLocalPart}@${domain}`;
 }
 
-// Fonction pour vérifier l'éligibilité et créer l'essai gratuit
+// ✅ OPTIMISÉ : Fonction pour vérifier l'éligibilité et créer l'essai gratuit
 async function checkAndStartTrial(
     supabase: SupabaseClient,
     userId: string,
@@ -41,49 +41,23 @@ async function checkAndStartTrial(
         const realIp = request.headers.get('x-real-ip');
         const userIp = forwardedFor?.split(',')[0] || realIp || request.headers.get('cf-connecting-ip') || '127.0.0.1';
 
-        // Extraire l'email de base pour éviter le contournement par plus addressing
-        const baseEmail = userEmail ? getBaseEmail(userEmail) : '';
-
         // Récupérer le fingerprint depuis les cookies
         const cookieHeader = request.headers.get('cookie') || '';
         const fingerprintMatch = cookieHeader.match(/deviceFingerprint=([^;]+)/);
-        const fingerprint = fingerprintMatch ? fingerprintMatch[1] : null;
+        const fingerprint = fingerprintMatch ? fingerprintMatch[1] : '';
 
         // ✅ SUPPRIMER LE COOKIE APRÈS RÉCUPÉRATION
         if (fingerprint) {
             cookies.delete('deviceFingerprint', { path: '/' });
         }
 
-        // Vérifier si l'utilisateur est dans la table anti_fraud
-        let conditions = [`email.eq.${userEmail}`, `email.eq.${baseEmail}`, `ip_address.eq.${userIp}`];
-        if (fingerprint) {
-            conditions.push(`fingerprint.eq.${fingerprint}`);
-        }
-        if (instagram) {
-            conditions.push(`instagram.eq.${instagram}`);
-        }
-        if (tiktok) {
-            conditions.push(`tiktok.eq.${tiktok}`);
-        }
+        // ✅ OPTIMISÉ : Vérifier l'éligibilité avec les données déjà récupérées
+        const { data: onboardingData } = await supabase.rpc('get_onboarding_data', {
+            p_profile_id: userId
+        });
 
-        const { data: antiFraudRecord } = await supabase
-            .from('anti_fraud')
-            .select('id')
-            .or(conditions.join(','))
-            .maybeSingle();
-
-        if (antiFraudRecord) {
+        if (onboardingData?.has_subscription || onboardingData?.is_anti_fraud) {
             return { success: false, error: 'Un essai gratuit a déjà été utilisé' };
-        }
-
-        // Vérifier si l'utilisateur a déjà eu un abonnement
-        const { data: existingSubscriptions } = await supabase
-            .from('user_products')
-            .select('id')
-            .eq('profile_id', userId);
-
-        if (existingSubscriptions && existingSubscriptions.length > 0) {
-            return { success: false, error: 'Un abonnement a déjà été utilisé' };
         }
 
         // Créer ou récupérer le customer Stripe
@@ -102,14 +76,6 @@ async function checkAndStartTrial(
                 metadata: { user_id: userId }
             });
             customer = id;
-
-            // Sauvegarder le customer
-            await supabase
-                .from('stripe_customers')
-                .insert({
-                    profile_id: userId,
-                    stripe_customer_id: id
-                });
         }
 
         // Créer l'abonnement avec essai gratuit (7 jours premium)
@@ -127,29 +93,22 @@ async function checkAndStartTrial(
         });
 
         console.log("user product info", userId, subscription.id, STRIPE_PRODUCTS.PREMIUM);
-        // Sauvegarder l'abonnement en base
-        await supabase
-            .from('user_products')
-            .upsert({
-                profile_id: userId,
-                stripe_product_id: STRIPE_PRODUCTS.PREMIUM, // Premium product
-                stripe_subscription_id: subscription.id,
-                subscription_status: 'active'
-            }, { onConflict: 'profile_id' });
 
-        // Enregistrer l'utilisateur dans la table anti_fraud
-        try {
-            await supabase
-                .from('anti_fraud')
-                .insert({
-                    fingerprint: fingerprint || '',
-                    ip_address: userIp,
-                    email: userEmail,
-                    instagram: instagram || null,
-                    tiktok: tiktok || null
-                });
-        } catch (antiFraudError) {
-            // On continue même si l'enregistrement anti_fraud échoue
+        // ✅ OPTIMISÉ : Une seule fonction SQL pour tout créer
+        const { data: result, error } = await supabase.rpc('check_and_create_trial', {
+            p_profile_id: userId,
+            p_email: userEmail,
+            p_ip_address: userIp,
+            p_fingerprint: fingerprint,
+            p_instagram: instagram || null,
+            p_tiktok: tiktok || null,
+            p_stripe_customer_id: customer,
+            p_subscription_id: subscription.id
+        });
+
+        if (error) {
+            console.error('Error in check_and_create_trial:', error);
+            return { success: false, error: 'Erreur lors de la création de l\'essai gratuit' };
         }
 
         return {
@@ -171,40 +130,27 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
     }
 
     try {
-
         const userId = user.id;
 
-        // Check if user already has a shop
-        const { id: shopId } = await getShopIdAndSlug(userId, supabase);
+        // ✅ OPTIMISÉ : Un seul appel DB pour récupérer toutes les données
+        const { data: onboardingData, error } = await supabase.rpc('get_onboarding_data', {
+            p_profile_id: userId
+        });
 
-        if (shopId) {
-            // Check if shop has Stripe Connect configured
-            const { data: shop, error: shopError } = await supabase
-                .from('shops')
-                .select('id, name, bio, slug, logo_url')
-                .eq('id', shopId)
-                .single();
+        if (error) {
+            console.error('Error fetching onboarding data:', error);
+            throw error(500, 'Erreur lors du chargement des données');
+        }
 
-            if (shopError) {
-                throw error(500, 'Erreur lors du chargement de la boutique');
-            }
+        const { shop, stripe_account } = onboardingData;
 
-            // Check if user has Stripe Connect account
-            const { data: stripeAccount, error: stripeError } = await supabase
-                .from('stripe_connect_accounts')
-                .select('id, is_active')
-                .eq('profile_id', userId)
-                .single();
+        // If shop exists and has active Stripe Connect, redirect to dashboard
+        if (shop && stripe_account && stripe_account.is_active) {
+            throw redirect(303, '/dashboard');
+        }
 
-            if (stripeError && stripeError.code !== 'PGRST116') {
-            }
-
-            // If shop exists and has active Stripe Connect, redirect to dashboard
-            if (shop && stripeAccount && stripeAccount.is_active) {
-                throw redirect(303, '/dashboard');
-            }
-
-            // If shop exists but no Stripe Connect, show step 2
+        // If shop exists but no Stripe Connect, show step 2
+        if (shop) {
             return {
                 step: 2,
                 shop,
@@ -219,7 +165,7 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
             form: await superValidate(zod(formSchema))
         };
     } catch (error) {
-
+        console.error('Error in onboarding load:', error);
         // Return fallback data to prevent app crash
         return {
             step: 1,
@@ -284,57 +230,32 @@ export const actions: Actions = {
                 logoUrl = urlData.publicUrl;
             }
 
-            // Vérification du slug
-            const { data: existingShop, error: slugCheckError } = await supabase
-                .from('shops')
-                .select('id')
-                .eq('slug', slug)
-                .single();
-
-            if (slugCheckError && slugCheckError.code !== 'PGRST116') {
-                const cleanForm = await superValidate(zod(formSchema));
-                setError(cleanForm, 'slug', 'Erreur lors de la vérification du slug');
-                console.log('Return error');
-                return { form: cleanForm };
-            }
-
-            if (existingShop) {
-                const cleanForm = await superValidate(zod(formSchema));
-                setError(cleanForm, 'slug', "Ce nom d'URL est déjà pris. Veuillez en choisir un autre.");
-                console.log('Return error');
-                return { form: cleanForm };
-            }
-
-            // Création de la boutique
-            const { data: shop, error: createError } = await supabase
-                .from('shops')
-                .insert({
-                    name,
-                    bio: bio || null,
-                    slug,
-                    logo_url: logoUrl,
-                    instagram: instagram || null,
-                    tiktok: tiktok || null,
-                    website: website || null,
-                    profile_id: userId
-                })
-                .select('id, name, bio, slug, logo_url, instagram, tiktok, website')
-                .single();
+            // ✅ OPTIMISÉ : Vérification du slug intégrée dans la fonction SQL
+            // Création de la boutique avec disponibilités en une transaction
+            const { data: shop, error: createError } = await supabase.rpc('create_shop_with_availabilities', {
+                p_profile_id: userId,
+                p_name: name,
+                p_bio: bio || null,
+                p_slug: slug,
+                p_logo_url: logoUrl,
+                p_instagram: instagram || null,
+                p_tiktok: tiktok || null,
+                p_website: website || null
+            });
 
             if (createError) {
+                console.error('Error creating shop:', createError);
                 const cleanForm = await superValidate(zod(formSchema));
-                setError(cleanForm, 'name', 'Erreur lors de la création de la boutique');
+
+                // Gérer les erreurs spécifiques
+                if (createError.code === '23505') { // Unique constraint violation
+                    setError(cleanForm, 'slug', "Ce nom d'URL est déjà pris. Veuillez en choisir un autre.");
+                } else {
+                    setError(cleanForm, 'name', 'Erreur lors de la création de la boutique');
+                }
                 console.log('Return error');
                 return { form: cleanForm };
             }
-
-            // Création des disponibilités par défaut (lun-ven)
-            const availabilities = Array.from({ length: 7 }, (_, day) => ({
-                shop_id: shop.id,
-                day,
-                is_open: day >= 1 && day <= 5
-            }));
-            await supabase.from('availabilities').insert(availabilities);
 
             // Retour succès
             const cleanForm = await superValidate(zod(formSchema));

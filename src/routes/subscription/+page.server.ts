@@ -20,6 +20,19 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders }) => {
     const userId = session.user.id;
     const userEmail = session.user.email;
 
+    // Vérifier si l'utilisateur est exempté
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: profile } = await (locals.supabase as any)
+        .from('profiles')
+        .select('is_stripe_free, role')
+        .eq('id', userId)
+        .single();
+
+    // Si exempté, rediriger vers le dashboard
+    if (profile?.is_stripe_free || profile?.role === 'admin') {
+        throw redirect(303, '/dashboard');
+    }
+
     // Récupérer TOUS les abonnements (actifs, inactifs, en essai)
     const { data: allSubscriptions } = await (locals.supabase as any)
         .from('user_products')
@@ -47,18 +60,7 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders }) => {
         }
     }
 
-    // Vérifier si l'utilisateur est exempté
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: profile } = await (locals.supabase as any)
-        .from('profiles')
-        .select('is_stripe_free, role')
-        .eq('id', userId)
-        .single();
 
-    // Si exempté, rediriger vers le dashboard
-    if (profile?.is_stripe_free || profile?.role === 'admin') {
-        throw redirect(303, '/dashboard');
-    }
 
     // Déterminer le type de boutons à afficher
     let buttonType: 'current' | 'choose' = 'choose';
@@ -70,8 +72,6 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders }) => {
         // Utilisateur n'a pas de plan, afficher les options de souscription
         buttonType = 'choose';
     }
-
-
 
     // Données des plans (en production, récupérer depuis Stripe)
     const plans = [

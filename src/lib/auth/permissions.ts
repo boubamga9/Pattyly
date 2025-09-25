@@ -27,55 +27,18 @@ export async function getShopIdAndSlug(profileId: string, supabase: SupabaseClie
  */
 async function getUserPlan(profileId: string, supabase: SupabaseClient): Promise<string | null> {
 
-    // Check if user is exempt from Stripe
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('is_stripe_free')
-        .eq('id', profileId)
-        .single();
+    const { data: plan, error } = await supabase.rpc('get_user_plan', {
+        p_profile_id: profileId,
+        premium_product_id: STRIPE_PRODUCTS.PREMIUM,
+        basic_product_id: STRIPE_PRODUCTS.BASIC
+    });
 
-
-    if (profile?.is_stripe_free) {
-        return 'exempt';
+    if (error) {
+        return null;
     }
 
-    // Check active subscription OR trial subscription (ignore inactive for plan detection)
-    const { data: subscription } = await supabase
-        .from('user_products')
-        .select('stripe_product_id, subscription_status')
-        .eq('profile_id', profileId)
-        .eq('subscription_status', 'active')
-        .single();
-
-
-    if (subscription?.stripe_product_id === STRIPE_PRODUCTS.PREMIUM) {
-        return 'premium';
-    }
-
-    if (subscription?.stripe_product_id === STRIPE_PRODUCTS.BASIC) {
-        return 'basic';
-    }
-
-    // Si l'utilisateur a un abonnement inactif, on ne retourne pas null
-    // mais on vérifie s'il a un historique d'abonnement
-    const { data: anySubscription } = await supabase
-        .from('user_products')
-        .select('stripe_product_id')
-        .eq('profile_id', profileId)
-        .single();
-
-    if (anySubscription) {
-        // L'utilisateur a un historique d'abonnement (même inactif)
-        // On détermine le plan selon le produit_id, peu importe le statut
-        if (anySubscription.stripe_product_id === STRIPE_PRODUCTS.PREMIUM) {
-            return 'premium';
-        }
-        if (anySubscription.stripe_product_id === STRIPE_PRODUCTS.BASIC) {
-            return 'basic';
-        }
-    }
-
-    return null; // No subscription at all
+    console.log('✅ Plan result:', plan);
+    return plan;
 }
 
 /**
@@ -83,18 +46,15 @@ async function getUserPlan(profileId: string, supabase: SupabaseClient): Promise
  */
 async function getProductCount(profileId: string, supabase: SupabaseClient): Promise<number> {
     // First, get the shop_id for this profile
-    const { id: shopId } = await getShopIdAndSlug(profileId, supabase);
+    const { data: count, error } = await supabase.rpc('get_product_count', {
+        profile_id: profileId
+    });
 
-    if (!shopId) {
-        return 0; // No shop found, so no products
+    if (error) {
+        console.error('Error in get_product_count RPC:', error);
+        return 0;
     }
-
-    // Then count products for this shop
-    const { count } = await supabase
-        .from('products')
-        .select('*', { count: 'exact', head: true })
-        .eq('shop_id', shopId);
-
+    console.log('count', count);
     return count || 0;
 }
 

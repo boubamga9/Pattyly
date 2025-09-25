@@ -1,5 +1,4 @@
 import { redirect } from '@sveltejs/kit';
-import { getUserPermissions } from '$lib/auth';
 import type { LayoutServerLoad } from './$types';
 
 export const load: LayoutServerLoad = async ({
@@ -10,36 +9,26 @@ export const load: LayoutServerLoad = async ({
 		redirect(303, '/login');
 	}
 
-	// Get user permissions and shop info
-	const permissions = await getUserPermissions(user.id, supabase);
-	const shopId = permissions.shopId;
+	// ✅ OPTIMISÉ : Un seul appel DB pour toutes les données
+	const { data: dashboardData, error } = await supabase.rpc('get_dashboard_data', {
+		p_profile_id: user.id
+	});
 
-	// Si l'utilisateur est vérifié mais n'a pas de boutique, rediriger vers l'onboarding
-	if (!shopId) {
+	if (error) {
+		console.error('Error fetching dashboard data:', error);
 		redirect(303, '/onboarding');
 	}
 
-	// Get shop info including logo
-	const { data: shop } = await supabase
-		.from('shops')
-		.select('id, name, logo_url, slug')
-		.eq('id', shopId)
-		.single();
+	const { shop, permissions, subscription } = dashboardData;
+
+	// Si l'utilisateur est vérifié mais n'a pas de boutique, rediriger vers l'onboarding
+	if (!shop || !shop.id) {
+		redirect(303, '/onboarding');
+	}
 
 	// Détecter si l'utilisateur a un abonnement inactif (pour afficher l'alerte)
-	let hasInactiveSubscription = true;
-	const { data: subscription } = await supabase
-		.from('user_products')
-		.select('subscription_status')
-		.eq('profile_id', user.id)
-		//.eq('subscription_status', 'active')
-		.single();
-
-	let isSubscriptionExists = !!subscription;
-
-	if (subscription && subscription.subscription_status === 'active') {
-		hasInactiveSubscription = false;
-	}
+	const hasInactiveSubscription = subscription?.status !== 'active';
+	const isSubscriptionExists = !!subscription;
 
 	return {
 		user,

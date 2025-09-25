@@ -1,6 +1,5 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
-import { getUserPermissions } from '$lib/auth';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
     const { session } = await locals.safeGetSession();
@@ -10,55 +9,29 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 
     const userId = session.user.id;
 
-    // 1. Vérifier que l'utilisateur a un shop associé
-    const { data: shop, error: shopError } = await locals.supabase
-        .from('shops')
-        .select('id')
-        .eq('profile_id', userId)
-        .single();
+    // ✅ OPTIMISÉ : Un seul appel DB pour toutes les données
+    const { data: dashboardData, error } = await locals.supabase.rpc('get_dashboard_data', {
+        p_profile_id: userId
+    });
 
-    if (shopError || !shop) {
-        // Pas de shop trouvé, rediriger vers l'onboarding
+    if (error) {
+        console.error('Error fetching dashboard data:', error);
         throw redirect(303, '/onboarding');
     }
 
-    // 2. Vérifier que l'utilisateur a un compte Stripe Connect actif
-    const { data: connectAccount, error: connectError } = await locals.supabase
-        .from('stripe_connect_accounts')
-        .select('id, is_active')
-        .eq('profile_id', userId)
-        .single();
+    const { shop, permissions, subscription } = dashboardData;
 
-    if (connectError || !connectAccount || !connectAccount.is_active) {
-        // Pas de compte Connect actif, rediriger vers l'onboarding
+    // Vérifications de sécurité
+    if (!shop || !shop.id) {
         throw redirect(303, '/onboarding');
     }
 
-    // 2. Vérifier que l'utilisateur a un abonnement actif ou est exempté
-    const { data: profile } = await locals.supabase
-        .from('profiles')
-        .select('role, is_stripe_free')
-        .eq('id', userId)
-        .single();
-
-    if (!profile) {
-        throw redirect(303, '/login');
+    if (!permissions.has_stripe_connect) {
+        throw redirect(303, '/onboarding');
     }
 
     // Détecter si l'utilisateur a un abonnement inactif (pour afficher l'alerte)
-    let hasInactiveSubscription = false;
-    if (!profile.is_stripe_free) {
-        const { data: inactiveSubscription } = await locals.supabase
-            .from('user_products')
-            .select('subscription_status')
-            .eq('profile_id', userId)
-            .eq('subscription_status', 'inactive')
-            .single();
-
-        hasInactiveSubscription = !!inactiveSubscription;
-    }
-
-    const permissions = await getUserPermissions(userId, locals.supabase);
+    const hasInactiveSubscription = subscription?.status !== 'active';
 
     return {
         permissions,

@@ -1,5 +1,4 @@
 import { redirect } from '@sveltejs/kit';
-import { getUserPermissions } from '$lib/auth';
 
 export const load = async ({ locals }) => {
     const { session, user } = await locals.safeGetSession();
@@ -8,27 +7,21 @@ export const load = async ({ locals }) => {
         redirect(303, '/login');
     }
 
-    // Get user permissions and shop info
-    const permissions = await getUserPermissions(user.id, locals.supabase);
-    const shopId = permissions.shopId;
+    // ✅ OPTIMISÉ : Un seul appel DB pour toutes les données de base
+    const { data: dashboardData, error } = await locals.supabase.rpc('get_dashboard_data', {
+        p_profile_id: user.id
+    });
 
-    if (!shopId) {
+    if (error) {
+        console.error('Error fetching dashboard data:', error);
         redirect(303, '/onboarding');
     }
 
-    // Get shop info
-    const { data: shop } = await locals.supabase
-        .from('shops')
-        .select('*')
-        .eq('id', shopId)
-        .single();
+    const { shop, permissions, subscription } = dashboardData;
 
-    // Get user subscription info for trial detection
-    const { data: subscription, error: subscriptionError } = await locals.supabase
-        .from('user_products')
-        .select('stripe_subscription_id, created_at, subscription_status')
-        .eq('profile_id', user.id)
-        .single();
+    if (!shop || !shop.id) {
+        redirect(303, '/onboarding');
+    }
 
     // Check trial status directly from Stripe
     let isTrial = false;
@@ -56,80 +49,14 @@ export const load = async ({ locals }) => {
     }
 
 
-    // Get active products count
-    const { count: productsCount } = await locals.supabase
-        .from('products')
-        .select('*', { count: 'exact', head: true })
-        .eq('shop_id', shopId)
-        .eq('is_active', true);
+    // ✅ OPTIMISÉ : Un seul appel pour les métriques de commandes
+    const { data: ordersMetrics, error: ordersError } = await locals.supabase.rpc('get_orders_metrics', {
+        p_shop_id: shop.id
+    });
 
-    // Define time periods for metrics
-    const now = new Date();
-    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-    const oneYearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-
-    // Get recent orders (last 3) - Version simplifiée pour debug
-    const { data: recentOrders, error: recentOrdersError } = await locals.supabase
-        .from('orders')
-        .select(`
-			id,
-			created_at,
-			total_amount,
-			status,
-			customer_name,
-			customer_email,
-			product_name
-		`)
-        .eq('shop_id', shopId)
-        .order('created_at', { ascending: false })
-        .limit(3);
-
-    // Get total orders count for each period
-    const getOrdersCountForPeriod = async (startDate: Date) => {
-        const { count } = await locals.supabase
-            .from('orders')
-            .select('*', { count: 'exact', head: true })
-            .eq('shop_id', shopId)
-            .gte('created_at', startDate.toISOString());
-        return count || 0;
-    };
-
-    // Get orders count for all periods
-    const [weeklyOrdersCount, monthlyOrdersCount, threeMonthsOrdersCount, yearlyOrdersCount] = await Promise.all([
-        getOrdersCountForPeriod(oneWeekAgo),
-        getOrdersCountForPeriod(oneMonthAgo),
-        getOrdersCountForPeriod(threeMonthsAgo),
-        getOrdersCountForPeriod(oneYearAgo)
-    ]);
-
-    // Debug: Log des erreurs et données
-    if (recentOrdersError) {
-    } else {
+    if (ordersError) {
+        console.error('Error fetching orders metrics:', ordersError);
     }
-
-
-
-    // Helper function to get revenue for a period
-    const getRevenueForPeriod = async (startDate: Date) => {
-        const { data } = await locals.supabase
-            .from('orders')
-            .select('total_amount')
-            .eq('shop_id', shopId)
-            .gte('created_at', startDate.toISOString())
-            .eq('status', 'completed');
-
-        return data?.reduce((sum, order) => sum + (order.total_amount || 0), 0) || 0;
-    };
-
-    // Get revenue for all periods
-    const [weeklyRevenue, monthlyRevenue, threeMonthsRevenue, yearlyRevenue] = await Promise.all([
-        getRevenueForPeriod(oneWeekAgo),
-        getRevenueForPeriod(oneMonthAgo),
-        getRevenueForPeriod(threeMonthsAgo),
-        getRevenueForPeriod(oneYearAgo)
-    ]);
 
     // Get popular active products (top 5 by sales) - Version corrigée
     const { data: popularProducts, error: popularProductsError } = await locals.supabase
@@ -139,7 +66,7 @@ export const load = async ({ locals }) => {
 			total_amount,
 			status
 		`)
-        .eq('shop_id', shopId)
+        .eq('shop_id', shop.id)
         .not('product_id', 'is', null)  // Seulement les commandes avec nom de produit
         .eq('status', 'completed');  // Seulement les commandes terminées
 
@@ -178,19 +105,19 @@ export const load = async ({ locals }) => {
             daysRemaining
         },
         metrics: {
-            productsCount: productsCount || 0,
-            recentOrders: recentOrders || [],
+            productsCount: permissions.product_count || 0,
+            recentOrders: ordersMetrics?.recent_orders || [],
             ordersCount: {
-                weekly: weeklyOrdersCount,
-                monthly: monthlyOrdersCount,
-                threeMonths: threeMonthsOrdersCount,
-                yearly: yearlyOrdersCount
+                weekly: ordersMetrics?.weekly_count || 0,
+                monthly: ordersMetrics?.monthly_count || 0,
+                threeMonths: ordersMetrics?.three_months_count || 0,
+                yearly: ordersMetrics?.yearly_count || 0
             },
             revenue: {
-                weekly: weeklyRevenue,
-                monthly: monthlyRevenue,
-                threeMonths: threeMonthsRevenue,
-                yearly: yearlyRevenue
+                weekly: ordersMetrics?.weekly_revenue || 0,
+                monthly: ordersMetrics?.monthly_revenue || 0,
+                threeMonths: ordersMetrics?.three_months_revenue || 0,
+                yearly: ordersMetrics?.yearly_revenue || 0
             },
             popularProducts: topProducts
         }

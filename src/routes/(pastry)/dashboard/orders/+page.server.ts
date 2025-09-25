@@ -1,6 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { error } from '@sveltejs/kit';
+import { error as svelteError } from '@sveltejs/kit';
 import { getUserPermissions } from '$lib/auth';
 
 // Types
@@ -30,49 +30,20 @@ export const load: PageServerLoad = async ({ locals }) => {
             throw redirect(302, '/login');
         }
 
-        // Vérifier les permissions
-        const permissions = await getUserPermissions(user.id, locals.supabase);
+        // ✅ OPTIMISÉ : Un seul appel DB pour toutes les données commandes
+        const { data: ordersData, error } = await locals.supabase.rpc('get_orders_data', {
+            p_profile_id: user.id
+        });
 
-        // Récupérer l'ID de la boutique
-        if (!permissions.shopId) {
-            throw error(400, 'Boutique non trouvée');
+        if (error) {
+            console.error('Error fetching orders data:', error);
+            throw svelteError(500, 'Erreur lors de la récupération des données');
         }
 
-        const shopId = permissions.shopId;
+        const { orders, shop } = ordersData;
 
-        // Récupérer les informations de la boutique
-        const { data: shop, error: shopError } = await locals.supabase
-            .from('shops')
-            .select('id, name, slug')
-            .eq('id', shopId)
-            .single();
-
-        if (shopError || !shop) {
-            throw error(404, 'Boutique non trouvée');
-        }
-
-        // Récupérer toutes les commandes de la boutique
-        const { data: orders, error: ordersError } = await locals.supabase
-            .from('orders')
-            .select(`
-				id,
-				customer_name,
-				customer_email,
-				pickup_date,
-				status,
-				total_amount,
-				product_name,
-				additional_information,
-				chef_message,
-				created_at,
-				products(name, image_url),
-				chef_pickup_date
-			`)
-            .eq('shop_id', shopId)
-            .order('pickup_date', { ascending: true }); // ✅ Tri par date de récupération, de la plus proche à la plus lointaine
-
-        if (ordersError) {
-            throw error(500, 'Erreur lors de la récupération des commandes');
+        if (!shop || !shop.id) {
+            throw svelteError(404, 'Boutique non trouvée');
         }
 
         // Grouper les commandes par date

@@ -103,13 +103,17 @@ export const load: PageServerLoad = async ({
 						enabled: true,
 					},
 				}),
-		});
+		},
+			{
+				idempotencyKey: `${user.id}-${params.priceID}`, // ✅ option Stripe
+			}
+		);
 		checkoutUrl = checkoutSession.url;
 	} catch (e) {
 		if (e instanceof Stripe.errors.StripeError) {
-			error(500, `Stripe Error: ${e.message}`);
+			throw error(500, `Stripe Error: ${e.message}`);
 		} else {
-			error(500, 'Unknown Error: If issue persists please contact us.');
+			throw error(500, 'Unknown Error: If issue persists please contact us.');
 		}
 	}
 

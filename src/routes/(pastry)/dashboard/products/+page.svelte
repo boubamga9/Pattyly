@@ -165,12 +165,12 @@
 		<div
 			class="flex flex-col space-y-2 sm:flex-row sm:items-center sm:gap-4 sm:space-y-0"
 		>
-			<!-- Compteur de produits -->
-			<div class="text-sm text-muted-foreground">
-				{currentProductCount} / {permissions.productLimit === Infinity
-					? '∞'
-					: permissions.productLimit} gâteaux
-			</div>
+			<!-- Compteur de produits (seulement pour Basic) -->
+			{#if permissions.plan === 'basic' || permissions.plan === null}
+				<div class="text-sm text-muted-foreground">
+					{currentProductCount} / {permissions.productLimit} gâteaux
+				</div>
+			{/if}
 
 			<!-- Bouton d'ajout -->
 			{#if canAddProducts}
@@ -200,8 +200,8 @@
 		</Alert>
 	{/if}
 
-	<!-- Alerte de limite atteinte -->
-	{#if !canAddProducts}
+	<!-- Alerte de limite atteinte (seulement pour Basic) -->
+	{#if !canAddProducts && (permissions.plan === 'basic' || permissions.plan === null)}
 		<Alert>
 			<Crown class="h-4 w-4" />
 			<AlertDescription>

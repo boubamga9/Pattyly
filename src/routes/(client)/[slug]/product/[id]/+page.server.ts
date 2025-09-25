@@ -8,188 +8,47 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     try {
         const { slug, id } = params;
 
+        // ✅ OPTIMISÉ : Un seul appel DB pour toutes les données
+        const { data: productData, error: dbError } = await locals.supabase.rpc('get_order_data', {
+            p_slug: slug,
+            p_product_id: id
+        });
 
-        // Get shop information
-        const { data: shop, error: shopError } = await locals.supabase
-            .from('shops')
-            .select('id, name, bio, slug, logo_url, is_custom_accepted, is_active')
-            .eq('slug', slug)
-            .single();
-
-        if (shopError) {
+        if (dbError) {
+            console.error('Error fetching product data:', dbError);
             throw error(500, 'Erreur serveur lors du chargement de la boutique');
         }
 
-        if (!shop) {
+        if (!productData) {
             throw error(404, 'Boutique non trouvée');
+        }
+
+        const { shop, product, customForm, customFields, availabilities, unavailabilities, datesWithLimitReached } = productData;
+
+        if (!product) {
+            throw error(404, 'Produit non trouvé');
         }
 
         if (!shop.is_active && !url.searchParams.get('preview')) {
             throw error(404, 'Boutique non trouvée');
         }
 
-
-        // Get active product with its information
-
-
-        const { data: product, error: productError } = await locals.supabase
-            .from('products')
-            .select(`
-			id,
-			name,
-			description,
-			base_price,
-			form_id,
-            image_url,
-            min_days_notice,
-			categories (
-				id,
-				name
-			)
-		`)
-            .eq('id', id)
-            .eq('shop_id', shop.id)
-            .eq('is_active', true)
-            .single();
-
-        if (productError || !product) {
-            throw error(404, 'Produit non trouvé');
-        }
-
-        // Get custom form only if it exists
-        let customForm = null;
-        let customFields: any[] = [];
-
-        if (product.form_id) {
-            const { data: formData, error: formError } = await locals.supabase
-                .from('forms')
-                .select('id, is_custom_form, title, description')
-                .eq('shop_id', shop.id)
-                .eq('id', product.form_id)
-                .single();
-
-            if (formError && formError.code !== 'PGRST116') {
-                throw error(500, 'Erreur lors du chargement du formulaire personnalisé');
-            }
-
-            customForm = formData;
-
-            // Get form fields if it exists
-            if (customForm) {
-                const { data: formFields, error: fieldsError } = await locals.supabase
-                    .from('form_fields')
-                    .select('*')
-                    .eq('form_id', customForm.id)
-                    .order('order');
-
-                if (fieldsError) {
-                    throw error(500, 'Erreur lors du chargement des champs du formulaire');
-                }
-
-                customFields = formFields || [];
-            }
-        }
-
-        // Get availabilities of the shop
-        const { data: availabilities } = await locals.supabase
-            .from('availabilities')
-            .select('day, is_open, daily_order_limit')
-            .eq('shop_id', shop.id);
-
-        // Fonction optimisée pour obtenir les dates avec limite atteinte
-        async function getDatesWithLimitReached(): Promise<Set<string>> {
-            const datesWithLimitReached = new Set<string>();
-
-            if (!availabilities) return datesWithLimitReached;
-
-            // Collecter toutes les dates à vérifier en une fois
-            const datesToCheck = new Set<string>();
-            const today = new Date();
-
-            for (const availability of availabilities) {
-                if (availability.daily_order_limit && availability.is_open) {
-                    // Calculer les 60 prochains jours pour cette disponibilité
-                    for (let i = 0; i < 60; i++) {
-                        const checkDate = new Date(today);
-                        checkDate.setDate(today.getDate() + i);
-
-                        // Vérifier si c'est le bon jour de la semaine
-                        if (checkDate.getDay() === availability.day) {
-                            const dateString = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
-                            datesToCheck.add(dateString);
-                        }
-                    }
-                }
-            }
-
-            if (datesToCheck.size === 0) return datesWithLimitReached;
-
-            // Une seule requête pour récupérer toutes les commandes concernées
-            const { data: orders, error: ordersError } = await locals.supabase
-                .from('orders')
-                .select('pickup_date')
-                .eq('shop_id', shop.id)
-                .in('status', ['pending', 'quoted', 'confirmed'])
-                .in('pickup_date', Array.from(datesToCheck));
-
-            if (ordersError) {
-                console.error('Erreur lors du chargement des commandes:', ordersError);
-                return datesWithLimitReached;
-            }
-
-            // Compter les commandes par date
-            const ordersByDate = new Map<string, number>();
-            orders?.forEach(order => {
-                const count = ordersByDate.get(order.pickup_date) || 0;
-                ordersByDate.set(order.pickup_date, count + 1);
-            });
-
-            // Vérifier les limites pour chaque date
-            for (const availability of availabilities) {
-                if (availability.daily_order_limit && availability.is_open) {
-                    for (let i = 0; i < 60; i++) {
-                        const checkDate = new Date(today);
-                        checkDate.setDate(today.getDate() + i);
-
-                        if (checkDate.getDay() === availability.day) {
-                            const dateString = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
-                            const orderCount = ordersByDate.get(dateString) || 0;
-
-                            if (orderCount >= availability.daily_order_limit) {
-                                datesWithLimitReached.add(dateString);
-                            }
-                        }
-                    }
-                }
-            }
-
-            return datesWithLimitReached;
-        }
-
-        const datesWithLimitReached = await getDatesWithLimitReached();
-
-        // Get unavailabilities of the shop
-        const { data: unavailabilities } = await locals.supabase
-            .from('unavailabilities')
-            .select('start_date, end_date')
-            .eq('shop_id', shop.id);
-
-
         // Create dynamic schema based on configured fields
-        const dynamicSchema = createLocalDynamicSchema(customFields);
+        const dynamicSchema = createLocalDynamicSchema(customFields || []);
 
         return {
             shop,
             product,
             customForm,
-            customFields,
+            customFields: customFields || [],
             availabilities: availabilities || [],
             unavailabilities: unavailabilities || [],
-            datesWithLimitReached: Array.from(datesWithLimitReached),
+            datesWithLimitReached: datesWithLimitReached || [],
             form: await superValidate(zod(dynamicSchema))
         };
 
     } catch (err) {
+        console.error('Error in product load:', err);
         throw error(500, 'Erreur inattendue lors du chargement du produit');
     }
 };

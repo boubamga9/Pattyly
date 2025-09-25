@@ -1,4 +1,4 @@
-import { error, redirect } from '@sveltejs/kit';
+import { error as svelteError, redirect } from '@sveltejs/kit';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad, Actions } from './$types';
@@ -13,24 +13,17 @@ export const load: PageServerLoad = async ({ locals }) => {
         throw redirect(302, '/login');
     }
 
-    // Vérifier les permissions
-    const permissions = await getUserPermissions(user.id, locals.supabase);
+    // ✅ OPTIMISÉ : Un seul appel DB pour toutes les données FAQ
+    const { data: faqData, error } = await locals.supabase.rpc('get_faq_data', {
+        p_profile_id: user.id
+    });
 
-
-    // Récupérer les FAQ de la boutique
-    if (!permissions.shopId || !permissions.shopSlug) {
-        throw error(400, 'Boutique non trouvée');
+    if (error) {
+        console.error('Error fetching FAQ data:', error);
+        throw svelteError(500, 'Erreur lors du chargement des données');
     }
 
-    const { data: faqs, error: faqsError } = await locals.supabase
-        .from('faq')
-        .select('*')
-        .eq('shop_id', permissions.shopId)
-        .order('created_at', { ascending: false });
-
-    if (faqsError) {
-        throw error(500, 'Erreur lors du chargement des FAQ');
-    }
+    const { faqs } = faqData;
 
     return {
         faqs: faqs || [],

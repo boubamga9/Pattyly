@@ -1,4 +1,4 @@
-import { error, fail } from '@sveltejs/kit';
+import { error as svelteError, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { getShopIdAndSlug, getUserPermissions } from '$lib/auth';
 import { deleteImageIfUnused } from '$lib/storage';
@@ -12,45 +12,17 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
     const currentProductCount = permissions.productCount;
     const canAddProducts = permissions.canAddMoreProducts;
 
-    // Get shop_id for this user
-    const { id: shopId } = await getShopIdAndSlug(userId, locals.supabase);
+    // ✅ OPTIMISÉ : Un seul appel DB pour toutes les données produits
+    const { data: productsData, error } = await locals.supabase.rpc('get_products_data', {
+        p_profile_id: userId
+    });
 
-    if (!shopId) {
-        throw error(500, 'Erreur lors du chargement de la boutique');
+    if (error) {
+        console.error('Error fetching products data:', error);
+        throw svelteError(500, 'Erreur lors du chargement des données');
     }
 
-    // Then get products for this shop
-    const { data: products, error: productsError } = await locals.supabase
-        .from('products')
-        .select(`*,categories(name)`)
-        .eq('shop_id', shopId)
-        .order('created_at', { ascending: false });
-
-    if (productsError) {
-        throw error(500, 'Erreur lors du chargement des produits');
-    }
-
-    // Get categories for this shop
-    const { data: categories, error: categoriesError } = await locals.supabase
-        .from('categories')
-        .select('id, name')
-        .eq('shop_id', shopId)
-        .order('name', { ascending: true });
-
-    if (categoriesError) {
-        throw error(500, 'Erreur lors du chargement des catégories');
-    }
-
-    // Get shop slug for public URLs
-    const { data: shop, error: shopError } = await locals.supabase
-        .from('shops')
-        .select('slug')
-        .eq('id', shopId)
-        .single();
-
-    if (shopError) {
-        throw error(500, 'Erreur lors du chargement des informations de la boutique');
-    }
+    const { products, categories, shop } = productsData;
 
     // Initialiser les formulaires Superforms
     const createCategoryForm = await superValidate(zod(createCategoryFormSchema));
