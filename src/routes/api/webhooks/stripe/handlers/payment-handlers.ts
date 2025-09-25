@@ -101,7 +101,8 @@ export async function handlePaymentFailed(invoice: Stripe.Invoice, locals: any):
                 is_custom_accepted: false,
                 is_active: false
             })
-            .eq('profile_id', profileId).select();
+            .eq('profile_id', profileId).select('name')
+            .single();
 
         if (updateError) {
             throw error(500, 'Failed to update subscription status after payment failure');
@@ -126,7 +127,7 @@ export async function handlePaymentFailed(invoice: Stripe.Invoice, locals: any):
 
                 await EmailService.sendPaymentFailedNotification({
                     pastryEmail: pastryData.email,
-                    shopName: shopUpdateData.name,
+                    shopName: shopUpdateData?.name || '',
                     customerPortalUrl: portalSession.url,
                     date: new Date().toLocaleDateString("fr-FR"),
                 });

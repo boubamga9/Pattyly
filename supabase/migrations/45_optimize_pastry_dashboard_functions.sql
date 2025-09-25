@@ -113,6 +113,7 @@ begin
           'image_url', p.image_url,
           'is_active', p.is_active,
           'created_at', p.created_at,
+          'category_id', p.category_id,
           'category', json_build_object(
             'id', c.id,
             'name', c.name

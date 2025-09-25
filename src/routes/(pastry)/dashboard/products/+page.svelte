@@ -360,7 +360,7 @@
 						<div class="space-y-3">
 							<div class="flex items-center justify-start">
 								<Badge variant="outline">
-									{product.categories?.name || 'Général'}
+									{product.category?.name || 'Général'}
 								</Badge>
 							</div>
 
