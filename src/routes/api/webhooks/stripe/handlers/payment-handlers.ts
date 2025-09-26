@@ -4,9 +4,9 @@ import Stripe from 'stripe';
 import { EmailService } from '$lib/services/email-service';
 import { PUBLIC_SITE_URL } from '$env/static/public';
 import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
+import { forceRevalidateShop } from '$lib/utils/catalog/catalog-revalidation';
 
 export async function handlePaymentSucceeded(invoice: Stripe.Invoice, locals: any): Promise<void> {
-    console.log('handlePaymentSucceeded', invoice);
 
     try {
 
@@ -34,6 +34,13 @@ export async function handlePaymentSucceeded(invoice: Stripe.Invoice, locals: an
             })
             .eq('profile_id', profileId);
 
+        // Récupérer le slug de la boutique avant de la réactiver
+        const { data: shopData } = await locals.supabaseServiceRole
+            .from('shops')
+            .select('slug')
+            .eq('profile_id', profileId)
+            .single();
+
         // Réactiver is_active de la boutique
         const { error: shopUpdateError } = await locals.supabaseServiceRole
             .from('shops')
@@ -48,14 +55,17 @@ export async function handlePaymentSucceeded(invoice: Stripe.Invoice, locals: an
             throw error(500, 'Failed to reactivate shop after payment success');
         }
 
+        // Revalider le cache ISR de la boutique
+        if (shopData?.slug) {
+            await forceRevalidateShop(shopData.slug);
+        }
+
     } catch (err) {
         throw error(500, 'handlePaymentSucceeded failed: ' + err);
     }
 }
 
 export async function handlePaymentFailed(invoice: Stripe.Invoice, locals: any): Promise<void> {
-    console.log('handlePaymentFailed', invoice);
-
     try {
         // Récupérer le customer_id depuis l'invoice
         const customerId = invoice.customer as string;
@@ -74,15 +84,15 @@ export async function handlePaymentFailed(invoice: Stripe.Invoice, locals: any):
 
         const profileId = customerData.profile_id;
 
-        // Récupérer les informations du pâtissier et de sa boutique
-        const { data: pastryData, error: pastryError } = await locals.supabaseServiceRole
+        // Récupérer email du pâtissier + slug + name de la boutique en une seule requête
+        const { data: userShopData, error: userShopError } = await locals.supabaseServiceRole
             .from('profiles')
-            .select('email')
+            .select('email, shops(name, slug)')
             .eq('id', profileId)
             .single();
 
-        if (pastryError || !pastryData) {
-            console.error('Failed to get pastry chef data:', pastryError);
+        if (userShopError || !userShopData) {
+            console.error('Failed to get user/shop data:', userShopError);
             return;
         }
 
@@ -94,26 +104,33 @@ export async function handlePaymentFailed(invoice: Stripe.Invoice, locals: any):
             })
             .eq('profile_id', profileId);
 
-        // Désactiver la boutique
+        if (updateError) {
+            throw error(500, 'Failed to update subscription status after payment failure');
+        }
+
+        // Désactiver la boutique et récupérer name + slug
         const { data: shopUpdateData, error: shopUpdateError } = await locals.supabaseServiceRole
             .from('shops')
             .update({
                 is_custom_accepted: false,
                 is_active: false
             })
-            .eq('profile_id', profileId).select('name')
+            .eq('profile_id', profileId)
+            .select('name, slug')
             .single();
-
-        if (updateError) {
-            throw error(500, 'Failed to update subscription status after payment failure');
-        }
 
         if (shopUpdateError) {
             throw error(500, 'Failed to disable shop after payment failure');
         }
 
+        // Revalider le cache ISR de la boutique (ne bloque pas si erreur)
+        if (shopUpdateData?.slug) {
+
+            await forceRevalidateShop(shopUpdateData.slug);
+        }
+
         // Envoyer l'email de notification de paiement échoué
-        if (pastryData.email && shopUpdateData) {
+        if (userShopData.email && shopUpdateData) {
             try {
                 // Créer une session de portail de facturation Stripe
                 const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
@@ -126,16 +143,15 @@ export async function handlePaymentFailed(invoice: Stripe.Invoice, locals: any):
                 });
 
                 await EmailService.sendPaymentFailedNotification({
-                    pastryEmail: pastryData.email,
-                    shopName: shopUpdateData?.name || '',
+                    pastryEmail: userShopData.email,
+                    shopName: shopUpdateData.name,
                     customerPortalUrl: portalSession.url,
                     date: new Date().toLocaleDateString("fr-FR"),
                 });
 
-                console.log(`Payment failed notification sent to ${pastryData.email}`);
+                console.log(`Payment failed notification sent to ${userShopData.email}`);
             } catch (emailError) {
                 console.error('Failed to send payment failed notification:', emailError);
-                // Ne pas faire échouer toute la fonction si l'email échoue
             }
         }
 
@@ -144,8 +160,8 @@ export async function handlePaymentFailed(invoice: Stripe.Invoice, locals: any):
     }
 }
 
+
 export async function handleTrialWillEnd(subscription: Stripe.Subscription, locals: any): Promise<void> {
-    console.log('handleTrialWillEnd', subscription);
 
     try {
         // Récupérer le customer_id depuis la subscription

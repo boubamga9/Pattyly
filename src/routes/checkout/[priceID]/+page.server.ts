@@ -103,10 +103,7 @@ export const load: PageServerLoad = async ({
 						enabled: true,
 					},
 				}),
-		},
-			{
-				idempotencyKey: `${user.id}-${params.priceID}`, // ✅ option Stripe
-			}
+		}
 		);
 		checkoutUrl = checkoutSession.url;
 	} catch (e) {

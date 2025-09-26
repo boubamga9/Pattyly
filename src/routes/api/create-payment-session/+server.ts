@@ -84,6 +84,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         const depositAmount = Math.round(totalPrice * 50); // 50% pour Stripe (en centimes)
 
+        // Récupérer le compte Stripe Connect de la boutique
+        const { data: stripeAccountData, error: stripeError } = await locals.supabase
+            .rpc('get_stripe_connect_for_shop', { shop_uuid: orderData.shopId });
+
+        if (stripeError || !stripeAccountData || !Array.isArray(stripeAccountData) || stripeAccountData.length === 0) {
+            return json({ error: 'Boutique non configurée pour les paiements' }, { status: 400 });
+        }
+
+        const stripeAccountId = stripeAccountData[0].stripe_account_id;
+
         // Sauvegarde de la commande dans pending_orders
         const { data: pendingOrder, error: pendingOrderError } = await locals.supabase
             .from('pending_orders')
@@ -127,7 +137,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 cakeName: orderData.cakeName,
                 depositAmount: depositAmount.toString(),
                 type: 'product_order'
-            }
+            },
+            payment_intent_data: {
+                //application_fee_amount: Math.round(depositAmount * 0.05), // 5% de frais pour Pattyly
+                transfer_data: {
+                    destination: stripeAccountId,
+                },
+            },
         });
 
         return json({ sessionUrl: session.url });

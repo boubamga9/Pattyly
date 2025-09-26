@@ -1,8 +1,8 @@
 import { error } from '@sveltejs/kit';
 import type { Stripe } from 'stripe';
+import { forceRevalidateShop } from '$lib/utils/catalog/catalog-revalidation';
 
 export async function upsertSubscription(subscription: Stripe.Subscription, locals: any): Promise<void> {
-    console.log('upsertSubscription', subscription);
     try {
         const customerId = subscription.customer as string;
 
@@ -47,6 +47,13 @@ export async function upsertSubscription(subscription: Stripe.Subscription, loca
             throw error(500, 'Failed to upsert subscription in database');
         }
 
+        // Récupérer le slug de la boutique avant modification
+        const { data: shopData } = await locals.supabaseServiceRole
+            .from('shops')
+            .select('slug')
+            .eq('profile_id', profileId)
+            .single();
+
         // Gérer is_custom_accepted selon le plan
         if (subscriptionStatus === 'active') {
 
@@ -60,6 +67,11 @@ export async function upsertSubscription(subscription: Stripe.Subscription, loca
                 if (shopUpdateError) {
                     throw error(500, 'Failed to disable custom requests for basic plan');
                 }
+
+                // Revalider le cache ISR car le bouton "Composer mon gâteau" change
+                if (shopData?.slug) {
+                    await forceRevalidateShop(shopData.slug);
+                }
             }
         }
 
@@ -69,8 +81,6 @@ export async function upsertSubscription(subscription: Stripe.Subscription, loca
 }
 
 export async function handleSubscriptionDeleted(subscription: Stripe.Subscription, locals: any): Promise<void> {
-
-    console.log('handleSubscriptionDeleted', subscription);
 
     try {
 
@@ -106,6 +116,13 @@ export async function handleSubscriptionDeleted(subscription: Stripe.Subscriptio
         } else {
         }
 
+        // Récupérer le slug de la boutique avant de la désactiver
+        const { data: shopData } = await locals.supabaseServiceRole
+            .from('shops')
+            .select('slug')
+            .eq('profile_id', profileId)
+            .single();
+
         // Désactiver is_custom_accepted et is_active quand l'abonnement est supprimé
         const { error: shopUpdateError } = await locals.supabaseServiceRole
             .from('shops')
@@ -114,7 +131,11 @@ export async function handleSubscriptionDeleted(subscription: Stripe.Subscriptio
 
         if (shopUpdateError) {
             throw error(500, 'Failed to disable custom requests after subscription deletion');
-        } else {
+        }
+
+        // Revalider le cache ISR de la boutique
+        if (shopData?.slug) {
+            await forceRevalidateShop(shopData.slug);
         }
 
     } catch (err) {
