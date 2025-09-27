@@ -105,7 +105,7 @@ export const load = async ({ locals }) => {
             daysRemaining
         },
         metrics: {
-            productsCount: permissions.product_count || 0,
+            productsCount: permissions.productCount || 0,
             recentOrders: ordersMetrics?.recent_orders || [],
             ordersCount: {
                 weekly: ordersMetrics?.weekly_count || 0,

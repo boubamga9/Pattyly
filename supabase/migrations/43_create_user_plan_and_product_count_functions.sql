@@ -11,7 +11,8 @@ language sql stable as $$
   select count(*)
   from products p
   join shops s on s.id = p.shop_id
-  where s.profile_id = $1;
+  where s.profile_id = $1
+  and p.is_active = true;
 $$;
 
 -- Function to get the user's subscription plan
