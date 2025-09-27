@@ -26,7 +26,8 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders, url, re
             .single();
 
         if (shopError || !shopInfo) {
-            throw error(404, 'Boutique non trouvée');
+            // Pour ISR, retourner un flag au lieu de throw error
+            return { notFound: true };
         }
 
         const isShopActive = shopInfo.is_active;

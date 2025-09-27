@@ -160,7 +160,6 @@ export async function handlePaymentFailed(invoice: Stripe.Invoice, locals: any):
     }
 }
 
-
 export async function handleTrialWillEnd(subscription: Stripe.Subscription, locals: any): Promise<void> {
 
     try {

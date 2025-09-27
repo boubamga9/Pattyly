@@ -55,7 +55,7 @@ export class EmailService {
             const { data, error } = await resend.emails.send({
                 from: 'Pattyly <noreply@pattyly.com>',
                 to: [customerEmail],
-                subject: `✅ Commande confirmée - ${productName}`,
+                subject: `Commande confirmée - ${productName}`,
                 html: OrderConfirmationEmail({
                     customerName,
                     shopName,
@@ -117,7 +117,7 @@ export class EmailService {
             const { data, error } = await resend.emails.send({
                 from: 'Pattyly <noreply@pattyly.com>',
                 to: [pastryEmail],
-                subject: `🎂 Nouvelle commande - ${productName}`,
+                subject: `Nouvelle commande - ${productName}`,
                 html: OrderNotificationEmail({
                     customerName,
                     customerEmail,
@@ -234,7 +234,7 @@ export class EmailService {
             const { data, error } = await resend.emails.send({
                 from: 'Pattyly <noreply@pattyly.com>',
                 to: [pastryEmail],
-                subject: `💳 Paiement reçu - Commande personnalisée`,
+                subject: `Paiement reçu - Commande personnalisée`,
                 html: QuotePaymentEmail({
                     customerName,
                     customerEmail,
@@ -565,7 +565,7 @@ export class EmailService {
             const { data, error } = await resend.emails.send({
                 from: 'Pattyly <noreply@pattyly.com>',
                 to: customerEmail,
-                subject: `Pattyly - ✅ Message reçu`,
+                subject: `Pattyly - Message reçu`,
                 html: ContactConfirmationEmail({
                     name: customerName,
                     subject,
@@ -605,7 +605,7 @@ export class EmailService {
             const { data, error } = await resend.emails.send({
                 from: 'Pattyly <noreply@pattyly.com>',
                 to: "contact@pattyly.com",
-                subject: `📧 Nouveau message - ${customerEmail}`,
+                subject: `Nouveau message - ${customerEmail}`,
                 html: ContactNotificationEmail({
                     name: customerName,
                     email: customerEmail,
@@ -683,7 +683,7 @@ export class EmailService {
             const { data, error } = await resend.emails.send({
                 from: 'Pattyly <noreply@pattyly.com>',
                 to: [pastryEmail],
-                subject: `⏰ Votre période d'essai se termine dans 3 jours`,
+                subject: `Votre période d'essai se termine dans 3 jours`,
                 html: TrialEndingNotificationEmail({
                     shopName,
                     customerPortalUrl,
