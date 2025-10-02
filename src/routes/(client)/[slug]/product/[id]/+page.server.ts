@@ -245,19 +245,19 @@ export const actions: Actions = {
                 cakeName: product.name,
             };
 
-            // Create Stripe session
-            const response = await fetch('/api/create-payment-session', {
+            // Create PayPal payment
+            const response = await fetch('/api/create-paypal-payment', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(orderData),
             });
 
             if (!response.ok) {
-                throw error(500, 'Erreur lors de la création de la session de paiement');
+                throw error(500, 'Erreur lors de la création du paiement PayPal');
             }
 
-            const { sessionUrl } = await response.json();
-            return message(form, { redirectTo: sessionUrl });
+            const { approvalUrl } = await response.json();
+            return message(form, { redirectTo: approvalUrl });
 
         } catch (err) {
             console.error('Erreur lors de la création de la session de paiement:', err);

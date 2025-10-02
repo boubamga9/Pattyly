@@ -17,6 +17,14 @@ export default defineConfig({
 			},
 		}),
 	],
+	server: {
+		// Allow ngrok and other external hosts
+		allowedHosts: [
+			'.ngrok-free.dev',
+			'.ngrok.io',
+			'.ngrok.app'
+		]
+	},
 	test: {
 		include: ['src/**/*.{test,spec}.{js,ts}'],
 	},

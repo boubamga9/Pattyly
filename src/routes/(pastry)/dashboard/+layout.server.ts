@@ -26,7 +26,8 @@ export const load: LayoutServerLoad = async ({ locals }) => {
         throw redirect(303, '/onboarding');
     }
 
-    if (!permissions.has_stripe_connect) {
+    // Check if user has payment method configured (PayPal or Stripe Connect)
+    if (!permissions.has_paypal) {
         throw redirect(303, '/onboarding');
     }
 

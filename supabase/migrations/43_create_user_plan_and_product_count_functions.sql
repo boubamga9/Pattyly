@@ -1,6 +1,20 @@
 -- Migration: Create user plan and product count functions
 -- Description: Adds two utility functions for user permissions and product counting
 
+-- Add is_active column to products if it doesn't exist
+-- This ensures the column exists even if migration 9 was reverted
+do $$ 
+begin
+  if not exists (
+    select 1 from information_schema.columns 
+    where table_name = 'products' and column_name = 'is_active'
+  ) then
+    alter table products add column is_active boolean default true;
+    create index idx_products_is_active on products(is_active);
+    update products set is_active = true where is_active is null;
+  end if;
+end $$;
+
 -- Drop the old get_user_plan function if it exists
 drop function if exists get_user_plan(uuid);
 

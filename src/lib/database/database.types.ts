@@ -67,6 +67,7 @@ export type Database = {
       availabilities: {
         Row: {
           created_at: string | null
+          daily_order_limit: number | null
           day: number
           id: string
           is_open: boolean | null
@@ -75,6 +76,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          daily_order_limit?: number | null
           day: number
           id?: string
           is_open?: boolean | null
@@ -83,6 +85,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          daily_order_limit?: number | null
           day?: number
           id?: string
           is_open?: boolean | null
@@ -292,6 +295,9 @@ export type Database = {
           id: string
           inspiration_photos: string[] | null
           paid_amount: number | null
+          paypal_capture_id: string | null
+          paypal_order_id: string | null
+          paypal_payment_id: string | null
           pickup_date: string
           product_base_price: number | null
           product_id: string | null
@@ -317,6 +323,9 @@ export type Database = {
           id?: string
           inspiration_photos?: string[] | null
           paid_amount?: number | null
+          paypal_capture_id?: string | null
+          paypal_order_id?: string | null
+          paypal_payment_id?: string | null
           pickup_date: string
           product_base_price?: number | null
           product_id?: string | null
@@ -342,6 +351,9 @@ export type Database = {
           id?: string
           inspiration_photos?: string[] | null
           paid_amount?: number | null
+          paypal_capture_id?: string | null
+          paypal_order_id?: string | null
+          paypal_payment_id?: string | null
           pickup_date?: string
           product_base_price?: number | null
           product_id?: string | null
@@ -470,6 +482,74 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      paypal_accounts: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          onboarding_status: string | null
+          onboarding_url: string | null
+          paypal_merchant_id: string | null
+          profile_id: string
+          tracking_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          onboarding_status?: string | null
+          onboarding_url?: string | null
+          paypal_merchant_id?: string | null
+          profile_id: string
+          tracking_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          onboarding_status?: string | null
+          onboarding_url?: string | null
+          paypal_merchant_id?: string | null
+          profile_id?: string
+          tracking_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paypal_accounts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      paypal_events: {
+        Row: {
+          created_at: string
+          event_id: string
+          event_type: string
+          id: string
+          processed_at: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          event_type: string
+          id?: string
+          processed_at?: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          event_type?: string
+          id?: string
+          processed_at?: string
+        }
+        Relationships: []
       }
       pending_orders: {
         Row: {
@@ -883,6 +963,91 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_and_create_trial: {
+        Args: {
+          p_email: string
+          p_fingerprint: string
+          p_instagram: string
+          p_ip_address: string
+          p_profile_id: string
+          p_stripe_customer_id: string
+          p_subscription_id: string
+          p_tiktok: string
+        }
+        Returns: Json
+      }
+      cleanup_old_paypal_events: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      create_shop_with_availabilities: {
+        Args: {
+          p_bio: string
+          p_instagram: string
+          p_logo_url: string
+          p_name: string
+          p_profile_id: string
+          p_slug: string
+          p_tiktok: string
+          p_website: string
+        }
+        Returns: Json
+      }
+      get_availability_data: {
+        Args: { p_profile_id: string }
+        Returns: Json
+      }
+      get_custom_form_data: {
+        Args: { p_profile_id: string }
+        Returns: Json
+      }
+      get_dashboard_data: {
+        Args: { p_profile_id: string }
+        Returns: Json
+      }
+      get_faq_data: {
+        Args: { p_profile_id: string }
+        Returns: Json
+      }
+      get_onboarding_data: {
+        Args: { p_profile_id: string }
+        Returns: Json
+      }
+      get_order_data: {
+        Args: { p_product_id?: string; p_slug: string }
+        Returns: Json
+      }
+      get_order_detail_data: {
+        Args: { p_order_id: string; p_profile_id: string }
+        Returns: Json
+      }
+      get_orders_data: {
+        Args: { p_profile_id: string }
+        Returns: Json
+      }
+      get_orders_metrics: {
+        Args: { p_shop_id: string }
+        Returns: Json
+      }
+      get_paypal_account_for_shop: {
+        Args: { shop_uuid: string }
+        Returns: {
+          is_active: boolean
+          paypal_merchant_id: string
+        }[]
+      }
+      get_product_count: {
+        Args: { profile_id: string }
+        Returns: number
+      }
+      get_products_data: {
+        Args: { p_profile_id: string }
+        Returns: Json
+      }
+      get_shop_owner_email: {
+        Args: { shop_uuid: string }
+        Returns: string
+      }
       get_stripe_connect_for_shop: {
         Args: { shop_uuid: string }
         Returns: {
@@ -890,8 +1055,16 @@ export type Database = {
           stripe_account_id: string
         }[]
       }
+      get_user_permissions: {
+        Args: { p_profile_id: string }
+        Returns: Json
+      }
       get_user_plan: {
-        Args: { user_profile_id: string }
+        Args: {
+          basic_product_id?: string
+          p_profile_id: string
+          premium_product_id?: string
+        }
         Returns: string
       }
       user_password_set: {

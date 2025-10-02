@@ -20,9 +20,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             throw error(404, 'Boutique non trouvée');
         }
 
+        // Try multiple ways to find the order:
+        // 1. By stripe_session_id (Stripe product orders)
+        // 2. By paypal_order_id (PayPal product orders)  
+        // 3. By order id (custom orders)
 
-
-        // Try to get the order by session_id first (product orders)
         let { data: order, error: orderError } = await locals.supabase
             .from('orders')
             .select('*, shops(slug, name, logo_url)')
@@ -30,9 +32,23 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             .eq('shop_id', shop.id)
             .single();
 
-        // If not found by session_id, try by order_id (custom orders)
+        // If not found by stripe_session_id, try by paypal_order_id
         if (orderError && orderError.code === 'PGRST116') {
+            const { data: orderByPayPal, error: paypalError } = await locals.supabase
+                .from('orders')
+                .select('*, shops(slug, name, logo_url)')
+                .eq('paypal_order_id', orderId)
+                .eq('shop_id', shop.id)
+                .single();
 
+            if (!paypalError && orderByPayPal) {
+                order = orderByPayPal;
+                orderError = null;
+            }
+        }
+
+        // If still not found, try by order_id (custom orders)
+        if (orderError && orderError.code === 'PGRST116') {
             const { data: orderById, error: orderByIdError } = await locals.supabase
                 .from('orders')
                 .select('*, shops(slug, name, logo_url)')

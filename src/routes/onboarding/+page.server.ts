@@ -1,7 +1,6 @@
 import { redirect, error } from '@sveltejs/kit';
 import type { Cookies } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { getShopIdAndSlug } from '$lib/auth';
 import { superValidate, setError } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { formSchema } from './schema';
@@ -12,6 +11,7 @@ import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
 import { PUBLIC_SITE_URL } from '$env/static/public';
 import { STRIPE_PRODUCTS, STRIPE_PRICES } from '$lib/config/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { paypalClient } from '$lib/paypal/client.js';
 
 
 const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
@@ -142,14 +142,19 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
             throw error(500, 'Erreur lors du chargement des données');
         }
 
-        const { shop, stripe_account } = onboardingData;
+        const { shop, paypal_account, stripe_account } = onboardingData;
 
-        // If shop exists and has active Stripe Connect, redirect to dashboard
+        // If shop exists and has active PayPal, redirect to dashboard
+        if (shop && paypal_account && paypal_account.is_active) {
+            throw redirect(303, '/dashboard');
+        }
+
+        // Backward compatibility: check Stripe Connect too
         if (shop && stripe_account && stripe_account.is_active) {
             throw redirect(303, '/dashboard');
         }
 
-        // If shop exists but no Stripe Connect, show step 2
+        // If shop exists but no PayPal/Stripe, show step 2
         if (shop) {
             return {
                 step: 2,
@@ -271,8 +276,7 @@ export const actions: Actions = {
         }
     },
 
-
-    connectStripe: async ({ request, locals, cookies }) => {
+    connectPayPal: async ({ request, locals, cookies }) => {
         try {
             const { session } = await locals.safeGetSession();
 
@@ -285,71 +289,74 @@ export const actions: Actions = {
 
             const userId = session.user.id;
 
-            console.log('Connect Stripe');
-            // Check if Stripe Connect account already exists
-            const { data: existingAccount, error: fetchError } = await locals.supabase
-                .from('stripe_connect_accounts')
-                .select('id, stripe_account_id, is_active')
+            console.log('Connect PayPal');
+            // Check if PayPal account already exists
+            const { data: existingAccount, error: fetchError } = await (locals.supabase as any)
+                .from('paypal_accounts')
+                .select('id, paypal_merchant_id, onboarding_status, is_active')
                 .eq('profile_id', userId)
                 .single();
 
             if (fetchError && fetchError.code !== 'PGRST116') {
                 // Create a clean form for Superforms compatibility
                 const cleanForm = await superValidate(zod(formSchema));
-                setError(cleanForm, 'name', 'Erreur lors de la vérification du compte Stripe');
+                setError(cleanForm, 'name', 'Erreur lors de la vérification du compte PayPal');
                 return { form: cleanForm };
             }
 
-            let stripeAccountId: string;
+            let trackingId: string;
 
             if (!existingAccount) {
-                // Create new Stripe Connect account
+                // Generate unique tracking ID
+                trackingId = `pattyly_${userId}_${Date.now()}`;
 
-                const account = await locals.stripe.accounts.create({
-                    type: 'express',
-                    country: 'FR', // Default to France, can be made configurable
-                    email: session.user.email,
-                    capabilities: {
-                        card_payments: { requested: true },
-                        transfers: { requested: true }
-                    }
-                });
-
-                stripeAccountId = account.id;
-
-                // Save new Stripe Connect account to database
-                const { error: insertError } = await locals.supabase
-                    .from('stripe_connect_accounts')
+                // Save new PayPal account to database
+                const { error: insertError } = await (locals.supabase as any)
+                    .from('paypal_accounts')
                     .insert({
                         profile_id: userId,
-                        stripe_account_id: account.id,
+                        tracking_id: trackingId,
+                        onboarding_status: 'pending',
                         is_active: false // Will be set to true after onboarding completion
                     });
 
                 if (insertError) {
                     // Create a clean form for Superforms compatibility
                     const cleanForm = await superValidate(zod(formSchema));
-                    setError(cleanForm, 'name', 'Erreur lors de la sauvegarde du compte Stripe');
+                    setError(cleanForm, 'name', 'Erreur lors de la sauvegarde du compte PayPal');
                     return { form: cleanForm };
                 }
-
-
             } else {
-                // Account exists, use it but don't change is_active yet
-                // is_active will be set to true by Stripe webhook after onboarding completion
-                console.log('Account exists, use it but don\'t change is_active yet');
-                stripeAccountId = existingAccount.stripe_account_id;
-
+                // Account exists, use existing tracking ID
+                console.log('PayPal account exists, use existing tracking ID');
+                trackingId = existingAccount.tracking_id || `pattyly_${userId}_${Date.now()}`;
             }
 
-            // Create Stripe Connect account link
-            console.log('Create Stripe Connect account link');
-            const accountLink = await locals.stripe.accountLinks.create({
-                account: stripeAccountId,
-                refresh_url: `${PUBLIC_SITE_URL}/onboarding`,
-                return_url: `${PUBLIC_SITE_URL}/dashboard`,
-                type: 'account_onboarding',
-            });
+            // Create PayPal Partner Referral
+            console.log('Create PayPal Partner Referral');
+            const referralResponse = await paypalClient.createPartnerReferral(
+                trackingId,
+                `${PUBLIC_SITE_URL}/dashboard`
+            );
+
+            // Find the onboarding URL
+            const onboardingLink = referralResponse.links.find(link => link.rel === 'action_url');
+            if (!onboardingLink) {
+                throw new Error('No onboarding URL found in PayPal response');
+            }
+
+            // Update the account with onboarding URL
+            const { error: updateError } = await (locals.supabase as any)
+                .from('paypal_accounts')
+                .update({
+                    onboarding_url: onboardingLink.href,
+                    onboarding_status: 'in_progress'
+                })
+                .eq('profile_id', userId);
+
+            if (updateError) {
+                console.error('Failed to update PayPal account with onboarding URL:', updateError);
+            }
 
             // Récupérer les informations de la boutique pour les réseaux sociaux
             const { data: shopData } = await locals.supabase
@@ -371,29 +378,26 @@ export const actions: Actions = {
             );
 
             if (trialResult.success) {
-                console.log(`✅ Essai gratuit créé pour l'utilisateur ${userId}`);
+                console.log('Trial started successfully');
             } else {
-                console.log(`ℹ️ Essai gratuit non éligible pour l'utilisateur ${userId}: ${trialResult.error}`);
+                console.log('Trial not started:', trialResult.error);
             }
 
-
-            // Create a clean form for Superforms compatibility
             const cleanForm = await superValidate(zod(formSchema));
-            cleanForm.message = 'Connexion Stripe réussie !';
+            cleanForm.message = 'Connexion PayPal réussie !';
             console.log('Return success');
             return {
                 form: cleanForm,
                 success: true,
-                url: accountLink.url
+                url: onboardingLink?.href || ''
             };
+
         } catch (err) {
             // Create a clean form for Superforms compatibility
             const cleanForm = await superValidate(zod(formSchema));
-            setError(cleanForm, 'name', 'Erreur lors de la connexion Stripe');
-            console.log('Return error');
+            setError(cleanForm, 'name', 'Erreur lors de la connexion PayPal');
+            console.log('PayPal connection error:', err);
             return { form: cleanForm };
         }
-
-
     }
 };

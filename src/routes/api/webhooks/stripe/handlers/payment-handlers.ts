@@ -163,15 +163,22 @@ export async function handlePaymentFailed(invoice: Stripe.Invoice, locals: any):
 export async function handleTrialWillEnd(subscription: Stripe.Subscription, locals: any): Promise<void> {
 
     try {
-        // Récupérer le customer_id depuis la subscription
         const customerId = subscription.customer as string;
 
-        // Récupérer le profile_id depuis stripe_customers
-        const { data: customerData } = await locals.supabaseServiceRole
+        const { data: customerData, error } = await locals.supabaseServiceRole
             .from('stripe_customers')
             .select('profile_id')
             .eq('stripe_customer_id', customerId)
             .single();
+
+        if (error) {
+            if (error.code === 'PGRST116') {
+                console.log('Customer not found for trial ending notification');
+                return;
+            }
+            console.error('Error fetching customer from Supabase:', error);
+            throw error; // ou return, selon ton besoin
+        }
 
         if (!customerData) {
             console.log('Customer not found for trial ending notification');

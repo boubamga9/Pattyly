@@ -7,6 +7,7 @@ import { message, setError, superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad } from './$types';
 import { getUserPermissions } from '$lib/auth';
+import { paypalClient } from '$lib/paypal/client.js';
 import {
     deleteAccountFormSchema,
     infoFormSchema,
@@ -59,6 +60,15 @@ export const load: PageServerLoad = async ({ locals }) => {
     if (stripeError && stripeError.code !== 'PGRST116') {
     }
 
+    // Get PayPal account status
+    const { data: paypalAccount, error: paypalError } = await locals.supabase
+        .from('paypal_accounts')
+        .select('*')
+        .eq('profile_id', userId)
+        .single();
+
+    if (paypalError && paypalError.code !== 'PGRST116') {
+    }
 
     return {
         infoForm: await superValidate(info, zod(infoFormSchema)),
@@ -69,6 +79,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         recoverySession: Boolean(recoveryAmr),
         createPassword: !passwordSet,
         stripeAccount: stripeAccount || null,
+        paypalAccount: paypalAccount || null,
         permissions, // ✅ Ajouter les permissions pour accéder à is_stripe_free
     };
 };
@@ -273,83 +284,6 @@ export const actions = {
                 success: 'Mot de passe défini',
             };
     },
-    connectStripe: async ({ locals }) => {
-        const { session } = await locals.safeGetSession();
-        if (!session) {
-            return { success: false, error: 'Non autorisé' };
-        }
-
-        const userId = session.user.id;
-
-        // Get shop ID
-        const { data: shop } = await locals.supabase
-            .from('shops')
-            .select('id')
-            .eq('profile_id', userId)
-            .single();
-
-        if (!shop) {
-            return { success: false, error: 'Boutique non trouvée' };
-        }
-
-        // Check if Stripe Connect account already exists
-        const { data: existingAccount } = await locals.supabase
-            .from('stripe_connect_accounts')
-            .select('*')
-            .eq('profile_id', userId)
-            .single();
-
-        if (existingAccount) {
-            // Redirect to Stripe Connect dashboard
-            const stripe = new (await import('stripe')).default(PRIVATE_STRIPE_SECRET_KEY);
-
-            const accountLink = await stripe.accountLinks.create({
-                account: existingAccount.stripe_account_id,
-                refresh_url: `${PUBLIC_SITE_URL}/dashboard/settings`,
-                return_url: `${PUBLIC_SITE_URL}/dashboard/settings`,
-                type: 'account_onboarding',
-            });
-
-            return { success: true, redirectUrl: accountLink.url };
-        }
-
-        // Create new Stripe Connect account
-        const stripe = new (await import('stripe')).default(PRIVATE_STRIPE_SECRET_KEY);
-
-        const account = await stripe.accounts.create({
-            type: 'express',
-            country: 'FR',
-            email: session.user.email,
-            capabilities: {
-                card_payments: { requested: true },
-                transfers: { requested: true },
-            },
-            business_type: 'individual',
-        });
-
-        // Save account to database
-        const { error: insertError } = await locals.supabase
-            .from('stripe_connect_accounts')
-            .insert({
-                profile_id: userId,
-                stripe_account_id: account.id,
-                is_active: false
-            });
-
-        if (insertError) {
-            return { success: false, error: 'Erreur lors de la création du compte Stripe' };
-        }
-
-        // Create account link
-        const accountLink = await stripe.accountLinks.create({
-            account: account.id,
-            refresh_url: `${PUBLIC_SITE_URL}/dashboard/settings`,
-            return_url: `${PUBLIC_SITE_URL}/dashboard/settings`,
-            type: 'account_onboarding',
-        });
-
-        return { success: true, redirectUrl: accountLink.url };
-    },
 
     accessStripeBilling: async ({ locals }) => {
         const { session } = await locals.safeGetSession();
@@ -399,6 +333,92 @@ export const actions = {
             return { success: false, error: 'Erreur lors de la création du lien de billing' };
         }
     },
+
+    /*connectPayPal: async ({ request, locals }) => {
+        const { session } = await locals.safeGetSession();
+
+        // Create a clean form for Superforms compatibility
+        const cleanForm = await superValidate(zod(infoFormSchema));
+
+        if (!session) {
+            return {
+                success: false,
+                error: 'Non autorisé',
+                infoForm: cleanForm
+            };
+        }
+
+        const userId = session.user.id;
+
+        try {
+            // Check if PayPal account already exists
+            const { data: existingAccount } = await locals.supabase
+                .from('paypal_accounts')
+                .select('*')
+                .eq('profile_id', userId)
+                .single();
+
+            // Generate or reuse tracking ID
+            let trackingId: string;
+
+            if (existingAccount) {
+                // Reuse existing tracking ID
+                trackingId = existingAccount.tracking_id || `pattyly_${userId}_${Date.now()}`;
+            } else {
+                // Generate new tracking ID
+                trackingId = `pattyly_${userId}_${Date.now()}`;
+
+                // Upsert PayPal account to database
+                const { error: upsertError } = await locals.supabase
+                    .from('paypal_accounts')
+                    .upsert({
+                        profile_id: userId,
+                        tracking_id: trackingId,
+                        onboarding_status: 'pending',
+                        is_active: false
+                    }, {
+                        onConflict: 'profile_id'
+                    });
+
+                if (upsertError) {
+                    return {
+                        success: false,
+                        error: 'Erreur lors de la sauvegarde du compte PayPal',
+                        infoForm: cleanForm
+                    };
+                }
+            }
+
+            // Create PayPal Partner Referral (allows modification even if already configured)
+            const referralResponse = await paypalClient.createPartnerReferral(
+                trackingId,
+                `${PUBLIC_SITE_URL}/dashboard/settings`
+            );
+
+            // Find the onboarding URL
+            const onboardingLink = referralResponse.links.find(link => link.rel === 'action_url');
+            if (!onboardingLink) {
+                return {
+                    success: false,
+                    error: 'Erreur lors de la création du lien PayPal',
+                    infoForm: cleanForm
+                };
+            }
+
+            return {
+                success: true,
+                redirectUrl: onboardingLink.href,
+                infoForm: cleanForm
+            };
+        } catch (err) {
+            console.error('PayPal connection error:', err);
+            return {
+                success: false,
+                error: 'Erreur lors de la connexion PayPal',
+                infoForm: cleanForm
+            };
+        }
+    },*/
 
     logout: async ({ locals, cookies }) => {
         // Déconnexion côté serveur

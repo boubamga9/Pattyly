@@ -64,10 +64,20 @@ export const handle: Handle = async ({ event, resolve }) => {
 				cookies: {
 					get: (key) => event.cookies.get(key),
 					set: (key, value, options) => {
-						event.cookies.set(key, value, { ...options, path: '/' });
+						try {
+							event.cookies.set(key, value, { ...options, path: '/' });
+						} catch (error) {
+							// Ignore cookie errors after response is sent
+							console.warn('Cookie set failed (response already sent):', key);
+						}
 					},
 					remove: (key, options) => {
-						event.cookies.delete(key, { ...options, path: '/' });
+						try {
+							event.cookies.delete(key, { ...options, path: '/' });
+						} catch (error) {
+							// Ignore cookie errors after response is sent
+							console.warn('Cookie delete failed (response already sent):', key);
+						}
 					},
 				},
 			},
@@ -123,6 +133,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 				return { session: null, user: null, amr: null };
 			}
 		};
+
+		// Validate session early to clean up invalid tokens before response is generated
+		await event.locals.supabase.auth.getSession();
 
 		return resolve(event, {
 			filterSerializedResponseHeaders(name) {

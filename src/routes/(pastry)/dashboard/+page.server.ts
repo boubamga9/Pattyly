@@ -17,9 +17,14 @@ export const load = async ({ locals }) => {
         redirect(303, '/onboarding');
     }
 
-    const { shop, permissions, subscription } = dashboardData;
+    const { shop, permissions, subscription, paypal_account } = dashboardData;
 
     if (!shop || !shop.id) {
+        redirect(303, '/onboarding');
+    }
+
+    // Si l'utilisateur a un compte PayPal mais n'est pas actif, rediriger vers l'onboarding
+    if (paypal_account && !paypal_account.is_active) {
         redirect(303, '/onboarding');
     }
 

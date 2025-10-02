@@ -26,6 +26,11 @@ export const load: LayoutServerLoad = async ({
 		redirect(303, '/onboarding');
 	}
 
+	// Si l'utilisateur a un compte PayPal mais n'est pas actif, rediriger vers l'onboarding
+	if (!permissions.has_paypal) {
+		redirect(303, '/onboarding');
+	}
+
 	// Détecter si l'utilisateur a un abonnement inactif (pour afficher l'alerte)
 	const hasInactiveSubscription = subscription?.status !== 'active';
 	const isSubscriptionExists = !!subscription;
