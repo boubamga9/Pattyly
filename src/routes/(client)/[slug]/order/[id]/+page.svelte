@@ -124,8 +124,10 @@
 	async function acceptQuote() {
 		if (!order?.id) return;
 
+		console.log('🚀 acceptQuote called for order:', order.id);
+
 		try {
-			const response = await fetch('/api/create-custom-payment-session', {
+			const response = await fetch('/api/create-custom-paypal-payment', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -136,11 +138,23 @@
 				}),
 			});
 
+			console.log('📡 Response status:', response.status);
+
 			if (response.ok) {
-				const { url } = await response.json();
-				window.location.href = url;
+				const data = await response.json();
+				console.log('✅ Response data:', data);
+				const { approvalUrl } = data;
+				console.log('🔗 Redirecting to:', approvalUrl);
+				window.location.href = approvalUrl;
+			} else {
+				const errorData = await response.json();
+				console.error('❌ Error response:', errorData);
+				alert('Erreur: ' + (errorData.error || 'Erreur inconnue'));
 			}
-		} catch (error) {}
+		} catch (error) {
+			console.error('❌ Exception in acceptQuote:', error);
+			alert('Erreur: ' + error.message);
+		}
 	}
 
 	// Fonction pour refuser le devis
@@ -434,21 +448,13 @@
 										<span>À payer aujourd'hui :</span>
 										<span>{formatPrice(totalAmount * 0.5)}</span>
 									</div>
-								{:else if order?.status === 'confirmed'}
+								{:else if order?.status === 'confirmed' || order?.status === 'ready' || order?.status === 'completed'}
 									<!-- Acompte déjà payé -->
 									<div
 										class="flex items-center justify-between font-medium text-green-600"
 									>
 										<span>Acompte payé :</span>
 										<span>{formatPrice(totalAmount * 0.5)}</span>
-									</div>
-								{:else if order?.status === 'ready' || order?.status === 'completed'}
-									<!-- Commande payée -->
-									<div
-										class="flex items-center justify-between font-medium text-green-600"
-									>
-										<span>Commande payée :</span>
-										<span>{formatPrice(totalAmount)}</span>
 									</div>
 								{:else}
 									<!-- Prix total pour les autres statuts -->
@@ -457,6 +463,11 @@
 									>
 										<span>Prix total :</span>
 										<span>{formatPrice(totalAmount)}</span>
+									</div>
+								{/if}
+								{#if order?.paypal_capture_id}
+									<div class="mt-2 text-xs text-muted-foreground">
+										<span>Référence PayPal : {order.paypal_capture_id}</span>
 									</div>
 								{/if}
 							{/if}

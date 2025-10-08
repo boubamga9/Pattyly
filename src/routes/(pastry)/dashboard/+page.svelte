@@ -80,6 +80,9 @@
 	// Fonction pour obtenir le revenu actuel
 	$: currentRevenue = metrics.revenue[selectedRevenuePeriod];
 
+	// Fonction pour obtenir l'accompte actuel
+	$: currentDeposit = metrics.deposit[selectedRevenuePeriod];
+
 	// Fonction pour obtenir le nombre de commandes actuel
 	$: currentOrdersCount = metrics.ordersCount[selectedRevenuePeriod];
 
@@ -248,8 +251,15 @@
 				<Euro class="h-4 w-4 text-muted-foreground" />
 			</CardHeader>
 			<CardContent>
-				<div class="text-2xl font-bold">{formatPrice(currentRevenue)}</div>
-				<div class="flex items-center text-xs text-muted-foreground">
+				<div>
+					<div class="flex items-baseline gap-2">
+						<div class="text-2xl font-bold">{formatPrice(currentRevenue)}</div>
+						<div class="text-sm text-muted-foreground">
+							({formatPrice(currentDeposit)} accompte)
+						</div>
+					</div>
+				</div>
+				<div class="mt-2 flex items-center text-xs text-muted-foreground">
 					{#if revenueVariation > 0}
 						<ArrowUpRight class="mr-1 h-3 w-3 text-green-500" />
 						<span class="text-green-500">+{revenueVariation}%</span>

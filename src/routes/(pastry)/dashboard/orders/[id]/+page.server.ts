@@ -42,16 +42,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             throw error(404, 'Commande non trouvée');
         }
 
-        // Récupérer le montant payé (priorité à la DB, fallback Stripe)
-        let paidAmount = order.paid_amount;
-        if (!paidAmount && order.stripe_payment_intent_id) {
-            try {
-                const paymentIntent = await stripe.paymentIntents.retrieve(order.stripe_payment_intent_id);
-                paidAmount = paymentIntent.amount / 100; // Stripe stocke en centimes
-            } catch (stripeError) {
-                // On continue sans le montant Stripe
-            }
-        }
+        // Récupérer le montant payé depuis la DB
+        const paidAmount = order.paid_amount;
 
         // Initialiser les formulaires Superforms
         const makeQuoteForm = await superValidate(zod(makeQuoteFormSchema));

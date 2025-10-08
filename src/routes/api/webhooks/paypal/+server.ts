@@ -17,10 +17,13 @@ const PAYPAL_EVENTS = {
 } as const;
 
 export const POST: RequestHandler = async ({ request, locals }) => {
+    console.log('🔔 [PayPal Webhook] Received webhook request');
+
     try {
 
         // 1. Vérifier la signature PayPal (comme Stripe)
         const event = await verifyPayPalWebhook(request);
+        console.log('✅ [PayPal Webhook] Event verified:', event.event_type, 'ID:', event.id);
 
         // 3. Check idempotence (prevent duplicate processing)
         const idempotenceResponse = await checkPayPalIdempotence(event.id, event.event_type, locals);
@@ -43,6 +46,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         return json({ received: true });
 
     } catch (err) {
+        console.error('❌ [PayPal Webhook] Processing failed:', err);
         // PayPal recevra un 500 → l'événement sera retenté
         return new Response('Webhook processing failed', { status: 500 });
     }

@@ -76,33 +76,85 @@ async function createOrderFromWebhook(
 
         const ownerEmail = shop.profiles?.email;
 
-        // Créer la commande finale
-        const orderToCreate = {
-            product_id: orderData.productId,
-            shop_id: orderData.shopId,
-            customer_name: orderData.customerName,
-            customer_email: orderData.customerEmail,
-            customer_phone: orderData.customerPhone || null,
-            customer_instagram: orderData.customerInstagram || null,
-            pickup_date: orderData.selectedDate,
-            customization_data: orderData.selectedOptions || {},
-            product_name: orderData.cakeName,
-            product_base_price: product.base_price,
-            additional_information: orderData.specialRequest || null,
-            total_amount: orderData.serverCalculatedPrice,
-            paid_amount: parseFloat(resource.amount.value),
-            status: 'confirmed',
-            paypal_order_id: orderId,
-            paypal_capture_id: captureId
-        };
+        // Récupérer le produit seulement pour les commandes de produits (pas custom)
+        let product = null;
+        if (!orderData.isCustomOrder && orderData.productId) {
+            const { data: productData, error: productError } = await locals.supabaseServiceRole
+                .from('products')
+                .select('base_price')
+                .eq('id', orderData.productId)
+                .single();
 
-        const { data: finalOrder } = await locals.supabaseServiceRole
-            .from('orders')
-            .insert(orderToCreate)
-            .select('id')
-            .single();
+            if (productError || !productData) {
+                throw error(404, 'Product not found');
+            }
+            product = productData;
+        }
 
-        console.log(`✅ Order created: ${finalOrder.id} from PayPal order ${orderId}`);
+        // Créer ou modifier la commande finale selon le type
+        let finalOrder;
+
+        if (orderData.isCustomOrder) {
+            // Pour les commandes personnalisées : modifier la commande existante
+            console.log('🔄 [PayPal Webhook] Updating existing custom order:', orderData.orderId);
+
+            const { data: updatedOrder, error: updateError } = await locals.supabaseServiceRole
+                .from('orders')
+                .update({
+                    status: 'confirmed',
+                    paid_amount: parseFloat(resource.amount.value),
+                    paypal_order_id: orderId,
+                    paypal_capture_id: captureId
+                })
+                .eq('id', orderData.orderId)
+                .select('id')
+                .single();
+
+            if (updateError || !updatedOrder) {
+                console.error('❌ [PayPal Webhook] Failed to update custom order:', updateError);
+                throw new Error('Failed to update custom order');
+            }
+
+            finalOrder = updatedOrder;
+            console.log(`✅ Custom order updated: ${finalOrder.id} from PayPal order ${orderId}`);
+
+        } else {
+            // Pour les commandes de produits : créer une nouvelle commande
+            console.log('🔄 [PayPal Webhook] Creating new product order');
+
+            const orderToCreate = {
+                product_id: orderData.productId,
+                shop_id: orderData.shopId,
+                customer_name: orderData.customerName,
+                customer_email: orderData.customerEmail,
+                customer_phone: orderData.customerPhone || null,
+                customer_instagram: orderData.customerInstagram || null,
+                pickup_date: orderData.selectedDate,
+                customization_data: orderData.selectedOptions || {},
+                product_name: orderData.productName,
+                product_base_price: orderData.productBasePrice,
+                additional_information: orderData.specialRequest || null,
+                total_amount: orderData.serverCalculatedPrice,
+                paid_amount: parseFloat(resource.amount.value),
+                status: 'confirmed',
+                paypal_order_id: orderId,
+                paypal_capture_id: captureId
+            };
+
+            const { data: newOrder, error: createError } = await locals.supabaseServiceRole
+                .from('orders')
+                .insert(orderToCreate)
+                .select('id')
+                .single();
+
+            if (createError || !newOrder) {
+                console.error('❌ [PayPal Webhook] Failed to create product order:', createError);
+                throw new Error('Failed to create product order');
+            }
+
+            finalOrder = newOrder;
+            console.log(`✅ Product order created: ${finalOrder.id} from PayPal order ${orderId}`);
+        }
 
         // Supprimer la pending order
         await locals.supabaseServiceRole
@@ -112,7 +164,7 @@ async function createOrderFromWebhook(
 
         // Envoyer les emails
         const paidAmount = parseFloat(resource.amount.value);
-        const totalAmount = orderData.serverCalculatedPrice;
+        const totalAmount = orderData.isCustomOrder ? orderData.totalAmount : orderData.serverCalculatedPrice;
         const remainingAmount = totalAmount - paidAmount;
 
         // Email client
@@ -121,8 +173,8 @@ async function createOrderFromWebhook(
             customerName: orderData.customerName,
             shopName: shop.name,
             shopLogo: shop.logo_url,
-            productName: orderData.cakeName,
-            pickupDate: orderData.selectedDate,
+            productName: orderData.productName,
+            pickupDate: orderData.isCustomOrder ? orderData.pickupDate : orderData.selectedDate,
             totalAmount,
             paidAmount,
             remainingAmount,
@@ -138,8 +190,8 @@ async function createOrderFromWebhook(
                 customerName: orderData.customerName,
                 customerEmail: orderData.customerEmail,
                 customerInstagram: orderData.customerInstagram,
-                productName: orderData.cakeName,
-                pickupDate: orderData.selectedDate,
+                productName: orderData.productName,
+                pickupDate: orderData.isCustomOrder ? orderData.pickupDate : orderData.selectedDate,
                 totalAmount,
                 paidAmount,
                 remainingAmount,

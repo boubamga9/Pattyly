@@ -37,30 +37,18 @@ export type Database = {
       anti_fraud: {
         Row: {
           created_at: string | null
-          email: string
-          fingerprint: string
           id: string
-          instagram: string | null
-          ip_address: unknown
-          tiktok: string | null
+          merchant_id: string | null
         }
         Insert: {
           created_at?: string | null
-          email: string
-          fingerprint: string
           id?: string
-          instagram?: string | null
-          ip_address: unknown
-          tiktok?: string | null
+          merchant_id?: string | null
         }
         Update: {
           created_at?: string | null
-          email?: string
-          fingerprint?: string
           id?: string
-          instagram?: string | null
-          ip_address?: unknown
-          tiktok?: string | null
+          merchant_id?: string | null
         }
         Relationships: []
       }
@@ -297,7 +285,6 @@ export type Database = {
           paid_amount: number | null
           paypal_capture_id: string | null
           paypal_order_id: string | null
-          paypal_payment_id: string | null
           pickup_date: string
           product_base_price: number | null
           product_id: string | null
@@ -305,8 +292,6 @@ export type Database = {
           refused_by: Database["public"]["Enums"]["refused_by"] | null
           shop_id: string
           status: Database["public"]["Enums"]["order_status"] | null
-          stripe_payment_intent_id: string | null
-          stripe_session_id: string | null
           total_amount: number | null
           updated_at: string | null
         }
@@ -325,7 +310,6 @@ export type Database = {
           paid_amount?: number | null
           paypal_capture_id?: string | null
           paypal_order_id?: string | null
-          paypal_payment_id?: string | null
           pickup_date: string
           product_base_price?: number | null
           product_id?: string | null
@@ -333,8 +317,6 @@ export type Database = {
           refused_by?: Database["public"]["Enums"]["refused_by"] | null
           shop_id: string
           status?: Database["public"]["Enums"]["order_status"] | null
-          stripe_payment_intent_id?: string | null
-          stripe_session_id?: string | null
           total_amount?: number | null
           updated_at?: string | null
         }
@@ -353,7 +335,6 @@ export type Database = {
           paid_amount?: number | null
           paypal_capture_id?: string | null
           paypal_order_id?: string | null
-          paypal_payment_id?: string | null
           pickup_date?: string
           product_base_price?: number | null
           product_id?: string | null
@@ -361,8 +342,6 @@ export type Database = {
           refused_by?: Database["public"]["Enums"]["refused_by"] | null
           shop_id?: string
           status?: Database["public"]["Enums"]["order_status"] | null
-          stripe_payment_intent_id?: string | null
-          stripe_session_id?: string | null
           total_amount?: number | null
           updated_at?: string | null
         }
@@ -379,106 +358,6 @@ export type Database = {
             columns: ["shop_id"]
             isOneToOne: false
             referencedRelation: "shops"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      partner_commissions: {
-        Row: {
-          commission_amount: number
-          created_at: string | null
-          id: string
-          month_year: string
-          paid_at: string | null
-          referral_id: string
-          status: string | null
-          stripe_transfer_id: string | null
-          subscription_amount: number
-        }
-        Insert: {
-          commission_amount: number
-          created_at?: string | null
-          id?: string
-          month_year: string
-          paid_at?: string | null
-          referral_id: string
-          status?: string | null
-          stripe_transfer_id?: string | null
-          subscription_amount: number
-        }
-        Update: {
-          commission_amount?: number
-          created_at?: string | null
-          id?: string
-          month_year?: string
-          paid_at?: string | null
-          referral_id?: string
-          status?: string | null
-          stripe_transfer_id?: string | null
-          subscription_amount?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "partner_commissions_referral_id_fkey"
-            columns: ["referral_id"]
-            isOneToOne: false
-            referencedRelation: "referrals"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      partners: {
-        Row: {
-          commission_rate: number | null
-          company_insta: string | null
-          company_name: string
-          company_tiktok: string | null
-          company_website: string | null
-          created_at: string | null
-          id: string
-          profiles_id: string
-          referral_code: string
-          status: string | null
-          total_earnings: number | null
-          total_referrals: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          commission_rate?: number | null
-          company_insta?: string | null
-          company_name: string
-          company_tiktok?: string | null
-          company_website?: string | null
-          created_at?: string | null
-          id?: string
-          profiles_id: string
-          referral_code: string
-          status?: string | null
-          total_earnings?: number | null
-          total_referrals?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          commission_rate?: number | null
-          company_insta?: string | null
-          company_name?: string
-          company_tiktok?: string | null
-          company_website?: string | null
-          created_at?: string | null
-          id?: string
-          profiles_id?: string
-          referral_code?: string
-          status?: string | null
-          total_earnings?: number | null
-          total_referrals?: number | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "partners_profiles_id_fkey"
-            columns: ["profiles_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -705,45 +584,6 @@ export type Database = {
         }
         Relationships: []
       }
-      referrals: {
-        Row: {
-          created_at: string | null
-          id: string
-          partner_id: string
-          shop_id: string
-          status: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          partner_id: string
-          shop_id: string
-          status?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          partner_id?: string
-          shop_id?: string
-          status?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "referrals_partner_id_fkey"
-            columns: ["partner_id"]
-            isOneToOne: false
-            referencedRelation: "partners"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "referrals_shop_id_fkey"
-            columns: ["shop_id"]
-            isOneToOne: true
-            referencedRelation: "shops"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       shops: {
         Row: {
           bio: string | null
@@ -796,41 +636,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "shops_profile_id_fkey"
-            columns: ["profile_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      stripe_connect_accounts: {
-        Row: {
-          created_at: string | null
-          id: string
-          is_active: boolean | null
-          profile_id: string
-          stripe_account_id: string
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          is_active?: boolean | null
-          profile_id: string
-          stripe_account_id: string
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          is_active?: boolean | null
-          profile_id?: string
-          stripe_account_id?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "stripe_connect_accounts_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -966,13 +771,10 @@ export type Database = {
       check_and_create_trial: {
         Args: {
           p_email: string
-          p_fingerprint: string
-          p_instagram: string
-          p_ip_address: string
+          p_merchant_id: string
           p_profile_id: string
           p_stripe_customer_id: string
           p_subscription_id: string
-          p_tiktok: string
         }
         Returns: Json
       }
@@ -1066,6 +868,10 @@ export type Database = {
           premium_product_id?: string
         }
         Returns: string
+      }
+      get_user_plan_and_product_count: {
+        Args: { p_profile_id: string }
+        Returns: Json
       }
       user_password_set: {
         Args: Record<PropertyKey, never>

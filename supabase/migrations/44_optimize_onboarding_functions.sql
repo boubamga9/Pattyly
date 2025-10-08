@@ -114,6 +114,7 @@ create or replace function check_and_create_trial(
 )
 returns json
 language plpgsql
+security definer
 as $$
 declare
   result json;

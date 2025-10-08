@@ -25,6 +25,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
         const { shop, product, customForm, customFields, availabilities, unavailabilities, datesWithLimitReached } = productData;
 
+        console.log('productData', productData);
+
         if (!product) {
             throw error(404, 'Produit non trouvé');
         }

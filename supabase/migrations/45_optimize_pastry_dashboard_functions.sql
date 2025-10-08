@@ -375,7 +375,10 @@ begin
         'created_at', o.created_at,
         'chef_pickup_date', o.chef_pickup_date,
         'paid_amount', o.paid_amount,
-        'stripe_payment_intent_id', o.stripe_payment_intent_id,
+        'paypal_order_id', o.paypal_order_id,
+        'paypal_capture_id', o.paypal_capture_id,
+        'customization_data', o.customization_data,
+        'inspiration_photos', o.inspiration_photos,
         'product', json_build_object(
           'name', p.name,
           'description', p.description,
@@ -501,6 +504,30 @@ begin
     ),
     'yearly_revenue', (
       select coalesce(sum(o.total_amount), 0)
+      from orders o
+      where o.shop_id = p_shop_id
+      and o.created_at >= one_year_ago
+    ),
+    'weekly_deposit', (
+      select coalesce(sum(o.paid_amount), 0)
+      from orders o
+      where o.shop_id = p_shop_id
+      and o.created_at >= one_week_ago
+    ),
+    'monthly_deposit', (
+      select coalesce(sum(o.paid_amount), 0)
+      from orders o
+      where o.shop_id = p_shop_id
+      and o.created_at >= one_month_ago
+    ),
+    'three_months_deposit', (
+      select coalesce(sum(o.paid_amount), 0)
+      from orders o
+      where o.shop_id = p_shop_id
+      and o.created_at >= three_months_ago
+    ),
+    'yearly_deposit', (
+      select coalesce(sum(o.paid_amount), 0)
       from orders o
       where o.shop_id = p_shop_id
       and o.created_at >= one_year_ago

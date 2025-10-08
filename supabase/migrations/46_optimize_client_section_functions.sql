@@ -62,7 +62,7 @@ begin
     from future_dates_with_limits fdl
     left join orders o on o.shop_id = v_shop_id 
       and o.pickup_date = fdl.check_date::date  -- ✅ cast fix
-      and o.status in ('pending', 'quoted', 'confirmed')
+      and o.status in ('pending', 'quoted', 'confirmed', 'ready', 'completed')
     group by fdl.check_date, fdl.daily_order_limit
   )
   select array_agg(pickup_date)

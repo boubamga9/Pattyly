@@ -125,7 +125,7 @@ export async function compressImage(
                         // Créer un nouveau fichier avec le blob compressé
                         const compressedFile = new File(
                             [blob],
-                            `compressed_${file.name}`,
+                            `compressed-${file.name}`,
                             {
                                 type: blob.type,
                                 lastModified: Date.now()

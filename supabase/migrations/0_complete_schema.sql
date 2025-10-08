@@ -240,7 +240,7 @@ CREATE POLICY "Users can view own subscriptions" ON user_products
   FOR SELECT USING (auth.uid() = profile_id);
 
 CREATE POLICY "Server can manage subscriptions" ON user_products
-  FOR ALL USING (false); -- Only accessible via server-side functions
+  FOR ALL USING (auth.role() = 'service_role'); -- Allow service role to manage subscriptions
 
 -- Stripe Connect accounts policies
 CREATE POLICY "Users can view own connect account" ON stripe_connect_accounts

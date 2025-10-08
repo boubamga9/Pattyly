@@ -238,7 +238,6 @@
 				confirmingDeleteNote = false;
 				// Mettre à jour l'interface localement
 				personalNote = null;
-			} else {
 			}
 		} catch (error) {}
 	}
@@ -385,18 +384,18 @@
 								>Statut du paiement</Label
 							>
 							<p class="text-sm">
-								{#if order.stripe_payment_intent_id}
-									<span class="font-medium text-green-600">Payé</span>
-									{#if paidAmount}
+								{#if order.paypal_order_id}
+									<span class="font-medium text-green-600"
+										>Payé {paidAmount
+											? `(${formatPrice(paidAmount)})`
+											: ''}</span
+									>
+									{#if order.paypal_capture_id}
 										<br />
 										<span class="text-xs text-muted-foreground">
-											Montant payé : {formatPrice(paidAmount)}
+											Référence PayPal : {order.paypal_capture_id}
 										</span>
 									{/if}
-								{:else if order.stripe_session_id}
-									<span class="font-medium text-yellow-600"
-										>En attente de paiement</span
-									>
 								{:else}
 									<span class="text-gray-600">Non payé</span>
 								{/if}

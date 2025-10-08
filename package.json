@@ -45,7 +45,6 @@
 	},
 	"type": "module",
 	"dependencies": {
-		"@fingerprintjs/fingerprintjs": "^4.6.2",
 		"@paypal/paypal-server-sdk": "^1.1.0",
 		"@supabase/ssr": "^0.3.0",
 		"@supabase/supabase-js": "^2.43.1",

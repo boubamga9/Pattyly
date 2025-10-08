@@ -27,31 +27,16 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
         let { data: order, error: orderError } = await locals.supabase
             .from('orders')
-            .select('*, shops(slug, name, logo_url)')
-            .eq('stripe_session_id', orderId)
+            .select('id, status, customer_name, customer_email, customer_phone, customer_instagram, pickup_date, customization_data, product_name, product_base_price, additional_information, total_amount, paid_amount, paypal_order_id, paypal_capture_id, inspiration_photos, created_at, shops(slug, name, logo_url)')
+            .eq('paypal_order_id', orderId)
             .eq('shop_id', shop.id)
             .single();
-
-        // If not found by stripe_session_id, try by paypal_order_id
-        if (orderError && orderError.code === 'PGRST116') {
-            const { data: orderByPayPal, error: paypalError } = await locals.supabase
-                .from('orders')
-                .select('*, shops(slug, name, logo_url)')
-                .eq('paypal_order_id', orderId)
-                .eq('shop_id', shop.id)
-                .single();
-
-            if (!paypalError && orderByPayPal) {
-                order = orderByPayPal;
-                orderError = null;
-            }
-        }
 
         // If still not found, try by order_id (custom orders)
         if (orderError && orderError.code === 'PGRST116') {
             const { data: orderById, error: orderByIdError } = await locals.supabase
                 .from('orders')
-                .select('*, shops(slug, name, logo_url)')
+                .select('id, status, customer_name, customer_email, customer_phone, customer_instagram, pickup_date, customization_data, product_name, product_base_price, additional_information, total_amount, paid_amount, paypal_order_id, paypal_capture_id, inspiration_photos, created_at, shops(slug, name, logo_url)')
                 .eq('id', orderId)
                 .eq('shop_id', shop.id)
                 .single();

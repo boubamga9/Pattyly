@@ -42,7 +42,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         // 2️⃣ Récupérer produit et formulaire
         const { data: product, error: productError } = await locals.supabase
             .from('products')
-            .select('id, base_price, form_id')
+            .select('id, name, base_price, form_id')
             .eq('id', orderData.productId)
             .single();
         if (productError || !product) return json({ error: 'Produit non trouvé' }, { status: 404 });
@@ -104,6 +104,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             .insert({
                 order_data: {
                     ...orderData,
+                    productName: product.name,
                     selectedOptions: transformedCustomizationData,
                     serverCalculatedPrice: totalPrice,
                     depositAmount
@@ -127,7 +128,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             }],
             application_context: {
                 return_url: `${origin}/${shop.slug}/order/paypal-return?pendingId=${pendingOrder.id}`,
-                cancel_url: `${origin}/${shop.slug}/product/${orderData.productId}`
+                cancel_url: `${origin}/${shop.slug}/product/${orderData.productId}`,
+                user_action: 'PAY_NOW'
             }
         });
 

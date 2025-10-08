@@ -50,16 +50,6 @@ export const load: PageServerLoad = async ({ locals }) => {
     const { amr } = await locals.safeGetSession();
     const recoveryAmr = amr?.find((x) => x.method === 'recovery');
 
-    // Get Stripe Connect account status
-    const { data: stripeAccount, error: stripeError } = await locals.supabase
-        .from('stripe_connect_accounts')
-        .select('*')
-        .eq('profile_id', userId)
-        .single();
-
-    if (stripeError && stripeError.code !== 'PGRST116') {
-    }
-
     // Get PayPal account status
     const { data: paypalAccount, error: paypalError } = await locals.supabase
         .from('paypal_accounts')
@@ -78,7 +68,6 @@ export const load: PageServerLoad = async ({ locals }) => {
         createPasswordForm: await superValidate(zod(createPasswordFormSchema)),
         recoverySession: Boolean(recoveryAmr),
         createPassword: !passwordSet,
-        stripeAccount: stripeAccount || null,
         paypalAccount: paypalAccount || null,
         permissions, // ✅ Ajouter les permissions pour accéder à is_stripe_free
     };

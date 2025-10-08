@@ -4,7 +4,6 @@ import { PUBLIC_PAYPAL_BASE_URL } from '$env/static/public';
 import type {
     PayPalConfig,
     PayPalAccessToken,
-    PayPalPartnerReferral,
     PayPalPartnerReferralResponse,
     PayPalOrderCreateRequest,
     PayPalOrder,
@@ -162,7 +161,9 @@ class PayPalClient {
         });
 
         if (!response.ok) {
-            throw new Error(`PayPal order capture failed: ${response.statusText}`);
+            const errorText = await response.text();
+            console.error('PayPal capture error response:', errorText);
+            throw new Error(`PayPal order capture failed: ${response.statusText} - ${errorText}`);
         }
 
         return await response.json();

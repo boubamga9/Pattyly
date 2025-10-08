@@ -103,7 +103,6 @@
 	function removeInspirationPhoto(index: number) {
 		inspirationPhotos = inspirationPhotos.filter((_, i) => i !== index);
 		inspirationFiles = inspirationFiles.filter((_, i) => i !== index);
-		$formData.inspiration_photos = inspirationPhotos;
 
 		// Synchroniser l'input file
 		const dataTransfer = new DataTransfer();
@@ -248,6 +247,7 @@
 											{...attrs}
 											id={field.id}
 											type="number"
+											step="1"
 											placeholder="Votre réponse"
 											required={field.required}
 											bind:value={$formData.customization_data[field.id]}

@@ -83,6 +83,16 @@ export const actions: Actions = {
             const formData = await request.formData();
             const inspirationFiles = formData.getAll('inspiration_photos') as File[];
 
+            console.log('🔍 [Custom Order] FormData keys:', Array.from(formData.keys()));
+            console.log('🔍 [Custom Order] Inspiration files received:', inspirationFiles.length);
+            inspirationFiles.forEach((file, index) => {
+                console.log(`🔍 [Custom Order] File ${index}:`, {
+                    name: file.name,
+                    size: file.size,
+                    type: file.type
+                });
+            });
+
             const dynamicSchema = createLocalDynamicSchema(customFields);
             const form = await superValidate(formData, zod(dynamicSchema));
 
@@ -144,9 +154,16 @@ export const actions: Actions = {
             }
 
             let uploadedInspirationPhotos: string[] = [];
+            console.log('🔍 [Custom Order] Starting photo upload process...');
             if (inspirationFiles.length > 0) {
+                console.log(`🔍 [Custom Order] Processing ${inspirationFiles.length} inspiration files`);
                 for (let i = 0; i < inspirationFiles.length; i++) {
                     const photoFile = inspirationFiles[i];
+                    console.log(`🔍 [Custom Order] Processing file ${i}:`, {
+                        name: photoFile.name,
+                        size: photoFile.size,
+                        type: photoFile.type
+                    });
                     if (photoFile && photoFile.size > 0) {
                         const arrayBuffer = await photoFile.arrayBuffer();
                         const buffer = Buffer.from(arrayBuffer);
@@ -167,18 +184,28 @@ export const actions: Actions = {
                             });
 
                         if (uploadError) {
-                            console.error('Erreur upload photo inspiration:', uploadError);
+                            console.error('❌ [Custom Order] Erreur upload photo inspiration:', uploadError);
                             continue;
                         }
+
+                        console.log(`✅ [Custom Order] Photo ${i} uploaded successfully:`, fileName);
 
                         const { data: urlData } = locals.supabase.storage
                             .from('inspiration-images')
                             .getPublicUrl(fileName);
 
-                        if (urlData?.publicUrl) uploadedInspirationPhotos.push(urlData.publicUrl);
+                        if (urlData?.publicUrl) {
+                            uploadedInspirationPhotos.push(urlData.publicUrl);
+                            console.log(`✅ [Custom Order] Photo ${i} URL generated:`, urlData.publicUrl);
+                        } else {
+                            console.error(`❌ [Custom Order] Failed to get URL for photo ${i}`);
+                        }
                     }
                 }
             }
+
+            console.log(`🔍 [Custom Order] Final uploaded photos count: ${uploadedInspirationPhotos.length}`);
+            console.log(`🔍 [Custom Order] Uploaded photos URLs:`, uploadedInspirationPhotos);
 
             const { data: order, error: orderError } = await locals.supabase
                 .from('orders')

@@ -124,6 +124,12 @@ export const load = async ({ locals }) => {
                 threeMonths: ordersMetrics?.three_months_revenue || 0,
                 yearly: ordersMetrics?.yearly_revenue || 0
             },
+            deposit: {
+                weekly: ordersMetrics?.weekly_deposit || 0,
+                monthly: ordersMetrics?.monthly_deposit || 0,
+                threeMonths: ordersMetrics?.three_months_deposit || 0,
+                yearly: ordersMetrics?.yearly_deposit || 0
+            },
             popularProducts: topProducts
         }
     };

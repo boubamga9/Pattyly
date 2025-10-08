@@ -1,5 +1,4 @@
 import { redirect, error } from '@sveltejs/kit';
-import type { Cookies } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { superValidate, setError } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
@@ -10,7 +9,6 @@ import Stripe from 'stripe';
 import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
 import { PUBLIC_SITE_URL } from '$env/static/public';
 import { STRIPE_PRODUCTS, STRIPE_PRICES } from '$lib/config/server';
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { paypalClient } from '$lib/paypal/client.js';
 
 
@@ -18,166 +16,73 @@ const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
     apiVersion: '2024-04-10'
 });
 
-// Fonction pour extraire l'email de base (sans plus addressing)
-function getBaseEmail(email: string): string {
-    const [localPart, domain] = email.split('@');
-    const baseLocalPart = localPart.split('+')[0];
-    return `${baseLocalPart}@${domain}`;
-}
 
-// ✅ OPTIMISÉ : Fonction pour vérifier l'éligibilité et créer l'essai gratuit
-async function checkAndStartTrial(
-    supabase: SupabaseClient,
-    userId: string,
-    userEmail: string,
-    request: Request,
-    cookies: Cookies,
-    instagram?: string | null,
-    tiktok?: string | null
-): Promise<{ success: boolean; error?: string; subscriptionId?: string }> {
-    try {
-        // Récupérer l'IP de l'utilisateur
-        const forwardedFor = request.headers.get('x-forwarded-for');
-        const realIp = request.headers.get('x-real-ip');
-        const userIp = forwardedFor?.split(',')[0] || realIp || request.headers.get('cf-connecting-ip') || '127.0.0.1';
 
-        // Récupérer le fingerprint depuis les cookies
-        const cookieHeader = request.headers.get('cookie') || '';
-        const fingerprintMatch = cookieHeader.match(/deviceFingerprint=([^;]+)/);
-        const fingerprint = fingerprintMatch ? fingerprintMatch[1] : '';
 
-        // ✅ SUPPRIMER LE COOKIE APRÈS RÉCUPÉRATION
-        if (fingerprint) {
-            cookies.delete('deviceFingerprint', { path: '/' });
-        }
+export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase }, url }) => {
+    const { session, user } = await safeGetSession();
 
-        // ✅ OPTIMISÉ : Vérifier l'éligibilité avec les données déjà récupérées
-        const { data: onboardingData } = await supabase.rpc('get_onboarding_data', {
-            p_profile_id: userId
-        });
+    // 🟢 Redirection 1 — pas connecté
+    if (!session || !user) {
+        throw redirect(303, '/login');
+    }
 
-        if (onboardingData?.has_subscription || onboardingData?.is_anti_fraud) {
-            return { success: false, error: 'Un essai gratuit a déjà été utilisé' };
-        }
+    const userId = user.id;
 
-        // Créer ou récupérer le customer Stripe
-        let customer: string;
-        const { data: existingCustomer } = await supabase
-            .from('stripe_customers')
-            .select('stripe_customer_id')
+    // 🔄 Vérification du polling PayPal
+    const paypalOnboarding = url.searchParams.get('paypal_onboarding');
+    if (paypalOnboarding === 'pending') {
+        // Vérifier le statut PayPal de l'utilisateur
+        const { data: paypalAccount } = await supabase
+            .from('paypal_accounts')
+            .select('onboarding_status, is_active')
             .eq('profile_id', userId)
             .single();
 
-        if (existingCustomer) {
-            customer = existingCustomer.stripe_customer_id;
-        } else {
-            const { id } = await stripe.customers.create({
-                email: userEmail,
-                metadata: { user_id: userId }
-            });
-            customer = id;
-        }
-
-        // Créer l'abonnement avec essai gratuit (7 jours premium)
-        const subscription = await stripe.subscriptions.create({
-            customer,
-            items: [{ price: STRIPE_PRICES.PREMIUM }], // Premium price
-            trial_period_days: 7,
-            payment_behavior: 'default_incomplete',
-            expand: ['latest_invoice.payment_intent'],
-            trial_settings: {
-                end_behavior: {
-                    missing_payment_method: 'cancel'
-                }
-            }
-        });
-
-        console.log("user product info", userId, subscription.id, STRIPE_PRODUCTS.PREMIUM);
-
-        // ✅ OPTIMISÉ : Une seule fonction SQL pour tout créer
-        const { data: result, error } = await supabase.rpc('check_and_create_trial', {
-            p_profile_id: userId,
-            p_email: userEmail,
-            p_ip_address: userIp,
-            p_fingerprint: fingerprint,
-            p_instagram: instagram || null,
-            p_tiktok: tiktok || null,
-            p_stripe_customer_id: customer,
-            p_subscription_id: subscription.id
-        });
-
-        if (error) {
-            console.error('Error in check_and_create_trial:', error);
-            return { success: false, error: 'Erreur lors de la création de l\'essai gratuit' };
-        }
-
-        return {
-            success: true,
-            subscriptionId: subscription.id
-        };
-
-    } catch (error) {
-        console.error('Error in checkAndStartTrial:', error);
-        return { success: false, error: 'Erreur lors de la création de l\'essai gratuit' };
-    }
-}
-
-export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase }, }) => {
-
-    const { session, user } = await safeGetSession();
-    if (!session || !user) {
-        redirect(303, '/login');
-    }
-
-    try {
-        const userId = user.id;
-
-        // ✅ OPTIMISÉ : Un seul appel DB pour récupérer toutes les données
-        const { data: onboardingData, error } = await supabase.rpc('get_onboarding_data', {
-            p_profile_id: userId
-        });
-
-        if (error) {
-            console.error('Error fetching onboarding data:', error);
-            throw error(500, 'Erreur lors du chargement des données');
-        }
-
-        const { shop, paypal_account, stripe_account } = onboardingData;
-
-        // If shop exists and has active PayPal, redirect to dashboard
-        if (shop && paypal_account && paypal_account.is_active) {
+        if (paypalAccount?.onboarding_status === 'completed' && paypalAccount?.is_active) {
+            // PayPal onboarding terminé → rediriger vers dashboard
             throw redirect(303, '/dashboard');
         }
 
-        // Backward compatibility: check Stripe Connect too
-        if (shop && stripe_account && stripe_account.is_active) {
-            throw redirect(303, '/dashboard');
-        }
-
-        // If shop exists but no PayPal/Stripe, show step 2
-        if (shop) {
-            return {
-                step: 2,
-                shop,
-                form: await superValidate(zod(formSchema))
-            };
-        }
-
-        // No shop exists, show step 1
+        // Retourner les données pour le polling côté client
         return {
-            step: 1,
-            shop: null,
-            form: await superValidate(zod(formSchema))
+            paypalPolling: true,
+            paypalStatus: paypalAccount?.onboarding_status || 'pending'
         };
-    } catch (error) {
-        console.error('Error in onboarding load:', error);
-        // Return fallback data to prevent app crash
+    }
+
+    // 🧠 On récupère les données, mais sans inclure les redirections ici
+    const { data: onboardingData, error: dbError } = await supabase.rpc('get_onboarding_data', {
+        p_profile_id: userId
+    });
+
+    if (dbError) {
+        console.error('Error fetching onboarding data:', dbError);
+        throw error(500, 'Erreur lors du chargement des données');
+    }
+
+    const { shop, paypal_account } = onboardingData as any;
+
+    // 🟢 Redirection 2 — compte déjà actif
+    if (shop && paypal_account && paypal_account.is_active) {
+        throw redirect(303, '/dashboard');
+    }
+
+    // 🧩 Cas 1 : boutique créée mais pas PayPal → étape 2
+    if (shop) {
         return {
-            step: 1,
-            shop: null,
+            step: 2,
+            shop,
             form: await superValidate(zod(formSchema))
         };
     }
+
+    // 🧩 Cas 2 : aucune boutique → étape 1
+    return {
+        step: 1,
+        shop: null,
+        form: await superValidate(zod(formSchema))
+    };
 };
 
 export const actions: Actions = {
@@ -290,53 +195,14 @@ export const actions: Actions = {
             const userId = session.user.id;
 
             console.log('Connect PayPal');
-            // Check if PayPal account already exists
-            const { data: existingAccount, error: fetchError } = await (locals.supabase as any)
-                .from('paypal_accounts')
-                .select('id, paypal_merchant_id, onboarding_status, is_active')
-                .eq('profile_id', userId)
-                .single();
-
-            if (fetchError && fetchError.code !== 'PGRST116') {
-                // Create a clean form for Superforms compatibility
-                const cleanForm = await superValidate(zod(formSchema));
-                setError(cleanForm, 'name', 'Erreur lors de la vérification du compte PayPal');
-                return { form: cleanForm };
-            }
-
-            let trackingId: string;
-
-            if (!existingAccount) {
-                // Generate unique tracking ID
-                trackingId = `pattyly_${userId}_${Date.now()}`;
-
-                // Save new PayPal account to database
-                const { error: insertError } = await (locals.supabase as any)
-                    .from('paypal_accounts')
-                    .insert({
-                        profile_id: userId,
-                        tracking_id: trackingId,
-                        onboarding_status: 'pending',
-                        is_active: false // Will be set to true after onboarding completion
-                    });
-
-                if (insertError) {
-                    // Create a clean form for Superforms compatibility
-                    const cleanForm = await superValidate(zod(formSchema));
-                    setError(cleanForm, 'name', 'Erreur lors de la sauvegarde du compte PayPal');
-                    return { form: cleanForm };
-                }
-            } else {
-                // Account exists, use existing tracking ID
-                console.log('PayPal account exists, use existing tracking ID');
-                trackingId = existingAccount.tracking_id || `pattyly_${userId}_${Date.now()}`;
-            }
+            // Generate unique tracking ID
+            const trackingId = `pattyly_${userId}_${Date.now()}`;
 
             // Create PayPal Partner Referral
             console.log('Create PayPal Partner Referral');
             const referralResponse = await paypalClient.createPartnerReferral(
                 trackingId,
-                `${PUBLIC_SITE_URL}/dashboard`
+                `${PUBLIC_SITE_URL}/onboarding?paypal_onboarding=pending`
             );
 
             // Find the onboarding URL
@@ -345,43 +211,29 @@ export const actions: Actions = {
                 throw new Error('No onboarding URL found in PayPal response');
             }
 
-            // Update the account with onboarding URL
-            const { error: updateError } = await (locals.supabase as any)
+            // ✅ UPSERT : Créer ou mettre à jour avec toutes les infos immédiatement
+            const { error: upsertError } = await (locals.supabase as any)
                 .from('paypal_accounts')
-                .update({
+                .upsert({
+                    profile_id: userId,
+                    tracking_id: trackingId,
                     onboarding_url: onboardingLink.href,
-                    onboarding_status: 'in_progress'
-                })
-                .eq('profile_id', userId);
+                    onboarding_status: 'in_progress',
+                    is_active: false
+                }, {
+                    onConflict: 'profile_id'
+                });
 
-            if (updateError) {
-                console.error('Failed to update PayPal account with onboarding URL:', updateError);
+            if (upsertError) {
+                console.error('Failed to save PayPal account:', upsertError);
+                const cleanForm = await superValidate(zod(formSchema));
+                setError(cleanForm, 'name', 'Erreur lors de la sauvegarde du compte PayPal');
+                return { form: cleanForm };
             }
 
-            // Récupérer les informations de la boutique pour les réseaux sociaux
-            const { data: shopData } = await locals.supabase
-                .from('shops')
-                .select('instagram, tiktok')
-                .eq('profile_id', userId)
-                .single();
+            console.log('✅ [Onboarding] PayPal account saved successfully');
 
-            // Essai gratuit : vérifier l'éligibilité et créer l'essai si possible
-            console.log('Check and start trial');
-            const trialResult = await checkAndStartTrial(
-                locals.supabase,
-                userId,
-                session.user.email || '',
-                request,
-                cookies,
-                shopData?.instagram,
-                shopData?.tiktok
-            );
-
-            if (trialResult.success) {
-                console.log('Trial started successfully');
-            } else {
-                console.log('Trial not started:', trialResult.error);
-            }
+            // L'essai gratuit sera créé automatiquement après validation PayPal (via polling ou webhook)
 
             const cleanForm = await superValidate(zod(formSchema));
             cleanForm.message = 'Connexion PayPal réussie !';

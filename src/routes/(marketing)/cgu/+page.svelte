@@ -283,8 +283,8 @@
 					</p>
 					<ul class="list-inside list-disc space-y-2">
 						<li>Un essai par adresse email</li>
-						<li>Un essai par adresse IP</li>
-						<li>Un essai par empreinte digitale (FingerprintJS)</li>
+						<li>Un essai par compte PayPal</li>
+						<li>Un essai par réseau social (Instagram, TikTok)</li>
 					</ul>
 					<p>
 						En cas de tentative de fraude détectée, l'accès à l'essai gratuit
@@ -555,8 +555,8 @@
 							de commande
 						</li>
 						<li>
-							<strong>Techniques :</strong> Adresse IP, empreinte digitale, cookies
-							de session
+							<strong>Techniques :</strong> ID PayPal (merchant_id), réseaux sociaux
+							(Instagram, TikTok) de session
 						</li>
 					</ul>
 
@@ -606,7 +606,7 @@
 					<p>La Plateforme utilise :</p>
 					<ul class="list-inside list-disc space-y-2">
 						<li>Cookies de session pour l'authentification</li>
-						<li>FingerprintJS pour la prévention de la fraude</li>
+						<li>PayPal pour la prévention de la fraude et les paiements</li>
 						<li>Aucun cookie publicitaire ou de tracking tiers</li>
 					</ul>
 				</div>

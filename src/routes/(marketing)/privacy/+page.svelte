@@ -134,14 +134,14 @@
 					</h3>
 					<ul class="list-inside list-disc space-y-2">
 						<li>
-							<strong>Données de connexion :</strong> Adresse IP, logs de connexion
+							<strong>Données de connexion :</strong> Logs de connexion
 						</li>
 						<li>
 							<strong>Données de navigation :</strong> Pages visitées, durée de session
 						</li>
 						<li>
-							<strong>Données d'appareil :</strong> Empreinte digitale (FingerprintJS),
-							type de navigateur
+							<strong>Données d'appareil :</strong> ID PayPal (merchant_id), type
+							de navigateur
 						</li>
 						<li>
 							<strong>Cookies :</strong> Cookies de session, préférences utilisateur
@@ -398,7 +398,8 @@
 							(nécessaires)
 						</li>
 						<li>
-							<strong>FingerprintJS :</strong> Prévention de la fraude (intérêt légitime)
+							<strong>ID PayPal (merchant_id) :</strong> Prévention de la fraude
+							(intérêt légitime)
 						</li>
 						<li>
 							<strong>Préférences :</strong> Paramètres utilisateur (consentement)
