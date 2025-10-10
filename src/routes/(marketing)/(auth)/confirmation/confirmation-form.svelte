@@ -113,6 +113,9 @@
 			{/if}
 		</p>
 		<p class="font-medium text-gray-900">{email}</p>
+		<p class="mt-2 text-sm text-gray-500">
+			💡 Pensez à vérifier votre dossier spam si vous ne recevez pas l'email
+		</p>
 	</div>
 
 	<!-- Input email caché -->

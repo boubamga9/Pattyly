@@ -394,6 +394,14 @@
 							/>
 						</Form.Control>
 						<Form.FieldErrors />
+						{#if $formData.base_price && $formData.base_price > 0}
+							{@const deposit = $formData.base_price / 2}
+							{@const paypalFees = (deposit * 0.029 + 0.35).toFixed(2)}
+							<p class="mt-1 text-sm text-muted-foreground">
+								💳 PayPal prendra {paypalFees} € pour les frais de transaction sur
+								l'acompte
+							</p>
+						{/if}
 					</Form.Field>
 
 					<div>
@@ -476,7 +484,7 @@
 				<!-- Délai de préparation -->
 				<Form.Field {form} name="min_days_notice">
 					<Form.Control let:attrs>
-						<Form.Label>Délai de préparation minimum (jours)</Form.Label>
+						<Form.Label>Délai de commande minimum (jours)</Form.Label>
 						<Input
 							{...attrs}
 							bind:value={$formData.min_days_notice}
@@ -487,7 +495,13 @@
 					</Form.Control>
 					<Form.FieldErrors />
 					<p class="mt-1 text-sm text-muted-foreground">
-						Nombre de jours minimum nécessaires pour préparer ce gâteau
+						{#if $formData.min_days_notice > 0}
+							{$formData.min_days_notice} = Le client ne pourra commander que {$formData.min_days_notice}
+							jour{$formData.min_days_notice > 1 ? 's' : ''} minimum à compter de
+							la date actuelle
+						{:else}
+							0 = Le client pourra commander ce gâteau pour le jour même
+						{/if}
 					</p>
 				</Form.Field>
 			</form>
