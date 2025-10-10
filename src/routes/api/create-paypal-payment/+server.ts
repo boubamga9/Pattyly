@@ -87,6 +87,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         const depositAmount = +(totalPrice * 0.5).toFixed(2); // 50% pour PayPal
 
+        // 🔍 LOG: Date dans orderData
+        console.log('📅 [PayPal API] orderData.selectedDate:', {
+            value: orderData.selectedDate,
+            type: typeof orderData.selectedDate
+        });
+
         // 5️⃣ Récupérer compte PayPal
         const { data: paypalAccountData, error: paypalError } = await (locals.supabase as any)
             .rpc('get_paypal_account_for_shop', { shop_uuid: orderData.shopId });

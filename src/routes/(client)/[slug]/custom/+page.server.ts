@@ -108,13 +108,30 @@ export const actions: Actions = {
                 customization_data
             } = form.data;
 
+            // 🔍 LOG: Date reçue du front
+            console.log('📅 [Custom Order Backend] Received pickup_date:', {
+                value: pickup_date,
+                type: typeof pickup_date,
+                isDate: pickup_date instanceof Date,
+                constructor: pickup_date?.constructor?.name
+            });
+
             // 🔐 Security: force pickup_date → Date (without timezone conversion)
             let selectedDate: string | null = null;
             let selectedDateObj: Date;
             try {
                 selectedDateObj = new Date(pickup_date);
+                console.log('📅 [Custom Order Backend] Date object created:', {
+                    iso: selectedDateObj.toISOString(),
+                    utc: selectedDateObj.toUTCString(),
+                    local: selectedDateObj.toString(),
+                    getDate: selectedDateObj.getDate(),
+                    getUTCDate: selectedDateObj.getUTCDate()
+                });
+
                 // Utiliser les méthodes getFullYear, getMonth, getDate pour éviter les problèmes de fuseau horaire
                 selectedDate = `${selectedDateObj.getFullYear()}-${String(selectedDateObj.getMonth() + 1).padStart(2, '0')}-${String(selectedDateObj.getDate()).padStart(2, '0')}`;
+                console.log('📅 [Custom Order Backend] Final selectedDate:', selectedDate);
             } catch {
                 return fail(400, { form, error: 'Date de retrait invalide' });
             }

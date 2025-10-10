@@ -43,6 +43,31 @@
 	const form = superForm(data, {
 		validators: zodClient(dynamicSchema),
 		dataType: 'json',
+		onSubmit: () => {
+			console.log('🔍 [Custom Form Front] Submitting form data...');
+			console.log(
+				'🔍 [Custom Form Front] pickup_date value:',
+				$formData.pickup_date,
+			);
+			console.log(
+				'🔍 [Custom Form Front] pickup_date type:',
+				typeof $formData.pickup_date,
+			);
+			console.log(
+				'🔍 [Custom Form Front] pickup_date isDate:',
+				$formData.pickup_date instanceof Date,
+			);
+			if ($formData.pickup_date instanceof Date) {
+				console.log(
+					'🔍 [Custom Form Front] pickup_date ISO:',
+					$formData.pickup_date.toISOString(),
+				);
+				console.log(
+					'🔍 [Custom Form Front] pickup_date UTC:',
+					$formData.pickup_date.toUTCString(),
+				);
+			}
+		},
 	});
 
 	const { form: formData, enhance, submitting, message } = form;

@@ -64,6 +64,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         // Créer une pending order pour stocker les données
         console.log('🔄 [Custom PayPal] Creating pending order...');
 
+        // 🔍 LOG: Date from order
+        console.log('📅 [Custom PayPal API] order.pickup_date:', {
+            value: order.pickup_date,
+            type: typeof order.pickup_date
+        });
+
         const { data: pendingOrder, error: pendingOrderError } = await locals.supabaseServiceRole
             .from('pending_orders')
             .insert({
