@@ -20,9 +20,9 @@
 	const { order, orderType } = data;
 
 	// Reactive variables for the order properties
-	$: hasChefDate =
-		orderType === 'custom_order' && order && (order as any).chef_pickup_date;
+	$: hasChefDate = order && (order as any).chef_pickup_date; // Afficher pour tous les types de commandes
 	$: chefPickupDate = order ? (order as any).chef_pickup_date : null;
+	$: chefMessage = order ? (order as any).chef_message : null;
 	$: productName = order ? (order as any).product_name : null;
 	$: additionalInfo = order ? (order as any).additional_information : null;
 	$: customerPhone = order ? (order as any).customer_phone : null;
@@ -384,10 +384,10 @@
 					{/if}
 
 					<!-- Message du pâtissier -->
-					{#if orderType === 'custom_order' && order?.chef_message}
-						<div class="border-t pt-2">
-							<span class="text-muted-foreground">Message du pâtissier :</span>
-							<p class="mt-1">{order.chef_message}</p>
+					{#if chefMessage}
+						<div class="rounded-lg border border-blue-200 bg-blue-50 p-4">
+							<span class="font-medium text-blue-900">Message du pâtissier :</span>
+							<p class="mt-2 text-sm text-blue-800">{chefMessage}</p>
 						</div>
 					{/if}
 
