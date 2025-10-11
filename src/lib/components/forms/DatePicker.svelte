@@ -14,7 +14,7 @@
 	export let datesWithLimitReached: string[] = [];
 
 	const dispatch = createEventDispatcher<{
-		dateSelected: Date;
+		dateSelected: string; // Changed to string to prevent timezone conversion
 	}>();
 
 	// État du calendrier
@@ -127,7 +127,9 @@
 		if (isDateAvailable(date) && !hasReachedDailyLimit(date)) {
 			localSelectedDate = date;
 			selectedDate = date;
-			dispatch('dateSelected', date);
+			// Convert to YYYY-MM-DD string to prevent timezone conversion
+			const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+			dispatch('dateSelected', dateString);
 		}
 	}
 

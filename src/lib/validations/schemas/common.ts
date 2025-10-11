@@ -105,11 +105,19 @@ export const uuidSchema = z
     .uuid('Format d\'UUID invalide');
 
 // Date future uniquement
+// ✅ Changed to string to prevent timezone conversion (Date object causes one-day offset)
 export const futureDateSchema = z
-    .date()
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format de date invalide (YYYY-MM-DD attendu)')
     .refine(
-        (date) => date > new Date(),
-        'La date doit être dans le futur'
+        (dateStr) => {
+            // Compare using midday UTC to avoid timezone issues
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const inputDate = new Date(dateStr + 'T12:00:00Z');
+            return inputDate >= today;
+        },
+        'La date doit être aujourd\'hui ou dans le futur'
     );
 
 // Username pour réseaux sociaux (Instagram, TikTok)

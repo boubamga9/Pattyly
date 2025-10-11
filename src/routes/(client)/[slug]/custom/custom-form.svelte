@@ -434,7 +434,7 @@
 						<div class="flex justify-between">
 							<span class="text-muted-foreground">Date de récupération :</span>
 							<span class="font-medium"
-								>{$formData.pickup_date.toLocaleDateString('fr-FR')}</span
+								>{new Date($formData.pickup_date + 'T12:00:00Z').toLocaleDateString('fr-FR')}</span
 							>
 						</div>
 					{/if}
