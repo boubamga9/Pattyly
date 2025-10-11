@@ -47,8 +47,6 @@
 					<p>
 						<strong>Capital social :</strong> Non applicable
 					</p>
-					<p><strong>RCS :</strong> Non applicable (pas d'immatriculation)</p>
-					<p><strong>SIRET :</strong> [À compléter après inscription]</p>
 					<p>
 						<strong>Code APE/NAF :</strong> 62.01Z - Conseil en systèmes et logiciels
 						informatiques
