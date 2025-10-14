@@ -39,9 +39,18 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders, url, re
         }
 
         // 3. Vérifier si la boutique est visible (essai, abonnement ou admin)
-        const { data: isVisibleData } = await (locals.supabase as any).rpc('is_shop_visible', {
+        const { data: isVisibleData, error: visibilityError } = await (locals.supabase as any).rpc('is_shop_visible', {
             p_profile_id: shopInfo.profile_id,
             p_is_active: shopInfo.is_active
+        });
+
+        console.log('🔍 [Shop Visibility]', {
+            slug,
+            profile_id: shopInfo.profile_id,
+            is_active: shopInfo.is_active,
+            isVisibleData,
+            visibilityError,
+            isRevalidation
         });
 
         const isShopVisible = isVisibleData || false;
@@ -50,6 +59,7 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders, url, re
         // ✅ ISR met en cache la 404 → pas de problème de cache
         // ✅ Si revalidation, on continue pour mettre à jour le cache même si invisible
         if (!isShopVisible && !isRevalidation) {
+            console.log('❌ Shop not visible, returning 404');
             return { notFound: true };
         }
 

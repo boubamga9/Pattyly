@@ -18,7 +18,14 @@ export async function loadShopCatalog(
             .eq('id', shopId)
             .single();
 
+        console.log('🔍 [Catalog Loader] Shop query:', {
+            shopId,
+            shop,
+            shopError
+        });
+
         if (shopError || !shop) {
+            console.error('❌ Shop not found in catalog-loader:', shopError);
             throw new Error('Boutique non trouvée');
         }
 
