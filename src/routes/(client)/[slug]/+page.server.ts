@@ -12,7 +12,6 @@ export const config = {
         bypassToken: env.REVALIDATION_TOKEN
     }
 };
-console.log('ISR CONFIG', config);
 
 export const load: PageServerLoad = async ({ params, locals, setHeaders, url, request }) => {
     const { slug } = params;
@@ -21,7 +20,7 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders, url, re
         // 1. Récupérer l'ID de la boutique depuis le slug (actives et inactives)
         const { data: shopInfo, error: shopError } = await locals.supabase
             .from('shops')
-            .select('id, is_active')
+            .select('id, is_active, profile_id')
             .eq('slug', slug)
             .single();
 
@@ -30,22 +29,34 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders, url, re
             return { notFound: true };
         }
 
-        const isShopActive = shopInfo.is_active;
-
-        // 2. Vérifier si c'est une revalidation forcée
+        // 2. Vérifier si c'est une revalidation forcée (AVANT la vérification de visibilité)
         const bypassToken = url.searchParams.get('bypassToken');
         const revalidateHeader = request.headers.get('x-prerender-revalidate');
         const isRevalidation = bypassToken === env.REVALIDATION_TOKEN || revalidateHeader === env.REVALIDATION_TOKEN;
 
         if (isRevalidation) {
             console.log(`🔄 Revalidation forcée pour la boutique ${shopInfo.id}`);
-            // Vercel va régénérer la page immédiatement
         }
 
-        // 3. Charger le catalogue (ISR gère le cache)
+        // 3. Vérifier si la boutique est visible (essai, abonnement ou admin)
+        const { data: isVisibleData } = await (locals.supabase as any).rpc('is_shop_visible', {
+            p_profile_id: shopInfo.profile_id,
+            p_is_active: shopInfo.is_active
+        });
+
+        const isShopVisible = isVisibleData || false;
+
+        // Si la boutique n'est pas visible ET ce n'est pas une revalidation, retourner 404
+        // ✅ ISR met en cache la 404 → pas de problème de cache
+        // ✅ Si revalidation, on continue pour mettre à jour le cache même si invisible
+        if (!isShopVisible && !isRevalidation) {
+            return { notFound: true };
+        }
+
+        // 4. Charger le catalogue (ISR gère le cache)
         const catalogData = await loadShopCatalog(locals.supabase, shopInfo.id);
 
-        // 4. Headers CDN pour optimiser la performance
+        // 5. Headers CDN pour optimiser la performance
         setHeaders({
             'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
             'X-ISR-Revalidated': isRevalidation ? 'true' : 'false'
@@ -53,13 +64,12 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders, url, re
 
         return {
             shop: catalogData.shop,
-            categories: isShopActive ? catalogData.categories : [],
-            products: isShopActive ? catalogData.products : [],
+            categories: catalogData.categories,
+            products: catalogData.products,
             faqs: catalogData.faqs,
-            isShopActive,
+            isShopActive: isShopVisible,
             cacheInfo: {
                 cached_at: catalogData.cached_at,
-                catalog_version: catalogData.shop.catalog_version,
                 revalidated: isRevalidation
             }
         };

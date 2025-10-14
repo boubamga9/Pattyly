@@ -394,14 +394,6 @@
 							/>
 						</Form.Control>
 						<Form.FieldErrors />
-						{#if $formData.base_price && $formData.base_price > 0}
-							{@const deposit = $formData.base_price / 2}
-							{@const paypalFees = (deposit * 0.029 + 0.35).toFixed(2)}
-							<p class="mt-1 text-sm text-muted-foreground">
-								💳 PayPal prendra {paypalFees} € pour les frais de transaction sur
-								l'acompte
-							</p>
-						{/if}
 					</Form.Field>
 
 					<div>

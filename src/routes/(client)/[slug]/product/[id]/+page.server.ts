@@ -1,4 +1,4 @@
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { superValidate, fail, message, setError } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
@@ -31,7 +31,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
             throw error(404, 'Produit non trouvé');
         }
 
-        if (!shop.is_active && !url.searchParams.get('preview')) {
+        // Vérifier la visibilité (essai, abonnement, admin)
+        if (!shop.is_visible && !url.searchParams.get('preview')) {
             throw error(404, 'Boutique non trouvée');
         }
 
@@ -192,19 +193,23 @@ export const actions: Actions = {
                 }
             }
 
-            // Transform customization data - Keep IDs for traceability
+            // Transform customization data - Utiliser le label comme clé (compatible avec checkout-handlers)
             const selectedOptions: Record<string, any> = {};
             Object.entries(customization_data || {}).forEach(([fieldId, value]) => {
                 const field = customFields.find((f) => f.id === fieldId);
                 if (!field) return;
 
+                // Utiliser field.label comme clé (pas fieldId)
+                const key = field.label;
+
                 // Text or number
                 if (['short-text', 'long-text', 'number'].includes(field.type)) {
-                    selectedOptions[fieldId] = {
+                    selectedOptions[key] = {
                         value: value,
-                        label: field.label,
                         type: field.type,
-                        price: 0
+                        price: 0,
+                        fieldId: fieldId,
+                        fieldType: field.type
                     };
                 }
 
@@ -212,28 +217,30 @@ export const actions: Actions = {
                 else if (field.type === 'single-select' && Array.isArray(field.options)) {
                     const option = field.options.find((opt: any) => opt.label === value);
                     if (option) {
-                        selectedOptions[fieldId] = {
+                        selectedOptions[key] = {
                             value: option.label,
-                            label: field.label,
                             type: field.type,
-                            price: option.price || 0
+                            price: option.price || 0,
+                            fieldId: fieldId,
+                            fieldType: field.type
                         };
                     }
                 }
 
                 // Multi-select
                 else if (field.type === 'multi-select' && Array.isArray(value) && Array.isArray(field.options)) {
-                    selectedOptions[fieldId] = {
+                    selectedOptions[key] = {
                         values: value.map((optionLabel: string) => {
                             const option = field.options.find((opt: any) => opt.label === optionLabel);
                             return option ? { label: option.label, price: option.price || 0 } : null;
                         }).filter(Boolean),
-                        label: field.label,
                         type: field.type,
                         price: value.reduce((sum: number, optionLabel: string) => {
                             const option = field.options.find((opt: any) => opt.label === optionLabel);
                             return sum + (option?.price || 0);
-                        }, 0)
+                        }, 0),
+                        fieldId: fieldId,
+                        fieldType: field.type
                     };
                 }
             });
@@ -249,34 +256,53 @@ export const actions: Actions = {
 
 
 
-            // Prepare order data
-            const orderData = {
-                productId: id,
-                shopId: shop.id,
-                selectedDate,
-                customerName: customer_name,
-                customerEmail: customer_email,
-                customerPhone: customer_phone,
-                customerInstagram: customer_instagram,
-                additionalInfo: additional_information,
-                selectedOptions,
-                totalPrice,
-                cakeName: product.name,
-            };
+            // Générer un order_ref unique avec la fonction SQL
+            const { data: orderRefData, error: orderRefError } = await locals.supabase
+                .rpc('generate_order_ref');
 
-            // Create PayPal payment
-            const response = await fetch('/api/create-paypal-payment', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(orderData),
-            });
-
-            if (!response.ok) {
-                throw error(500, 'Erreur lors de la création du paiement PayPal');
+            if (orderRefError || !orderRefData) {
+                console.error('Error generating order_ref:', orderRefError);
+                return fail(500, { form, error: 'Erreur lors de la génération de la référence' });
             }
 
-            const { approvalUrl } = await response.json();
-            return message(form, { redirectTo: approvalUrl });
+            const order_ref = orderRefData;
+            console.log('🆔 [Product Order] Generated order_ref:', order_ref);
+
+            // Créer la pending_order avec order_data
+            const orderData = {
+                shop_id: shop.id,
+                product_id: id,
+                customer_name,
+                customer_email,
+                customer_phone,
+                customer_instagram,
+                pickup_date: selectedDate,
+                additional_information,
+                customization_data: selectedOptions,
+                total_amount: totalPrice,
+                product_name: product.name,
+                order_ref
+            };
+
+            const { error: pendingOrderError } = await locals.supabase
+                .from('pending_orders')
+                .insert({
+                    order_data: orderData,
+                    order_ref
+                });
+
+            if (pendingOrderError) {
+                console.error('Error creating pending order:', pendingOrderError);
+                return fail(500, { form, error: 'Erreur lors de la création de la commande' });
+            }
+
+            console.log('✅ [Product Order] Pending order created with order_ref:', order_ref);
+
+            // Retourner le message de redirection pour le client
+            return message(form, {
+                success: true,
+                redirectTo: `/${slug}/product/${id}/checkout/${order_ref}`
+            });
 
         } catch (err) {
             console.error('Erreur lors de la création de la session de paiement:', err);

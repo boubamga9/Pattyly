@@ -20,34 +20,17 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             throw error(404, 'Boutique non trouvée');
         }
 
-        // Try multiple ways to find the order:
-        // 1. By stripe_session_id (Stripe product orders)
-        // 2. By paypal_order_id (PayPal product orders)  
-        // 3. By order id (custom orders)
-
-        let { data: order, error: orderError } = await locals.supabase
+        // Chercher la commande par son ID
+        const { data: order, error: orderError } = await locals.supabase
             .from('orders')
-            .select('id, status, customer_name, customer_email, customer_phone, customer_instagram, pickup_date, chef_pickup_date, chef_message, customization_data, product_name, product_base_price, additional_information, total_amount, paid_amount, paypal_order_id, paypal_capture_id, inspiration_photos, created_at, shops(slug, name, logo_url)')
-            .eq('paypal_order_id', orderId)
+            .select('id, status, customer_name, customer_email, customer_phone, customer_instagram, pickup_date, chef_pickup_date, chef_message, customization_data, product_name, product_base_price, additional_information, total_amount, paid_amount, order_ref, inspiration_photos, created_at, shops(slug, name, logo_url), product_id')
+            .eq('id', orderId)
             .eq('shop_id', shop.id)
             .single();
 
-        // If still not found, try by order_id (custom orders)
-        if (orderError && orderError.code === 'PGRST116') {
-            const { data: orderById, error: orderByIdError } = await locals.supabase
-                .from('orders')
-                .select('id, status, customer_name, customer_email, customer_phone, customer_instagram, pickup_date, chef_pickup_date, chef_message, customization_data, product_name, product_base_price, additional_information, total_amount, paid_amount, paypal_order_id, paypal_capture_id, inspiration_photos, created_at, shops(slug, name, logo_url)')
-                .eq('id', orderId)
-                .eq('shop_id', shop.id)
-                .single();
-
-            if (orderByIdError) {
-                throw error(404, 'Commande non trouvée');
-            }
-
-            order = orderById;
-        } else if (orderError) {
-            throw error(500, 'Erreur lors de la récupération de la commande');
+        if (orderError) {
+            console.error('Error fetching order:', orderError);
+            throw error(404, 'Commande non trouvée');
         }
 
         // Check that order is not null after all attempts
@@ -65,6 +48,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         };
 
     } catch (err) {
+        // Si c'est déjà une erreur HTTP, la relancer
+        if (err && typeof err === 'object' && 'status' in err) {
+            throw err;
+        }
         throw error(500, 'Erreur inattendue lors du chargement de la commande');
     }
 };

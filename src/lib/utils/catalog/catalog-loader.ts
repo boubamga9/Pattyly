@@ -11,10 +11,10 @@ export async function loadShopCatalog(
     shopId: string
 ): Promise<any> {
     try {
-        // 1. Récupérer la version actuelle du catalogue
+        // 1. Récupérer les informations de la boutique
         const { data: shop, error: shopError } = await supabase
             .from('shops')
-            .select('id, name, bio, slug, logo_url, instagram, tiktok, website, catalog_version, is_custom_accepted, is_active')
+            .select('id, name, bio, slug, logo_url, instagram, tiktok, website, is_custom_accepted, is_active')
             .eq('id', shopId)
             .single();
 
@@ -75,7 +75,6 @@ export async function loadShopCatalog(
                 instagram: shop.instagram,
                 tiktok: shop.tiktok,
                 website: shop.website,
-                catalog_version: shop.catalog_version,
                 is_custom_accepted: shop.is_custom_accepted,
                 is_active: shop.is_active
             },

@@ -34,3 +34,6 @@ export * from './schemas/availability';
 
 // ===== FAQ =====
 export * from './schemas/faq';
+
+// ===== PAIEMENTS =====
+export * from './schemas/payment';

@@ -10,6 +10,9 @@ export { CustomRequestNotificationEmail } from './custom-request-notification';
 export { OrderConfirmationEmail } from './order-confirmation';
 export { OrderNotificationEmail } from './order-notification';
 
+export { OrderPendingVerificationClientEmail } from './order-pending-verification-client';
+export { OrderPendingVerificationPastryEmail } from './order-pending-verification-pastry';
+
 // Quote emails
 export { QuoteSentEmail } from './quote-sent';
 export { QuotePaymentEmail } from './quote-payment';

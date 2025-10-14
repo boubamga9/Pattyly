@@ -2,15 +2,14 @@ import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { superValidate, setError } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
-import { formSchema } from './schema';
+import { shopCreationSchema, paypalConfigSchema } from './schema';
 import { validateImageServer, validateAndRecompressImage, logValidationInfo } from '$lib/utils/images/server';
 import { sanitizeFileName } from '$lib/utils/filename-sanitizer';
 import Stripe from 'stripe';
 import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
-import { PUBLIC_SITE_URL } from '$env/static/public';
-import { STRIPE_PRODUCTS, STRIPE_PRICES } from '$lib/config/server';
-import { paypalClient } from '$lib/paypal/client.js';
-
+import { STRIPE_PRICES } from '$lib/config/server';
+// import { PUBLIC_SITE_URL } from '$env/static/public';
+// import { paypalClient } from '$lib/paypal/client.js';
 
 const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
     apiVersion: '2024-04-10'
@@ -29,28 +28,6 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
 
     const userId = user.id;
 
-    // 🔄 Vérification du polling PayPal
-    const paypalOnboarding = url.searchParams.get('paypal_onboarding');
-    if (paypalOnboarding === 'pending') {
-        // Vérifier le statut PayPal de l'utilisateur
-        const { data: paypalAccount } = await supabase
-            .from('paypal_accounts')
-            .select('onboarding_status, is_active')
-            .eq('profile_id', userId)
-            .single();
-
-        if (paypalAccount?.onboarding_status === 'completed' && paypalAccount?.is_active) {
-            // PayPal onboarding terminé → rediriger vers dashboard
-            throw redirect(303, '/dashboard');
-        }
-
-        // Retourner les données pour le polling côté client
-        return {
-            paypalPolling: true,
-            paypalStatus: paypalAccount?.onboarding_status || 'pending'
-        };
-    }
-
     // 🧠 On récupère les données, mais sans inclure les redirections ici
     const { data: onboardingData, error: dbError } = await supabase.rpc('get_onboarding_data', {
         p_profile_id: userId
@@ -61,10 +38,10 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
         throw error(500, 'Erreur lors du chargement des données');
     }
 
-    const { shop, paypal_account } = onboardingData as any;
+    const { shop, payment_link } = onboardingData as any;
 
-    // 🟢 Redirection 2 — compte déjà actif
-    if (shop && paypal_account && paypal_account.is_active) {
+    // 🟢 Redirection 2 — compte déjà actif (avec payment_link)
+    if (shop && payment_link) {
         throw redirect(303, '/dashboard');
     }
 
@@ -73,7 +50,7 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
         return {
             step: 2,
             shop,
-            form: await superValidate(zod(formSchema))
+            form: await superValidate(zod(paypalConfigSchema))
         };
     }
 
@@ -81,9 +58,62 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
     return {
         step: 1,
         shop: null,
-        form: await superValidate(zod(formSchema))
+        form: await superValidate(zod(shopCreationSchema))
     };
 };
+
+/**
+ * Créer un essai gratuit pour un utilisateur avec PayPal.me
+ * Inspiré de createTrialForUser mais adapté pour le nouveau système
+ */
+async function createTrialForPayPalMe(locals: any, paypalMe: string, userId: string) {
+    console.log('🚀 [PayPal.me Trial] Starting createTrialForPayPalMe with paypalMe:', paypalMe);
+
+    try {
+        // Récupérer les infos du profile
+        const { data: profileData } = await locals.supabase
+            .from('profiles')
+            .select('email')
+            .eq('id', userId)
+            .single();
+
+        if (!profileData?.email) {
+            console.error('❌ [PayPal.me Trial] Profile email not found');
+            return false;
+        }
+
+        // ✅ La vérification anti-fraud et la création de l'essai sont gérées automatiquement par check_and_create_trial
+        console.log('🔄 [PayPal.me Trial] Calling check_and_create_trial RPC with params:', {
+            p_paypal_me: paypalMe
+        });
+
+        // Appeler la fonction RPC mise à jour
+        // Elle retourne TRUE si c'est un nouvel utilisateur, FALSE sinon
+        const { data: isNewUser, error: rpcError } = await locals.supabase.rpc('check_and_create_trial', {
+            p_paypal_me: paypalMe
+        });
+
+        if (rpcError) {
+            console.error('❌ [PayPal.me Trial] RPC check_and_create_trial error:', rpcError);
+            return false;
+        }
+
+        console.log('✅ [PayPal.me Trial] RPC check_and_create_trial result:', { isNewUser });
+
+        // Vérifier que l'enregistrement anti_fraud a bien été créé
+        const { data: antiFraudCheck } = await locals.supabase
+            .from('anti_fraud')
+            .select('*')
+            .eq('paypal_me', paypalMe);
+
+        console.log('🔍 [PayPal.me Trial] Anti-fraud record verification:', antiFraudCheck);
+
+        return true;
+    } catch (error) {
+        console.error('❌ [PayPal.me Trial] Failed to create trial:', error);
+        return false;
+    }
+}
 
 export const actions: Actions = {
     createShop: async ({ request, locals: { safeGetSession, supabase } }) => {
@@ -91,17 +121,17 @@ export const actions: Actions = {
             const { session, user } = await safeGetSession();
 
             if (!session || !user) {
-                const form = await superValidate(zod(formSchema));
+                const form = await superValidate(zod(shopCreationSchema));
                 setError(form, 'name', 'Non autorisé');
                 console.log('Return error');
                 return { form };
             }
 
             const userId = user.id;
-            const form = await superValidate(request, zod(formSchema));
+            const form = await superValidate(request, zod(shopCreationSchema));
 
             if (!form.valid) {
-                const cleanForm = await superValidate(zod(formSchema));
+                const cleanForm = await superValidate(zod(shopCreationSchema));
                 cleanForm.errors = form.errors;
                 cleanForm.valid = false;
                 console.log('Return error');
@@ -115,7 +145,7 @@ export const actions: Actions = {
             if (logo && logo.size > 0) {
                 const validationResult = await validateAndRecompressImage(logo, 'LOGO');
                 if (!validationResult.isValid) {
-                    const cleanForm = await superValidate(zod(formSchema));
+                    const cleanForm = await superValidate(zod(shopCreationSchema));
                     setError(cleanForm, 'logo', validationResult.error || 'Validation du logo échouée');
                     console.log('Return error');
                     return { form: cleanForm };
@@ -130,7 +160,7 @@ export const actions: Actions = {
                     .upload(fileName, imageToUpload, { cacheControl: '3600', upsert: false });
 
                 if (uploadError) {
-                    const cleanForm = await superValidate(zod(formSchema));
+                    const cleanForm = await superValidate(zod(shopCreationSchema));
                     setError(cleanForm, 'logo', 'Erreur lors du téléchargement du logo');
                     console.log('Return error');
                     return { form: cleanForm };
@@ -145,17 +175,17 @@ export const actions: Actions = {
             const { data: shop, error: createError } = await supabase.rpc('create_shop_with_availabilities', {
                 p_profile_id: userId,
                 p_name: name,
-                p_bio: bio || null,
+                p_bio: bio ?? null,
                 p_slug: slug,
                 p_logo_url: logoUrl,
-                p_instagram: instagram || null,
-                p_tiktok: tiktok || null,
-                p_website: website || null
+                p_instagram: instagram ?? null,
+                p_tiktok: tiktok ?? null,
+                p_website: website ?? null
             });
 
             if (createError) {
                 console.error('Error creating shop:', createError);
-                const cleanForm = await superValidate(zod(formSchema));
+                const cleanForm = await superValidate(zod(shopCreationSchema));
 
                 // Gérer les erreurs spécifiques
                 if (createError.code === '23505') { // Unique constraint violation
@@ -168,87 +198,87 @@ export const actions: Actions = {
             }
 
             // Retour succès
-            const cleanForm = await superValidate(zod(formSchema));
+            const cleanForm = await superValidate(zod(shopCreationSchema));
             cleanForm.message = 'Boutique créée avec succès !';
             return { form: cleanForm, success: true, shop };
 
         } catch (error) {
             // Gestion globale des erreurs inattendues
             console.error(error);
-            const form = await superValidate(zod(formSchema));
+            const form = await superValidate(zod(shopCreationSchema));
             setError(form, 'name', 'Une erreur inattendue est survenue. Veuillez réessayer.');
             return { form };
         }
     },
 
-    connectPayPal: async ({ request, locals, cookies }) => {
+    createPaymentLink: async ({ request, locals }) => {
         try {
-            const { session } = await locals.safeGetSession();
+            const { session, user } = await locals.safeGetSession();
 
-            if (!session) {
-                // Create a clean form for Superforms compatibility
-                const cleanForm = await superValidate(zod(formSchema));
-                setError(cleanForm, 'name', 'Non autorisé');
+            if (!session || !user) {
+                const cleanForm = await superValidate(zod(paypalConfigSchema));
+                setError(cleanForm, 'paypal_me', 'Non autorisé');
                 return { form: cleanForm };
             }
 
-            const userId = session.user.id;
+            const userId = user.id;
+            const form = await superValidate(request, zod(paypalConfigSchema));
 
-            console.log('Connect PayPal');
-            // Generate unique tracking ID
-            const trackingId = `pattyly_${userId}_${Date.now()}`;
-
-            // Create PayPal Partner Referral
-            console.log('Create PayPal Partner Referral');
-            const referralResponse = await paypalClient.createPartnerReferral(
-                trackingId,
-                `${PUBLIC_SITE_URL}/onboarding?paypal_onboarding=pending`
-            );
-
-            // Find the onboarding URL
-            const onboardingLink = referralResponse.links.find(link => link.rel === 'action_url');
-            if (!onboardingLink) {
-                throw new Error('No onboarding URL found in PayPal response');
+            if (!form.valid) {
+                const cleanForm = await superValidate(zod(paypalConfigSchema));
+                cleanForm.errors = form.errors;
+                cleanForm.valid = false;
+                return { form: cleanForm };
             }
 
-            // ✅ UPSERT : Créer ou mettre à jour avec toutes les infos immédiatement
-            const { error: upsertError } = await (locals.supabase as any)
-                .from('paypal_accounts')
-                .upsert({
+            const { paypal_me } = form.data;
+
+            console.log('Creating payment link for user:', userId, 'with PayPal.me:', paypal_me);
+
+            // Créer le payment_link
+            const { error: insertError } = await (locals.supabase as any)
+                .from('payment_links')
+                .insert({
                     profile_id: userId,
-                    tracking_id: trackingId,
-                    onboarding_url: onboardingLink.href,
-                    onboarding_status: 'in_progress',
-                    is_active: false
-                }, {
-                    onConflict: 'profile_id'
+                    paypal_me: paypal_me
                 });
 
-            if (upsertError) {
-                console.error('Failed to save PayPal account:', upsertError);
-                const cleanForm = await superValidate(zod(formSchema));
-                setError(cleanForm, 'name', 'Erreur lors de la sauvegarde du compte PayPal');
+            if (insertError) {
+                console.error('Failed to create payment link:', insertError);
+                const cleanForm = await superValidate(zod(paypalConfigSchema));
+
+                // Gérer les erreurs spécifiques
+                if (insertError.code === '23505') { // Unique constraint violation
+                    setError(cleanForm, 'paypal_me', 'Ce nom PayPal.me est déjà utilisé');
+                } else {
+                    setError(cleanForm, 'paypal_me', 'Erreur lors de la création du lien de paiement');
+                }
                 return { form: cleanForm };
             }
 
-            console.log('✅ [Onboarding] PayPal account saved successfully');
+            console.log('✅ [Onboarding] Payment link created successfully');
 
-            // L'essai gratuit sera créé automatiquement après validation PayPal (via polling ou webhook)
+            // Créer l'essai gratuit et la ligne anti_fraud
+            console.log('🚀 [Onboarding] Creating trial for PayPal.me user...');
+            const trialCreated = await createTrialForPayPalMe(locals, paypal_me, userId);
 
-            const cleanForm = await superValidate(zod(formSchema));
-            cleanForm.message = 'Connexion PayPal réussie !';
-            console.log('Return success');
+            if (trialCreated) {
+                console.log('✅ [Onboarding] Trial created successfully');
+            } else {
+                console.log('⚠️ [Onboarding] Trial creation failed or skipped (already exists)');
+            }
+
+            const cleanForm = await superValidate(zod(paypalConfigSchema));
+            cleanForm.message = 'Lien PayPal créé avec succès !';
             return {
                 form: cleanForm,
-                success: true,
-                url: onboardingLink?.href || ''
+                success: true
             };
 
         } catch (err) {
-            // Create a clean form for Superforms compatibility
-            const cleanForm = await superValidate(zod(formSchema));
-            setError(cleanForm, 'name', 'Erreur lors de la connexion PayPal');
-            console.log('PayPal connection error:', err);
+            console.error('Payment link creation error:', err);
+            const cleanForm = await superValidate(zod(paypalConfigSchema));
+            setError(cleanForm, 'paypal_me', 'Une erreur inattendue est survenue');
             return { form: cleanForm };
         }
     }

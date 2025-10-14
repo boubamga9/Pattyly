@@ -38,17 +38,17 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
-          merchant_id: string | null
+          paypal_me: string | null
         }
         Insert: {
           created_at?: string | null
           id?: string
-          merchant_id?: string | null
+          paypal_me?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
-          merchant_id?: string | null
+          paypal_me?: string | null
         }
         Relationships: []
       }
@@ -282,9 +282,8 @@ export type Database = {
           customization_data: Json | null
           id: string
           inspiration_photos: string[] | null
+          order_ref: string | null
           paid_amount: number | null
-          paypal_capture_id: string | null
-          paypal_order_id: string | null
           pickup_date: string
           product_base_price: number | null
           product_id: string | null
@@ -307,9 +306,8 @@ export type Database = {
           customization_data?: Json | null
           id?: string
           inspiration_photos?: string[] | null
+          order_ref?: string | null
           paid_amount?: number | null
-          paypal_capture_id?: string | null
-          paypal_order_id?: string | null
           pickup_date: string
           product_base_price?: number | null
           product_id?: string | null
@@ -332,9 +330,8 @@ export type Database = {
           customization_data?: Json | null
           id?: string
           inspiration_photos?: string[] | null
+          order_ref?: string | null
           paid_amount?: number | null
-          paypal_capture_id?: string | null
-          paypal_order_id?: string | null
           pickup_date?: string
           product_base_price?: number | null
           product_id?: string | null
@@ -362,89 +359,59 @@ export type Database = {
           },
         ]
       }
-      paypal_accounts: {
+      payment_links: {
         Row: {
           created_at: string | null
           id: string
           is_active: boolean | null
-          onboarding_status: string | null
-          onboarding_url: string | null
-          paypal_merchant_id: string | null
+          paypal_me: string
           profile_id: string
-          tracking_id: string | null
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
           id?: string
           is_active?: boolean | null
-          onboarding_status?: string | null
-          onboarding_url?: string | null
-          paypal_merchant_id?: string | null
+          paypal_me: string
           profile_id: string
-          tracking_id?: string | null
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
           is_active?: boolean | null
-          onboarding_status?: string | null
-          onboarding_url?: string | null
-          paypal_merchant_id?: string | null
+          paypal_me?: string
           profile_id?: string
-          tracking_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "paypal_accounts_profile_id_fkey"
+            foreignKeyName: "payment_links_profile_id_fkey"
             columns: ["profile_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
-      }
-      paypal_events: {
-        Row: {
-          created_at: string
-          event_id: string
-          event_type: string
-          id: string
-          processed_at: string
-        }
-        Insert: {
-          created_at?: string
-          event_id: string
-          event_type: string
-          id?: string
-          processed_at?: string
-        }
-        Update: {
-          created_at?: string
-          event_id?: string
-          event_type?: string
-          id?: string
-          processed_at?: string
-        }
-        Relationships: []
       }
       pending_orders: {
         Row: {
           created_at: string | null
           id: string
           order_data: Json
+          order_ref: string | null
         }
         Insert: {
           created_at?: string | null
           id?: string
           order_data: Json
+          order_ref?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
           order_data?: Json
+          order_ref?: string | null
         }
         Relationships: []
       }
@@ -587,7 +554,6 @@ export type Database = {
       shops: {
         Row: {
           bio: string | null
-          catalog_version: number | null
           created_at: string | null
           id: string
           instagram: string | null
@@ -603,7 +569,6 @@ export type Database = {
         }
         Insert: {
           bio?: string | null
-          catalog_version?: number | null
           created_at?: string | null
           id?: string
           instagram?: string | null
@@ -619,7 +584,6 @@ export type Database = {
         }
         Update: {
           bio?: string | null
-          catalog_version?: number | null
           created_at?: string | null
           id?: string
           instagram?: string | null
@@ -769,18 +733,16 @@ export type Database = {
     }
     Functions: {
       check_and_create_trial: {
-        Args: {
-          p_email: string
-          p_merchant_id: string
-          p_profile_id: string
-          p_stripe_customer_id: string
-          p_subscription_id: string
-        }
+        Args:
+          | {
+              p_email: string
+              p_merchant_id: string
+              p_profile_id: string
+              p_stripe_customer_id: string
+              p_subscription_id: string
+            }
+          | { p_paypal_me: string }
         Returns: Json
-      }
-      cleanup_old_paypal_events: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
       }
       create_shop_with_availabilities: {
         Args: {
@@ -794,6 +756,10 @@ export type Database = {
           p_website: string
         }
         Returns: Json
+      }
+      generate_order_ref: {
+        Args: Record<PropertyKey, never>
+        Returns: string
       }
       get_availability_data: {
         Args: { p_profile_id: string }
@@ -816,10 +782,14 @@ export type Database = {
         Returns: Json
       }
       get_order_data: {
-        Args: { p_product_id?: string; p_slug: string }
+        Args: { p_product_id?: string; p_slug: string } | { p_shop_id: string }
         Returns: Json
       }
       get_order_detail_data: {
+        Args: { p_order_id: string; p_profile_id: string }
+        Returns: Json
+      }
+      get_order_details: {
         Args: { p_order_id: string; p_profile_id: string }
         Returns: Json
       }
@@ -830,13 +800,6 @@ export type Database = {
       get_orders_metrics: {
         Args: { p_shop_id: string }
         Returns: Json
-      }
-      get_paypal_account_for_shop: {
-        Args: { shop_uuid: string }
-        Returns: {
-          is_active: boolean
-          paypal_merchant_id: string
-        }[]
       }
       get_product_count: {
         Args: { profile_id: string }
@@ -849,13 +812,6 @@ export type Database = {
       get_shop_owner_email: {
         Args: { shop_uuid: string }
         Returns: string
-      }
-      get_stripe_connect_for_shop: {
-        Args: { shop_uuid: string }
-        Returns: {
-          is_active: boolean
-          stripe_account_id: string
-        }[]
       }
       get_user_permissions: {
         Args: { p_profile_id: string }
@@ -892,6 +848,7 @@ export type Database = {
         | "ready"
         | "refused"
         | "completed"
+        | "to_verify"
       refused_by: "pastry_chef" | "client"
       subscription_status: "active" | "inactive"
       user_role: "pastry_chef" | "admin" | "partner"
@@ -1039,6 +996,7 @@ export const Constants = {
         "ready",
         "refused",
         "completed",
+        "to_verify",
       ],
       refused_by: ["pastry_chef", "client"],
       subscription_status: ["active", "inactive"],

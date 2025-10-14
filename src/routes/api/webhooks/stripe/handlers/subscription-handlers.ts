@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { Stripe } from 'stripe';
 import { forceRevalidateShop } from '$lib/utils/catalog/catalog-revalidation';
+import { STRIPE_PRICES } from '$lib/config/server';
 
 export async function upsertSubscription(subscription: Stripe.Subscription, locals: any): Promise<void> {
     try {
@@ -19,6 +20,7 @@ export async function upsertSubscription(subscription: Stripe.Subscription, loca
 
         const profileId = customerData.profile_id;
         const productId = subscription.items.data[0].price.product as string;
+        const priceId = subscription.items.data[0].price.id as string;
         const productLookupKey = subscription.items.data[0].price.lookup_key as string;
         const subscriptionId = subscription.id;
 
@@ -27,6 +29,22 @@ export async function upsertSubscription(subscription: Stripe.Subscription, loca
 
         if (subscription.status === 'active' || subscription.status === 'trialing') {
             subscriptionStatus = 'active';
+        }
+
+        // Vérifier si c'est un Early Adopter (prix spécial à 15€)
+        const isEarlyAdopterPrice = priceId === STRIPE_PRICES.EARLY;
+
+        if (isEarlyAdopterPrice && subscriptionStatus === 'active') {
+            // Marquer l'utilisateur comme Early Adopter
+            await locals.supabaseServiceRole
+                .from('profiles')
+                .update({
+                    is_early_adopter: true,
+                    early_adopter_offer_shown_at: new Date().toISOString()
+                })
+                .eq('id', profileId);
+
+            console.log('✅ User marked as Early Adopter:', profileId);
         }
 
 

@@ -4,6 +4,8 @@ import { env } from '$env/dynamic/private';
 // Templates d'emails
 import { OrderConfirmationEmail } from '$lib/emails/order-confirmation';
 import { OrderNotificationEmail } from '$lib/emails/order-notification';
+import { OrderPendingVerificationClientEmail } from '$lib/emails/order-pending-verification-client';
+import { OrderPendingVerificationPastryEmail } from '$lib/emails/order-pending-verification-pastry';
 import { QuoteConfirmationEmail } from '$lib/emails/quote-confirmation';
 import { QuotePaymentEmail } from '$lib/emails/quote-payment';
 import { QuoteSentEmail } from '$lib/emails/quote-sent';
@@ -15,7 +17,6 @@ import { OrderCancelledEmail } from '$lib/emails/order-cancelled';
 import { ContactConfirmationEmail } from '$lib/emails/contact-confirmation';
 import { ContactNotificationEmail } from '$lib/emails/contact-notification';
 import { PaymentFailedNotificationEmail } from '$lib/emails/payment-failed-notification';
-import { TrialEndingNotificationEmail } from '$lib/emails/trial-ending-notification';
 
 // Initialisation de Resend
 const resend = new Resend(env.RESEND_API_KEY);
@@ -79,6 +80,136 @@ export class EmailService {
             return { success: true, messageId: data?.id };
         } catch (error) {
             console.error('Erreur EmailService.sendOrderConfirmation:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Envoie un email au client pour une commande en attente de vérification (PayPal.me)
+     */
+    static async sendOrderPendingVerificationClient({
+        customerEmail,
+        customerName,
+        shopName,
+        shopLogo,
+        productName,
+        pickupDate,
+        totalAmount,
+        paidAmount,
+        remainingAmount,
+        orderId,
+        orderUrl,
+        orderRef,
+        date,
+    }: {
+        customerEmail: string;
+        customerName: string;
+        shopName: string;
+        shopLogo?: string;
+        productName: string;
+        pickupDate: string;
+        totalAmount: number;
+        paidAmount: number;
+        remainingAmount: number;
+        orderId: string;
+        orderUrl: string;
+        orderRef: string;
+        date: string;
+    }) {
+        try {
+            const { data, error } = await resend.emails.send({
+                from: 'Pattyly <noreply@pattyly.com>',
+                to: [customerEmail],
+                subject: `Commande enregistrée - ${productName}`,
+                html: OrderPendingVerificationClientEmail({
+                    customerName,
+                    shopName,
+                    shopLogo,
+                    productName,
+                    pickupDate,
+                    totalAmount,
+                    paidAmount,
+                    remainingAmount,
+                    orderId,
+                    orderUrl,
+                    orderRef,
+                    date,
+                })
+            });
+
+            if (error) {
+                console.error('Erreur envoi email client pending verification:', error);
+                throw error;
+            }
+
+            return { success: true, messageId: data?.id };
+        } catch (error) {
+            console.error('Erreur EmailService.sendOrderPendingVerificationClient:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Envoie une notification au pâtissier pour une commande en attente de vérification (PayPal.me)
+     */
+    static async sendOrderPendingVerificationPastry({
+        pastryEmail,
+        customerName,
+        customerEmail,
+        customerInstagram,
+        productName,
+        pickupDate,
+        totalAmount,
+        paidAmount,
+        remainingAmount,
+        orderId,
+        orderRef,
+        dashboardUrl,
+        date,
+    }: {
+        pastryEmail: string;
+        customerName: string;
+        customerEmail: string;
+        customerInstagram?: string;
+        productName: string;
+        pickupDate: string;
+        totalAmount: number;
+        paidAmount: number;
+        remainingAmount: number;
+        orderId: string;
+        orderRef: string;
+        dashboardUrl: string;
+        date: string;
+    }) {
+        try {
+            const { data, error } = await resend.emails.send({
+                from: 'Pattyly <noreply@pattyly.com>',
+                to: [pastryEmail],
+                subject: `Nouvelle commande - Vérification requise`,
+                html: OrderPendingVerificationPastryEmail({
+                    customerName,
+                    customerEmail,
+                    customerInstagram,
+                    productName,
+                    pickupDate,
+                    totalAmount,
+                    paidAmount,
+                    remainingAmount,
+                    orderId,
+                    orderRef,
+                    dashboardUrl,
+                    date,
+                })
+            });
+
+            if (error) {
+                console.error('Erreur envoi notification pâtissier pending verification:', error);
+                throw error;
+            }
+
+            return { success: true, messageId: data?.id };
+        } catch (error) {
+            console.error('Erreur EmailService.sendOrderPendingVerificationPastry:', error);
             throw error;
         }
     }
@@ -665,41 +796,5 @@ export class EmailService {
         }
     }
 
-    /**
-     * Envoie une notification de fin de période d'essai au pâtissier
-     */
-    static async sendTrialEndingNotification({
-        pastryEmail,
-        shopName,
-        customerPortalUrl,
-        date,
-    }: {
-        pastryEmail: string;
-        shopName: string;
-        customerPortalUrl: string;
-        date: string;
-    }) {
-        try {
-            const { data, error } = await resend.emails.send({
-                from: 'Pattyly <noreply@pattyly.com>',
-                to: [pastryEmail],
-                subject: `Votre période d'essai se termine dans 3 jours`,
-                html: TrialEndingNotificationEmail({
-                    shopName,
-                    customerPortalUrl,
-                    date,
-                })
-            });
-
-            if (error) {
-                console.error('Erreur envoi email fin période d\'essai:', error);
-                throw error;
-            }
-
-            return { success: true, messageId: data?.id };
-        } catch (error) {
-            console.error('Erreur EmailService.sendTrialEndingNotification:', error);
-            throw error;
-        }
-    }
+    // ✅ sendTrialEndingNotification supprimé - l'essai gratuit est maintenant géré via trial_ending
 }

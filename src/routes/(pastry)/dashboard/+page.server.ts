@@ -1,4 +1,5 @@
 import { redirect } from '@sveltejs/kit';
+import { getUserPermissions } from '$lib/auth';
 
 export const load = async ({ locals }) => {
     const { session, user } = await locals.safeGetSession();
@@ -7,52 +8,23 @@ export const load = async ({ locals }) => {
         redirect(303, '/login');
     }
 
-    // ✅ OPTIMISÉ : Un seul appel DB pour toutes les données de base
-    const { data: dashboardData, error } = await locals.supabase.rpc('get_dashboard_data', {
-        p_profile_id: user.id
-    });
+    // ✅ Récupérer les permissions (inclut trial_ending, plan, limites)
+    const permissions = await getUserPermissions(user.id, locals.supabase);
 
-    if (error) {
-        console.error('Error fetching dashboard data:', error);
+    if (!permissions.shopId) {
         redirect(303, '/onboarding');
     }
 
-    const { shop, permissions, subscription, paypal_account } = dashboardData;
+    // Récupérer les infos de la boutique
+    const { data: shop } = await locals.supabase
+        .from('shops')
+        .select('*')
+        .eq('profile_id', user.id)
+        .single();
 
-    if (!shop || !shop.id) {
+    if (!shop) {
         redirect(303, '/onboarding');
     }
-
-    // Si l'utilisateur a un compte PayPal mais n'est pas actif, rediriger vers l'onboarding
-    if (paypal_account && !paypal_account.is_active) {
-        redirect(303, '/onboarding');
-    }
-
-    // Check trial status directly from Stripe
-    let isTrial = false;
-    let daysRemaining = 0;
-    let trialEnd = null;
-
-    if (subscription?.stripe_subscription_id) {
-        try {
-            const stripeSubscription = await locals.stripe.subscriptions.retrieve(subscription.stripe_subscription_id);
-
-            // Check if subscription is in trial period
-            isTrial = stripeSubscription.status === 'trialing';
-
-            if (isTrial && stripeSubscription.trial_end) {
-                trialEnd = new Date(stripeSubscription.trial_end * 1000); // Stripe timestamps are in seconds
-                const now = new Date();
-                daysRemaining = Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                daysRemaining = Math.max(0, daysRemaining); // Ne pas afficher de nombre négatif
-            }
-        } catch (stripeError) {
-            console.error('❌ Error fetching Stripe subscription:', stripeError);
-            // Fallback: assume no trial if Stripe call fails
-            isTrial = false;
-        }
-    }
-
 
     // ✅ OPTIMISÉ : Un seul appel pour les métriques de commandes
     const { data: ordersMetrics, error: ordersError } = await locals.supabase.rpc('get_orders_metrics', {
@@ -105,10 +77,6 @@ export const load = async ({ locals }) => {
         user,
         shop,
         permissions,
-        trial: {
-            isTrial,
-            daysRemaining
-        },
         metrics: {
             productsCount: permissions.productCount || 0,
             recentOrders: ordersMetrics?.recent_orders || [],

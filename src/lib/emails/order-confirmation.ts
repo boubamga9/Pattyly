@@ -42,8 +42,8 @@ export function OrderConfirmationEmail({
             <div style="margin-bottom: 16px;">
                 <h2 style="color: #f97316; margin-top: 0; font-size: 18px; font-weight: normal;">✅ Commande confirmée !</h2>
                 <p>Bonjour ${customerName},</p>
-                <p>Votre commande a été confirmée et votre acompte a été prélevé avec succès.</p>
-                <p style="margin-bottom: 24px;">Le pâtissier prépare votre gâteau pour le ${pickupDate}.</p>
+                <p>Le pâtissier a confirmé la réception de votre acompte et commence la préparation de votre commande.</p>
+                <p style="margin-bottom: 24px;">Votre gâteau sera prêt pour le ${pickupDate}.</p>
             </div>
 
             <div style="background-color: #f8f9fa; padding: 16px; border-radius: 6px; margin: 16px 0;">

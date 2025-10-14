@@ -12,7 +12,7 @@
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import LoaderCircle from '~icons/lucide/loader-circle';
 	import { Upload, X } from 'lucide-svelte';
-	import { formSchema, type FormSchema } from './schema';
+	import { shopCreationSchema, type FormSchema } from './schema';
 	import { createEventDispatcher } from 'svelte';
 	import { compressLogo } from '$lib/utils/images/client';
 
@@ -20,7 +20,7 @@
 	const dispatch = createEventDispatcher();
 
 	const form = superForm(data, {
-		validators: zodClient(formSchema),
+		validators: zodClient(shopCreationSchema),
 	});
 
 	const { form: formData, enhance, submitting, message } = form;

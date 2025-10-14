@@ -16,10 +16,6 @@ export const load: PageServerLoad = async ({ locals }) => {
     // Vérifier les permissions
     const permissions = await getUserPermissions(user.id, locals.supabase);
 
-
-
-
-
     // Préparer un formulaire de toggle par défaut (toujours présent)
     const toggleForm = await superValidate(zod(toggleCustomRequestsFormSchema));
 

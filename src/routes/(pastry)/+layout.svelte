@@ -15,6 +15,7 @@
 	import * as Drawer from '$lib/components/ui/drawer';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { Separator } from '$lib/components/ui/separator';
+	import SubscriptionAlert from '$lib/components/dashboard/subscription-alert.svelte';
 
 	import NavLink from './components/nav-link.svelte';
 
@@ -293,62 +294,14 @@
 			</div>
 		</header>
 		<main class="flex flex-col items-start p-4 sm:px-6 sm:py-0">
-			<!-- Alerte d'abonnement inactif -->
-			{#if data.hasInactiveSubscription}
-				<div class="w-full">
-					<div
-						class="mb-6 rounded-lg border-[#FF6F61] bg-[#FFF1F0] p-4 text-[#8B1A1A]"
-					>
-						<div class="flex items-start gap-3">
-							<div class="flex-shrink-0">
-								<svg
-									class="h-5 w-5 text-[#FF6F61]"
-									fill="currentColor"
-									viewBox="0 0 20 20"
-								>
-									<path
-										fill-rule="evenodd"
-										d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-										clip-rule="evenodd"
-									/>
-								</svg>
-							</div>
-							<div class="flex-1">
-								<h3 class="text-sm font-medium text-[#8B1A1A]">
-									{#if data.isSubscriptionExists}
-										Boutique temporairement désactivée
-									{:else}
-										Boutique inactive
-									{/if}
-								</h3>
-								<div class="mt-2 text-sm text-[#8B1A1A]">
-									<p class="mb-3">
-										{#if data.isSubscriptionExists}
-											Votre boutique n'est plus visible par les clients. Pour la
-											réactiver et continuer à recevoir des commandes, vous
-											devez souscrire à un plan d'abonnement.
-										{:else}
-											Votre boutique n'est pas encore visible par les clients.
-											Pour l'activer et commencer à recevoir des commandes, vous
-											devez souscrire à un plan d'abonnement.
-										{/if}
-									</p>
-									<a
-										href="/subscription"
-										class="inline-flex items-center rounded-md bg-[#FF6F61] px-3 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-[#e85a4f] focus:outline-none focus:ring-2 focus:ring-[#FF6F61] focus:ring-offset-2"
-									>
-										{#if data.isSubscriptionExists}
-											Réactiver ma boutique
-										{:else}
-											Activer ma boutique
-										{/if}
-									</a>
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
-			{/if}
+			<!-- Alerte d'abonnement inactif ou essai gratuit -->
+			<div class="w-full">
+				<SubscriptionAlert
+					hasInactiveSubscription={data.hasInactiveSubscription}
+					trialEnding={data.trialEnding}
+					isTrialActive={data.isTrialActive}
+				/>
+			</div>
 
 			<slot />
 		</main>

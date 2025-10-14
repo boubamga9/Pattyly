@@ -104,8 +104,8 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders }) => {
                 'Gestion des commandes',
                 'Calendrier de disponibilités',
                 'Paiements sécurisés',
-                'Demandes personnalisées',
-                'Support email'
+                'Support email',
+                '💬 Envoi de devis'
             ],
             limitations: [],
             popular: true

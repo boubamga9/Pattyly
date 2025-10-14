@@ -206,8 +206,7 @@
 			<Crown class="h-4 w-4" />
 			<AlertDescription>
 				<strong>Limite de gâteaux atteinte !</strong>
-				Vous avez atteint la limite de {permissions.productLimit} gâteaux du plan
-				Basic.
+				Vous avez atteint la limite de {permissions.productLimit} gâteaux.
 				<a href="/subscription" class="font-medium underline"
 					>Passez au plan Premium</a
 				>

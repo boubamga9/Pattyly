@@ -120,41 +120,20 @@
 		}
 	}
 
-	// Function to accept the quote and pay
-	async function acceptQuote() {
-		if (!order?.id) return;
-
-		console.log('🚀 acceptQuote called for order:', order.id);
-
-		try {
-			const response = await fetch('/api/create-custom-paypal-payment', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({
-					orderId: order.id,
-					shopSlug: order.shops?.slug,
-				}),
-			});
-
-			console.log('📡 Response status:', response.status);
-
-			if (response.ok) {
-				const data = await response.json();
-				console.log('✅ Response data:', data);
-				const { approvalUrl } = data;
-				console.log('🔗 Redirecting to:', approvalUrl);
-				window.location.href = approvalUrl;
-			} else {
-				const errorData = await response.json();
-				console.error('❌ Error response:', errorData);
-				alert('Erreur: ' + (errorData.error || 'Erreur inconnue'));
-			}
-		} catch (error) {
-			console.error('❌ Exception in acceptQuote:', error);
-			alert('Erreur: ' + error.message);
+	// Function to accept the quote and go to checkout
+	function acceptQuote() {
+		if (!order?.id || !order?.order_ref) {
+			alert('Erreur: Référence de commande manquante');
+			return;
 		}
+
+		console.log(
+			'🚀 acceptQuote called, redirecting to checkout with order_ref:',
+			order.order_ref,
+		);
+
+		// Rediriger vers la page de checkout pour commande personnalisée
+		goto(`/${order.shops.slug}/custom/checkout/${order.order_ref}`);
 	}
 
 	// Fonction pour refuser le devis
@@ -230,7 +209,9 @@
 		<!-- Titre de confirmation -->
 		<div class="mb-8 text-center">
 			<h2 class="mb-2 text-2xl font-medium text-foreground">
-				{#if orderType === 'product_order'}
+				{#if order?.status === 'to_verify'}
+					Commande enregistrée !
+				{:else if orderType === 'product_order'}
 					Commande confirmée !
 				{:else if order?.status === 'quoted'}
 					Devis envoyé !
@@ -247,7 +228,10 @@
 				{/if}
 			</h2>
 			<p class="text-muted-foreground">
-				{#if orderType === 'product_order'}
+				{#if order?.status === 'to_verify'}
+					Le pâtissier va vérifier votre paiement et commencer la préparation de
+					votre commande.
+				{:else if orderType === 'product_order'}
 					Votre commande a été confirmée et votre acompte de 50% a été prélevé.
 				{:else if order?.status === 'quoted'}
 					Le pâtissier vous a envoyé un devis pour votre demande.
@@ -386,7 +370,9 @@
 					<!-- Message du pâtissier -->
 					{#if chefMessage}
 						<div class="rounded-lg border border-blue-200 bg-blue-50 p-4">
-							<span class="font-medium text-blue-900">Message du pâtissier :</span>
+							<span class="font-medium text-blue-900"
+								>Message du pâtissier :</span
+							>
 							<p class="mt-2 text-sm text-blue-800">{chefMessage}</p>
 						</div>
 					{/if}
@@ -415,7 +401,11 @@
 							<!-- Pour les demandes custom -->
 							<div class="mb-2 flex items-center justify-between">
 								<span class="text-muted-foreground">Statut :</span>
-								{#if order?.status === 'quoted'}
+								{#if order?.status === 'to_verify'}
+									<span class="font-normal text-orange-600"
+										>Paiement en cours de vérification</span
+									>
+								{:else if order?.status === 'quoted'}
 									<span class="font-normal text-blue-600">Devis envoyé</span>
 								{:else if order?.status === 'confirmed'}
 									<span class="font-normal text-green-600">Confirmée</span>
@@ -448,12 +438,15 @@
 										<span>À payer aujourd'hui :</span>
 										<span>{formatPrice(totalAmount * 0.5)}</span>
 									</div>
-								{:else if order?.status === 'confirmed' || order?.status === 'ready' || order?.status === 'completed'}
-									<!-- Acompte déjà payé -->
+								{:else if order?.status === 'to_verify' || order?.status === 'confirmed' || order?.status === 'ready' || order?.status === 'completed'}
+									<!-- Acompte -->
 									<div
-										class="flex items-center justify-between font-medium text-green-600"
+										class="flex items-center justify-between font-medium {order?.status ===
+										'to_verify'
+											? 'text-blue-600'
+											: 'text-green-600'}"
 									>
-										<span>Acompte payé :</span>
+										<span>Acompte :</span>
 										<span>{formatPrice(totalAmount * 0.5)}</span>
 									</div>
 								{:else}
@@ -463,11 +456,6 @@
 									>
 										<span>Prix total :</span>
 										<span>{formatPrice(totalAmount)}</span>
-									</div>
-								{/if}
-								{#if order?.paypal_capture_id}
-									<div class="mt-2 text-xs text-muted-foreground">
-										<span>Référence PayPal : {order.paypal_capture_id}</span>
 									</div>
 								{/if}
 							{/if}

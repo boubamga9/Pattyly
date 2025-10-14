@@ -27,6 +27,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
         const { shop, customForm, customFields, availabilities, unavailabilities, datesWithLimitReached } = customOrderData;
 
+        // Vérifier la visibilité (essai, abonnement, admin)
+        if (!shop.is_visible) {
+            throw error(404, 'Boutique non trouvée');
+        }
+
         if (!shop.is_custom_accepted) {
             throw error(404, 'Demandes personnalisées non disponibles');
         }
@@ -249,33 +254,50 @@ export const actions: Actions = {
 
             try {
                 // Get shop owner email for notification
+                console.log('📧 [Custom Order] Fetching pastry email for shop:', shop.id);
                 const { data: ownerEmailData, error: emailError } = await locals.supabase
                     .rpc('get_shop_owner_email', { shop_uuid: shop.id }) as any;
 
-                const pastryEmail = ownerEmailData || 'admin@pattyly.com'; // Fallback email
+                if (emailError) {
+                    console.error('❌ [Custom Order] Error fetching owner email:', emailError);
+                }
 
-                await Promise.all([
-                    EmailService.sendCustomRequestConfirmation({
-                        customerEmail: customer_email,
-                        customerName: customer_name,
-                        shopName: shop.name,
-                        shopLogo: shop.logo_url || undefined,
-                        requestId: order.id.slice(0, 8),
-                        orderUrl: `${PUBLIC_SITE_URL}/${slug}/order/${order.id}`,
-                        date: new Date().toLocaleDateString("fr-FR")
-                    }),
-                    EmailService.sendCustomRequestNotification({
-                        pastryEmail: pastryEmail,
-                        customerName: customer_name,
-                        customerEmail: customer_email,
-                        customerInstagram: customer_instagram,
-                        pickupDate: pickup_date.toLocaleDateString("fr-FR"),
-                        requestId: order.id.slice(0, 8),
-                        dashboardUrl: `${PUBLIC_SITE_URL}/dashboard/orders/${order.id}`,
-                        date: new Date().toLocaleDateString("fr-FR")
-                    })
-                ]);
-            } catch (e) { }
+                const pastryEmail = ownerEmailData || 'admin@pattyly.com';
+                console.log('📧 [Custom Order] Pastry email:', pastryEmail);
+
+                console.log('📧 [Custom Order] Sending emails...');
+
+                // Email au client
+                await EmailService.sendCustomRequestConfirmation({
+                    customerEmail: customer_email,
+                    customerName: customer_name,
+                    shopName: shop.name,
+                    shopLogo: shop.logo_url || undefined,
+                    requestId: order.id.slice(0, 8),
+                    orderUrl: `${PUBLIC_SITE_URL}/${slug}/order/${order.id}`,
+                    date: new Date().toLocaleDateString("fr-FR")
+                });
+                console.log('✅ [Custom Order] Client confirmation email sent');
+
+                // Email au pâtissier
+                // Format pickup_date (string) pour l'affichage
+                const formattedPickupDate = new Date(pickup_date + 'T12:00:00Z').toLocaleDateString('fr-FR');
+
+                await EmailService.sendCustomRequestNotification({
+                    pastryEmail: pastryEmail,
+                    customerName: customer_name,
+                    customerEmail: customer_email,
+                    customerInstagram: customer_instagram,
+                    pickupDate: formattedPickupDate,
+                    requestId: order.id.slice(0, 8),
+                    dashboardUrl: `${PUBLIC_SITE_URL}/dashboard/orders/${order.id}`,
+                    date: new Date().toLocaleDateString("fr-FR")
+                });
+                console.log('✅ [Custom Order] Pastry notification email sent');
+
+            } catch (e) {
+                console.error('❌ [Custom Order] Email sending error:', e);
+            }
 
             return message(form, { redirectTo: `/${slug}/order/${order.id}` });
 

@@ -148,6 +148,7 @@ function getDateKey(pickupDate: Date, today: Date): string {
 function getStatusCounts(orders: Order[]) {
     const counts: Record<string, number> = {
         all: orders.length,
+        to_verify: 0,
         pending: 0,
         quoted: 0,
         confirmed: 0,

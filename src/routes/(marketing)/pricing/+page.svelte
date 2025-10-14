@@ -88,7 +88,11 @@
 							<Card.Footer>
 								<Pricing.PlanFeatures>
 									{#each plan.features as feature}
-										<Pricing.FeatureItem>
+										<Pricing.FeatureItem
+											class={feature.includes('💬 Envoi de devis')
+												? 'font-semibold text-[#FF6F61]'
+												: ''}
+										>
 											{feature}
 										</Pricing.FeatureItem>
 									{/each}

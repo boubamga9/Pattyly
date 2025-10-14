@@ -75,6 +75,8 @@
 	// Fonction pour obtenir l'icône du statut
 	function getStatusIcon(status: string) {
 		switch (status) {
+			case 'to_verify':
+				return AlertCircle;
 			case 'pending':
 				return Clock;
 			case 'quoted':
@@ -95,6 +97,8 @@
 	// Fonction pour obtenir la couleur du statut
 	function getStatusColor(status: string): string {
 		switch (status) {
+			case 'to_verify':
+				return 'bg-orange-100 text-orange-800 border-orange-200';
 			case 'pending':
 				return 'bg-yellow-100 text-yellow-800 border-yellow-200';
 			case 'quoted':
@@ -115,12 +119,14 @@
 	// Fonction pour obtenir le texte du statut
 	function getStatusText(status: string): string {
 		switch (status) {
+			case 'to_verify':
+				return 'Paiement à confirmer';
 			case 'pending':
-				return 'En attente';
+				return 'Devis à faire';
 			case 'quoted':
 				return 'Devis envoyé';
 			case 'confirmed':
-				return 'Confirmée';
+				return 'En cours';
 			case 'ready':
 				return 'Prête';
 			case 'completed':
@@ -275,7 +281,7 @@
 					on:click={() => (selectedStatus = 'pending')}
 					class="whitespace-nowrap"
 				>
-					En attente* ({statusCounts.pending})
+					Devis à faire* ({statusCounts.pending})
 				</Button>
 
 				<Button
@@ -288,12 +294,21 @@
 				</Button>
 
 				<Button
+					variant={selectedStatus === 'to_verify' ? 'default' : 'outline'}
+					size="sm"
+					on:click={() => (selectedStatus = 'to_verify')}
+					class="whitespace-nowrap"
+				>
+					Paiement à confirmer ({statusCounts.to_verify || 0})
+				</Button>
+
+				<Button
 					variant={selectedStatus === 'confirmed' ? 'default' : 'outline'}
 					size="sm"
 					on:click={() => (selectedStatus = 'confirmed')}
 					class="whitespace-nowrap"
 				>
-					Confirmées ({statusCounts.confirmed})
+					En cours ({statusCounts.confirmed})
 				</Button>
 
 				<Button

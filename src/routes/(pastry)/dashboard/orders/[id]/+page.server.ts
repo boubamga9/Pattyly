@@ -167,16 +167,30 @@ export const actions: Actions = {
                 return fail(404, { error: 'Boutique non trouvée' });
             }
 
+            // Générer un order_ref unique pour le paiement du devis
+            const { data: orderRefData, error: orderRefError } = await locals.supabase
+                .rpc('generate_order_ref');
+
+            if (orderRefError || !orderRefData) {
+                console.error('Error generating order_ref:', orderRefError);
+                return fail(500, { form, error: 'Erreur lors de la génération de la référence' });
+            }
+
+            const order_ref = orderRefData;
+            console.log('🆔 [Make Quote] Generated order_ref:', order_ref);
+
             // Mettre à jour la commande
             const updateData: {
                 status: 'quoted';
                 total_amount: number;
                 chef_message: string | null;
                 chef_pickup_date?: string;
+                order_ref: string;
             } = {
                 status: 'quoted',
                 total_amount: price,
-                chef_message: chefMessage || null
+                chef_message: chefMessage || null,
+                order_ref: order_ref
             };
 
             // Ajouter la nouvelle date de récupération si fournie
@@ -204,7 +218,7 @@ export const actions: Actions = {
                         shopName: shop.name,
                         shopLogo: shop.logo_url || undefined,
                         quoteId: order.id.slice(0, 8),
-                        orderUrl: `${PUBLIC_SITE_URL}/${shop.slug}/order/${order.id}`,
+                        orderUrl: `${PUBLIC_SITE_URL}/${shop.slug}/custom/checkout/${order_ref}`,
                         date: new Date().toLocaleDateString("fr-FR")
                     })]);
             } catch (e) { }
@@ -284,6 +298,92 @@ export const actions: Actions = {
             form.message = 'Commande refusée avec succès';
             return { form };
         } catch (err) {
+            return fail(500, { error: 'Erreur interne' });
+        }
+    },
+
+    // Confirmer la réception du paiement PayPal.me
+    confirmPayment: async ({ params, locals }) => {
+        try {
+            // Récupérer l'utilisateur connecté
+            const {
+                data: { user },
+            } = await locals.supabase.auth.getUser();
+
+            if (!user) {
+                return fail(401, { error: 'Non autorisé' });
+            }
+
+            // Récupérer la boutique de l'utilisateur via profile_id
+            const { data: shop, error: shopError } = await locals.supabase
+                .from('shops')
+                .select('id')
+                .eq('profile_id', user.id)
+                .single();
+
+            if (shopError || !shop) {
+                return fail(404, { error: 'Boutique non trouvée' });
+            }
+
+            // Récupérer les détails de la commande avant mise à jour
+            const { data: order, error: orderError } = await locals.supabase
+                .from('orders')
+                .select('*, shops(name, logo_url, slug)')
+                .eq('id', params.id)
+                .eq('shop_id', shop.id)
+                .eq('status', 'to_verify')
+                .single();
+
+            if (orderError || !order) {
+                console.error('Error fetching order:', orderError);
+                return fail(404, { error: 'Commande non trouvée ou déjà confirmée' });
+            }
+
+            // Mettre à jour la commande : passer de 'to_verify' à 'confirmed'
+            const { error: updateError } = await locals.supabase
+                .from('orders')
+                .update({ status: 'confirmed' })
+                .eq('id', params.id)
+                .eq('shop_id', shop.id)
+                .eq('status', 'to_verify');
+
+            if (updateError) {
+                console.error('Error confirming payment:', updateError);
+                return fail(500, { error: 'Erreur lors de la confirmation du paiement' });
+            }
+
+            console.log('✅ Payment confirmed for order:', params.id);
+
+            // Envoyer un email de confirmation au client
+            try {
+                const totalAmount = order.total_amount || 0;
+                const paidAmount = order.paid_amount || totalAmount / 2;
+                const remainingAmount = totalAmount - paidAmount;
+
+                await EmailService.sendOrderConfirmation({
+                    customerEmail: order.customer_email,
+                    customerName: order.customer_name,
+                    shopName: order.shops.name,
+                    shopLogo: order.shops.logo_url,
+                    productName: order.product_name || 'Commande personnalisée',
+                    pickupDate: order.pickup_date,
+                    totalAmount: totalAmount,
+                    paidAmount: paidAmount,
+                    remainingAmount: remainingAmount,
+                    orderId: order.id,
+                    orderUrl: `${PUBLIC_SITE_URL}/${order.shops.slug}/order/${order.id}`,
+                    date: new Date().toLocaleDateString('fr-FR')
+                });
+
+                console.log('✅ Confirmation email sent to client');
+            } catch (emailError) {
+                console.error('❌ Email error:', emailError);
+                // Ne pas bloquer si l'email échoue
+            }
+
+            return { message: 'Paiement confirmé avec succès' };
+        } catch (err) {
+            console.error('Error confirming payment:', err);
             return fail(500, { error: 'Erreur interne' });
         }
     },

@@ -152,6 +152,8 @@
 	// Fonction pour obtenir l'icône du statut
 	function getStatusIcon(status: string) {
 		switch (status) {
+			case 'to_verify':
+				return AlertCircle;
 			case 'pending':
 				return Clock;
 			case 'quoted':
@@ -172,6 +174,8 @@
 	// Fonction pour obtenir la couleur du statut
 	function getStatusColor(status: string): string {
 		switch (status) {
+			case 'to_verify':
+				return 'bg-orange-100 text-orange-800 border-orange-200';
 			case 'pending':
 				return 'bg-yellow-100 text-yellow-800 border-yellow-200';
 			case 'quoted':
@@ -192,12 +196,14 @@
 	// Fonction pour obtenir le texte du statut
 	function getStatusText(status: string): string {
 		switch (status) {
+			case 'to_verify':
+				return 'Paiement à confirmer';
 			case 'pending':
-				return 'En attente';
+				return 'Devis à faire';
 			case 'quoted':
 				return 'Devis envoyé';
 			case 'confirmed':
-				return 'Confirmée';
+				return 'En cours';
 			case 'ready':
 				return 'Prête';
 			case 'completed':
@@ -384,23 +390,69 @@
 								>Statut du paiement</Label
 							>
 							<p class="text-sm">
-								{#if order.paypal_order_id}
+								{#if order.status === 'to_verify'}
+									<span class="font-medium text-orange-600"
+										>En attente de vérification</span
+									>
+								{:else if order.status === 'confirmed' || order.status === 'ready' || order.status === 'completed'}
 									<span class="font-medium text-green-600"
 										>Payé {paidAmount
 											? `(${formatPrice(paidAmount)})`
 											: ''}</span
 									>
-									{#if order.paypal_capture_id}
-										<br />
-										<span class="text-xs text-muted-foreground">
-											Référence PayPal : {order.paypal_capture_id}
-										</span>
-									{/if}
 								{:else}
-									<span class="text-gray-600">Non payé</span>
+									<span class="text-gray-600">En attente</span>
 								{/if}
 							</p>
 						</div>
+						{#if order.order_ref}
+							<div class="col-span-2">
+								<Label class="text-sm font-medium text-muted-foreground"
+									>Référence de commande</Label
+								>
+								<div class="flex items-center gap-2">
+									<code
+										class="rounded bg-muted px-2 py-1 font-mono text-sm font-semibold"
+									>
+										{order.order_ref}
+									</code>
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										on:click={() => {
+											navigator.clipboard.writeText(order.order_ref);
+										}}
+										class="h-8 w-8 p-0"
+									>
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											width="16"
+											height="16"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											><rect
+												width="14"
+												height="14"
+												x="8"
+												y="8"
+												rx="2"
+												ry="2"
+											/><path
+												d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"
+											/></svg
+										>
+									</Button>
+								</div>
+								<p class="mt-1 text-xs text-muted-foreground">
+									Le client doit inclure cette référence lors du paiement PayPal
+								</p>
+							</div>
+						{/if}
 						{#if order.chef_pickup_date}
 							<div class="col-span-2">
 								<Label class="text-sm font-medium text-muted-foreground"
@@ -751,6 +803,34 @@
 								Annuler la commande
 							</Button>
 						{/if}
+					{:else if order.status === 'to_verify'}
+						<!-- Actions pour les commandes à vérifier (PayPal.me) -->
+						<div class="space-y-4">
+							<Alert>
+								<AlertCircle class="h-4 w-4" />
+								<AlertDescription>
+									Le client a indiqué avoir effectué le paiement via PayPal.me.
+									Vérifiez votre compte PayPal puis confirmez la réception du
+									paiement.
+								</AlertDescription>
+							</Alert>
+							<form
+								method="POST"
+								action="?/confirmPayment"
+								use:enhance={() => {
+									return async ({ result }) => {
+										if (result.type === 'success') {
+											goto('/dashboard/orders');
+										}
+									};
+								}}
+							>
+								<Button type="submit" class="w-full gap-2">
+									<CheckCircle class="h-4 w-4" />
+									J'ai reçu le paiement
+								</Button>
+							</form>
+						</div>
 					{:else if order.status === 'confirmed'}
 						<!-- Actions pour les commandes confirmées -->
 						<form

@@ -21,7 +21,7 @@
 		{
 			question: 'Comment ça marche pour les paiements ?',
 			answer:
-				"Stripe gère tout ! Tes clients paient en ligne de manière sécurisée, et l'argent arrive directement sur ton compte bancaire en 2 jours ouvrés.",
+				"PayPal gère tout ! Tes clients paient en ligne de manière sécurisée via ton lien PayPal.me, et l'argent arrive directement sur ton compte PayPal. Tu valides ensuite la réception sur la plateforme.",
 		},
 		{
 			question: 'Est-ce que mes clients doivent créer un compte ?',

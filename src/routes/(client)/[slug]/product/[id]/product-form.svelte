@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import * as Form from '$lib/components/ui/form';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -64,6 +65,18 @@
 					'🔍 [Product Form Front] pickup_date UTC:',
 					$formData.pickup_date.toUTCString(),
 				);
+			}
+		},
+		onUpdated: ({ form }) => {
+			console.log('🔍 [Product Form Front] Form updated:', form);
+			if (
+				form.message &&
+				typeof form.message === 'object' &&
+				'redirectTo' in form.message
+			) {
+				const redirectTo = (form.message as any).redirectTo;
+				console.log('🔍 [Product Form Front] Redirecting to:', redirectTo);
+				goto(redirectTo);
 			}
 		},
 	});
@@ -337,7 +350,9 @@
 						<div class="flex justify-between">
 							<span class="text-muted-foreground">Date de récupération :</span>
 							<span class="font-medium"
-								>{new Date($formData.pickup_date + 'T12:00:00Z').toLocaleDateString('fr-FR')}</span
+								>{new Date(
+									$formData.pickup_date + 'T12:00:00Z',
+								).toLocaleDateString('fr-FR')}</span
 							>
 						</div>
 					{/if}
