@@ -10,26 +10,31 @@ export async function loadShopCatalog(
     supabase: SupabaseClient,
     shopId: string
 ): Promise<any> {
+    console.log('🏪 [Catalog Loader] Starting catalog load for shop:', shopId);
+
     try {
         // 1. Récupérer les informations de la boutique
+        console.log('🏪 [Catalog Loader] Step 1: Fetching shop details...');
         const { data: shop, error: shopError } = await supabase
             .from('shops')
             .select('id, name, bio, slug, logo_url, instagram, tiktok, website, is_custom_accepted, is_active')
             .eq('id', shopId)
             .single();
 
-        console.log('🔍 [Catalog Loader] Shop query:', {
+        console.log('🏪 [Catalog Loader] Step 1 Result:', {
             shopId,
-            shop,
-            shopError
+            hasShop: !!shop,
+            shopError: shopError?.message || null,
+            shopData: shop || null
         });
 
         if (shopError || !shop) {
-            console.error('❌ Shop not found in catalog-loader:', shopError);
+            console.error('❌ [Catalog Loader] Shop not found, throwing error');
             throw new Error('Boutique non trouvée');
         }
 
         // 2. Charger directement depuis Supabase (ISR gère le cache)
+        console.log('🏪 [Catalog Loader] Step 2: Loading products, categories, and FAQs...');
         const [productsResult, categoriesResult, faqsResult] = await Promise.all([
             // Récupérer les produits actifs
             supabase
@@ -63,15 +68,27 @@ export async function loadShopCatalog(
                 .order('created_at', { ascending: true })
         ]);
 
+        console.log('🏪 [Catalog Loader] Step 2 Result:', {
+            productsCount: productsResult.data?.length || 0,
+            productsError: productsResult.error?.message || null,
+            categoriesCount: categoriesResult.data?.length || 0,
+            categoriesError: categoriesResult.error?.message || null,
+            faqsCount: faqsResult.data?.length || 0,
+            faqsError: faqsResult.error?.message || null
+        });
+
         if (productsResult.error) {
+            console.error('❌ [Catalog Loader] Products error:', productsResult.error);
             throw new Error('Erreur lors du chargement des produits');
         }
 
         if (categoriesResult.error) {
+            console.error('❌ [Catalog Loader] Categories error:', categoriesResult.error);
             throw new Error('Erreur lors du chargement des catégories');
         }
 
         // 3. Structurer les données du catalogue
+        console.log('🏪 [Catalog Loader] Step 3: Structuring catalog data...');
         const catalogData = {
             shop: {
                 id: shop.id,
@@ -91,8 +108,21 @@ export async function loadShopCatalog(
             cached_at: new Date().toISOString()
         };
 
+        console.log('✅ [Catalog Loader] Catalog successfully loaded:', {
+            shopId: catalogData.shop.id,
+            shopName: catalogData.shop.name,
+            productsCount: catalogData.products.length,
+            categoriesCount: catalogData.categories.length,
+            faqsCount: catalogData.faqs.length
+        });
+
         return catalogData;
     } catch (error) {
+        console.error('💥 [Catalog Loader] Error in loadShopCatalog:', error);
+        console.error('💥 [Catalog Loader] Error details:', {
+            name: error instanceof Error ? error.name : 'Unknown',
+            message: error instanceof Error ? error.message : String(error)
+        });
         throw error;
     }
 }
