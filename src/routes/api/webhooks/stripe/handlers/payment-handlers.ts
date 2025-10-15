@@ -55,9 +55,11 @@ export async function handlePaymentSucceeded(invoice: Stripe.Invoice, locals: an
             throw error(500, 'Failed to reactivate shop after payment success');
         }
 
-        // Revalider le cache ISR de la boutique
+        // Revalider le cache ISR de la boutique avec délai
         if (shopData?.slug) {
-            await forceRevalidateShop(shopData.slug);
+            setTimeout(async () => {
+                await forceRevalidateShop(shopData.slug);
+            }, 5000);
         }
 
     } catch (err) {
@@ -123,10 +125,12 @@ export async function handlePaymentFailed(invoice: Stripe.Invoice, locals: any):
             throw error(500, 'Failed to disable shop after payment failure');
         }
 
-        // Revalider le cache ISR de la boutique (ne bloque pas si erreur)
+        // Revalider le cache ISR de la boutique avec délai (ne bloque pas si erreur)
         if (shopUpdateData?.slug) {
 
-            await forceRevalidateShop(shopUpdateData.slug);
+            setTimeout(async () => {
+                await forceRevalidateShop(shopUpdateData.slug);
+            }, 5000);
         }
 
         // Envoyer l'email de notification de paiement échoué

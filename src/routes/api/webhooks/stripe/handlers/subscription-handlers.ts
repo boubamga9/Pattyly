@@ -85,11 +85,14 @@ export async function upsertSubscription(subscription: Stripe.Subscription, loca
                 if (shopUpdateError) {
                     throw error(500, 'Failed to disable custom requests for basic plan');
                 }
+            }
 
-                // Revalider le cache ISR car le bouton "Composer mon gâteau" change
-                if (shopData?.slug) {
+            // Revalider le cache ISR avec délai pour éviter les race conditions
+            if (shopData?.slug) {
+
+                setTimeout(async () => {
                     await forceRevalidateShop(shopData.slug);
-                }
+                }, 5000);
             }
         }
 
@@ -151,9 +154,12 @@ export async function handleSubscriptionDeleted(subscription: Stripe.Subscriptio
             throw error(500, 'Failed to disable custom requests after subscription deletion');
         }
 
-        // Revalider le cache ISR de la boutique
+        // Revalider le cache ISR de la boutique avec délai
         if (shopData?.slug) {
-            await forceRevalidateShop(shopData.slug);
+
+            setTimeout(async () => {
+                await forceRevalidateShop(shopData.slug);
+            }, 5000);
         }
 
     } catch (err) {
