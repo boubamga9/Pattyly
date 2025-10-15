@@ -92,7 +92,7 @@ export async function upsertSubscription(subscription: Stripe.Subscription, loca
 
                 setTimeout(async () => {
                     await forceRevalidateShop(shopData.slug);
-                }, 5000);
+                }, 3000);
             }
         }
 
@@ -159,7 +159,7 @@ export async function handleSubscriptionDeleted(subscription: Stripe.Subscriptio
 
             setTimeout(async () => {
                 await forceRevalidateShop(shopData.slug);
-            }, 5000);
+            }, 3000);
         }
 
     } catch (err) {

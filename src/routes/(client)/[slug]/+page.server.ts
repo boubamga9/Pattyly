@@ -63,7 +63,7 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders, url, re
             p_is_active: shopInfo.is_active
         });
 
-        const { data: isVisibleData, error: visibilityError } = await (locals.supabase as any).rpc('is_shop_visible', {
+        const { data: isVisibleData, error: visibilityError } = await (locals.supabaseServiceRole as any).rpc('is_shop_visible', {
             p_profile_id: shopInfo.profile_id,
             p_is_active: shopInfo.is_active
         });
