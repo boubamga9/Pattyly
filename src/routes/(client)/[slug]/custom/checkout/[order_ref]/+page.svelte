@@ -178,7 +178,12 @@
 								>Date de récupération souhaitée :</span
 							>
 							<span class="font-normal"
-								>{formatDate(data.order.pickup_date)}</span
+								>{formatDate(data.order.pickup_date)}
+								{#if data.order.pickup_time}
+									<span class="ml-1"
+										>{data.order.pickup_time.substring(0, 5)}</span
+									>
+								{/if}</span
 							>
 						</div>
 						<div class="flex items-center justify-between">
@@ -186,14 +191,24 @@
 								>Date proposée par le pâtissier :</span
 							>
 							<span class="font-normal text-blue-600"
-								>{formatDate(data.order.chef_pickup_date)}</span
+								>{formatDate(data.order.chef_pickup_date)}
+								{#if data.order.chef_pickup_time}
+									<span class="ml-1"
+										>{data.order.chef_pickup_time.substring(0, 5)}</span
+									>
+								{/if}</span
 							>
 						</div>
 					{:else}
 						<div class="flex items-center justify-between">
 							<span class="text-muted-foreground">Date de récupération :</span>
 							<span class="font-normal"
-								>{formatDate(data.order.pickup_date)}</span
+								>{formatDate(data.order.pickup_date)}
+								{#if data.order.pickup_time}
+									<span class="ml-1"
+										>{data.order.pickup_time.substring(0, 5)}</span
+									>
+								{/if}</span
 							>
 						</div>
 					{/if}

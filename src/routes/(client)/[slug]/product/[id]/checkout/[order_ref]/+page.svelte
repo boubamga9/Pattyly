@@ -15,7 +15,7 @@
 	// Tracker si l'utilisateur a cliqué sur le bouton PayPal
 	let hasClickedPayPal = false;
 	let canConfirm = false;
-	let remainingSeconds = 15;
+	let remainingSeconds = 10;
 	let countdownInterval: NodeJS.Timeout | null = null;
 	let copySuccess = false;
 
@@ -23,7 +23,7 @@
 		if (hasClickedPayPal) return; // Éviter les clics multiples
 
 		hasClickedPayPal = true;
-		remainingSeconds = 15;
+		remainingSeconds = 10;
 
 		// Démarrer le compte à rebours
 		countdownInterval = setInterval(() => {
@@ -84,18 +84,15 @@
 
 	// Fonction pour afficher les options de personnalisation
 	function displayCustomizationOption(
-		label: string,
+		fieldLabel: string,
 		fieldData: any,
 	): string | string[] {
 		if (!fieldData) return '';
 
-		if (typeof fieldData === 'string' || typeof fieldData === 'number') {
-			return String(fieldData);
-		}
-
+		// Pour les multi-select
 		if (fieldData.type === 'multi-select' && Array.isArray(fieldData.values)) {
 			return fieldData.values.map((item: any) => {
-				const itemLabel = item.label || item.value || 'Option';
+				const itemLabel = item.label || 'Option';
 				const itemPrice = item.price || 0;
 				return itemPrice === 0
 					? itemLabel
@@ -103,6 +100,7 @@
 			});
 		}
 
+		// Pour les single-select
 		if (fieldData.type === 'single-select' && fieldData.value) {
 			const price = fieldData.price || 0;
 			return price === 0
@@ -110,11 +108,13 @@
 				: `${fieldData.value} (+${formatPrice(price)})`;
 		}
 
-		if (fieldData.value) {
+		// Pour les autres types (short-text, number, long-text)
+		if (fieldData.value !== undefined && fieldData.value !== '') {
 			return String(fieldData.value);
 		}
 
-		return String(fieldData);
+		// Si pas de valeur ou valeur vide, ne pas afficher
+		return '';
 	}
 </script>
 
@@ -233,16 +233,21 @@
 					<div class="flex items-center justify-between">
 						<span class="text-muted-foreground">Date de récupération :</span>
 						<span class="font-normal"
-							>{formatDate(data.orderData.pickup_date)}</span
+							>{formatDate(data.orderData.pickup_date)}
+							{#if data.orderData.pickup_time}
+								<span class="ml-1"
+									>{data.orderData.pickup_time.substring(0, 5)}</span
+								>
+							{/if}</span
 						>
 					</div>
 
 					<!-- Options de personnalisation -->
 					{#if data.orderData.customization_data && Object.keys(data.orderData.customization_data).length > 0}
-						{#each Object.entries(data.orderData.customization_data) as [fieldId, fieldValue]}
+						{#each Object.entries(data.orderData.customization_data) as [fieldLabel, fieldData]}
 							{@const displayData = displayCustomizationOption(
-								fieldValue?.label || 'Option',
-								fieldValue,
+								fieldLabel,
+								fieldData,
 							)}
 							{#if Array.isArray(displayData)}
 								<!-- Multi-select options: display line by line -->
@@ -250,8 +255,7 @@
 									{#each displayData as option, index}
 										{#if index === 0}
 											<div class="flex items-center justify-between">
-												<span class="text-muted-foreground"
-													>{fieldValue?.label || 'Option'} :</span
+												<span class="text-muted-foreground">{fieldLabel} :</span
 												>
 												<span class="font-normal">{option}</span>
 											</div>
@@ -262,9 +266,7 @@
 								</div>
 							{:else if displayData}
 								<div class="flex items-center justify-between">
-									<span class="text-muted-foreground"
-										>{fieldValue?.label || 'Option'} :</span
-									>
+									<span class="text-muted-foreground">{fieldLabel} :</span>
 									<span class="font-normal">{displayData}</span>
 								</div>
 							{/if}

@@ -1,4 +1,5 @@
 import { PUBLIC_SITE_URL } from '$env/static/public';
+import { formatDateTimeForEmail, generateInstagramEmailRow } from '$lib/utils/email-formatters';
 
 interface OrderPendingVerificationPastryProps {
     customerName: string;
@@ -6,6 +7,7 @@ interface OrderPendingVerificationPastryProps {
     customerInstagram?: string;
     productName: string;
     pickupDate: string;
+    pickupTime?: string | null;
     totalAmount: number;
     paidAmount: number;
     remainingAmount: number;
@@ -21,6 +23,7 @@ export function OrderPendingVerificationPastryEmail({
     customerInstagram,
     productName,
     pickupDate,
+    pickupTime,
     totalAmount,
     paidAmount,
     remainingAmount,
@@ -73,10 +76,7 @@ export function OrderPendingVerificationPastryEmail({
                             <a href="mailto:${customerEmail}" style="color: #f97316;">${customerEmail}</a>
                         </td>
                     </tr>
-                    <tr>
-                        <td style="padding: 8px 0; font-weight: 600;">Instagram :</td>
-                        <td style="padding: 8px 0;">${customerInstagram || 'Non renseigné'}</td>
-                    </tr>
+                    ${generateInstagramEmailRow(customerInstagram)}
                 </table>
             </div>
 
@@ -89,7 +89,7 @@ export function OrderPendingVerificationPastryEmail({
                     </tr>
                     <tr>
                         <td style="padding: 8px 0; font-weight: 600;">Date de retrait :</td>
-                        <td style="padding: 8px 0;">${pickupDate}</td>
+                        <td style="padding: 8px 0;">${formatDateTimeForEmail(pickupDate, pickupTime)}</td>
                     </tr>
                     <tr>
                         <td style="padding: 8px 0; font-weight: 600;">Prix total :</td>

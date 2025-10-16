@@ -9,6 +9,7 @@ interface Order {
     customer_name: string;
     customer_email: string;
     pickup_date: string;
+    pickup_time: string | null;
     status: string | null; // ✅ Permettre null pour correspondre à Supabase
     total_amount: number | null;
     product_name: string | null;
@@ -17,6 +18,7 @@ interface Order {
     created_at: string | null; // ✅ Permettre null pour correspondre à Supabase
     products?: { name: string; image_url: string | null } | null;
     chef_pickup_date: string | null;
+    chef_pickup_time: string | null;
 }
 
 export const load: PageServerLoad = async ({ locals }) => {

@@ -109,16 +109,21 @@ export const actions: Actions = {
                 customer_phone,
                 customer_instagram,
                 pickup_date,
+                pickup_time,
                 additional_information,
                 customization_data
             } = form.data;
 
-            // 🔍 LOG: Date reçue du front
+            // 🔍 LOG: Date et heure reçues du front
             console.log('📅 [Custom Order Backend] Received pickup_date:', {
                 value: pickup_date,
                 type: typeof pickup_date,
                 isDate: pickup_date instanceof Date,
                 constructor: pickup_date?.constructor?.name
+            });
+            console.log('🕐 [Custom Order Backend] Received pickup_time:', {
+                value: pickup_time,
+                type: typeof pickup_time
             });
 
             // 🔐 Security: force pickup_date → Date (without timezone conversion)
@@ -157,7 +162,7 @@ export const actions: Actions = {
                     .select('id')
                     .eq('shop_id', shop.id)
                     .eq('pickup_date', selectedDate)
-                    .in('status', ['pending', 'quoted', 'confirmed']);
+                    .in('status', ['pending', 'quoted', 'confirmed', 'to_verify']);
 
                 if (existingOrders && existingOrders.length >= availability.daily_order_limit) {
                     return fail(400, {
@@ -237,10 +242,8 @@ export const actions: Actions = {
                     customer_email,
                     customer_phone,
                     customer_instagram,
-                    pickup_date: (() => {
-                        const date = new Date(pickup_date);
-                        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-                    })(),
+                    pickup_date: selectedDate,
+                    pickup_time: pickup_time,
                     additional_information,
                     customization_data: transformedCustomizationData,
                     inspiration_photos: uploadedInspirationPhotos,
@@ -280,15 +283,13 @@ export const actions: Actions = {
                 console.log('✅ [Custom Order] Client confirmation email sent');
 
                 // Email au pâtissier
-                // Format pickup_date (string) pour l'affichage
-                const formattedPickupDate = new Date(pickup_date + 'T12:00:00Z').toLocaleDateString('fr-FR');
-
                 await EmailService.sendCustomRequestNotification({
                     pastryEmail: pastryEmail,
                     customerName: customer_name,
                     customerEmail: customer_email,
                     customerInstagram: customer_instagram,
-                    pickupDate: formattedPickupDate,
+                    pickupDate: pickup_date,
+                    pickupTime: pickup_time,
                     requestId: order.id.slice(0, 8),
                     dashboardUrl: `${PUBLIC_SITE_URL}/dashboard/orders/${order.id}`,
                     date: new Date().toLocaleDateString("fr-FR")

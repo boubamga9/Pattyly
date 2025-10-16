@@ -63,6 +63,9 @@ export const actions: Actions = {
         const isAvailable = isAvailableRaw === 'true';
         const dailyOrderLimitRaw = formData.get('dailyOrderLimit') as string;
         const dailyOrderLimit = dailyOrderLimitRaw ? parseInt(dailyOrderLimitRaw) : null;
+        const startTime = formData.get('startTime') as string || null;
+        const endTime = formData.get('endTime') as string || null;
+        const intervalTime = formData.get('intervalTime') as string || null;
 
 
         if (!availabilityId) {
@@ -86,7 +89,10 @@ export const actions: Actions = {
             .from('availabilities')
             .update({
                 is_open: isAvailable,
-                daily_order_limit: dailyOrderLimit
+                daily_order_limit: dailyOrderLimit,
+                start_time: startTime,
+                end_time: endTime,
+                interval_time: intervalTime
             })
             .eq('id', availabilityId);
 

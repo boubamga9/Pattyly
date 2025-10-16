@@ -135,6 +135,7 @@
 				<!-- Right column: Form -->
 				<CustomForm
 					data={form}
+					{shop}
 					{customFields}
 					{availabilities}
 					{unavailabilities}

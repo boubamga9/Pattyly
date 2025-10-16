@@ -123,7 +123,8 @@ export const actions: Actions = {
 
             // Dynamic validation
             const dynamicSchema = createLocalDynamicSchema(customFields);
-            const form = await superValidate(request, zod(dynamicSchema));
+            const formData = await request.formData();
+            const form = await superValidate(formData, zod(dynamicSchema));
 
             if (!form.valid) {
                 return fail(400, { form });
@@ -135,6 +136,7 @@ export const actions: Actions = {
                 customer_phone,
                 customer_instagram,
                 pickup_date,
+                pickup_time,
                 additional_information,
                 customization_data
             } = form.data;
@@ -183,7 +185,7 @@ export const actions: Actions = {
                     .select('id')
                     .eq('shop_id', shop.id)
                     .eq('pickup_date', selectedDate)
-                    .in('status', ['pending', 'quoted', 'confirmed']);
+                    .in('status', ['pending', 'quoted', 'confirmed', 'to_verify']);
 
                 if (existingOrders && existingOrders.length >= availability.daily_order_limit) {
                     return fail(400, {
@@ -267,6 +269,7 @@ export const actions: Actions = {
 
             const order_ref = orderRefData;
             console.log('🆔 [Product Order] Generated order_ref:', order_ref);
+            console.log('🕐 [Product Order] pickup_time value:', form.pickup_time);
 
             // Créer la pending_order avec order_data
             const orderData = {
@@ -277,12 +280,15 @@ export const actions: Actions = {
                 customer_phone,
                 customer_instagram,
                 pickup_date: selectedDate,
+                pickup_time: pickup_time,
                 additional_information,
                 customization_data: selectedOptions,
                 total_amount: totalPrice,
                 product_name: product.name,
                 order_ref
             };
+
+            console.log('📦 [Product Order] orderData before save:', JSON.stringify(orderData, null, 2));
 
             const { error: pendingOrderError } = await locals.supabase
                 .from('pending_orders')

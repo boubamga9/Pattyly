@@ -88,6 +88,22 @@
 		<Form.FieldErrors />
 	</Form.Field>
 
+	<!-- Nouvelle heure de récupération -->
+	<Form.Field {form} name="chef_pickup_time">
+		<Form.Control let:attrs>
+			<Label for="newPickupTime"
+				>Nouvelle heure de récupération (optionnel)</Label
+			>
+			<Input
+				{...attrs}
+				id="newPickupTime"
+				bind:value={$formData.chef_pickup_time}
+				type="time"
+			/>
+		</Form.Control>
+		<Form.FieldErrors />
+	</Form.Field>
+
 	<!-- Messages d'erreur/succès -->
 	{#if $message}
 		<div class="rounded-md bg-green-50 p-3 text-sm text-green-800">

@@ -383,7 +383,14 @@
 							<Label class="text-sm font-medium text-muted-foreground"
 								>Date de récupération</Label
 							>
-							<p class="text-sm">{formatDate(order.pickup_date)}</p>
+							<p class="text-sm">
+								{formatDate(order.pickup_date)}
+								{#if order.pickup_time}
+									<span class="ml-1 text-gray-900"
+										>{order.pickup_time.substring(0, 5)}</span
+									>
+								{/if}
+							</p>
 						</div>
 						<div>
 							<Label class="text-sm font-medium text-muted-foreground"
@@ -460,6 +467,11 @@
 								>
 								<p class="text-sm text-blue-600">
 									{formatDate(order.chef_pickup_date)}
+									{#if order.chef_pickup_time}
+										<span class="ml-1"
+											>{order.chef_pickup_time.substring(0, 5)}</span
+										>
+									{/if}
 								</p>
 							</div>
 						{/if}
@@ -683,7 +695,17 @@
 								<Label class="text-sm font-medium text-muted-foreground"
 									>Instagram</Label
 								>
-								<p class="truncate text-sm">{order.customer_instagram}</p>
+								<a
+									href="https://instagram.com/{order.customer_instagram.replace(
+										'@',
+										'',
+									)}"
+									target="_blank"
+									rel="noopener noreferrer"
+									class="truncate text-sm text-blue-600 hover:text-blue-800 hover:underline"
+								>
+									{order.customer_instagram}
+								</a>
 							</div>
 						{/if}
 					</div>

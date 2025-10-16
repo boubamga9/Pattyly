@@ -83,25 +83,7 @@
 	<div class="px-4 pb-6 sm:pb-8">
 		<div class="mx-auto max-w-6xl p-4 sm:p-8 lg:p-12">
 			<!-- Layout responsive: 2 columns on desktop, 1 column on mobile -->
-			<div class="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
-				<!-- Left column: Description -->
-				<div class="space-y-4 pr-4">
-					<h2 class="text-2xl font-semibold text-foreground">
-						Questions Fréquentes
-					</h2>
-					<div class="space-y-3 text-muted-foreground">
-						<p>
-							Vous avez des questions sur nos services, nos produits ou nos
-							conditions ? Nous avons rassemblé ici les questions les plus
-							fréquemment posées par nos clients.
-						</p>
-						<p>
-							Si vous ne trouvez pas la réponse à votre question, n'hésitez pas
-							à nous contacter directement. Nous serons ravis de vous aider !
-						</p>
-					</div>
-				</div>
-
+			<div class="grid grid-cols-1 gap-6 md:gap-8">
 				<!-- Right column: FAQ -->
 				<div class="space-y-4">
 					{#if faqs && faqs.length > 0}

@@ -1,10 +1,12 @@
 import { PUBLIC_SITE_URL } from '$env/static/public';
+import { formatDateTimeForEmail, generateInstagramEmailRow } from '$lib/utils/email-formatters';
 
 interface CustomRequestNotificationProps {
     customerName: string;
     customerEmail: string;
     customerInstagram?: string;
     pickupDate: string;
+    pickupTime?: string | null;
     requestId: string;
     dashboardUrl: string;
     date: string;
@@ -15,6 +17,7 @@ export function CustomRequestNotificationEmail({
     customerEmail,
     customerInstagram,
     pickupDate,
+    pickupTime,
     requestId,
     dashboardUrl,
     date
@@ -51,10 +54,7 @@ export function CustomRequestNotificationEmail({
                         </td>
                     </tr>
 
-                    <tr>
-                        <td style="padding: 8px 0; font-weight: 600;">Instagram :</td>
-                        <td style="padding: 8px 0;">${customerInstagram || 'Non renseigné'}</td>
-                    </tr>
+                    ${generateInstagramEmailRow(customerInstagram)}
                 </table>
             </div>
 
@@ -63,7 +63,7 @@ export function CustomRequestNotificationEmail({
                 <table style="width: 100%; border-collapse: collapse;">
                     <tr>
                         <td style="padding: 8px 0; font-weight: 600; width: 120px;">Date souhaitée :</td>
-                        <td style="padding: 8px 0;">${pickupDate}</td>
+                        <td style="padding: 8px 0;">${formatDateTimeForEmail(pickupDate, pickupTime)}</td>
                     </tr>
                 </table>
             </div>

@@ -120,6 +120,27 @@ export const futureDateSchema = z
         'La date doit être aujourd\'hui ou dans le futur'
     );
 
+// Créneau horaire - pour les heures de récupération
+export const timeSlotSchema = z
+    .string()
+    .regex(/^\d{2}:\d{2}(:\d{2})?$/, '')
+    .refine(
+        (timeStr) => {
+            // Extraire seulement les heures et minutes (ignorer les secondes si présentes)
+            const timeParts = timeStr.split(':');
+            const hours = parseInt(timeParts[0], 10);
+            const minutes = parseInt(timeParts[1], 10);
+            return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
+        },
+        'L\'heure de récupération est obligatoire'
+    );
+
+// Créneau horaire optionnel
+export const optionalTimeSlotSchema = z.preprocess(
+    (val) => (val === "" || val === null || val === undefined ? undefined : val),
+    timeSlotSchema.optional()
+);
+
 // Username pour réseaux sociaux (Instagram, TikTok)
 export const socialUsernameSchema = z.preprocess(
     (val) => (val === "" ? undefined : val),
@@ -185,6 +206,7 @@ export type Price = z.infer<typeof priceSchema>;
 export type URL = z.infer<typeof urlSchema>;
 export type UUID = z.infer<typeof uuidSchema>;
 export type FutureDate = z.infer<typeof futureDateSchema>;
+export type TimeSlot = z.infer<typeof timeSlotSchema>;
 export type SocialUsername = z.infer<typeof socialUsernameSchema>;
 export type SecureText = z.infer<typeof secureTextSchema>;
 export type FaqText = z.infer<typeof faqTextSchema>;

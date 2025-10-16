@@ -289,8 +289,13 @@
 								>Date de récupération souhaitée :</span
 							>
 							<span class="font-normal"
-								>{order?.pickup_date ? formatDate(order.pickup_date) : ''}</span
-							>
+								>{order?.pickup_date ? formatDate(order.pickup_date) : ''}
+								{#if order?.pickup_time}
+									<span class="ml-1 text-gray-900"
+										>{order.pickup_time.substring(0, 5)}</span
+									>
+								{/if}
+							</span>
 						</div>
 						<!-- Date proposée par le pâtissier -->
 						<div class="flex items-center justify-between">
@@ -299,17 +304,27 @@
 									? 'Date de livraison possible :'
 									: 'Date de récupération finale :'}</span
 							>
-							<span class="font-normal text-blue-600"
-								>{chefPickupDate ? formatDate(chefPickupDate) : ''}</span
-							>
+							<span class="font-normal text-gray-900"
+								>{chefPickupDate ? formatDate(chefPickupDate) : ''}
+								{#if order?.chef_pickup_time}
+									<span class="ml-1"
+										>{order.chef_pickup_time.substring(0, 5)}</span
+									>
+								{/if}
+							</span>
 						</div>
 					{:else}
 						<!-- Date de récupération (normale) -->
 						<div class="flex items-center justify-between">
 							<span class="text-muted-foreground">Date de récupération :</span>
 							<span class="font-normal"
-								>{order?.pickup_date ? formatDate(order.pickup_date) : ''}</span
-							>
+								>{order?.pickup_date ? formatDate(order.pickup_date) : ''}
+								{#if order?.pickup_time}
+									<span class="ml-1 text-gray-900"
+										>{order.pickup_time.substring(0, 5)}</span
+									>
+								{/if}
+							</span>
 						</div>
 					{/if}
 
@@ -388,7 +403,7 @@
 
 							<!-- Acompte payé -->
 							<div
-								class="flex items-center justify-between font-medium text-blue-600"
+								class="flex items-center justify-between font-medium text-gray-900"
 							>
 								<span>Payé aujourd'hui :</span>
 								<span
@@ -406,7 +421,7 @@
 										>Paiement en cours de vérification</span
 									>
 								{:else if order?.status === 'quoted'}
-									<span class="font-normal text-blue-600">Devis envoyé</span>
+									<span class="font-normal text-gray-900">Devis envoyé</span>
 								{:else if order?.status === 'confirmed'}
 									<span class="font-normal text-green-600">Confirmée</span>
 								{:else if order?.status === 'ready'}
@@ -433,7 +448,7 @@
 								{#if order?.status === 'quoted'}
 									<!-- Acompte à payer pour les devis -->
 									<div
-										class="flex items-center justify-between font-medium text-blue-600"
+										class="flex items-center justify-between font-medium text-gray-900"
 									>
 										<span>À payer aujourd'hui :</span>
 										<span>{formatPrice(totalAmount * 0.5)}</span>
@@ -443,7 +458,7 @@
 									<div
 										class="flex items-center justify-between font-medium {order?.status ===
 										'to_verify'
-											? 'text-blue-600'
+											? 'text-gray-900'
 											: 'text-green-600'}"
 									>
 										<span>Acompte :</span>

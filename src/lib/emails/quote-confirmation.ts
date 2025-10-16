@@ -1,10 +1,12 @@
 import { PUBLIC_SITE_URL } from '$env/static/public';
+import { formatDateTimeForEmail } from '$lib/utils/email-formatters';
 
 interface QuoteConfirmationProps {
     customerName: string;
     shopName: string;
     shopLogo?: string;
     pickupDate: string;
+    pickupTime?: string | null;
     totalPrice: number;
     depositAmount: number;
     remainingAmount: number;
@@ -18,6 +20,7 @@ export function QuoteConfirmationEmail({
     shopName,
     shopLogo,
     pickupDate,
+    pickupTime,
     totalPrice,
     depositAmount,
     remainingAmount,
@@ -41,7 +44,7 @@ export function QuoteConfirmationEmail({
                 <h2 style="color: #f97316; margin-top: 0; font-size: 18px; font-weight: normal;">✅ Commande confirmée !</h2>
                 <p>Bonjour ${customerName},</p>
                 <p>Votre commande personnalisée a été confirmée et votre acompte a été prélevé avec succès.</p>
-                <p style="margin-bottom: 24px;">Le pâtissier prépare votre gâteau pour le ${pickupDate}.</p>
+                <p style="margin-bottom: 24px;">Le pâtissier prépare votre gâteau pour le ${formatDateTimeForEmail(pickupDate, pickupTime)}.</p>
             </div>
 
             <div style="background-color: #f8f9fa; padding: 16px; border-radius: 6px; margin: 16px 0;">
@@ -49,7 +52,7 @@ export function QuoteConfirmationEmail({
                 <table style="width: 100%; border-collapse: collapse;">
                     <tr>
                         <td style="padding: 8px 0; font-weight: 600; width: 120px;">Date de retrait :</td>
-                        <td style="padding: 8px 0;">${pickupDate}</td>
+                        <td style="padding: 8px 0;">${formatDateTimeForEmail(pickupDate, pickupTime)}</td>
                     </tr>
 
                     <tr>

@@ -1,4 +1,5 @@
 import { PUBLIC_SITE_URL } from '$env/static/public';
+import { formatDateTimeForEmail } from '$lib/utils/email-formatters';
 
 interface OrderConfirmationProps {
     customerName: string;
@@ -6,6 +7,7 @@ interface OrderConfirmationProps {
     shopLogo?: string;
     productName: string;
     pickupDate: string;
+    pickupTime?: string | null;
     totalAmount: number;
     paidAmount: number;
     remainingAmount: number;
@@ -20,6 +22,7 @@ export function OrderConfirmationEmail({
     shopLogo,
     productName,
     pickupDate,
+    pickupTime,
     totalAmount,
     paidAmount,
     remainingAmount,
@@ -43,7 +46,7 @@ export function OrderConfirmationEmail({
                 <h2 style="color: #f97316; margin-top: 0; font-size: 18px; font-weight: normal;">✅ Commande confirmée !</h2>
                 <p>Bonjour ${customerName},</p>
                 <p>Le pâtissier a confirmé la réception de votre acompte et commence la préparation de votre commande.</p>
-                <p style="margin-bottom: 24px;">Votre gâteau sera prêt pour le ${pickupDate}.</p>
+                <p style="margin-bottom: 24px;">Votre gâteau sera prêt pour le ${formatDateTimeForEmail(pickupDate, pickupTime)}.</p>
             </div>
 
             <div style="background-color: #f8f9fa; padding: 16px; border-radius: 6px; margin: 16px 0;">
@@ -55,7 +58,7 @@ export function OrderConfirmationEmail({
                     </tr>
                     <tr>
                         <td style="padding: 8px 0; font-weight: 600;">Date de retrait :</td>
-                        <td style="padding: 8px 0;">${pickupDate}</td>
+                        <td style="padding: 8px 0;">${formatDateTimeForEmail(pickupDate, pickupTime)}</td>
                     </tr>
                     <tr>
                         <td style="padding: 8px 0; font-weight: 600;">Prix total :</td>

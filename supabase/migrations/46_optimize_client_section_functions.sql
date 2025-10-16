@@ -137,7 +137,10 @@ begin
         json_build_object(
           'day', a.day,
           'is_open', a.is_open,
-          'daily_order_limit', a.daily_order_limit
+          'daily_order_limit', a.daily_order_limit,
+          'start_time', a.start_time,
+          'end_time', a.end_time,
+          'interval_time', a.interval_time
         ) order by a.day
       )
       from availabilities a

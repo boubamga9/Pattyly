@@ -46,6 +46,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             throw error(404, 'Produit non trouvé');
         }
 
+
         // Récupérer le payment_link pour avoir le paypal_me
         const { data: paymentLink, error: paymentLinkError } = await locals.supabase
             .from('payment_links')
@@ -130,6 +131,7 @@ export const actions: Actions = {
                     customer_phone: orderData.customer_phone || null,
                     customer_instagram: orderData.customer_instagram || null,
                     pickup_date: orderData.pickup_date,
+                    pickup_time: orderData.pickup_time || null,
                     additional_information: orderData.additional_information || null,
                     customization_data: orderData.customization_data || null,
                     status: 'to_verify',
@@ -161,6 +163,7 @@ export const actions: Actions = {
                     shopLogo: product.shops.logo_url,
                     productName: orderData.product_name,
                     pickupDate: orderData.pickup_date,
+                    pickupTime: orderData.pickup_time,
                     totalAmount: totalAmount,
                     paidAmount: paidAmount,
                     remainingAmount: remainingAmount,
@@ -178,6 +181,7 @@ export const actions: Actions = {
                     customerInstagram: orderData.customer_instagram,
                     productName: orderData.product_name,
                     pickupDate: orderData.pickup_date,
+                    pickupTime: orderData.pickup_time,
                     totalAmount: totalAmount,
                     paidAmount: paidAmount,
                     remainingAmount: remainingAmount,

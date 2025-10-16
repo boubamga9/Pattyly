@@ -7,13 +7,23 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Separator } from '$lib/components/ui/separator';
-	import { DatePicker, OptionGroup } from '$lib/components';
+	import { DatePicker, OptionGroup, TimeSlotSelector } from '$lib/components';
 	import { superForm } from 'sveltekit-superforms/client';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import type { SuperValidated } from 'sveltekit-superforms';
 	import { createLocalDynamicSchema } from './schema';
 
 	export let data: SuperValidated<any>;
+	export let shop: {
+		id: string;
+		name: string;
+		slug: string;
+		logo_url?: string;
+		bio?: string;
+		is_custom_accepted: boolean;
+		is_active: boolean;
+		is_visible: boolean;
+	};
 	export let customFields: Array<{
 		id: string;
 		label: string;
@@ -32,6 +42,9 @@
 		day: number;
 		is_open: boolean;
 		daily_order_limit?: number | null;
+		start_time?: string | null;
+		end_time?: string | null;
+		interval_time?: string | null;
 	}>;
 	export let unavailabilities: Array<{ start_date: string; end_date: string }>;
 	export let datesWithLimitReached: string[] = [];
@@ -55,6 +68,14 @@
 			console.log(
 				'🔍 [Product Form Front] pickup_date isDate:',
 				$formData.pickup_date instanceof Date,
+			);
+			console.log(
+				'🔍 [Product Form Front] pickup_time value:',
+				$formData.pickup_time,
+			);
+			console.log(
+				'🔍 [Product Form Front] pickup_time type:',
+				typeof $formData.pickup_time,
 			);
 			if ($formData.pickup_date instanceof Date) {
 				console.log(
@@ -82,6 +103,11 @@
 	});
 
 	const { form: formData, enhance, submitting, message } = form;
+
+	// État pour les créneaux horaires
+	let availableTimeSlots: string[] = [];
+	let selectedTimeSlot = '';
+	let isLoadingTimeSlots = false;
 
 	$: totalPrice = (() => {
 		let total = product.base_price || 0;
@@ -123,6 +149,81 @@
 		const url = $message.redirectTo;
 		message.set(null); // reset pour éviter une boucle
 		window.location.href = url;
+	}
+
+	// Fonction pour charger les créneaux horaires disponibles
+	async function loadTimeSlots(pickupDate: string) {
+		if (!pickupDate) {
+			availableTimeSlots = [];
+			selectedTimeSlot = '';
+			return;
+		}
+
+		isLoadingTimeSlots = true;
+		try {
+			// Trouver la disponibilité pour le jour sélectionné
+			const selectedDate = new Date(pickupDate);
+			const dayOfWeek = selectedDate.getDay(); // 0=dimanche, 1=lundi, etc.
+			const availability = availabilities.find((a) => a.day === dayOfWeek);
+
+			if (
+				!availability ||
+				!availability.is_open ||
+				!availability.start_time ||
+				!availability.end_time ||
+				!availability.interval_time
+			) {
+				availableTimeSlots = [];
+				selectedTimeSlot = '';
+				return;
+			}
+
+			// Appeler l'API pour récupérer les créneaux libres
+			const response = await fetch(`/api/get-free-pickup-slots`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					shop_id: shop.id, // Utiliser shop.id depuis les props
+					pickup_date: pickupDate,
+					start_time: availability.start_time,
+					end_time: availability.end_time,
+					interval_time: availability.interval_time,
+				}),
+			});
+
+			if (response.ok) {
+				const data = await response.json();
+				availableTimeSlots = data.timeSlots || [];
+
+				// Ne réinitialiser que si le créneau sélectionné n'est plus disponible
+				if (
+					selectedTimeSlot &&
+					!availableTimeSlots.includes(selectedTimeSlot)
+				) {
+					selectedTimeSlot = '';
+					$formData.pickup_time = '';
+				}
+			} else {
+				console.error('Erreur lors du chargement des créneaux');
+				availableTimeSlots = [];
+				selectedTimeSlot = '';
+				$formData.pickup_time = '';
+			}
+		} catch (error) {
+			console.error('Erreur lors du chargement des créneaux:', error);
+			availableTimeSlots = [];
+			selectedTimeSlot = '';
+			$formData.pickup_time = '';
+		} finally {
+			isLoadingTimeSlots = false;
+		}
+	}
+
+	// Charger les créneaux quand la date change
+	$: if ($formData.pickup_date) {
+		loadTimeSlots($formData.pickup_date);
 	}
 
 	// Fonction pour formater le prix
@@ -243,6 +344,84 @@
 					<Form.FieldErrors />
 				</Form.Field>
 			</div>
+
+			<!-- Sélecteur de créneau horaire -->
+			<div class="space-y-2">
+				{#if $formData.pickup_date && availableTimeSlots.length > 0}
+					<div class="space-y-2">
+						<Form.Field {form} name="pickup_time">
+							<Form.Control let:attrs>
+								<TimeSlotSelector
+									timeSlots={availableTimeSlots}
+									selectedTime={selectedTimeSlot}
+									disabled={isLoadingTimeSlots}
+									required={true}
+									label="Choisir un créneau de récupération"
+									on:change={(event) => {
+										selectedTimeSlot = event.detail.value;
+										$formData.pickup_time = event.detail.value;
+										console.log(
+											'🕐 [Product Form] Time slot selected:',
+											event.detail.value,
+										);
+										console.log(
+											'🕐 [Product Form] formData.pickup_time:',
+											$formData.pickup_time,
+										);
+									}}
+								/>
+							</Form.Control>
+							<Form.FieldErrors />
+						</Form.Field>
+					</div>
+				{:else if $formData.pickup_date && isLoadingTimeSlots}
+					<div class="space-y-2">
+						<label class="text-sm font-medium text-gray-900">
+							Choisir un créneau de récupération
+						</label>
+						<div
+							class="flex items-center justify-center rounded-lg border border-gray-200 bg-gray-50 p-4"
+						>
+							<div class="flex items-center space-x-2 text-sm text-gray-500">
+								<svg
+									class="h-4 w-4 animate-spin"
+									fill="none"
+									viewBox="0 0 24 24"
+								>
+									<circle
+										class="opacity-25"
+										cx="12"
+										cy="12"
+										r="10"
+										stroke="currentColor"
+										stroke-width="4"
+									></circle>
+									<path
+										class="opacity-75"
+										fill="currentColor"
+										d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+									></path>
+								</svg>
+								<span>Chargement des créneaux...</span>
+							</div>
+						</div>
+					</div>
+				{:else if $formData.pickup_date && availableTimeSlots.length === 0}
+					<div class="space-y-2">
+						<label class="text-sm font-medium text-gray-900">
+							Choisir un créneau de récupération
+						</label>
+						<div
+							class="rounded-lg border border-orange-200 bg-orange-50 p-4 text-center"
+						>
+							<p class="text-sm text-orange-700">
+								<span class="mr-2">⚠️</span>
+								Aucun créneau disponible pour cette date
+							</p>
+						</div>
+					</div>
+				{/if}
+			</div>
 		</div>
 		<Separator />
 
@@ -356,10 +535,42 @@
 							>
 						</div>
 					{/if}
+					{#if $formData.pickup_time}
+						<div class="flex justify-between">
+							<span class="text-muted-foreground">Créneau horaire :</span>
+							<span class="font-medium"
+								>{$formData.pickup_time.substring(0, 5)}</span
+							>
+						</div>
+					{/if}
 					<div class="flex justify-between">
 						<span class="text-muted-foreground">Gâteau :</span>
 						<span class="font-medium">{formatPrice(product.base_price)}</span>
 					</div>
+					{#if $formData.customer_name}
+						<div class="flex justify-between">
+							<span class="text-muted-foreground">Nom :</span>
+							<span class="font-medium">{$formData.customer_name}</span>
+						</div>
+					{/if}
+					{#if $formData.customer_email}
+						<div class="flex justify-between">
+							<span class="text-muted-foreground">Email :</span>
+							<span class="font-medium">{$formData.customer_email}</span>
+						</div>
+					{/if}
+					{#if $formData.customer_phone}
+						<div class="flex justify-between">
+							<span class="text-muted-foreground">Téléphone :</span>
+							<span class="font-medium">{$formData.customer_phone}</span>
+						</div>
+					{/if}
+					{#if $formData.customer_instagram}
+						<div class="flex justify-between">
+							<span class="text-muted-foreground">Instagram :</span>
+							<span class="font-medium">{$formData.customer_instagram}</span>
+						</div>
+					{/if}
 					{#each customFields as field}
 						{#if $formData.customization_data[field.id]}
 							{#if Array.isArray($formData.customization_data[field.id])}

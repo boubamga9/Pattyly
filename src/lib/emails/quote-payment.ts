@@ -1,9 +1,11 @@
 import { PUBLIC_SITE_URL } from '$env/static/public';
+import { formatDateTimeForEmail } from '$lib/utils/email-formatters';
 
 interface QuotePaymentProps {
     customerName: string;
     customerEmail: string;
     pickupDate: string;
+    pickupTime?: string | null;
     totalPrice: number;
     depositAmount: number;
     remainingAmount: number;
@@ -17,6 +19,7 @@ export function QuotePaymentEmail({
     customerName,
     customerEmail,
     pickupDate,
+    pickupTime,
     totalPrice,
     depositAmount,
     remainingAmount,
@@ -64,7 +67,7 @@ export function QuotePaymentEmail({
                 <table style="width: 100%; border-collapse: collapse;">
                     <tr>
                         <td style="padding: 8px 0; font-weight: 600; width: 120px;">Date de retrait :</td>
-                        <td style="padding: 8px 0;">${pickupDate}</td>
+                        <td style="padding: 8px 0;">${formatDateTimeForEmail(pickupDate, pickupTime)}</td>
                     </tr>
 
                 </table>

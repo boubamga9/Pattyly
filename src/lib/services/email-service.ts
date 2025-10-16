@@ -32,6 +32,7 @@ export class EmailService {
         shopLogo,
         productName,
         pickupDate,
+        pickupTime,
         totalAmount,
         paidAmount,
         remainingAmount,
@@ -45,6 +46,7 @@ export class EmailService {
         shopLogo?: string;
         productName: string;
         pickupDate: string;
+        pickupTime?: string | null;
         totalAmount: number;
         paidAmount: number;
         remainingAmount: number;
@@ -63,6 +65,7 @@ export class EmailService {
                     shopLogo,
                     productName,
                     pickupDate,
+                    pickupTime,
                     totalAmount,
                     paidAmount,
                     remainingAmount,
@@ -94,6 +97,7 @@ export class EmailService {
         shopLogo,
         productName,
         pickupDate,
+        pickupTime,
         totalAmount,
         paidAmount,
         remainingAmount,
@@ -108,6 +112,7 @@ export class EmailService {
         shopLogo?: string;
         productName: string;
         pickupDate: string;
+        pickupTime?: string | null;
         totalAmount: number;
         paidAmount: number;
         remainingAmount: number;
@@ -127,6 +132,7 @@ export class EmailService {
                     shopLogo,
                     productName,
                     pickupDate,
+                    pickupTime,
                     totalAmount,
                     paidAmount,
                     remainingAmount,
@@ -159,6 +165,7 @@ export class EmailService {
         customerInstagram,
         productName,
         pickupDate,
+        pickupTime,
         totalAmount,
         paidAmount,
         remainingAmount,
@@ -173,6 +180,7 @@ export class EmailService {
         customerInstagram?: string;
         productName: string;
         pickupDate: string;
+        pickupTime?: string | null;
         totalAmount: number;
         paidAmount: number;
         remainingAmount: number;
@@ -192,6 +200,7 @@ export class EmailService {
                     customerInstagram,
                     productName,
                     pickupDate,
+                    pickupTime,
                     totalAmount,
                     paidAmount,
                     remainingAmount,
@@ -224,6 +233,7 @@ export class EmailService {
         customerInstagram,
         productName,
         pickupDate,
+        pickupTime,
         totalAmount,
         paidAmount,
         remainingAmount,
@@ -237,6 +247,7 @@ export class EmailService {
         customerInstagram?: string;
         productName: string;
         pickupDate: string;
+        pickupTime?: string | null;
         totalAmount: number;
         paidAmount: number;
         remainingAmount: number;
@@ -255,6 +266,7 @@ export class EmailService {
                     customerInstagram,
                     productName,
                     pickupDate,
+                    pickupTime,
                     totalAmount,
                     paidAmount,
                     remainingAmount,
@@ -285,6 +297,7 @@ export class EmailService {
         shopName,
         shopLogo,
         pickupDate,
+        pickupTime,
         totalPrice,
         depositAmount,
         remainingAmount,
@@ -297,6 +310,7 @@ export class EmailService {
         shopName: string;
         shopLogo?: string;
         pickupDate: string;
+        pickupTime?: string | null;
         totalPrice: number;
         depositAmount: number;
         remainingAmount: number;
@@ -314,6 +328,7 @@ export class EmailService {
                     shopName,
                     shopLogo,
                     pickupDate,
+                    pickupTime,
                     totalPrice,
                     depositAmount,
                     remainingAmount,
@@ -343,6 +358,7 @@ export class EmailService {
         customerName,
         customerEmail,
         pickupDate,
+        pickupTime,
         totalPrice,
         depositAmount,
         remainingAmount,
@@ -354,6 +370,7 @@ export class EmailService {
         customerName: string;
         customerEmail: string;
         pickupDate: string;
+        pickupTime?: string | null;
         totalPrice: number;
         depositAmount: number;
         remainingAmount: number;
@@ -370,6 +387,7 @@ export class EmailService {
                     customerName,
                     customerEmail,
                     pickupDate,
+                    pickupTime,
                     totalPrice,
                     depositAmount,
                     remainingAmount,
@@ -539,6 +557,7 @@ export class EmailService {
         customerEmail,
         customerInstagram,
         pickupDate,
+        pickupTime,
         requestId,
         dashboardUrl,
         date,
@@ -548,6 +567,7 @@ export class EmailService {
         customerEmail: string;
         customerInstagram?: string;
         pickupDate: string;
+        pickupTime?: string | null;
         requestId: string;
         dashboardUrl: string;
         date: string;
@@ -562,6 +582,7 @@ export class EmailService {
                     customerEmail,
                     customerInstagram,
                     pickupDate,
+                    pickupTime,
                     requestId,
                     dashboardUrl,
                     date,

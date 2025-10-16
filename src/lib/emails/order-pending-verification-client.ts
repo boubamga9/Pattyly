@@ -1,4 +1,5 @@
 import { PUBLIC_SITE_URL } from '$env/static/public';
+import { formatDateTimeForEmail } from '$lib/utils/email-formatters';
 
 interface OrderPendingVerificationClientProps {
     customerName: string;
@@ -6,6 +7,7 @@ interface OrderPendingVerificationClientProps {
     shopLogo?: string;
     productName: string;
     pickupDate: string;
+    pickupTime?: string | null;
     totalAmount: number;
     paidAmount: number;
     remainingAmount: number;
@@ -21,6 +23,7 @@ export function OrderPendingVerificationClientEmail({
     shopLogo,
     productName,
     pickupDate,
+    pickupTime,
     totalAmount,
     paidAmount,
     remainingAmount,
@@ -64,7 +67,7 @@ export function OrderPendingVerificationClientEmail({
                     </tr>
                     <tr>
                         <td style="padding: 8px 0; font-weight: 600;">Date de retrait :</td>
-                        <td style="padding: 8px 0;">${pickupDate}</td>
+                        <td style="padding: 8px 0;">${formatDateTimeForEmail(pickupDate, pickupTime)}</td>
                     </tr>
                     <tr>
                         <td style="padding: 8px 0; font-weight: 600;">Prix total :</td>

@@ -28,6 +28,7 @@
 		customer_name: string;
 		customer_email: string;
 		pickup_date: string;
+		pickup_time: string | null;
 		status: string;
 		total_amount: number | null;
 		product_name: string | null;
@@ -36,6 +37,7 @@
 		created_at: string;
 		products?: { name: string; image_url: string | null } | null;
 		chef_pickup_date: string | null;
+		chef_pickup_time: string | null;
 	}
 
 	// Données de la page
@@ -170,6 +172,19 @@
 				groups[dateKey] = [];
 			}
 			groups[dateKey].push(order);
+		});
+
+		// Trier les commandes dans chaque groupe par heure de récupération
+		Object.keys(groups).forEach((key) => {
+			groups[key].sort((a, b) => {
+				// Si aucune heure n'est définie, mettre à la fin
+				if (!a.pickup_time && !b.pickup_time) return 0;
+				if (!a.pickup_time) return 1;
+				if (!b.pickup_time) return -1;
+
+				// Comparer les heures (format HH:MM)
+				return a.pickup_time.localeCompare(b.pickup_time);
+			});
 		});
 
 		// Trier les groupes par ordre chronologique
@@ -425,8 +440,13 @@
 													>Récupération : <span
 														class="font-medium text-foreground"
 														>{formatDate(order.pickup_date)}</span
-													></span
-												>
+													>
+													{#if order.pickup_time}
+														<span class="ml-1 text-gray-900"
+															>{order.pickup_time.substring(0, 5)}</span
+														>
+													{/if}
+												</span>
 											</div>
 
 											<!-- Email du client -->

@@ -1,4 +1,5 @@
 import { PUBLIC_SITE_URL } from '$env/static/public';
+import { formatDateTimeForEmail, generateInstagramEmailRow } from '$lib/utils/email-formatters';
 
 interface OrderNotificationProps {
     customerName: string;
@@ -6,6 +7,7 @@ interface OrderNotificationProps {
     customerInstagram?: string;
     productName: string;
     pickupDate: string;
+    pickupTime?: string | null;
     totalAmount: number;
     paidAmount: number;
     remainingAmount: number;
@@ -20,6 +22,7 @@ export function OrderNotificationEmail({
     customerInstagram,
     productName,
     pickupDate,
+    pickupTime,
     totalAmount,
     paidAmount,
     remainingAmount,
@@ -42,7 +45,7 @@ export function OrderNotificationEmail({
             <div style="margin-bottom: 16px;">
                 <h2 style="color: #f97316; margin-top: 0; font-size: 18px; font-weight: normal;">🎂 Nouvelle commande reçue</h2>
                 <p>Vous avez reçu une nouvelle commande de ${customerName}.</p>
-                <p style="margin-bottom: 24px;">Action requise : Préparer le gâteau pour le ${pickupDate}</p>
+                <p style="margin-bottom: 24px;">Action requise : Préparer le gâteau pour le ${formatDateTimeForEmail(pickupDate, pickupTime)}</p>
             </div>
 
             <div style="background-color: #f8f9fa; padding: 16px; border-radius: 6px; margin: 16px 0;">
@@ -59,10 +62,7 @@ export function OrderNotificationEmail({
                         </td>
                     </tr>
 
-                    <tr>
-                        <td style="padding: 8px 0; font-weight: 600;">Instagram :</td>
-                        <td style="padding: 8px 0;">${customerInstagram || 'Non renseigné'}</td>
-                    </tr>
+                    ${generateInstagramEmailRow(customerInstagram)}
                 </table>
             </div>
 
@@ -75,7 +75,7 @@ export function OrderNotificationEmail({
                     </tr>
                     <tr>
                         <td style="padding: 8px 0; font-weight: 600;">Date de retrait :</td>
-                        <td style="padding: 8px 0;">${pickupDate}</td>
+                        <td style="padding: 8px 0;">${formatDateTimeForEmail(pickupDate, pickupTime)}</td>
                     </tr>
                     <tr>
                         <td style="padding: 8px 0; font-weight: 600;">Prix total :</td>

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { uuidSchema, nameSchema, emailSchema, messageSchema, priceSchema, futureDateSchema } from './common';
+import { uuidSchema, nameSchema, emailSchema, messageSchema, priceSchema, futureDateSchema, timeSlotSchema } from './common';
 import { createDynamicCustomizationSchema } from './form';
 
 /**
@@ -86,6 +86,7 @@ function createBaseOrderSchema(fields: Array<{
         customer_phone: z.string().optional(),
         customer_instagram: z.string().optional(),
         pickup_date: futureDateSchema,
+        pickup_time: timeSlotSchema,
         customization_data: createDynamicCustomizationSchema(fields),
         additional_information: messageSchema.optional(),
         // inspiration_photos géré manuellement côté serveur, pas dans la validation

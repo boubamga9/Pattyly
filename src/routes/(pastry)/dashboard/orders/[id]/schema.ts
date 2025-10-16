@@ -1,11 +1,12 @@
 import { z } from 'zod';
-import { priceSchema } from '$lib/validations/schemas/common.js';
+import { priceSchema, timeSlotSchema } from '$lib/validations/schemas/common.js';
 
 // Schéma pour le formulaire de devis
 export const makeQuoteFormSchema = z.object({
     price: priceSchema,
     chef_message: z.string().max(500, 'Le message ne peut pas dépasser 500 caractères').optional(),
-    chef_pickup_date: z.string().optional()
+    chef_pickup_date: z.string().optional(),
+    chef_pickup_time: timeSlotSchema.optional()
 });
 
 // Schéma pour le formulaire de rejet

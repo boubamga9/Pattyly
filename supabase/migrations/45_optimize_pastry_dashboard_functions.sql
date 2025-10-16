@@ -174,6 +174,7 @@ begin
           'customer_name', o.customer_name,
           'customer_email', o.customer_email,
           'pickup_date', o.pickup_date,
+          'pickup_time', o.pickup_time,
           'status', o.status,
           'total_amount', o.total_amount,
           'product_name', o.product_name,
@@ -181,6 +182,7 @@ begin
           'chef_message', o.chef_message,
           'created_at', o.created_at,
           'chef_pickup_date', o.chef_pickup_date,
+          'chef_pickup_time', o.chef_pickup_time,
           'product', json_build_object(
             'name', p.name,
             'image_url', p.image_url
@@ -188,7 +190,7 @@ begin
         )
       )
       from (
-        select o.id, o.customer_name, o.customer_email, o.pickup_date, o.status, o.total_amount, o.product_name, o.additional_information, o.chef_message, o.created_at, o.chef_pickup_date, o.product_id
+        select o.id, o.customer_name, o.customer_email, o.pickup_date, o.pickup_time, o.status, o.total_amount, o.product_name, o.additional_information, o.chef_message, o.created_at, o.chef_pickup_date, o.chef_pickup_time, o.product_id
         from orders o
         join shops s on s.id = o.shop_id
         where s.profile_id = p_profile_id
@@ -226,11 +228,14 @@ begin
           'id', a.id,
           'day', a.day,
           'is_open', a.is_open,
-          'daily_order_limit', a.daily_order_limit
+          'daily_order_limit', a.daily_order_limit,
+          'start_time', a.start_time,
+          'end_time', a.end_time,
+          'interval_time', a.interval_time
         )
       )
       from (
-        select a.id, a.day, a.is_open, a.daily_order_limit
+        select a.id, a.day, a.is_open, a.daily_order_limit, a.start_time, a.end_time, a.interval_time
         from availabilities a
         join shops s on s.id = a.shop_id
         where s.profile_id = p_profile_id
@@ -367,6 +372,7 @@ begin
         'customer_name', o.customer_name,
         'customer_email', o.customer_email,
         'pickup_date', o.pickup_date,
+        'pickup_time', o.pickup_time,
         'status', o.status,
         'total_amount', o.total_amount,
         'product_name', o.product_name,
@@ -374,9 +380,9 @@ begin
         'chef_message', o.chef_message,
         'created_at', o.created_at,
         'chef_pickup_date', o.chef_pickup_date,
+        'chef_pickup_time', o.chef_pickup_time,
         'paid_amount', o.paid_amount,
-        'paypal_order_id', o.paypal_order_id,
-        'paypal_capture_id', o.paypal_capture_id,
+        'order_ref', o.order_ref,
         'customization_data', o.customization_data,
         'inspiration_photos', o.inspiration_photos,
         'product', json_build_object(

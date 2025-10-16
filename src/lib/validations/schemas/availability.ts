@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { uuidSchema } from './common';
+import { uuidSchema, timeSlotSchema } from './common';
 
 /**
  * Schémas de validation pour la gestion des disponibilités
@@ -44,14 +44,20 @@ export const availabilitySchema = z.object({
     shop_id: uuidSchema,
     day: dayOfWeekSchema,
     is_open: z.boolean(),
-    daily_order_limit: z.number().int().nullable()
+    daily_order_limit: z.number().int().nullable(),
+    start_time: timeSlotSchema.nullable(),
+    end_time: timeSlotSchema.nullable(),
+    interval_time: z.string().nullable() // PostgreSQL INTERVAL as string
 });
 
 // Mise à jour de la disponibilité d'un jour (pour l'action updateAvailability)
 export const updateAvailabilityActionSchema = z.object({
     availabilityId: uuidSchema,
     isAvailable: z.string().transform((val) => val === 'true'),
-    dailyOrderLimit: z.number().int().nullable()
+    dailyOrderLimit: z.number().int().nullable(),
+    startTime: timeSlotSchema.nullable(),
+    endTime: timeSlotSchema.nullable(),
+    intervalTime: z.string().nullable() // PostgreSQL INTERVAL as string (e.g., "00:30:00")
 });
 
 // ===== PÉRIODES D'INDISPONIBILITÉ =====

@@ -141,7 +141,7 @@ export const actions: Actions = {
                 return fail(400, { form });
             }
 
-            const { price, chef_message: chefMessage, chef_pickup_date: chefPickupDate } = form.data;
+            const { price, chef_message: chefMessage, chef_pickup_date: chefPickupDate, chef_pickup_time: chefPickupTime } = form.data;
 
             if (!price) {
                 return fail(400, { form, error: 'Le prix est requis' });
@@ -185,6 +185,7 @@ export const actions: Actions = {
                 total_amount: number;
                 chef_message: string | null;
                 chef_pickup_date?: string;
+                chef_pickup_time?: string;
                 order_ref: string;
             } = {
                 status: 'quoted',
@@ -196,6 +197,11 @@ export const actions: Actions = {
             // Ajouter la nouvelle date de récupération si fournie
             if (chefPickupDate) {
                 updateData.chef_pickup_date = chefPickupDate;
+            }
+
+            // Ajouter la nouvelle heure de récupération si fournie
+            if (chefPickupTime) {
+                updateData.chef_pickup_time = chefPickupTime;
             }
 
             const { data: order, error: updateError } = await locals.supabase
@@ -367,6 +373,7 @@ export const actions: Actions = {
                     shopLogo: order.shops.logo_url,
                     productName: order.product_name || 'Commande personnalisée',
                     pickupDate: order.pickup_date,
+                    pickupTime: order.pickup_time,
                     totalAmount: totalAmount,
                     paidAmount: paidAmount,
                     remainingAmount: remainingAmount,

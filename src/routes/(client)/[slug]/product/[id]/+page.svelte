@@ -158,6 +158,7 @@
 
 					<ProductForm
 						data={form}
+						{shop}
 						{product}
 						{customFields}
 						{availabilities}
