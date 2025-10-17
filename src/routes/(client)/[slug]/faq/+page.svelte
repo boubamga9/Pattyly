@@ -10,7 +10,17 @@
 	import { ChevronDown } from 'lucide-svelte';
 	import { ClientFooter } from '$lib/components';
 
-	$: ({ shop, faqs } = $page.data);
+	$: ({ shop, faqs, customizations } = $page.data);
+
+	$: customStyles = {
+		background: customizations?.background_color || '#ffe8d6',
+		backgroundImage: customizations?.background_image_url
+			? `url(${customizations.background_image_url})`
+			: 'none',
+		buttonStyle: `background-color: ${customizations?.button_color || '#ff6f61'}; color: ${customizations?.button_text_color || '#ffffff'};`,
+		textStyle: `color: ${customizations?.text_color || '#333333'};`,
+		secondaryTextStyle: `color: ${customizations?.secondary_text_color || '#333333'};`,
+	};
 
 	function goBack() {
 		goto(`/${shop.slug}`);
@@ -36,7 +46,10 @@
 	<meta property="og:url" content={$page.url.href} />
 </svelte:head>
 
-<div class="flex min-h-screen flex-col overflow-x-hidden bg-background">
+<div
+	class="flex min-h-screen flex-col overflow-x-hidden"
+	style="background-color: {customStyles.background}; background-image: {customStyles.backgroundImage}; background-size: cover; background-position: center; background-repeat: no-repeat;"
+>
 	<!-- Header with logo and information -->
 	<header class="px-4 py-6 text-center sm:py-8 md:py-12">
 		<!-- Logo -->
@@ -61,14 +74,15 @@
 		</div>
 
 		<!-- Shop name -->
-		<h1 class="mb-2 text-xl font-semibold text-foreground">
+		<h1 class="mb-2 text-xl font-semibold" style={customStyles.textStyle}>
 			{shop.name}
 		</h1>
 
 		<!-- Back button -->
 		<button
 			on:click={goBack}
-			class="text-xs italic text-gray-400 underline transition-colors hover:text-gray-600 sm:text-sm"
+			class="text-xs italic underline transition-colors hover:opacity-80 sm:text-sm"
+			style={customStyles.secondaryTextStyle}
 		>
 			← Retour à la boutique
 		</button>
@@ -76,7 +90,10 @@
 
 	<!-- Separator -->
 	<div class="px-4">
-		<Separator class="mb-6 sm:mb-8" />
+		<Separator
+			class="mb-6 sm:mb-8"
+			style={`background-color: ${customizations?.secondary_text_color || '#333333'};`}
+		/>
 	</div>
 
 	<!-- Main content -->
@@ -93,17 +110,20 @@
 									class="flex w-full items-center justify-between py-2 text-left transition-colors hover:bg-neutral-50"
 								>
 									<h3
-										class="flex-1 break-words pr-4 text-lg font-medium text-neutral-800 lg:text-xl"
+										class="flex-1 break-words pr-4 text-lg font-medium lg:text-xl"
+										style={customStyles.textStyle}
 									>
 										{faq.question}
 									</h3>
 									<ChevronDown
-										class="h-5 w-5 flex-shrink-0 text-neutral-500 transition-transform duration-200"
+										class="h-5 w-5 flex-shrink-0 transition-transform duration-200"
+										style={customStyles.secondaryTextStyle}
 									/>
 								</CollapsibleTrigger>
 								<CollapsibleContent class=" pb-2">
 									<p
-										class="text-base leading-relaxed text-neutral-600 lg:text-lg"
+										class="text-base leading-relaxed lg:text-lg"
+										style={customStyles.secondaryTextStyle}
 									>
 										{faq.answer}
 									</p>
@@ -112,7 +132,7 @@
 						{/each}
 					{:else}
 						<div class="py-8 text-center">
-							<p class="text-muted-foreground">
+							<p style={customStyles.secondaryTextStyle}>
 								Aucune question fréquente n'est disponible pour le moment.
 							</p>
 						</div>
@@ -123,5 +143,5 @@
 	</div>
 
 	<!-- Footer -->
-	<ClientFooter />
+	<ClientFooter {customizations} />
 </div>
