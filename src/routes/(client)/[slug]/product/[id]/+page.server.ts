@@ -36,6 +36,13 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
             throw error(404, 'Boutique non trouvée');
         }
 
+        // Récupérer les customizations
+        const { data: customizations } = await locals.supabase
+            .from('shop_customizations')
+            .select('button_color, button_text_color, text_color, icon_color, secondary_text_color, background_color, background_image_url')
+            .eq('shop_id', shop.id)
+            .single();
+
         // Create dynamic schema based on configured fields
         const dynamicSchema = createLocalDynamicSchema(customFields || []);
 
@@ -47,6 +54,15 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
             availabilities: availabilities || [],
             unavailabilities: unavailabilities || [],
             datesWithLimitReached: datesWithLimitReached || [],
+            customizations: customizations || {
+                button_color: '#ff6f61',
+                button_text_color: '#ffffff',
+                text_color: '#333333',
+                icon_color: '#6b7280',
+                secondary_text_color: '#333333',
+                background_color: '#ffe8d6',
+                background_image_url: null
+            },
             form: await superValidate(zod(dynamicSchema))
         };
 

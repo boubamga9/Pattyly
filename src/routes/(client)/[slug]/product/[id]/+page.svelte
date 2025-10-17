@@ -23,7 +23,19 @@
 		availabilities,
 		unavailabilities,
 		datesWithLimitReached,
+		customizations,
 	} = $page.data);
+
+	// Styles personnalisés
+	$: customStyles = {
+		background: customizations?.background_color || '#ffe8d6',
+		backgroundImage: customizations?.background_image_url
+			? `url(${customizations.background_image_url})`
+			: 'none',
+		buttonStyle: `background-color: ${customizations?.button_color || '#ff6f61'}; color: ${customizations?.button_text_color || '#ffffff'};`,
+		textStyle: `color: ${customizations?.text_color || '#333333'};`,
+		secondaryTextStyle: `color: ${customizations?.secondary_text_color || '#333333'};`,
+	};
 
 	// Fonction pour retourner à la boutique ou au dashboard
 	function goBack() {
@@ -61,7 +73,10 @@
 	{/if}
 </svelte:head>
 
-<div class="min-h-screen bg-background">
+<div
+	class="min-h-screen"
+	style="background-color: {customStyles.background}; background-image: {customStyles.backgroundImage}; background-size: cover; background-position: center; background-repeat: no-repeat;"
+>
 	<!-- Header avec logo et informations -->
 	<header class="px-4 py-6 text-center sm:py-8 md:py-12">
 		<!-- Logo -->
@@ -86,14 +101,15 @@
 		</div>
 
 		<!-- Nom de la boutique -->
-		<h1 class="mb-2 text-xl font-semibold text-foreground">
+		<h1 class="mb-2 text-xl font-semibold" style={customStyles.textStyle}>
 			{shop.name}
 		</h1>
 
 		<!-- Bouton retour -->
 		<button
 			on:click={goBack}
-			class="text-xs italic text-gray-400 underline transition-colors hover:text-gray-600 sm:text-sm"
+			class="text-xs italic underline transition-colors hover:opacity-80 sm:text-sm"
+			style={customStyles.secondaryTextStyle}
 		>
 			{#if $page.url.searchParams.get('preview') === 'true'}
 				← Retour au dashboard
@@ -105,7 +121,10 @@
 
 	<!-- Separator -->
 	<div class="px-4">
-		<Separator class="mb-6 sm:mb-8" />
+		<Separator
+			class="mb-6 sm:mb-8"
+			style={`background-color: ${customizations?.secondary_text_color || '#333333'};`}
+		/>
 	</div>
 
 	<!-- Contenu principal -->
@@ -137,24 +156,36 @@
 					<!-- Section 1 : Informations produit -->
 					<div class="space-y-4">
 						<h2
-							class="text-lg font-medium text-foreground sm:text-xl md:text-2xl"
+							class="text-lg font-medium sm:text-xl md:text-2xl"
+							style={customStyles.textStyle}
 						>
 							{product.name}
 						</h2>
-						<p class="text-sm font-medium text-foreground sm:text-base">
+						<p
+							class="text-sm font-medium sm:text-base"
+							style={customStyles.textStyle}
+						>
 							À partir de {formatPrice(product.base_price)}
 						</p>
 						{#if product.description}
-							<p class="text-sm text-foreground sm:text-base">
+							<p
+								class="text-sm sm:text-base"
+								style={customStyles.secondaryTextStyle}
+							>
 								{product.description}
 							</p>
 						{/if}
-						<p class="text-xs italic text-gray-400 sm:text-sm">
+						<p
+							class="text-xs italic sm:text-sm"
+							style={customStyles.secondaryTextStyle}
+						>
 							Temps de préparation minimum : {product.min_days_notice || 0} jours
 						</p>
 					</div>
 
-					<Separator />
+					<Separator
+						style={`background-color: ${customizations?.secondary_text_color || '#333333'};`}
+					/>
 
 					<ProductForm
 						data={form}
@@ -164,6 +195,7 @@
 						{availabilities}
 						{unavailabilities}
 						{datesWithLimitReached}
+						{customizations}
 						onCancel={goBack}
 					/>
 				</div>
@@ -172,5 +204,5 @@
 	</div>
 
 	<!-- Footer -->
-	<ClientFooter />
+	<ClientFooter {customizations} />
 </div>

@@ -1,7 +1,9 @@
 <script lang="ts">
 	import ShopForm from './shop-form.svelte';
+	import CustomizationForm from './customization-form.svelte';
 	import type { SuperValidated, Infer } from 'sveltekit-superforms';
 	import { formSchema } from './schema';
+	import { customizationSchema } from './customization-schema';
 	import {
 		Card,
 		CardContent,
@@ -29,6 +31,7 @@
 			is_active: boolean;
 		} | null;
 		form: SuperValidated<Infer<typeof formSchema>>;
+		customizationForm: SuperValidated<Infer<typeof customizationSchema>>;
 	};
 
 	let error = '';
@@ -45,7 +48,7 @@
 			Paramètres de la boutique
 		</h1>
 		<p class="mt-3 text-muted-foreground">
-			Gérez les informations de votre boutique et vos paramètres de paiement
+			Gérez les informations de votre boutique et sa personnalisation
 		</p>
 	</div>
 
@@ -78,4 +81,7 @@
 			<ShopForm data={data.form} />
 		</CardContent>
 	</Card>
+
+	<!-- Customization -->
+	<CustomizationForm form={data.customizationForm} />
 </div>

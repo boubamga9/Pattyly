@@ -47,6 +47,15 @@ export const IMAGE_PRESETS = {
         quality: 0.90,
         format: 'png' as const, // PNG pour préserver la transparence
         maintainAspectRatio: true
+    },
+
+    // Images de fond : 1920x1080, qualité 85%
+    BACKGROUND: {
+        maxWidth: 1920,
+        maxHeight: 1080,
+        quality: 0.85,
+        format: 'jpeg' as const,
+        maintainAspectRatio: true
     }
 } as const;
 
@@ -213,6 +222,13 @@ export async function compressProductImage(file: File): Promise<ImageCompression
  */
 export async function compressLogo(file: File): Promise<ImageCompressionResult> {
     return compressImage(file, IMAGE_PRESETS.LOGO);
+}
+
+/**
+ * Fonction de convenance pour compresser une image de fond
+ */
+export async function compressBackgroundImage(file: File): Promise<ImageCompressionResult> {
+    return compressImage(file, IMAGE_PRESETS.BACKGROUND);
 }
 
 /**

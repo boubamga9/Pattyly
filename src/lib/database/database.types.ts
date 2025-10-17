@@ -57,27 +57,36 @@ export type Database = {
           created_at: string | null
           daily_order_limit: number | null
           day: number
+          end_time: string | null
           id: string
+          interval_time: unknown | null
           is_open: boolean | null
           shop_id: string
+          start_time: string | null
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
           daily_order_limit?: number | null
           day: number
+          end_time?: string | null
           id?: string
+          interval_time?: unknown | null
           is_open?: boolean | null
           shop_id: string
+          start_time?: string | null
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
           daily_order_limit?: number | null
           day?: number
+          end_time?: string | null
           id?: string
+          interval_time?: unknown | null
           is_open?: boolean | null
           shop_id?: string
+          start_time?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -274,6 +283,7 @@ export type Database = {
           additional_information: string | null
           chef_message: string | null
           chef_pickup_date: string | null
+          chef_pickup_time: string | null
           created_at: string | null
           customer_email: string
           customer_instagram: string | null
@@ -285,6 +295,7 @@ export type Database = {
           order_ref: string | null
           paid_amount: number | null
           pickup_date: string
+          pickup_time: string | null
           product_base_price: number | null
           product_id: string | null
           product_name: string | null
@@ -298,6 +309,7 @@ export type Database = {
           additional_information?: string | null
           chef_message?: string | null
           chef_pickup_date?: string | null
+          chef_pickup_time?: string | null
           created_at?: string | null
           customer_email: string
           customer_instagram?: string | null
@@ -309,6 +321,7 @@ export type Database = {
           order_ref?: string | null
           paid_amount?: number | null
           pickup_date: string
+          pickup_time?: string | null
           product_base_price?: number | null
           product_id?: string | null
           product_name?: string | null
@@ -322,6 +335,7 @@ export type Database = {
           additional_information?: string | null
           chef_message?: string | null
           chef_pickup_date?: string | null
+          chef_pickup_time?: string | null
           created_at?: string | null
           customer_email?: string
           customer_instagram?: string | null
@@ -333,6 +347,7 @@ export type Database = {
           order_ref?: string | null
           paid_amount?: number | null
           pickup_date?: string
+          pickup_time?: string | null
           product_base_price?: number | null
           product_id?: string | null
           product_name?: string | null
@@ -527,29 +542,88 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string | null
+          early_adopter_offer_shown_at: string | null
           email: string
           id: string
+          is_early_adopter: boolean | null
           is_stripe_free: boolean | null
           role: Database["public"]["Enums"]["user_role"] | null
+          trial_ending: string | null
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
+          early_adopter_offer_shown_at?: string | null
           email: string
           id: string
+          is_early_adopter?: boolean | null
           is_stripe_free?: boolean | null
           role?: Database["public"]["Enums"]["user_role"] | null
+          trial_ending?: string | null
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
+          early_adopter_offer_shown_at?: string | null
           email?: string
           id?: string
+          is_early_adopter?: boolean | null
           is_stripe_free?: boolean | null
           role?: Database["public"]["Enums"]["user_role"] | null
+          trial_ending?: string | null
           updated_at?: string | null
         }
         Relationships: []
+      }
+      shop_customizations: {
+        Row: {
+          background_color: string | null
+          background_image_url: string | null
+          button_color: string | null
+          button_text_color: string | null
+          created_at: string | null
+          icon_color: string | null
+          id: string
+          secondary_text_color: string | null
+          shop_id: string
+          text_color: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          background_color?: string | null
+          background_image_url?: string | null
+          button_color?: string | null
+          button_text_color?: string | null
+          created_at?: string | null
+          icon_color?: string | null
+          id?: string
+          secondary_text_color?: string | null
+          shop_id: string
+          text_color?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          background_color?: string | null
+          background_image_url?: string | null
+          button_color?: string | null
+          button_text_color?: string | null
+          created_at?: string | null
+          icon_color?: string | null
+          id?: string
+          secondary_text_color?: string | null
+          shop_id?: string
+          text_color?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_customizations_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: true
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       shops: {
         Row: {
@@ -744,6 +818,15 @@ export type Database = {
           | { p_paypal_me: string }
         Returns: Json
       }
+      check_early_adopter_eligibility: {
+        Args: { p_profile_id: string }
+        Returns: {
+          already_early_adopter: boolean
+          is_eligible: boolean
+          offer_already_shown: boolean
+          spots_remaining: number
+        }[]
+      }
       create_shop_with_availabilities: {
         Args: {
           p_bio: string
@@ -776,6 +859,16 @@ export type Database = {
       get_faq_data: {
         Args: { p_profile_id: string }
         Returns: Json
+      }
+      get_free_pickup_slot: {
+        Args: {
+          p_end_time: string
+          p_interval_time: unknown
+          p_pickup_date: string
+          p_shop_id: string
+          p_start_time: string
+        }
+        Returns: string[]
       }
       get_onboarding_data: {
         Args: { p_profile_id: string }
@@ -813,9 +906,18 @@ export type Database = {
         Args: { shop_uuid: string }
         Returns: string
       }
+      get_shop_with_customizations: {
+        Args: { p_slug: string }
+        Returns: Json
+      }
       get_user_permissions: {
         Args: { p_profile_id: string }
-        Returns: Json
+        Returns: {
+          has_ever_had_subscription: boolean
+          has_payment_method: boolean
+          has_shop: boolean
+          trial_ending: string
+        }[]
       }
       get_user_plan: {
         Args: {
@@ -828,6 +930,10 @@ export type Database = {
       get_user_plan_and_product_count: {
         Args: { p_profile_id: string }
         Returns: Json
+      }
+      is_shop_visible: {
+        Args: { p_is_active: boolean; p_profile_id: string }
+        Returns: boolean
       }
       user_password_set: {
         Args: Record<PropertyKey, never>

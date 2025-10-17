@@ -15,10 +15,7 @@
 	import { Upload, X, Copy, CheckCircle, LoaderCircle } from 'lucide-svelte';
 	import { formSchema, type FormSchema } from './schema';
 	import { createEventDispatcher } from 'svelte';
-	import {
-		compressLogo,
-		formatCompressionInfo,
-	} from '$lib/utils/images/client';
+	import { compressLogo } from '$lib/utils/images/client';
 	import { env } from '$env/dynamic/public';
 
 	export let data: SuperValidated<Infer<FormSchema>>;
@@ -35,7 +32,6 @@
 	let copySuccess = false;
 	let logoInputElement: HTMLInputElement;
 	let submitted = false;
-	let compressionInfo: string | null = null;
 	let isCompressing = false;
 
 	// Handle file selection with compression
@@ -47,7 +43,6 @@
 
 		try {
 			isCompressing = true;
-			compressionInfo = null;
 
 			// Validate file type
 			if (!file.type.startsWith('image/')) {
@@ -65,7 +60,6 @@
 			// Utiliser l'image compressée
 			_logoFile = compressionResult.file;
 			$formData.logo = compressionResult.file;
-			compressionInfo = formatCompressionInfo(compressionResult);
 
 			// 🔄 Synchroniser l'input file avec l'image compressée
 			// Créer un nouveau FileList avec l'image compressée
@@ -88,7 +82,6 @@
 		_logoFile = null;
 		logoPreview = null;
 		$formData.logo = undefined;
-		compressionInfo = null;
 	}
 
 	async function copyShopUrl() {

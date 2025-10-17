@@ -9,6 +9,23 @@
 	export let required: boolean = false;
 	export let label: string = 'Choisir un créneau';
 	export let containerClass: string = '';
+	export let customizations: {
+		button_color: string;
+		button_text_color: string;
+		text_color: string;
+		icon_color: string;
+		secondary_text_color: string;
+		background_color: string;
+		background_image_url?: string;
+	} = {
+		button_color: '#ff6f61',
+		button_text_color: '#ffffff',
+		text_color: '#333333',
+		icon_color: '#6b7280',
+		secondary_text_color: '#333333',
+		background_color: '#ffe8d6',
+		background_image_url: null,
+	};
 
 	// Events
 	const dispatch = createEventDispatcher<{
@@ -48,10 +65,13 @@
 						'flex items-center justify-center rounded-lg border px-3 py-2 text-sm font-medium transition-all duration-200',
 						'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
 						isSelected
-							? 'border-gray-800 bg-gray-900 text-white shadow-sm'
+							? 'shadow-sm'
 							: 'border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50',
 						disabled && 'cursor-not-allowed opacity-50',
 					)}
+					style={isSelected
+						? `background-color: ${customizations.button_color}; color: ${customizations.button_text_color}; border-color: ${customizations.button_color};`
+						: ''}
 					{disabled}
 					on:click={() => handleTimeSelect(time)}
 					on:keydown={(e) => {

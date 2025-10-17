@@ -48,9 +48,25 @@
 	}>;
 	export let unavailabilities: Array<{ start_date: string; end_date: string }>;
 	export let datesWithLimitReached: string[] = [];
+	export let customizations: {
+		button_color: string;
+		button_text_color: string;
+		text_color: string;
+		icon_color: string;
+		secondary_text_color: string;
+		background_color: string;
+		background_image_url?: string;
+	};
 	export let onCancel: () => void;
 
 	const dynamicSchema = createLocalDynamicSchema(customFields);
+
+	// Styles personnalisés
+	$: customStyles = {
+		buttonStyle: `background-color: ${customizations?.button_color || '#ff6f61'}; color: ${customizations?.button_text_color || '#ffffff'};`,
+		textStyle: `color: ${customizations?.text_color || '#333333'};`,
+		secondaryTextStyle: `color: ${customizations?.secondary_text_color || '#333333'};`,
+	};
 
 	const form = superForm(data, {
 		validators: zodClient(dynamicSchema),
@@ -307,6 +323,7 @@
 											options={field.options || []}
 											selectedValues={$formData.customization_data[field.id]}
 											required={field.required}
+											{customizations}
 											on:change={(e) =>
 												($formData.customization_data[field.id] =
 													e.detail.values)}
@@ -319,7 +336,9 @@
 					{/each}
 				</div>
 			</div>
-			<Separator />
+			<Separator
+				style={`background-color: ${customizations?.secondary_text_color || '#333333'};`}
+			/>
 		{/if}
 
 		<!-- Section 2: Information de récupération -->
@@ -357,6 +376,7 @@
 									disabled={isLoadingTimeSlots}
 									required={true}
 									label="Choisir un créneau de récupération"
+									{customizations}
 									on:change={(event) => {
 										selectedTimeSlot = event.detail.value;
 										$formData.pickup_time = event.detail.value;
@@ -423,7 +443,9 @@
 				{/if}
 			</div>
 		</div>
-		<Separator />
+		<Separator
+			style={`background-color: ${customizations?.secondary_text_color || '#333333'};`}
+		/>
 
 		<!-- Section 3: Information de contact -->
 		<div class="space-y-4">
@@ -512,23 +534,27 @@
 				</div>
 			</div>
 		</div>
-		<Separator />
+		<Separator
+			style={`background-color: ${customizations?.secondary_text_color || '#333333'};`}
+		/>
 
 		<!-- Section 4: Récapitulatif de la demande -->
 		<div class="space-y-4">
-			<h3 class="text-lg font-semibold text-foreground">
+			<h3 class="text-lg font-semibold" style={customStyles.textStyle}>
 				Récapitulatif de la commande
 			</h3>
-			<div class="space-y-3 rounded-lg border p-4">
-				<p class="text-sm text-muted-foreground">
+			<div class="space-y-3 rounded-lg border bg-white p-4">
+				<p class="text-sm" style={customStyles.secondaryTextStyle}>
 					Merci de bien vérifier les informations de commande car en cas
 					d'erreur votre commande pourra être retardée.
 				</p>
 				<div class="space-y-2 text-sm">
 					{#if $formData.pickup_date}
 						<div class="flex justify-between">
-							<span class="text-muted-foreground">Date de récupération :</span>
-							<span class="font-medium"
+							<span style={customStyles.secondaryTextStyle}
+								>Date de récupération :</span
+							>
+							<span class="font-medium" style={customStyles.textStyle}
 								>{new Date(
 									$formData.pickup_date + 'T12:00:00Z',
 								).toLocaleDateString('fr-FR')}</span
@@ -537,38 +563,50 @@
 					{/if}
 					{#if $formData.pickup_time}
 						<div class="flex justify-between">
-							<span class="text-muted-foreground">Créneau horaire :</span>
-							<span class="font-medium"
+							<span style={customStyles.secondaryTextStyle}
+								>Créneau horaire :</span
+							>
+							<span class="font-medium" style={customStyles.textStyle}
 								>{$formData.pickup_time.substring(0, 5)}</span
 							>
 						</div>
 					{/if}
 					<div class="flex justify-between">
-						<span class="text-muted-foreground">Gâteau :</span>
-						<span class="font-medium">{formatPrice(product.base_price)}</span>
+						<span style={customStyles.secondaryTextStyle}>Gâteau :</span>
+						<span class="font-medium" style={customStyles.textStyle}
+							>{formatPrice(product.base_price)}</span
+						>
 					</div>
 					{#if $formData.customer_name}
 						<div class="flex justify-between">
-							<span class="text-muted-foreground">Nom :</span>
-							<span class="font-medium">{$formData.customer_name}</span>
+							<span style={customStyles.secondaryTextStyle}>Nom :</span>
+							<span class="font-medium" style={customStyles.textStyle}
+								>{$formData.customer_name}</span
+							>
 						</div>
 					{/if}
 					{#if $formData.customer_email}
 						<div class="flex justify-between">
-							<span class="text-muted-foreground">Email :</span>
-							<span class="font-medium">{$formData.customer_email}</span>
+							<span style={customStyles.secondaryTextStyle}>Email :</span>
+							<span class="font-medium" style={customStyles.textStyle}
+								>{$formData.customer_email}</span
+							>
 						</div>
 					{/if}
 					{#if $formData.customer_phone}
 						<div class="flex justify-between">
-							<span class="text-muted-foreground">Téléphone :</span>
-							<span class="font-medium">{$formData.customer_phone}</span>
+							<span style={customStyles.secondaryTextStyle}>Téléphone :</span>
+							<span class="font-medium" style={customStyles.textStyle}
+								>{$formData.customer_phone}</span
+							>
 						</div>
 					{/if}
 					{#if $formData.customer_instagram}
 						<div class="flex justify-between">
-							<span class="text-muted-foreground">Instagram :</span>
-							<span class="font-medium">{$formData.customer_instagram}</span>
+							<span style={customStyles.secondaryTextStyle}>Instagram :</span>
+							<span class="font-medium" style={customStyles.textStyle}
+								>{$formData.customer_instagram}</span
+							>
 						</div>
 					{/if}
 					{#each customFields as field}
@@ -616,7 +654,10 @@
 							{/if}
 						{/if}
 					{/each}
-					<Separator class="my-2" />
+					<Separator
+						class="my-2"
+						style={`background-color: ${customizations?.secondary_text_color || '#333333'};`}
+					/>
 					<div class="flex justify-between">
 						<span class="text-muted-foreground">Total :</span>
 						<span class="font-medium">{formatPrice(totalPrice)}</span>
@@ -632,7 +673,12 @@
 		<!-- Section 5: Boutons d'action -->
 		<div class="flex gap-2">
 			{#if $page.url.searchParams.get('preview') !== 'true'}
-				<Button type="submit" disabled={$submitting} class="flex-1">
+				<Button
+					type="submit"
+					disabled={$submitting}
+					class="flex-1"
+					style={customStyles.buttonStyle}
+				>
 					{#if $submitting}
 						<span class="loading loading-spinner loading-sm"></span>
 						Commande en cours...

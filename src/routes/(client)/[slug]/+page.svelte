@@ -7,8 +7,28 @@
 	import { ClientFooter } from '$lib/components';
 
 	// Données de la page
-	$: ({ shop, categories, products, faqs, isShopActive, notFound } =
-		$page.data);
+	$: ({
+		shop,
+		categories,
+		products,
+		faqs,
+		isShopActive,
+		notFound,
+		customizations,
+	} = $page.data);
+
+	// Styles personnalisés
+	$: customStyles = {
+		background: customizations?.background_color || '#ffffff',
+		backgroundImage: customizations?.background_image_url
+			? `url(${customizations.background_image_url})`
+			: 'none',
+		buttonStyle: `background-color: ${customizations?.button_color || '#000000'}; color: ${customizations?.button_text_color || '#ffffff'};`,
+		textStyle: `color: ${customizations?.text_color || '#000000'};`,
+		iconStyle: `color: ${customizations?.icon_color || '#6b7280'};`,
+		secondaryTextStyle: `color: ${customizations?.secondary_text_color || '#6b7280'};`,
+		categoryBorderStyle: `border-color: ${customizations?.secondary_text_color || '#6b7280'}; color: ${customizations?.secondary_text_color || '#6b7280'}; background-color: white;`,
+	};
 
 	// État du filtre
 	let selectedCategory: string | null = null;
@@ -101,7 +121,10 @@
 		</div>
 	</div>
 {:else}
-	<div class="flex min-h-screen flex-col overflow-x-hidden bg-background">
+	<div
+		class="flex min-h-screen flex-col overflow-x-hidden"
+		style="background-color: {customStyles.background}; background-image: {customStyles.backgroundImage}; background-size: cover; background-position: center; background-repeat: no-repeat;"
+	>
 		<!-- Header avec logo et informations -->
 		<header class="relative px-4 py-6 text-center sm:py-8 md:py-12">
 			<!-- Social Media Icons - Desktop/Tablet (top right) -->
@@ -111,7 +134,8 @@
 						href="https://instagram.com/{shop.instagram.replace('@', '')}"
 						target="_blank"
 						rel="noopener noreferrer"
-						class="text-gray-600 transition-colors hover:text-gray-800"
+						class="transition-colors hover:opacity-80"
+						style={customStyles.iconStyle}
 						title="Instagram"
 					>
 						<Instagram class="h-5 w-5" />
@@ -122,7 +146,8 @@
 						href="https://tiktok.com/@{shop.tiktok.replace('@', '')}"
 						target="_blank"
 						rel="noopener noreferrer"
-						class="text-gray-600 transition-colors hover:text-gray-800"
+						class="transition-colors hover:opacity-80"
+						style={customStyles.iconStyle}
 						title="TikTok"
 					>
 						<svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
@@ -137,7 +162,8 @@
 						href={shop.website}
 						target="_blank"
 						rel="noopener noreferrer"
-						class="text-gray-600 transition-colors hover:text-gray-800"
+						class="transition-colors hover:opacity-80"
+						style={customStyles.iconStyle}
 						title="Site internet"
 					>
 						<Paperclip class="h-5 w-5" />
@@ -166,14 +192,15 @@
 			</div>
 
 			<!-- Nom de la boutique -->
-			<h1 class="mb-2 text-xl font-semibold text-foreground">
+			<h1 class="mb-2 text-xl font-semibold" style={customStyles.textStyle}>
 				{shop.name}
 			</h1>
 
 			<!-- Description -->
 			{#if shop.bio}
 				<p
-					class="mx-auto mb-4 max-w-2xl whitespace-pre-wrap text-sm text-gray-500 sm:text-base"
+					class="mx-auto mb-4 max-w-2xl whitespace-pre-wrap text-sm sm:text-base"
+					style={customStyles.secondaryTextStyle}
 				>
 					{shop.bio}
 				</p>
@@ -183,7 +210,8 @@
 			{#if shop.is_custom_accepted && isShopActive}
 				<Button
 					on:click={goToCustomRequest}
-					class="mb-4 rounded-full bg-black px-6 py-2 text-sm text-white hover:bg-gray-800 sm:px-8 sm:py-3 sm:text-base"
+					class="mb-4 rounded-full px-6 py-2 text-sm hover:opacity-90 sm:px-8 sm:py-3 sm:text-base"
+					style={customStyles.buttonStyle}
 				>
 					Composer mon gâteau
 				</Button>
@@ -193,9 +221,10 @@
 			{#if faqs && faqs.length > 0}
 				<button
 					on:click={goToFAQ}
-					class="mx-auto block text-xs italic text-gray-400 underline transition-colors hover:text-gray-600 sm:text-sm"
+					class="mx-auto block text-xs italic underline transition-colors hover:opacity-80 sm:text-sm"
+					style={customStyles.secondaryTextStyle}
 				>
-					Questions fréquentes ❓
+					FAQ ❓
 				</button>
 			{/if}
 
@@ -206,7 +235,8 @@
 						href="https://instagram.com/{shop.instagram.replace('@', '')}"
 						target="_blank"
 						rel="noopener noreferrer"
-						class="text-gray-600 transition-colors hover:text-gray-800"
+						class="transition-colors hover:opacity-80"
+						style={customStyles.iconStyle}
 						title="Instagram"
 					>
 						<Instagram class="h-5 w-5" />
@@ -217,7 +247,8 @@
 						href="https://tiktok.com/@{shop.tiktok.replace('@', '')}"
 						target="_blank"
 						rel="noopener noreferrer"
-						class="text-gray-600 transition-colors hover:text-gray-800"
+						class="transition-colors hover:opacity-80"
+						style={customStyles.iconStyle}
 						title="TikTok"
 					>
 						<svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
@@ -232,7 +263,8 @@
 						href={shop.website}
 						target="_blank"
 						rel="noopener noreferrer"
-						class="text-gray-600 transition-colors hover:text-gray-800"
+						class="transition-colors hover:opacity-80"
+						style={customStyles.iconStyle}
 						title="Site internet"
 					>
 						<Paperclip class="h-5 w-5" />
@@ -243,7 +275,10 @@
 
 		<!-- Separator -->
 		<div class="px-4">
-			<Separator class="mb-6 sm:mb-8" />
+			<Separator
+				class="mb-6 sm:mb-8"
+				style={`background-color: ${customizations?.secondary_text_color || '#6b7280'};`}
+			/>
 		</div>
 
 		<!-- Filtres de catégories (seulement si boutique active) -->
@@ -253,10 +288,10 @@
 					<Button
 						variant={selectedCategory === null ? 'default' : 'outline'}
 						on:click={() => (selectedCategory = null)}
-						class="whitespace-nowrap rounded-full text-xs sm:text-sm {selectedCategory ===
-						null
-							? ''
-							: 'text-muted-foreground'}"
+						class="whitespace-nowrap rounded-full text-xs sm:text-sm"
+						style={selectedCategory === null
+							? customStyles.buttonStyle
+							: customStyles.categoryBorderStyle}
 					>
 						Tout
 					</Button>
@@ -264,10 +299,10 @@
 						<Button
 							variant={selectedCategory === category.id ? 'default' : 'outline'}
 							on:click={() => (selectedCategory = category.id)}
-							class="whitespace-nowrap rounded-full text-xs sm:text-sm {selectedCategory ===
-							category.id
-								? ''
-								: 'text-muted-foreground'}"
+							class="whitespace-nowrap rounded-full text-xs sm:text-sm"
+							style={selectedCategory === category.id
+								? customStyles.buttonStyle
+								: customStyles.categoryBorderStyle}
 						>
 							{category.name}
 						</Button>
@@ -303,21 +338,28 @@
 
 							<!-- Informations du produit -->
 							<div class="flex min-w-0 flex-1 flex-col justify-center gap-2">
-								<h3 class="truncate text-sm font-medium text-foreground">
+								<h3
+									class="truncate text-sm font-medium"
+									style={customStyles.textStyle}
+								>
 									{product.name}
 								</h3>
 								{#if product.description}
-									<p class="line-clamp-2 text-xs text-muted-foreground">
+									<p
+										class="line-clamp-2 text-xs"
+										style={customStyles.secondaryTextStyle}
+									>
 										{product.description}
 									</p>
 								{/if}
 
-								<p class="text-sm font-medium text-foreground">
+								<p class="text-sm font-medium" style={customStyles.textStyle}>
 									À partir de {formatPrice(product.base_price)}
 								</p>
 								<Button
 									on:click={() => viewProduct(product.id)}
-									class="mt-2 h-[25px] w-[100px] rounded-full bg-black text-xs text-white hover:bg-gray-800"
+									class="mt-2 h-[25px] w-[100px] rounded-full text-xs hover:opacity-90"
+									style={customStyles.buttonStyle}
 								>
 									Commander
 								</Button>
@@ -331,7 +373,10 @@
 					<div
 						class="flex flex-1 items-center justify-center py-6 text-center sm:py-8"
 					>
-						<p class="text-sm text-muted-foreground sm:text-base">
+						<p
+							class="text-sm sm:text-base"
+							style={customStyles.secondaryTextStyle}
+						>
 							{#if selectedCategory}
 								Aucun produit dans cette catégorie pour le moment.
 							{:else}
@@ -376,6 +421,6 @@
 		</div>
 
 		<!-- Footer -->
-		<ClientFooter />
+		<ClientFooter {customizations} />
 	</div>
 {/if}

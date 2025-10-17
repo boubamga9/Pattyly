@@ -21,10 +21,7 @@
 		CustomizationFormBuilder,
 		type CustomizationField,
 	} from '$lib/components/forms';
-	import {
-		compressProductImage,
-		formatCompressionInfo,
-	} from '$lib/utils/images/client';
+	import { compressProductImage } from '$lib/utils/images/client';
 
 	// Props
 	export let data: SuperValidated<Infer<CreateProductForm>>;
@@ -46,7 +43,6 @@
 	// Variables pour l'upload d'image
 	let _imageFile: File | null = null;
 	let imagePreview: string | null = null;
-	let compressionInfo: string | null = null;
 	let isCompressing = false;
 	let imageInputElement: HTMLInputElement;
 
@@ -97,7 +93,6 @@
 
 		try {
 			isCompressing = true;
-			compressionInfo = null;
 			$errors = {};
 
 			// Validate file type
@@ -117,7 +112,6 @@
 
 			// Utiliser l'image compressée
 			_imageFile = compressionResult.file;
-			compressionInfo = formatCompressionInfo(compressionResult);
 
 			// 🔄 Synchroniser l'input file avec l'image compressée
 			const dataTransfer = new DataTransfer();
@@ -143,7 +137,6 @@
 	function removeImage() {
 		_imageFile = null;
 		imagePreview = null;
-		compressionInfo = null;
 	}
 
 	// Gestionnaire pour les changements de champs

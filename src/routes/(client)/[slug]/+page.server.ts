@@ -16,71 +16,36 @@ export const config = {
 export const load: PageServerLoad = async ({ params, locals, setHeaders, url, request }) => {
     const { slug } = params;
 
-    console.log('🚀 [/slug] Starting load function for slug:', slug);
 
     try {
         // 1. Récupérer l'ID de la boutique depuis le slug (actives et inactives)
-        console.log('📊 [/slug] Step 1: Fetching shop info from database...');
         const { data: shopInfo, error: shopError } = await locals.supabase
             .from('shops')
             .select('id, is_active, profile_id')
             .eq('slug', slug)
             .single();
 
-        console.log('📊 [/slug] Step 1 Result:', {
-            shopInfo,
-            shopError: shopError?.message || null
-        });
-
         if (shopError || !shopInfo) {
-            console.log('❌ [/slug] Shop not found, returning 404');
             // Pour ISR, retourner un flag au lieu de throw error
             return { notFound: true };
         }
 
-        console.log('✅ [/slug] Shop found:', {
-            shop_id: shopInfo.id,
-            profile_id: shopInfo.profile_id,
-            is_active: shopInfo.is_active
-        });
 
         // 2. Vérifier si c'est une revalidation forcée (AVANT la vérification de visibilité)
-        console.log('📊 [/slug] Step 2: Checking revalidation...');
         const bypassToken = url.searchParams.get('bypassToken');
         const revalidateHeader = request.headers.get('x-prerender-revalidate');
         const isRevalidation = bypassToken === env.REVALIDATION_TOKEN || revalidateHeader === env.REVALIDATION_TOKEN;
 
-        console.log('📊 [/slug] Step 2 Result:', {
-            isRevalidation,
-            bypassToken: bypassToken ? 'present' : 'absent',
-            revalidateHeader: revalidateHeader ? 'present' : 'absent'
-        });
 
-        // 3. Vérifier si la boutique est visible (essai, abonnement ou admin)
-        console.log('🔒 [/slug] Step 3: Checking shop visibility via RPC...');
-        console.log('🔒 [/slug] RPC params:', {
-            p_profile_id: shopInfo.profile_id,
-            p_is_active: shopInfo.is_active
-        });
 
         const { data: isVisibleData, error: visibilityError } = await (locals.supabaseServiceRole as any).rpc('is_shop_visible', {
             p_profile_id: shopInfo.profile_id,
             p_is_active: shopInfo.is_active
         });
 
-        console.log('🔒 [/slug] Step 3 Result:', {
-            isVisibleData,
-            visibilityError: visibilityError?.message || null,
-            visibilityErrorDetails: visibilityError || null
-        });
 
         const isShopVisible = isVisibleData || false;
 
-        console.log('🔒 [/slug] Final visibility decision:', {
-            isShopVisible,
-            isRevalidation,
-            willReturn404: !isShopVisible && !isRevalidation
-        });
 
         // Si la boutique n'est pas visible ET ce n'est pas une revalidation, retourner 404
         // ✅ ISR met en cache la 404 → pas de problème de cache
@@ -90,26 +55,24 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders, url, re
             return { notFound: true };
         }
 
-        console.log('✅ [/slug] Shop is visible or revalidation, continuing...');
 
         // 4. Charger le catalogue (ISR gère le cache)
-        console.log('📦 [/slug] Step 4: Loading catalog...');
         const catalogData = await loadShopCatalog(locals.supabase, shopInfo.id);
-        console.log('📦 [/slug] Step 4 Result:', {
-            hasShop: !!catalogData.shop,
-            productsCount: catalogData.products?.length || 0,
-            categoriesCount: catalogData.categories?.length || 0,
-            faqsCount: catalogData.faqs?.length || 0
-        });
 
-        // 5. Headers CDN pour optimiser la performance
-        console.log('🎯 [/slug] Step 5: Setting headers...');
+
+        // 5. Récupérer les customizations
+        const { data: customizations } = await locals.supabase
+            .from('shop_customizations')
+            .select('button_color, button_text_color, text_color, icon_color, secondary_text_color, background_color, background_image_url')
+            .eq('shop_id', shopInfo.id)
+            .single();
+
+        // 6. Headers CDN pour optimiser la performance
         setHeaders({
             'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
             'X-ISR-Revalidated': isRevalidation ? 'true' : 'false'
         });
 
-        console.log('✅ [/slug] Success! Returning data to client');
 
         return {
             shop: catalogData.shop,
@@ -117,6 +80,15 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders, url, re
             products: catalogData.products,
             faqs: catalogData.faqs,
             isShopActive: isShopVisible,
+            customizations: customizations || {
+                button_color: '#ff6f61',
+                button_text_color: '#ffffff',
+                text_color: '#333333',
+                icon_color: '#6b7280',
+                secondary_text_color: '#333333',
+                background_color: '#ffe8d6',
+                background_image_url: null
+            },
             cacheInfo: {
                 cached_at: catalogData.cached_at,
                 revalidated: isRevalidation
@@ -137,7 +109,6 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders, url, re
         }
 
         // Pour les autres erreurs, afficher une page d'erreur générique
-        console.log('💥 [/slug] Throwing 500 error');
         throw error(500, 'Erreur lors du chargement de la boutique. Veuillez réessayer plus tard.');
     }
 };

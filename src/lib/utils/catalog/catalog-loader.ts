@@ -14,19 +14,11 @@ export async function loadShopCatalog(
 
     try {
         // 1. Récupérer les informations de la boutique
-        console.log('🏪 [Catalog Loader] Step 1: Fetching shop details...');
         const { data: shop, error: shopError } = await supabase
             .from('shops')
             .select('id, name, bio, slug, logo_url, instagram, tiktok, website, is_custom_accepted, is_active')
             .eq('id', shopId)
             .single();
-
-        console.log('🏪 [Catalog Loader] Step 1 Result:', {
-            shopId,
-            hasShop: !!shop,
-            shopError: shopError?.message || null,
-            shopData: shop || null
-        });
 
         if (shopError || !shop) {
             console.error('❌ [Catalog Loader] Shop not found, throwing error');
@@ -34,7 +26,6 @@ export async function loadShopCatalog(
         }
 
         // 2. Charger directement depuis Supabase (ISR gère le cache)
-        console.log('🏪 [Catalog Loader] Step 2: Loading products, categories, and FAQs...');
         const [productsResult, categoriesResult, faqsResult] = await Promise.all([
             // Récupérer les produits actifs
             supabase
@@ -68,15 +59,6 @@ export async function loadShopCatalog(
                 .order('created_at', { ascending: true })
         ]);
 
-        console.log('🏪 [Catalog Loader] Step 2 Result:', {
-            productsCount: productsResult.data?.length || 0,
-            productsError: productsResult.error?.message || null,
-            categoriesCount: categoriesResult.data?.length || 0,
-            categoriesError: categoriesResult.error?.message || null,
-            faqsCount: faqsResult.data?.length || 0,
-            faqsError: faqsResult.error?.message || null
-        });
-
         if (productsResult.error) {
             console.error('❌ [Catalog Loader] Products error:', productsResult.error);
             throw new Error('Erreur lors du chargement des produits');
@@ -88,7 +70,6 @@ export async function loadShopCatalog(
         }
 
         // 3. Structurer les données du catalogue
-        console.log('🏪 [Catalog Loader] Step 3: Structuring catalog data...');
         const catalogData = {
             shop: {
                 id: shop.id,
@@ -107,14 +88,6 @@ export async function loadShopCatalog(
             faqs: faqsResult.data || [],
             cached_at: new Date().toISOString()
         };
-
-        console.log('✅ [Catalog Loader] Catalog successfully loaded:', {
-            shopId: catalogData.shop.id,
-            shopName: catalogData.shop.name,
-            productsCount: catalogData.products.length,
-            categoriesCount: catalogData.categories.length,
-            faqsCount: catalogData.faqs.length
-        });
 
         return catalogData;
     } catch (error) {

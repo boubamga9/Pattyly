@@ -10,6 +10,23 @@
 
 	export let disabled: boolean = false;
 	export let required: boolean = false;
+	export let customizations: {
+		button_color: string;
+		button_text_color: string;
+		text_color: string;
+		icon_color: string;
+		secondary_text_color: string;
+		background_color: string;
+		background_image_url?: string;
+	} = {
+		button_color: '#ff6f61',
+		button_text_color: '#ffffff',
+		text_color: '#333333',
+		icon_color: '#6b7280',
+		secondary_text_color: '#333333',
+		background_color: '#ffe8d6',
+		background_image_url: null,
+	};
 
 	const dispatch = createEventDispatcher<{
 		change: { fieldId: string; values: string | string[] };
@@ -54,6 +71,7 @@
 				checked={isChecked}
 				{disabled}
 				{required}
+				{customizations}
 				on:change={handleRadioChange}
 			/>
 		{/each}
@@ -68,6 +86,7 @@
 				checked={isChecked}
 				{disabled}
 				required={false}
+				{customizations}
 				on:change={handleCheckboxChange}
 			/>
 		{/each}

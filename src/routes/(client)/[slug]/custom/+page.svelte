@@ -14,7 +14,19 @@
 		unavailabilities,
 		datesWithLimitReached,
 		form,
+		customizations,
 	} = $page.data);
+
+	// Styles personnalisés
+	$: customStyles = {
+		background: customizations?.background_color || '#ffe8d6',
+		backgroundImage: customizations?.background_image_url
+			? `url(${customizations.background_image_url})`
+			: 'none',
+		buttonStyle: `background-color: ${customizations?.button_color || '#ff6f61'}; color: ${customizations?.button_text_color || '#ffffff'};`,
+		textStyle: `color: ${customizations?.text_color || '#333333'};`,
+		secondaryTextStyle: `color: ${customizations?.secondary_text_color || '#333333'};`,
+	};
 
 	// Function to go back to the shop or dashboard
 	function goBack() {
@@ -47,7 +59,10 @@
 	<meta property="og:url" content={$page.url.href} />
 </svelte:head>
 
-<div class="flex min-h-screen flex-col overflow-x-hidden bg-background">
+<div
+	class="flex min-h-screen flex-col overflow-x-hidden"
+	style="background-color: {customStyles.background}; background-image: {customStyles.backgroundImage}; background-size: cover; background-position: center; background-repeat: no-repeat;"
+>
 	<!-- Header with logo and information -->
 	<header class="px-4 py-6 text-center sm:py-8 md:py-12">
 		<!-- Logo -->
@@ -72,14 +87,15 @@
 		</div>
 
 		<!-- Shop name -->
-		<h1 class="mb-2 text-xl font-semibold text-foreground">
+		<h1 class="mb-2 text-xl font-semibold" style={customStyles.textStyle}>
 			{shop.name}
 		</h1>
 
 		<!-- Back button -->
 		<button
 			on:click={goBack}
-			class="text-xs italic text-gray-400 underline transition-colors hover:text-gray-600 sm:text-sm"
+			class="text-xs italic underline transition-colors hover:opacity-80 sm:text-sm"
+			style={customStyles.secondaryTextStyle}
 		>
 			{#if $page.url.searchParams.get('preview') === 'true'}
 				← Retour au dashboard
@@ -91,7 +107,10 @@
 
 	<!-- Separator -->
 	<div class="px-4">
-		<Separator class="mb-6 sm:mb-8" />
+		<Separator
+			class="mb-6 sm:mb-8"
+			style={`background-color: ${customizations?.secondary_text_color || '#333333'};`}
+		/>
 	</div>
 
 	<!-- Main content -->
@@ -101,10 +120,10 @@
 			<div class="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
 				<!-- Left column: Description -->
 				<div class="space-y-4 pr-4">
-					<h2 class="text-2xl font-semibold text-foreground">
+					<h2 class="text-2xl font-semibold" style={customStyles.textStyle}>
 						{customForm?.title || 'Votre Gâteau Sur Mesure'}
 					</h2>
-					<div class="space-y-3 text-muted-foreground">
+					<div class="space-y-3" style={customStyles.secondaryTextStyle}>
 						{#if customForm?.description}
 							<p class="whitespace-pre-wrap">{customForm.description}</p>
 						{:else}
@@ -140,6 +159,7 @@
 					{availabilities}
 					{unavailabilities}
 					{datesWithLimitReached}
+					{customizations}
 					onCancel={goBack}
 				/>
 			</div>
@@ -147,5 +167,5 @@
 	</div>
 
 	<!-- Footer -->
-	<ClientFooter />
+	<ClientFooter {customizations} />
 </div>
