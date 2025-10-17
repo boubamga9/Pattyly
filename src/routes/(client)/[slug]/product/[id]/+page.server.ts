@@ -9,7 +9,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         const { slug, id } = params;
 
         // ✅ OPTIMISÉ : Un seul appel DB pour toutes les données
-        const { data: productData, error: dbError } = await locals.supabase.rpc('get_order_data', {
+        const { data: productData, error: dbError } = await (locals.supabaseServiceRole as any).rpc('get_order_data', {
             p_slug: slug,
             p_product_id: id
         });
@@ -37,7 +37,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         }
 
         // Récupérer les customizations
-        const { data: customizations } = await locals.supabase
+        const { data: customizations } = await (locals.supabaseServiceRole as any)
             .from('shop_customizations')
             .select('button_color, button_text_color, text_color, icon_color, secondary_text_color, background_color, background_image_url')
             .eq('shop_id', shop.id)
