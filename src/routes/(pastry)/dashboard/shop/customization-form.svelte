@@ -251,21 +251,17 @@
 				<!-- Couleur des boutons -->
 				<div class="space-y-2">
 					<Label for="button_color">Couleur des boutons</Label>
-					<div class="relative">
-						<button
-							type="button"
-							class="flex h-12 w-full items-center justify-center rounded-lg border-2 border-gray-200 transition-all hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+					<div class="flex items-center gap-3">
+						<div
+							class="h-12 w-12 flex-shrink-0 rounded-lg border-2 border-gray-200"
 							style="background-color: {$formData.button_color};"
-							on:click={() => document.getElementById('button_color')?.click()}
-						>
-							<Pencil class="h-6 w-6 text-white drop-shadow-lg" />
-						</button>
+						></div>
 						<input
 							id="button_color"
 							name="button_color"
 							type="color"
 							bind:value={$formData.button_color}
-							class="absolute inset-0 cursor-pointer opacity-0"
+							class="h-12 w-full cursor-pointer rounded-lg border-2 border-gray-200"
 						/>
 					</div>
 					{#if $errors.button_color}
@@ -276,22 +272,17 @@
 				<!-- Couleur du texte des boutons -->
 				<div class="space-y-2">
 					<Label for="button_text_color">Couleur du texte des boutons</Label>
-					<div class="relative">
-						<button
-							type="button"
-							class="flex h-12 w-full items-center justify-center rounded-lg border-2 border-gray-200 transition-all hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+					<div class="flex items-center gap-3">
+						<div
+							class="h-12 w-12 flex-shrink-0 rounded-lg border-2 border-gray-200"
 							style="background-color: {$formData.button_text_color};"
-							on:click={() =>
-								document.getElementById('button_text_color')?.click()}
-						>
-							<Pencil class="h-6 w-6 text-white drop-shadow-lg" />
-						</button>
+						></div>
 						<input
 							id="button_text_color"
 							name="button_text_color"
 							type="color"
 							bind:value={$formData.button_text_color}
-							class="absolute inset-0 cursor-pointer opacity-0"
+							class="h-12 w-full cursor-pointer rounded-lg border-2 border-gray-200"
 						/>
 					</div>
 					{#if $errors.button_text_color}
@@ -302,21 +293,17 @@
 				<!-- Couleur du texte principal -->
 				<div class="space-y-2">
 					<Label for="text_color">Couleur du texte principal</Label>
-					<div class="relative">
-						<button
-							type="button"
-							class="flex h-12 w-full items-center justify-center rounded-lg border-2 border-gray-200 transition-all hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+					<div class="flex items-center gap-3">
+						<div
+							class="h-12 w-12 flex-shrink-0 rounded-lg border-2 border-gray-200"
 							style="background-color: {$formData.text_color};"
-							on:click={() => document.getElementById('text_color')?.click()}
-						>
-							<Pencil class="h-6 w-6 text-white drop-shadow-lg" />
-						</button>
+						></div>
 						<input
 							id="text_color"
 							name="text_color"
 							type="color"
 							bind:value={$formData.text_color}
-							class="absolute inset-0 cursor-pointer opacity-0"
+							class="h-12 w-full cursor-pointer rounded-lg border-2 border-gray-200"
 						/>
 					</div>
 					{#if $errors.text_color}
@@ -327,21 +314,17 @@
 				<!-- Couleur des icônes -->
 				<div class="space-y-2">
 					<Label for="icon_color">Couleur des icônes</Label>
-					<div class="relative">
-						<button
-							type="button"
-							class="flex h-12 w-full items-center justify-center rounded-lg border-2 border-gray-200 transition-all hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+					<div class="flex items-center gap-3">
+						<div
+							class="h-12 w-12 flex-shrink-0 rounded-lg border-2 border-gray-200"
 							style="background-color: {$formData.icon_color};"
-							on:click={() => document.getElementById('icon_color')?.click()}
-						>
-							<Pencil class="h-6 w-6 text-white drop-shadow-lg" />
-						</button>
+						></div>
 						<input
 							id="icon_color"
 							name="icon_color"
 							type="color"
 							bind:value={$formData.icon_color}
-							class="absolute inset-0 cursor-pointer opacity-0"
+							class="h-12 w-full cursor-pointer rounded-lg border-2 border-gray-200"
 						/>
 					</div>
 					{#if $errors.icon_color}
@@ -352,22 +335,17 @@
 				<!-- Couleur du texte secondaire -->
 				<div class="space-y-2">
 					<Label for="secondary_text_color">Couleur du texte secondaire</Label>
-					<div class="relative">
-						<button
-							type="button"
-							class="flex h-12 w-full items-center justify-center rounded-lg border-2 border-gray-200 transition-all hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+					<div class="flex items-center gap-3">
+						<div
+							class="h-12 w-12 flex-shrink-0 rounded-lg border-2 border-gray-200"
 							style="background-color: {$formData.secondary_text_color};"
-							on:click={() =>
-								document.getElementById('secondary_text_color')?.click()}
-						>
-							<Pencil class="h-6 w-6 text-white drop-shadow-lg" />
-						</button>
+						></div>
 						<input
 							id="secondary_text_color"
 							name="secondary_text_color"
 							type="color"
 							bind:value={$formData.secondary_text_color}
-							class="absolute inset-0 cursor-pointer opacity-0"
+							class="h-12 w-full cursor-pointer rounded-lg border-2 border-gray-200"
 						/>
 					</div>
 					{#if $errors.secondary_text_color}
@@ -378,22 +356,17 @@
 				<!-- Couleur du background -->
 				<div class="space-y-2">
 					<Label for="background_color">Couleur du fond</Label>
-					<div class="relative">
-						<button
-							type="button"
-							class="flex h-12 w-full items-center justify-center rounded-lg border-2 border-gray-200 transition-all hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+					<div class="flex items-center gap-3">
+						<div
+							class="h-12 w-12 flex-shrink-0 rounded-lg border-2 border-gray-200"
 							style="background-color: {$formData.background_color};"
-							on:click={() =>
-								document.getElementById('background_color')?.click()}
-						>
-							<Pencil class="h-6 w-6 text-white drop-shadow-lg" />
-						</button>
+						></div>
 						<input
 							id="background_color"
 							name="background_color"
 							type="color"
 							bind:value={$formData.background_color}
-							class="absolute inset-0 cursor-pointer opacity-0"
+							class="h-12 w-full cursor-pointer rounded-lg border-2 border-gray-200"
 						/>
 					</div>
 					{#if $errors.background_color}
