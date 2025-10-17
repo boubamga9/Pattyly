@@ -9,6 +9,16 @@
 
 	export let data;
 
+	$: customStyles = {
+		background: data.customizations?.background_color || '#ffe8d6',
+		backgroundImage: data.customizations?.background_image_url
+			? `url(${data.customizations.background_image_url})`
+			: 'none',
+		buttonStyle: `background-color: ${data.customizations?.button_color || '#ff6f61'}; color: ${data.customizations?.button_text_color || '#ffffff'};`,
+		textStyle: `color: ${data.customizations?.text_color || '#333333'};`,
+		secondaryTextStyle: `color: ${data.customizations?.secondary_text_color || '#333333'};`,
+	};
+
 	// Calculer l'acompte (50% du total)
 	$: depositAmount = data.orderData.total_amount / 2;
 
@@ -122,7 +132,10 @@
 	<title>Paiement - {data.shop.name}</title>
 </svelte:head>
 
-<div class="flex min-h-screen flex-col bg-background">
+<div
+	class="flex min-h-screen flex-col"
+	style="background-color: {customStyles.background}; background-image: {customStyles.backgroundImage}; background-size: cover; background-position: center; background-repeat: no-repeat;"
+>
 	<!-- Header avec logo et informations -->
 	<header class="px-4 py-6 text-center sm:py-8">
 		<!-- Logo -->
@@ -147,14 +160,15 @@
 		</div>
 
 		<!-- Nom de la boutique -->
-		<h1 class="mb-2 text-xl font-semibold text-foreground">
+		<h1 class="mb-2 text-xl font-semibold" style={customStyles.textStyle}>
 			{data.shop.name}
 		</h1>
 
 		<!-- Bouton retour -->
 		<button
 			on:click={goBack}
-			class="text-xs italic text-gray-400 underline transition-colors hover:text-gray-600 sm:text-sm"
+			class="text-xs italic underline transition-colors hover:opacity-80 sm:text-sm"
+			style={customStyles.secondaryTextStyle}
 		>
 			← Retour au produit
 		</button>
@@ -162,17 +176,20 @@
 
 	<!-- Separator -->
 	<div class="px-4">
-		<Separator class="mb-6 sm:mb-8" />
+		<Separator
+			class="mb-6 sm:mb-8"
+			style={`background-color: ${data.customizations?.secondary_text_color || '#333333'};`}
+		/>
 	</div>
 
 	<!-- Contenu principal -->
 	<div class="container mx-auto max-w-2xl flex-1 px-4 pb-8">
 		<!-- Titre -->
 		<div class="mb-8 text-center">
-			<h2 class="mb-2 text-2xl font-medium text-foreground">
+			<h2 class="mb-2 text-2xl font-medium" style={customStyles.textStyle}>
 				Finalisation de votre commande
 			</h2>
-			<p class="text-muted-foreground">
+			<p style={customStyles.secondaryTextStyle}>
 				Vérifiez les détails et effectuez le paiement de l'acompte
 			</p>
 		</div>
@@ -365,11 +382,15 @@
 								class="w-full gap-2"
 								size="lg"
 								disabled={!canConfirm}
+								style={customStyles.buttonStyle}
 							>
 								<CheckCircle class="h-5 w-5" />
 								Je confirme avoir effectué le paiement
 							</Button>
-							<p class="text-center text-xs text-muted-foreground">
+							<p
+								class="text-center text-xs"
+								style={customStyles.secondaryTextStyle}
+							>
 								Le pâtissier vérifiera votre paiement et vous recevrez un email
 								de confirmation
 							</p>
@@ -381,5 +402,5 @@
 	</div>
 
 	<!-- Footer -->
-	<ClientFooter />
+	<ClientFooter customizations={data.customizations} />
 </div>

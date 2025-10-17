@@ -59,11 +59,27 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             throw error(500, 'Erreur lors du chargement des informations de paiement');
         }
 
+        // Récupérer les customizations
+        const { data: customizations } = await (locals.supabaseServiceRole as any)
+            .from('shop_customizations')
+            .select('button_color, button_text_color, text_color, icon_color, secondary_text_color, background_color, background_image_url')
+            .eq('shop_id', shop.id)
+            .single();
+
         return {
             orderData,
             paypalMe: paymentLink.paypal_me,
             shop,
-            product
+            product,
+            customizations: customizations || {
+                button_color: '#ff6f61',
+                button_text_color: '#ffffff',
+                text_color: '#333333',
+                icon_color: '#6b7280',
+                secondary_text_color: '#333333',
+                background_color: '#ffe8d6',
+                background_image_url: null
+            }
         };
 
     } catch (err) {

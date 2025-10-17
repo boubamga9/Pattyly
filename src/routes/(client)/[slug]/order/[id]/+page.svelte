@@ -17,6 +17,16 @@
 
 	export let data: PageData;
 
+	$: customStyles = {
+		background: data.customizations?.background_color || '#ffe8d6',
+		backgroundImage: data.customizations?.background_image_url
+			? `url(${data.customizations.background_image_url})`
+			: 'none',
+		buttonStyle: `background-color: ${data.customizations?.button_color || '#ff6f61'}; color: ${data.customizations?.button_text_color || '#ffffff'};`,
+		textStyle: `color: ${data.customizations?.text_color || '#333333'};`,
+		secondaryTextStyle: `color: ${data.customizations?.secondary_text_color || '#333333'};`,
+	};
+
 	const { order, orderType } = data;
 
 	// Reactive variables for the order properties
@@ -169,7 +179,10 @@
 	<title>Commande confirmée - Pattyly</title>
 </svelte:head>
 
-<div class="flex min-h-screen flex-col bg-background">
+<div
+	class="flex min-h-screen flex-col"
+	style="background-color: {customStyles.background}; background-image: {customStyles.backgroundImage}; background-size: cover; background-position: center; background-repeat: no-repeat;"
+>
 	<!-- Header avec logo et informations -->
 	<header class="px-4 py-6 text-center sm:py-8">
 		<!-- Logo -->
@@ -194,14 +207,26 @@
 		</div>
 
 		<!-- Nom de la boutique -->
-		<h1 class="mb-2 text-xl font-semibold text-foreground">
+		<h1 class="mb-2 text-xl font-semibold" style={customStyles.textStyle}>
 			{order?.shops?.name || 'Boutique'}
 		</h1>
+
+		<!-- Bouton retour -->
+		<button
+			on:click={() => goto(`/${order?.shops?.slug}`)}
+			class="text-xs italic underline transition-colors hover:opacity-80 sm:text-sm"
+			style={customStyles.secondaryTextStyle}
+		>
+			← Retour à la boutique
+		</button>
 	</header>
 
 	<!-- Separator -->
 	<div class="px-4">
-		<Separator class="mb-6 sm:mb-8" />
+		<Separator
+			class="mb-6 sm:mb-8"
+			style={`background-color: ${data.customizations?.secondary_text_color || '#333333'};`}
+		/>
 	</div>
 
 	<!-- Contenu principal -->
@@ -559,5 +584,5 @@
 	</div>
 
 	<!-- Footer -->
-	<ClientFooter />
+	<ClientFooter customizations={data.customizations} />
 </div>
