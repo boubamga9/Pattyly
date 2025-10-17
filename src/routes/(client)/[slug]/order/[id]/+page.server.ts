@@ -6,7 +6,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         const { slug, id: orderId } = params;
 
         // Get shop
-        const { data: shop, error: shopError } = await locals.supabase
+        const { data: shop, error: shopError } = await (locals.supabaseServiceRole as any)
             .from('shops')
             .select('id, name, logo_url, slug')
             .eq('slug', slug)
@@ -21,7 +21,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         }
 
         // Chercher la commande par son ID
-        const { data: order, error: orderError } = await locals.supabase
+        const { data: order, error: orderError } = await (locals.supabaseServiceRole as any)
             .from('orders')
             .select('id, status, customer_name, customer_email, customer_phone, customer_instagram, pickup_date, pickup_time, chef_pickup_date, chef_pickup_time, chef_message, customization_data, product_name, product_base_price, additional_information, total_amount, paid_amount, order_ref, inspiration_photos, created_at, shops(slug, name, logo_url), product_id')
             .eq('id', orderId)

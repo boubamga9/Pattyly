@@ -8,7 +8,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
     try {
         // Récupérer la commande custom avec order_ref
-        const { data: shop, error: shopError } = await locals.supabase
+        const { data: shop, error: shopError } = await (locals.supabaseServiceRole as any)
             .from('shops')
             .select('id, name, slug, logo_url, profile_id')
             .eq('slug', slug)
@@ -20,7 +20,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         }
 
         // Récupérer l'order avec order_ref
-        const { data: order, error: orderError } = await locals.supabase
+        const { data: order, error: orderError } = await (locals.supabaseServiceRole as any)
             .from('orders')
             .select('*')
             .eq('order_ref', order_ref)
@@ -34,7 +34,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         }
 
         // Récupérer le payment_link pour avoir le paypal_me
-        const { data: paymentLink, error: paymentLinkError } = await locals.supabase
+        const { data: paymentLink, error: paymentLinkError } = await (locals.supabaseServiceRole as any)
             .from('payment_links')
             .select('paypal_me')
             .eq('profile_id', shop.profile_id)
@@ -68,7 +68,7 @@ export const actions: Actions = {
             console.log('🚀 [Confirm Custom Payment] Starting for order_ref:', order_ref);
 
             // 1. Récupérer l'order
-            const { data: order, error: orderError } = await locals.supabase
+            const { data: order, error: orderError } = await (locals.supabaseServiceRole as any)
                 .from('orders')
                 .select('*, shops(slug, logo_url, name, profile_id, profiles(email))')
                 .eq('order_ref', order_ref)
@@ -92,7 +92,7 @@ export const actions: Actions = {
             });
 
             // 3. Mettre à jour l'order avec statut "to_verify"
-            const { data: updatedOrder, error: updateError } = await locals.supabase
+            const { data: updatedOrder, error: updateError } = await (locals.supabaseServiceRole as any)
                 .from('orders')
                 .update({
                     status: 'to_verify',

@@ -8,7 +8,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
     try {
         // Récupérer la pending_order
-        const { data: pendingOrder, error: pendingOrderError } = await locals.supabase
+        const { data: pendingOrder, error: pendingOrderError } = await (locals.supabaseServiceRole as any)
             .from('pending_orders')
             .select('*')
             .eq('order_ref', order_ref)
@@ -22,7 +22,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         const orderData = pendingOrder.order_data as any;
 
         // Récupérer les informations de la boutique
-        const { data: shop, error: shopError } = await locals.supabase
+        const { data: shop, error: shopError } = await (locals.supabaseServiceRole as any)
             .from('shops')
             .select('id, name, slug, logo_url, profile_id')
             .eq('id', orderData.shop_id)
@@ -35,7 +35,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         }
 
         // Récupérer les informations du produit
-        const { data: product, error: productError } = await locals.supabase
+        const { data: product, error: productError } = await (locals.supabaseServiceRole as any)
             .from('products')
             .select('id, name, description, image_url, base_price')
             .eq('id', orderData.product_id)
@@ -48,7 +48,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 
         // Récupérer le payment_link pour avoir le paypal_me
-        const { data: paymentLink, error: paymentLinkError } = await locals.supabase
+        const { data: paymentLink, error: paymentLinkError } = await (locals.supabaseServiceRole as any)
             .from('payment_links')
             .select('paypal_me')
             .eq('profile_id', shop.profile_id)
@@ -83,7 +83,7 @@ export const actions: Actions = {
             console.log('🚀 [Confirm Payment] Starting for order_ref:', order_ref);
 
             // 1. Récupérer la pending_order
-            const { data: pendingOrder, error: pendingOrderError } = await locals.supabase
+            const { data: pendingOrder, error: pendingOrderError } = await (locals.supabaseServiceRole as any)
                 .from('pending_orders')
                 .select('*')
                 .eq('order_ref', order_ref)
@@ -98,7 +98,7 @@ export const actions: Actions = {
             console.log('📦 [Confirm Payment] Order data:', orderData);
 
             // 2. Récupérer les informations du produit et de la boutique
-            const { data: product, error: productError } = await locals.supabase
+            const { data: product, error: productError } = await (locals.supabaseServiceRole as any)
                 .from('products')
                 .select('base_price, shops(slug, logo_url, name, profile_id, profiles(email))')
                 .eq('id', orderData.product_id)
@@ -121,7 +121,7 @@ export const actions: Actions = {
             });
 
             // 4. Créer l'order avec statut "to_verify"
-            const { data: order, error: orderError } = await locals.supabase
+            const { data: order, error: orderError } = await (locals.supabaseServiceRole as any)
                 .from('orders')
                 .insert({
                     shop_id: orderData.shop_id,
@@ -198,7 +198,7 @@ export const actions: Actions = {
             }
 
             // 6. Supprimer la pending_order
-            const { error: deleteError } = await locals.supabase
+            const { error: deleteError } = await (locals.supabaseServiceRole as any)
                 .from('pending_orders')
                 .delete()
                 .eq('order_ref', order_ref);

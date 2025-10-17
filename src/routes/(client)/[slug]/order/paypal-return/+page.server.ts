@@ -15,7 +15,7 @@ export const load: PageServerLoad = async ({ url, params, locals }) => {
 
     try {
         // 1️⃣ Récupérer la boutique
-        const { data: shop, error: shopError } = await locals.supabase
+        const { data: shop, error: shopError } = await (locals.supabaseServiceRole as any)
             .from('shops')
             .select('id')
             .eq('slug', slug)
@@ -36,7 +36,7 @@ export const load: PageServerLoad = async ({ url, params, locals }) => {
         const orderData = pendingOrder.order_data;
 
         // 3️⃣ Vérifier si la commande finale existe déjà (webhook peut avoir créé)
-        const { data: existingOrder } = await locals.supabase
+        const { data: existingOrder } = await (locals.supabaseServiceRole as any)
             .from('orders')
             .select('id')
             .eq('paypal_order_id', orderData.paypal_order_id)

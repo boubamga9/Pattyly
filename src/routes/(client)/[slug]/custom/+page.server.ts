@@ -218,7 +218,7 @@ export const actions: Actions = {
                         const sanitizedFileName = sanitizeFileName(photoFile.name);
                         const fileName = `${tempOrderId}/inspiration-${i + 1}-${sanitizedFileName}`;
 
-                        const { error: uploadError } = await locals.supabase.storage
+                        const { error: uploadError } = await (locals.supabaseServiceRole as any).storage
                             .from('inspiration-images')
                             .upload(fileName, buffer, {
                                 contentType: photoFile.type,
@@ -233,7 +233,7 @@ export const actions: Actions = {
 
                         console.log(`✅ [Custom Order] Photo ${i} uploaded successfully:`, fileName);
 
-                        const { data: urlData } = locals.supabase.storage
+                        const { data: urlData } = (locals.supabaseServiceRole as any).storage
                             .from('inspiration-images')
                             .getPublicUrl(fileName);
 

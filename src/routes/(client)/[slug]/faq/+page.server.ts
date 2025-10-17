@@ -7,7 +7,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 
         // Get shop information
-        const { data: shop, error: shopError } = await locals.supabase
+        const { data: shop, error: shopError } = await (locals.supabaseServiceRole as any)
             .from('shops')
             .select('id, name, bio, slug, logo_url')
             .eq('slug', slug)
@@ -24,7 +24,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         }
 
         // Get shop FAQ
-        const { data: faqs, error: faqsError } = await locals.supabase
+        const { data: faqs, error: faqsError } = await (locals.supabaseServiceRole as any)
             .from('faq')
             .select('*')
             .eq('shop_id', shop.id)
