@@ -8,7 +8,8 @@ import { PUBLIC_SITE_URL } from '$env/static/public';
  */
 export async function forceRevalidateShop(shopSlug: string): Promise<boolean> {
   try {
-    const revalidateUrl = `${PUBLIC_SITE_URL}/${shopSlug}`;
+    const revalidateUrl = `${PUBLIC_SITE_URL}/${shopSlug}?bypassToken=${env.REVALIDATION_TOKEN}`;
+
 
     console.log(`🔄 Forcing revalidation for shop: ${shopSlug}`);
     console.log(`🔍 Revalidation URL: ${revalidateUrl}`);

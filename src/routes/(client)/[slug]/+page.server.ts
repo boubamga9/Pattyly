@@ -8,7 +8,7 @@ import { env } from '$env/dynamic/private';
 // ==========================
 export const config = {
     isr: {
-        expiration: false,
+        expiration: false, // ✅ Permet la revalidation ISR
         bypassToken: env.REVALIDATION_TOKEN
     }
 };
