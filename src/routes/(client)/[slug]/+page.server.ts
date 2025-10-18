@@ -60,12 +60,7 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders, url, re
         const catalogData = await loadShopCatalog(locals.supabase, shopInfo.id);
 
 
-        // 5. Récupérer les customizations
-        const { data: customizations } = await locals.supabase
-            .from('shop_customizations')
-            .select('button_color, button_text_color, text_color, icon_color, secondary_text_color, background_color, background_image_url')
-            .eq('shop_id', shopInfo.id)
-            .single();
+        // 5. Les customizations sont maintenant chargées dans +layout.server.ts
 
         // 6. Headers CDN pour optimiser la performance
         setHeaders({
@@ -80,15 +75,6 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders, url, re
             products: catalogData.products,
             faqs: catalogData.faqs,
             isShopActive: isShopVisible,
-            customizations: customizations || {
-                button_color: '#ff6f61',
-                button_text_color: '#ffffff',
-                text_color: '#333333',
-                icon_color: '#6b7280',
-                secondary_text_color: '#333333',
-                background_color: '#ffe8d6',
-                background_image_url: null
-            },
             cacheInfo: {
                 cached_at: catalogData.cached_at,
                 revalidated: isRevalidation

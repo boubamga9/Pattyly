@@ -10,9 +10,9 @@ export async function forceRevalidateShop(shopSlug: string): Promise<boolean> {
   try {
     const revalidateUrl = `${PUBLIC_SITE_URL}/${shopSlug}?bypassToken=${env.REVALIDATION_TOKEN}`;
 
-
-    console.log(`🔄 Forcing revalidation for shop: ${shopSlug}`);
-    console.log(`🔍 Revalidation URL: ${revalidateUrl}`);
+    console.log(`🔄 [REVALIDATION] Starting revalidation for shop: ${shopSlug}`);
+    console.log(`🔍 [REVALIDATION] URL: ${revalidateUrl}`);
+    console.log(`🔍 [REVALIDATION] Bypass token: ${env.REVALIDATION_TOKEN ? 'SET' : 'NOT SET'}`);
 
     const response = await fetch(revalidateUrl, {
       method: 'HEAD',
@@ -24,21 +24,24 @@ export async function forceRevalidateShop(shopSlug: string): Promise<boolean> {
       signal: AbortSignal.timeout(10000) // 10 second timeout
     });
 
+    console.log(`📊 [REVALIDATION] Response status: ${response.status}`);
+    console.log(`📊 [REVALIDATION] Response headers:`, Object.fromEntries(response.headers.entries()));
+
     // Accept both 200 (success) and 404 (old slug should return 404)
     if (response.ok || response.status === 404) {
-      console.log(`✅ Shop ${shopSlug} revalidated successfully (status: ${response.status})`);
+      console.log(`✅ [REVALIDATION] Shop ${shopSlug} revalidated successfully (status: ${response.status})`);
       return true;
     } else {
-      console.error(`❌ Failed to revalidate shop ${shopSlug}:`, response.status);
+      console.error(`❌ [REVALIDATION] Failed to revalidate shop ${shopSlug}:`, response.status);
       return false;
     }
   } catch (error) {
     // Don't log timeout errors as errors, they're expected for old slugs
     if (error instanceof Error && error.name === 'TimeoutError') {
-      console.log(`⏰ Timeout revalidating shop ${shopSlug} (expected for old slugs)`);
+      console.log(`⏰ [REVALIDATION] Timeout revalidating shop ${shopSlug} (expected for old slugs)`);
       return true; // Consider timeout as success for old slugs
     }
-    console.error(`❌ Error revalidating shop ${shopSlug}:`, error);
+    console.error(`❌ [REVALIDATION] Error revalidating shop ${shopSlug}:`, error);
     return false;
   }
 }

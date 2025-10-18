@@ -7,15 +7,11 @@
 	import { ClientFooter } from '$lib/components';
 
 	// Données de la page
-	$: ({
-		shop,
-		categories,
-		products,
-		faqs,
-		isShopActive,
-		notFound,
-		customizations,
-	} = $page.data);
+	$: ({ shop, categories, products, faqs, isShopActive, notFound } =
+		$page.data);
+
+	// Customizations depuis le layout
+	$: ({ customizations } = $page.data);
 
 	// Styles personnalisés
 	$: customStyles = {
