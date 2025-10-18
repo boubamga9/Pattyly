@@ -19,15 +19,15 @@
 
 	// Styles personnalisés
 	$: customStyles = {
-		background: customizations?.background_color || '#ffffff',
+		background: customizations?.background_color || '#ffe8d6',
 		backgroundImage: customizations?.background_image_url
 			? `url(${customizations.background_image_url})`
 			: 'none',
-		buttonStyle: `background-color: ${customizations?.button_color || '#000000'}; color: ${customizations?.button_text_color || '#ffffff'};`,
-		textStyle: `color: ${customizations?.text_color || '#000000'};`,
+		buttonStyle: `background-color: ${customizations?.button_color || '#ff6f61'}; color: ${customizations?.button_text_color || '#ffffff'};`,
+		textStyle: `color: ${customizations?.text_color || '#333333'};`,
 		iconStyle: `color: ${customizations?.icon_color || '#6b7280'};`,
-		secondaryTextStyle: `color: ${customizations?.secondary_text_color || '#6b7280'};`,
-		categoryBorderStyle: `border-color: ${customizations?.secondary_text_color || '#6b7280'}; color: ${customizations?.secondary_text_color || '#6b7280'}; background-color: white;`,
+		secondaryTextStyle: `color: ${customizations?.secondary_text_color || '#333333'};`,
+		categoryBorderStyle: `border-color: ${customizations?.secondary_text_color || '#333333'}; color: ${customizations?.secondary_text_color || '#333333'}; background-color: white;`,
 	};
 
 	// État du filtre
