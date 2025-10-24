@@ -70,6 +70,44 @@ export const actions: Actions = {
         console.log(type)
 
         if (data.user) {
+            // Si c'est une inscription, vérifier les transferts
+            if (type === 'signup') {
+                try {
+                    // Exécuter le transfert complet via RPC (inclut la recherche par email)
+                    const { data: transferResult, error: transferError } = await (locals.supabaseServiceRole as any)
+                        .rpc('execute_shop_transfer_by_email', {
+                            p_target_email: email,
+                            p_new_user_id: data.user.id,
+                            p_new_user_email: data.user.email
+                        });
+
+                    if (transferError) {
+                        console.error('Transfer RPC error:', transferError);
+                        throw redirect(303, '/onboarding');
+                    }
+
+                    if (!transferResult?.success) {
+                        // Pas de transfert trouvé ou erreur - continuer avec le flux normal
+                        throw redirect(303, '/onboarding');
+                    }
+
+                    // Supprimer l'ancien utilisateur Auth (après le transfert réussi)
+                    if (transferResult.old_profile_id) {
+                        const { error: deleteError } = await locals.supabaseServiceRole.auth.admin.deleteUser(transferResult.old_profile_id);
+                        if (deleteError) {
+                            console.error('Error deleting old auth user:', deleteError);
+                            // Ne pas faire échouer le transfert pour ça
+                        }
+                    }
+
+                    throw redirect(303, '/dashboard');
+
+                } catch (error) {
+                    console.error('Error during transfer:', error);
+                    throw redirect(303, '/onboarding');
+                }
+            }
+
             // Redirection selon le type
             const redirectTo = type === 'recovery' ? '/new-password' : '/onboarding';
 

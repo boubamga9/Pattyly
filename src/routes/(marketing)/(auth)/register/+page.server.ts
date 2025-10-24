@@ -91,9 +91,9 @@ export const actions: Actions = {
 
 		// Si l'inscription a réussi (avec ou sans session), rediriger vers la confirmation
 		if (user && user.email) {
-
 			throw redirect(303, `/confirmation?email=${encodeURIComponent(user.email)}`);
 		}
+
 
 		// Fallback (normalement on ne devrait jamais arriver ici)
 		throw redirect(303, '/');

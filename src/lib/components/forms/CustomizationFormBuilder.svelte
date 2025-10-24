@@ -242,6 +242,7 @@
 							</label>
 							<input
 								type="text"
+								maxlength="100"
 								value={field.label}
 								on:input={(e) =>
 									updateField(field.id, { label: e.currentTarget.value })}
@@ -251,6 +252,9 @@
 									? 'border-red-500 focus:ring-red-500'
 									: 'border-gray-300'}"
 							/>
+							<div class="mt-1 text-xs text-gray-500">
+								<span>{field.label.length}/100 caractères</span>
+							</div>
 							{#if field.label.trim() === ''}
 								<p class="mt-1 text-sm text-red-600">
 									⚠️ La question est obligatoire
@@ -307,6 +311,7 @@
 											<div class="flex-1">
 												<input
 													type="text"
+													maxlength="50"
 													value={option.label}
 													on:input={(e) =>
 														updateOption(field.id, optionIndex, {
@@ -318,6 +323,9 @@
 														? 'border-red-500 focus:ring-red-500'
 														: 'border-gray-300'}"
 												/>
+												<div class="mt-1 text-xs text-gray-500">
+													<span>{option.label.length}/50 caractères</span>
+												</div>
 												{#if option.label.trim() === ''}
 													<p class="mt-1 text-xs text-red-600">
 														⚠️ Le choix est obligatoire

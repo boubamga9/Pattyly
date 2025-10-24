@@ -78,7 +78,11 @@
 					type="text"
 					placeholder="Ex: Votre Gâteau Sur Mesure"
 					bind:value={$formData.title}
+					maxlength="200"
 				/>
+				<div class="mt-1 text-xs text-gray-500">
+					<span>{($formData.title || '').length}/200 caractères</span>
+				</div>
 			</Form.Control>
 			<Form.FieldErrors />
 			<p class="text-xs text-muted-foreground">
@@ -94,7 +98,11 @@
 					placeholder="Ex: Décrivez votre gâteau idéal et nous vous proposerons une estimation personnalisée"
 					rows={3}
 					bind:value={$formData.description}
+					maxlength="500"
 				/>
+				<div class="mt-1 text-xs text-gray-500">
+					<span>{($formData.description || '').length}/500 caractères</span>
+				</div>
 			</Form.Control>
 			<Form.FieldErrors />
 			<p class="text-xs text-muted-foreground">

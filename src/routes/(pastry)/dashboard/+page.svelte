@@ -25,6 +25,7 @@
 		CheckCircle,
 	} from 'lucide-svelte';
 	import { env } from '$env/dynamic/public';
+	import TransferButton from '$lib/components/TransferButton.svelte';
 	// Données de la page
 	$: ({ shop, metrics } = $page.data);
 
@@ -173,6 +174,9 @@
 				</div>
 			</CardContent>
 		</Card>
+
+		<!-- Bouton de transfert -->
+		<TransferButton userEmail={$page.data.user.email} shopId={shop.id} />
 	{/if}
 
 	<!-- Métriques principales -->
