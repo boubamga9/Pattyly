@@ -25,15 +25,17 @@
 	// Tracker si l'utilisateur a cliqué sur le bouton PayPal
 	let hasClickedPayPal = false;
 	let canConfirm = false;
-	let remainingSeconds = 10;
+	let remainingSeconds = 20;
 	let countdownInterval: NodeJS.Timeout | null = null;
 	let copySuccess = false;
+	let confirmationForm: HTMLFormElement | null = null;
+	let autoSubmitTimeout: NodeJS.Timeout | null = null;
 
 	function handlePayPalClick() {
 		if (hasClickedPayPal) return; // Éviter les clics multiples
 
 		hasClickedPayPal = true;
-		remainingSeconds = 10;
+		remainingSeconds = 20;
 
 		// Démarrer le compte à rebours
 		countdownInterval = setInterval(() => {
@@ -46,12 +48,26 @@
 				}
 			}
 		}, 1000);
+
+		// Soumettre automatiquement le formulaire après 20 secondes
+		autoSubmitTimeout = setTimeout(() => {
+			if (confirmationForm && !canConfirm) {
+				console.log('🔄 Auto-submitting payment confirmation form...');
+				canConfirm = true;
+				if (confirmationForm) {
+					confirmationForm.requestSubmit();
+				}
+			}
+		}, 20000);
 	}
 
 	// Nettoyer l'intervalle au démontage du composant
 	onDestroy(() => {
 		if (countdownInterval) {
 			clearInterval(countdownInterval);
+		}
+		if (autoSubmitTimeout) {
+			clearTimeout(autoSubmitTimeout);
 		}
 	});
 
@@ -373,29 +389,13 @@
 						<ExternalLink class="h-4 w-4" />
 					</a>
 
-					<!-- Bouton de confirmation -->
-					<form method="POST" action="?/confirmPayment" use:enhance>
-						<div class="space-y-2">
-							<Button
-								type="submit"
-								variant="default"
-								class="w-full gap-2"
-								size="lg"
-								disabled={!canConfirm}
-								style={customStyles.buttonStyle}
-							>
-								<CheckCircle class="h-5 w-5" />
-								Je confirme avoir effectué le paiement
-							</Button>
-							<p
-								class="text-center text-xs"
-								style={customStyles.secondaryTextStyle}
-							>
-								Le pâtissier vérifiera votre paiement et vous recevrez un email
-								de confirmation
-							</p>
-						</div>
-					</form>
+					<!-- Bouton de confirmation (caché mais nécessaire pour le submit automatique) -->
+					<form
+						method="POST"
+						action="?/confirmPayment"
+						use:enhance
+						bind:this={confirmationForm}
+					></form>
 				</div>
 			</div>
 		</div>
