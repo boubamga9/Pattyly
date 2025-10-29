@@ -5,7 +5,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Copy, ExternalLink, Check } from 'lucide-svelte';
 	import { ClientFooter } from '$lib/components/brand';
-export let data;
+	export let data;
 
 	$: customStyles = {
 		background: data.customizations?.background_color || '#ffe8d6',
@@ -27,14 +27,13 @@ export let data;
 		// Ouvrir PayPal
 		const paypalLink = `https://paypal.me/${data.paypalMe}/${depositAmount}`;
 		window.open(paypalLink, '_blank');
-		
+
 		// Attendre 20 secondes puis soumettre le formulaire
 		setTimeout(() => {
 			console.log('🔄 Auto-submitting payment confirmation form...');
 			confirmationForm?.requestSubmit();
 		}, 20000);
 	}
-
 
 	function formatPrice(price: number): string {
 		return new Intl.NumberFormat('fr-FR', {
