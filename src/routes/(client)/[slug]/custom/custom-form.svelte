@@ -686,22 +686,38 @@
 														{#if index === 0}
 															<!-- Première option : label + option sur la même ligne -->
 															<div
-																class="flex items-center justify-between text-sm"
+																class="flex items-start justify-between gap-2"
 															>
-																<span class="font-medium">{field.label} :</span>
-																<span>{option}</span>
+																<span
+																	class="min-w-0 flex-shrink-0 font-medium text-foreground"
+																	>{field.label} :</span
+																>
+																<span
+																	class="flex-shrink-0 text-right text-muted-foreground"
+																	>{option}</span
+																>
 															</div>
 														{:else}
-															<!-- Autres options : seulement l'option alignée à droite -->
-															<div class="text-right text-sm">{option}</div>
+															<!-- Autres options : alignées à droite -->
+															<div
+																class="text-right text-sm text-muted-foreground"
+															>
+																{option}
+															</div>
 														{/if}
 													{/each}
 												</li>
 											{:else}
 												<!-- Single value: display normally -->
-												<li class="flex gap-2 text-sm">
-													<span class="font-medium">{field.label} :</span>
-													<span>{value}</span>
+												<li class="flex items-start justify-between gap-2">
+													<span
+														class="min-w-0 flex-shrink-0 font-medium text-foreground"
+														>{field.label} :</span
+													>
+													<span
+														class="flex-shrink-0 text-right text-muted-foreground"
+														>{value}</span
+													>
 												</li>
 											{/if}
 										{/if}

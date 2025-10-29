@@ -624,16 +624,23 @@
 								<div class="space-y-1">
 									{#each selectedOptions as option, index}
 										{#if index === 0}
-											<!-- Première option : label + option sur la même ligne -->
-											<div class="flex items-center justify-between">
-												<span class="text-muted-foreground"
+											<div class="flex items-start justify-between gap-2">
+												<!-- Question : prend toute la largeur disponible -->
+												<span
+													class="min-w-0 flex-shrink-0 font-medium text-foreground"
 													>{field.label} :</span
 												>
-												<span class="font-medium">{option}</span>
+												<!-- Réponse : alignée à droite -->
+												<span
+													class="flex-shrink-0 text-right text-muted-foreground"
+													>{option}</span
+												>
 											</div>
 										{:else}
-											<!-- Autres options : seulement l'option alignée à droite -->
-											<div class="text-right font-medium">{option}</div>
+											<!-- Autres options : alignées à droite -->
+											<div class="text-right text-sm text-muted-foreground">
+												{option}
+											</div>
 										{/if}
 									{/each}
 								</div>
@@ -642,18 +649,27 @@
 									(opt) => opt.label === $formData.customization_data[field.id],
 								)}
 								{#if selectedOption}
-									<div class="flex justify-between gap-4">
-										<span class="text-muted-foreground">{field.label} :</span>
-										<span class="font-medium"
-											>{$formData.customization_data[field.id]} (+{formatPrice(
-												selectedOption.price || 0,
-											)})</span
+									<div class="flex items-start justify-between gap-2">
+										<!-- Question : prend toute la largeur disponible -->
+										<span
+											class="min-w-0 flex-shrink-0 font-medium text-foreground"
+											>{field.label} :</span
 										>
+										<!-- Réponse : alignée à droite -->
+										<span
+											class="flex-shrink-0 text-right text-muted-foreground"
+										>
+											{$formData.customization_data[field.id]}
+											<span class="text-sm">
+												(+{formatPrice(selectedOption.price || 0)})
+											</span>
+										</span>
 									</div>
 								{/if}
 							{/if}
 						{/if}
 					{/each}
+
 					<Separator
 						class="my-2"
 						style={`background-color: ${customizations?.secondary_text_color || '#333333'};`}
@@ -702,3 +718,4 @@
 		</div>
 	</div>
 </form>
+

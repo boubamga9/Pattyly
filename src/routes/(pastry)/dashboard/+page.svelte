@@ -27,7 +27,7 @@
 	import { env } from '$env/dynamic/public';
 	import TransferButton from '$lib/components/TransferButton.svelte';
 	// Données de la page
-	$: ({ shop, metrics } = $page.data);
+	$: ({ shop, metrics, permissions } = $page.data);
 
 	// État pour le filtre de revenus
 	let selectedRevenuePeriod: 'weekly' | 'monthly' | 'threeMonths' | 'yearly' =
@@ -126,7 +126,17 @@
 <div class="container mx-auto space-y-6 p-3 md:p-6">
 	<!-- En-tête -->
 	<div class="mb-8">
-		<h1 class="text-3xl font-bold">Tableau de bord</h1>
+		<div class="mb-2 flex items-center gap-3">
+			<h1 class="text-3xl font-bold">Tableau de bord</h1>
+			{#if permissions?.isExempt}
+				<Badge
+					variant="secondary"
+					class="border-0 bg-[#FF6F61] text-white shadow-sm"
+				>
+					Ambassadeur
+				</Badge>
+			{/if}
+		</div>
 		<p class="mt-2 text-muted-foreground">
 			Bienvenue {shop?.name || 'Pâtissier'}, voici un aperçu de votre activité
 		</p>
