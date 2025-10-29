@@ -63,6 +63,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 };
 
 export const actions: Actions = {
+    openPayPal: async ({ params, request, locals }) => {
+        // Just return success, the frontend will handle the redirect
+        return { success: true };
+    },
     confirmPayment: async ({ params, locals }) => {
         const { slug, order_ref } = params;
 

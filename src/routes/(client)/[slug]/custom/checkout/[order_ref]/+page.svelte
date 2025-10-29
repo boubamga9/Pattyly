@@ -3,11 +3,9 @@
 	import { enhance } from '$app/forms';
 	import { Separator } from '$lib/components/ui/separator';
 	import { Button } from '$lib/components/ui/button';
-	import { Copy, ExternalLink, CheckCircle, Check } from 'lucide-svelte';
+	import { Copy, ExternalLink, Check } from 'lucide-svelte';
 	import { ClientFooter } from '$lib/components/brand';
-	import { onDestroy } from 'svelte';
-
-	export let data;
+export let data;
 
 	$: customStyles = {
 		background: data.customizations?.background_color || '#ffe8d6',
@@ -22,52 +20,21 @@
 	// Calculer l'acompte (50% du total)
 	$: depositAmount = data.order.total_amount / 2;
 
-	// Tracker si l'utilisateur a cliqué sur le bouton PayPal
-	let hasClickedPayPal = false;
-	let canConfirm = false;
-	let remainingSeconds = 20;
-	let countdownInterval: NodeJS.Timeout | null = null;
 	let copySuccess = false;
 	let confirmationForm: HTMLFormElement | null = null;
-	let autoSubmitTimeout: NodeJS.Timeout | null = null;
 
-	function handlePayPalClick() {
-		if (hasClickedPayPal) return;
-
-		hasClickedPayPal = true;
-		remainingSeconds = 20;
-
-		countdownInterval = setInterval(() => {
-			remainingSeconds--;
-			if (remainingSeconds <= 0) {
-				canConfirm = true;
-				if (countdownInterval) {
-					clearInterval(countdownInterval);
-					countdownInterval = null;
-				}
-			}
-		}, 1000);
-
-		// Soumettre automatiquement le formulaire après 20 secondes
-		autoSubmitTimeout = setTimeout(() => {
-			if (confirmationForm && !canConfirm) {
-				console.log('🔄 Auto-submitting payment confirmation form...');
-				canConfirm = true;
-				if (confirmationForm) {
-					confirmationForm.requestSubmit();
-				}
-			}
+	async function handlePayPalClick() {
+		// Ouvrir PayPal
+		const paypalLink = `https://paypal.me/${data.paypalMe}/${depositAmount}`;
+		window.open(paypalLink, '_blank');
+		
+		// Attendre 20 secondes puis soumettre le formulaire
+		setTimeout(() => {
+			console.log('🔄 Auto-submitting payment confirmation form...');
+			confirmationForm?.requestSubmit();
 		}, 20000);
 	}
 
-	onDestroy(() => {
-		if (countdownInterval) {
-			clearInterval(countdownInterval);
-		}
-		if (autoSubmitTimeout) {
-			clearTimeout(autoSubmitTimeout);
-		}
-	});
 
 	function formatPrice(price: number): string {
 		return new Intl.NumberFormat('fr-FR', {
