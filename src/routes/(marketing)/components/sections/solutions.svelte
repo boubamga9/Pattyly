@@ -1,131 +1,38 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 
-	let sectionRef: HTMLElement | null = null;
-	let ulRef: HTMLElement | null = null;
-	let progressBar: HTMLElement | null = null;
-
-	let slidesCount = 0;
-	let currentTranslate = 0;
-	let targetTranslate = 0;
-	let rafId: number | null = null;
-	let isScrolling = false;
+	let scrollContainer: HTMLDivElement | null = null;
+	let animationFrame: number | null = null;
 	let activeSlide = 0;
 
-	const clamp = (v: number, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+	const clamp = (value: number, min = 0, max = 1) => Math.max(min, Math.min(max, value));
 
-	function recalcSlides() {
-		slidesCount = ulRef ? ulRef.children.length || 1 : 1;
-		if (sectionRef) sectionRef.style.height = `${slidesCount * 100}vh`;
-		if (ulRef) ulRef.style.width = `${slidesCount * 100}vw`;
+	function updateStateFromScroll() {
+		if (!scrollContainer) return;
+
+	const container = scrollContainer;
+	const maxScroll = container.scrollWidth - container.clientWidth;
+	const ratio = maxScroll > 0 ? container.scrollLeft / maxScroll : 0;
+	const slideWidth = container.clientWidth;
+	const newActiveSlide = Math.round(container.scrollLeft / slideWidth);
+
+	const _progress = clamp(ratio, 0, 1);
+	activeSlide = Math.min(Math.max(newActiveSlide, 0), solutions.length + 1);
 	}
 
-	function updateTargetFromScroll() {
-		if (!sectionRef) return;
-		const rect = sectionRef.getBoundingClientRect();
-		const total = sectionRef.clientHeight - window.innerHeight;
-		const progress = total > 0 ? clamp(-rect.top / total, 0, 1) : 0;
-		const maxTranslate = (slidesCount - 1) * 100;
-		targetTranslate = progress * maxTranslate;
-
-		// Update progress bar
-		if (progressBar) progressBar.style.transform = `scaleX(${progress})`;
-
-		// Détecter la section active pour l'animation de focus
-		const newActiveSlide = Math.round(progress * (slidesCount - 1));
-		if (newActiveSlide !== activeSlide) {
-			activeSlide = newActiveSlide;
-			updateActiveSlideFocus();
-		}
-	}
-
-	function animate() {
-		// Easing plus fluide avec facteur adaptatif
-		const diff = targetTranslate - currentTranslate;
-		const factor = Math.abs(diff) > 1 ? 0.15 : 0.05; // Plus rapide au début, plus doux à la fin
-
-		currentTranslate += diff * factor;
-
-		if (ulRef) {
-			ulRef.style.transform = `translate3d(-${currentTranslate}vw, 0, 0)`;
-		}
-
-		rafId = requestAnimationFrame(animate);
-	}
-
-	function updateActiveSlideFocus() {
-		if (!ulRef) return;
-
-		// Retirer la classe active de toutes les sections
-		const allSlides = ulRef.querySelectorAll('li');
-		allSlides.forEach((slide, index) => {
-			if (index === activeSlide) {
-				slide.classList.add('slide-active');
-			} else {
-				slide.classList.remove('slide-active');
-			}
-		});
-
-		// Masquer la barre de progression après la dernière solution
-		if (progressBar && activeSlide === slidesCount - 1) {
-			progressBar.style.opacity = '0';
-		} else if (progressBar) {
-			progressBar.style.opacity = '1';
-		}
-	}
-
-	function handleScrollEvent() {
-		if (!isScrolling) {
-			isScrolling = true;
-			requestAnimationFrame(() => {
-				updateTargetFromScroll();
-				isScrolling = false;
-			});
-		}
+	function handleScroll() {
+		if (animationFrame) cancelAnimationFrame(animationFrame);
+		animationFrame = requestAnimationFrame(updateStateFromScroll);
 	}
 
 	onMount(() => {
-		try {
-			recalcSlides();
-			updateTargetFromScroll();
-
-			// Optimisations CSS pour la performance
-			if (ulRef) {
-				ulRef.style.willChange = 'transform';
-				ulRef.style.backfaceVisibility = 'hidden';
-				ulRef.style.perspective = '1000px';
-			}
-
-			if (progressBar) {
-				progressBar.style.transformOrigin = 'left';
-				progressBar.style.willChange = 'transform';
-			}
-		} catch (error) {}
-
-		// Initialiser la barre de progression
-		if (progressBar) {
-			progressBar.style.transform = 'scaleX(0)';
-		}
-
-		// Initialiser la première section comme active
-		setTimeout(() => {
-			updateActiveSlideFocus();
-		}, 100);
-
-		// Démarrer l'animation
-		if (!rafId) animate();
-
-		// Événements optimisés
-		window.addEventListener('scroll', handleScrollEvent, { passive: true });
-		window.addEventListener('resize', recalcSlides, { passive: true });
+		updateStateFromScroll();
+		scrollContainer?.addEventListener('scroll', handleScroll, { passive: true });
 	});
 
 	onDestroy(() => {
-		if (typeof window !== 'undefined') {
-			if (rafId) cancelAnimationFrame(rafId);
-			window.removeEventListener('scroll', handleScrollEvent);
-			window.removeEventListener('resize', recalcSlides);
-		}
+		if (animationFrame) cancelAnimationFrame(animationFrame);
+		scrollContainer?.removeEventListener('scroll', handleScroll);
 	});
 
 	// Solutions data - facile à modifier et ajouter
@@ -162,32 +69,35 @@
 	];
 </script>
 
-<section bind:this={sectionRef} class="relative bg-white">
-	<div
-		class="absolute left-1/2 top-8 z-10 min-w-[330px] -translate-x-1/2 text-center"
-	>
-		<h2 class="mb-4 text-3xl font-normal md:text-4xl">
+<section class="relative bg-white py-16">
+	<div class="mx-auto mb-8 max-w-4xl px-4 text-center md:mb-12">
+		<h2 class="text-3xl font-normal md:text-4xl">
 			Un assistant digital complet, pensé juste pour les pâtissier·ères.
 		</h2>
+		<p class="mt-4 text-base text-muted-foreground md:text-lg">
+			Fais défiler horizontalement (ou swipe sur mobile) pour découvrir les différentes
+			fonctionnalités.
+		</p>
 	</div>
 
-	<div class="sticky top-0 h-screen overflow-hidden">
-		<ul
-			bind:this={ulRef}
-			class="flex h-full"
-			style="transform: translate3d(0, 0, 0);"
+	<div class="relative">
+		<div
+			bind:this={scrollContainer}
+			class="hide-scrollbar flex snap-x snap-mandatory gap-6 overflow-x-auto px-4 pb-8 pt-6"
+			aria-label="Solutions Pattyly"
 		>
-			{#each solutions as solution}
-				<li
-					class="flex h-screen w-screen flex-shrink-0 flex-col items-center justify-center overflow-hidden {solution.bgColor} px-4 sm:px-8"
+			{#each solutions as solution, index}
+				<article
+					class="flex w-[90%] max-w-4xl flex-shrink-0 snap-center flex-col items-center justify-center rounded-3xl px-6 py-10 text-center text-[#333] shadow-md sm:w-[80%] md:w-[65%] lg:w-[55%] xl:w-[45%] {solution.bgColor}"
+					aria-current={activeSlide === index ? 'true' : 'false'}
 				>
 					<h3
-						class="mb-6 text-2xl font-normal leading-[120%] tracking-tight lg:text-3xl xl:text-4xl"
+						class="mb-4 text-2xl font-normal leading-[120%] tracking-tight lg:text-3xl xl:text-4xl"
 					>
 						{solution.title}
 					</h3>
 					<p
-						class="mb-8 max-w-xs text-center text-lg text-[#333] sm:max-w-lg sm:text-xl lg:max-w-2xl lg:text-2xl"
+						class="mb-8 max-w-2xl text-lg text-[#333] sm:text-xl lg:text-2xl"
 					>
 						{solution.description}
 					</p>
@@ -197,19 +107,19 @@
 						class="h-52 w-auto max-w-full rounded-lg object-contain sm:h-[300px] lg:h-[320px] xl:h-[380px]"
 						loading="lazy"
 					/>
-				</li>
+				</article>
 			{/each}
 
-			<!-- Solution 5: Planning et disponibilités -->
-			<li
-				class="flex h-screen w-screen flex-shrink-0 flex-col items-center justify-center overflow-hidden bg-[#FFE0D6] px-4 sm:px-8"
+			<article
+				class="flex w-[90%] max-w-4xl flex-shrink-0 snap-center flex-col items-center justify-center rounded-3xl bg-[#FFE0D6] px-6 py-10 text-center text-[#333] shadow-md sm:w-[80%] md:w-[65%] lg:w-[55%] xl:w-[45%]"
+				aria-current={activeSlide === solutions.length ? 'true' : 'false'}
 			>
 				<h3
-					class="mb-6 text-2xl font-normal leading-[120%] tracking-tight lg:text-3xl xl:text-4xl"
+					class="mb-4 text-2xl font-normal leading-[120%] tracking-tight lg:text-3xl xl:text-4xl"
 				>
 					PLANNING
 				</h3>
-				<p class="mb-8 max-w-2xl text-center text-xl text-[#333] lg:text-2xl">
+				<p class="mb-8 max-w-2xl text-xl text-[#333] lg:text-2xl">
 					🗓️ Gère ton planning sans te casser la tête
 				</p>
 				<img
@@ -218,18 +128,18 @@
 					class="h-52 w-auto max-w-full rounded-lg object-contain sm:h-[300px] lg:h-[320px] xl:h-[380px]"
 					loading="lazy"
 				/>
-			</li>
+			</article>
 
-			<!-- Solution 6: FAQ et communication -->
-			<li
-				class="flex h-screen w-screen flex-shrink-0 flex-col items-center justify-center overflow-hidden bg-[#FFF1D6] px-4 sm:px-8"
+			<article
+				class="flex w-[90%] max-w-4xl flex-shrink-0 snap-center flex-col items-center justify-center rounded-3xl bg-[#FFF1D6] px-6 py-10 text-center text-[#333] shadow-md sm:w-[80%] md:w-[65%] lg:w-[55%] xl:w-[45%]"
+				aria-current={activeSlide === solutions.length + 1 ? 'true' : 'false'}
 			>
 				<h3
-					class="mb-6 text-2xl font-normal leading-[120%] tracking-tight lg:text-3xl xl:text-4xl"
+					class="mb-4 text-2xl font-normal leading-[120%] tracking-tight lg:text-3xl xl:text-4xl"
 				>
 					FAQ
 				</h3>
-				<p class="mb-8 max-w-2xl text-center text-xl text-[#333] lg:text-2xl">
+				<p class="mb-8 max-w-2xl text-xl text-[#333] lg:text-2xl">
 					❓ Mets une FAQ en vitrine pour arrêter de répéter 50 fois la même
 					chose
 				</p>
@@ -252,23 +162,29 @@
 						Commencer mon essai gratuit
 					</a>
 				</div>
-			</li>
-		</ul>
+			</article>
+		</div>
+
+		<div
+			class="pointer-events-none absolute inset-y-0 left-0 hidden w-16 bg-gradient-to-r from-white to-transparent sm:block"
+			aria-hidden="true"
+		></div>
+		<div
+			class="pointer-events-none absolute inset-y-0 right-0 hidden w-16 bg-gradient-to-l from-white to-transparent sm:block"
+			aria-hidden="true"
+		></div>
 	</div>
 
-	<div
-		bind:this={progressBar}
-		class="fixed bottom-12 left-4 right-4 h-2 rounded-full bg-[#FF6F61] transition-opacity duration-500"
-		style="transform-origin:left; transform:scaleX(0);"
-	></div>
+	<!-- Indicateur visuel retiré pour garder l'interface ultra légère -->
 </section>
 
 <style>
-	/* Animation de focus pour la section active */
-	li {
-		transition: all 0.3s ease-out;
-		transform: scale(0.98);
-		border-radius: 10px;
-		opacity: 1;
+	.hide-scrollbar {
+		scrollbar-width: none;
+		-ms-overflow-style: none;
+	}
+
+	.hide-scrollbar::-webkit-scrollbar {
+		display: none;
 	}
 </style>
