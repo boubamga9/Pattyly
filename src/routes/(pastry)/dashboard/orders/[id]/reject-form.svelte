@@ -7,20 +7,24 @@
 	import { superForm } from 'sveltekit-superforms/client';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import type { SuperValidated, Infer } from 'sveltekit-superforms';
-	import { rejectOrderFormSchema, type RejectOrderForm } from './schema';
+import { rejectOrderFormSchema, type RejectOrderForm } from './schema';
 
 	// Props
 	export let data: SuperValidated<Infer<RejectOrderForm>>;
 	export let onCancel: () => void;
 	export let onSuccess: () => void;
 
-	// Superforms
-	const form = superForm(data, {
-		validators: zodClient(rejectOrderFormSchema),
-		dataType: 'json',
-	});
+const MESSAGE_MAX = 500;
 
-	const { form: formData, enhance, submitting, message, errors } = form;
+// Superforms
+const form = superForm(data, {
+	validators: zodClient(rejectOrderFormSchema),
+	dataType: 'json',
+});
+
+const { form: formData, enhance, submitting, message, errors } = form;
+
+$: messageLength = ($formData.chef_message || '').length;
 
 	// Fermer automatiquement le formulaire en cas de succès
 	$: if ($message) {
@@ -49,9 +53,13 @@
 				id="rejectMessage"
 				bind:value={$formData.chef_message}
 				placeholder="Message pour le client..."
+				maxlength={MESSAGE_MAX}
 			/>
 		</Form.Control>
 		<Form.FieldErrors />
+		<p class="text-right text-xs text-muted-foreground">
+			{messageLength}/{MESSAGE_MAX} caractères
+		</p>
 	</Form.Field>
 
 	<!-- Messages d'erreur/succès -->
