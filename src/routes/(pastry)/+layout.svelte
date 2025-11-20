@@ -295,13 +295,13 @@
 		</header>
 		<main class="flex flex-col items-start p-4 sm:px-6 sm:py-0">
 			<!-- Alerte d'abonnement inactif ou essai gratuit -->
-			<div class="w-full">
+				<div class="w-full">
 				<SubscriptionAlert
 					hasInactiveSubscription={data.hasInactiveSubscription}
 					trialEnding={data.trialEnding}
 					isTrialActive={data.isTrialActive}
 				/>
-			</div>
+				</div>
 
 			<slot />
 		</main>

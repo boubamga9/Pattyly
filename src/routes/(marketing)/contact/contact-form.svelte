@@ -78,9 +78,12 @@
 			</Form.Control>
 			<Form.FieldErrors />
 		</Form.Field>
-		<Form.Button class="w-full" disabled={$submitting}>
+		<Form.Button 
+			class="mt-4 h-14 w-full rounded-xl bg-[#FF6F61] text-base font-semibold text-white shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-[#e85a4f] hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100" 
+			disabled={$submitting}
+		>
 			{#if $submitting}
-				<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+				<LoaderCircle class="mr-2 h-5 w-5 animate-spin" />
 				Envoi du message…
 			{:else}
 				Envoyer le message

@@ -1,6 +1,7 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import Icons from 'unplugin-icons/vite';
 import { defineConfig } from 'vitest/config';
+import path from 'path';
 
 export default defineConfig({
 	plugins: [
@@ -17,6 +18,11 @@ export default defineConfig({
 			},
 		}),
 	],
+	resolve: {
+		alias: {
+			'$src': path.resolve(__dirname, './src'),
+		},
+	},
 	server: {
 		// Allow ngrok and other external hosts
 		allowedHosts: [

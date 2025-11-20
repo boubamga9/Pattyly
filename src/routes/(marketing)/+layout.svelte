@@ -1,4 +1,5 @@
-<script>
+<script lang="ts">
+	import { onMount, onDestroy } from 'svelte';
 	import { onNavigate } from '$app/navigation';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Drawer from '$lib/components/ui/drawer';
@@ -6,17 +7,80 @@
 	import { cn } from '$lib/utils';
 	import MenuIcon from 'virtual:icons/lucide/menu';
 	import XIcon from 'virtual:icons/lucide/x';
+	import { initSmoothScroll, destroySmoothScroll } from '$lib/utils/smooth-scroll';
+	import { gsap } from 'gsap';
+	import { ScrollTrigger } from 'gsap/ScrollTrigger';
 	import '../../app.css';
 
 	const menuItems = {
 		'/': 'Accueil',
+		'/about': 'À propos',
 		'/pricing': 'Tarifs',
+		'/faq': 'FAQ',
 		'/contact': 'Contact',
 	};
 
 	let menuOpen = false;
+	let header: HTMLElement;
+	let logo: HTMLElement;
+
 	onNavigate((_) => {
 		menuOpen = false;
+	});
+
+	onMount(() => {
+		// Initialize smooth scroll
+		initSmoothScroll();
+
+		// Register ScrollTrigger
+		if (typeof window !== 'undefined') {
+			gsap.registerPlugin(ScrollTrigger);
+		}
+
+		// Animate header on scroll
+		if (header && logo) {
+			ScrollTrigger.create({
+				trigger: 'body',
+				start: 'top -100',
+				onEnter: () => {
+					gsap.to(header, {
+						backgroundColor: 'rgba(255, 255, 255, 0.95)',
+						backdropFilter: 'blur(10px)',
+						paddingTop: '0.75rem',
+						paddingBottom: '0.75rem',
+						boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+						duration: 0.3,
+						ease: 'power2.out',
+					});
+					gsap.to(logo, {
+						scale: 0.85,
+						duration: 0.3,
+						ease: 'power2.out',
+					});
+				},
+				onLeaveBack: () => {
+					gsap.to(header, {
+						backgroundColor: 'transparent',
+						backdropFilter: 'none',
+						paddingTop: '1rem',
+						paddingBottom: '1rem',
+						boxShadow: 'none',
+						duration: 0.3,
+						ease: 'power2.out',
+					});
+					gsap.to(logo, {
+						scale: 1,
+						duration: 0.3,
+						ease: 'power2.out',
+					});
+				},
+			});
+		}
+	});
+
+	onDestroy(() => {
+		destroySmoothScroll();
+		ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
 	});
 
 	export let data;
@@ -24,7 +88,8 @@
 
 <!-- Navbar integrated in Hero section with transparent background -->
 <header
-	class="marketing-section absolute top-0 z-10 w-full py-4"
+	bind:this={header}
+	class="marketing-section fixed top-0 z-50 w-full py-4 transition-all duration-300"
 	style="background-color: transparent;"
 >
 	<div class="container flex items-center justify-between">
@@ -36,6 +101,7 @@
 				href="/"
 			>
 				<img
+					bind:this={logo}
 					src="/images/logo_text.svg"
 					alt="Logo Pattyly"
 					class="h-[70px] w-[120px] object-contain transition-transform duration-200 hover:scale-105"
@@ -174,21 +240,23 @@
 <!-- Spacer grows so the footer can be at bottom on short pages -->
 <div class="flex-grow"></div>
 <footer class="border-t border-border bg-card py-6">
-	<div class="container flex flex-col gap-12">
-		<div class="flex flex-col flex-wrap gap-12 sm:flex-row">
-			<div class="flex-[0.3]">
+	<div class="container">
+		<div class="flex flex-col gap-8 lg:flex-row lg:gap-12">
+			<!-- Logo section -->
+			<div class="flex-shrink-0">
 				<img
 					src="/images/logo_icone.svg"
 					alt="Logo Pattyly"
-					class="h-[70px] w-[120px] object-contain transition-transform duration-200 hover:scale-105"
+					class="h-12 w-20 object-contain transition-transform duration-200 hover:scale-105 sm:h-16 sm:w-28 lg:h-[70px] lg:w-[120px]"
 				/>
 			</div>
+			<!-- Links grid -->
 			<div
 				class={cn(
-					'grid flex-1 grid-cols-2 gap-8 p-4 sm:grid-cols-4',
+					'grid flex-1 grid-cols-2 gap-6 sm:gap-8 md:grid-cols-3 lg:grid-cols-5',
 					'[&_.col]:flex [&_.col]:flex-col [&_.col]:gap-3',
-					'[&_.footer-title]:text-lg [&_.footer-title]:font-semibold [&_.footer-title]:text-primary',
-					'[&_nav]:flex [&_nav]:flex-col [&_nav]:gap-3 [&_nav]:text-muted-foreground',
+					'[&_.footer-title]:text-base [&_.footer-title]:font-semibold [&_.footer-title]:text-primary sm:[&_.footer-title]:text-lg',
+					'[&_nav]:flex [&_nav]:flex-col [&_nav]:gap-2 [&_nav]:text-muted-foreground sm:[&_nav]:gap-3',
 				)}
 			>
 				<div class="col">
@@ -198,11 +266,44 @@
 							<Button
 								{href}
 								variant="link"
-								class="block h-auto p-0 text-start text-base font-normal text-muted-foreground"
+								class="block h-auto p-0 text-start text-sm font-normal text-muted-foreground sm:text-base"
 							>
 								{text}
 							</Button>
 						{/each}
+					</nav>
+				</div>
+				<div class="col">
+					<span class="footer-title">Fonctionnalités</span>
+					<nav>
+						<Button
+							href="/boutique-en-ligne-patissier"
+							variant="link"
+							class="block h-auto p-0 text-start text-sm font-normal text-muted-foreground sm:text-base"
+						>
+							Boutique en ligne
+						</Button>
+						<Button
+							href="/logiciel-gestion-patisserie"
+							variant="link"
+							class="block h-auto p-0 text-start text-sm font-normal text-muted-foreground sm:text-base"
+						>
+							Logiciel de gestion
+						</Button>
+						<Button
+							href="/formulaire-commande-gateau"
+							variant="link"
+							class="block h-auto p-0 text-start text-sm font-normal text-muted-foreground sm:text-base"
+						>
+							Formulaire commande
+						</Button>
+						<Button
+							href="/devis-factures-cake-designer"
+							variant="link"
+							class="block h-auto p-0 text-start text-sm font-normal text-muted-foreground sm:text-base"
+						>
+							Devis et factures
+						</Button>
 					</nav>
 				</div>
 				<div class="col">
@@ -211,14 +312,14 @@
 						<Button
 							href="/login"
 							variant="link"
-							class="block h-auto p-0 text-start text-base font-normal text-muted-foreground"
+							class="block h-auto p-0 text-start text-sm font-normal text-muted-foreground sm:text-base"
 						>
 							Se connecter
 						</Button>
 						<Button
 							href="/register"
 							variant="link"
-							class="block h-auto p-0 text-start text-base font-normal text-muted-foreground"
+							class="block h-auto p-0 text-start text-sm font-normal text-muted-foreground sm:text-base"
 						>
 							S'inscrire
 						</Button>
@@ -230,21 +331,21 @@
 						<Button
 							href="/cgu"
 							variant="link"
-							class="block h-auto p-0 text-start text-base font-normal text-muted-foreground"
+							class="block h-auto p-0 text-start text-sm font-normal text-muted-foreground sm:text-base"
 						>
 							CGU
 						</Button>
 						<Button
 							href="/legal"
 							variant="link"
-							class="block h-auto p-0 text-start text-base font-normal text-muted-foreground"
+							class="block h-auto p-0 text-start text-sm font-normal text-muted-foreground sm:text-base"
 						>
 							Mentions légales
 						</Button>
 						<Button
 							href="/privacy"
 							variant="link"
-							class="block h-auto p-0 text-start text-base font-normal text-muted-foreground"
+							class="block h-auto p-0 text-start text-sm font-normal text-muted-foreground sm:text-base"
 						>
 							Confidentialité
 						</Button>
@@ -255,7 +356,7 @@
 					<nav>
 						<Button
 							variant="link"
-							class="block h-auto p-0 text-start text-base font-normal text-muted-foreground"
+							class="block h-auto p-0 text-start text-sm font-normal text-muted-foreground sm:text-base"
 							href="https://www.instagram.com/pattyly.app"
 							target="_blank"
 						>
@@ -263,7 +364,7 @@
 						</Button>
 						<Button
 							variant="link"
-							class="block h-auto p-0 text-start text-base font-normal text-muted-foreground"
+							class="block h-auto p-0 text-start text-sm font-normal text-muted-foreground sm:text-base"
 							href="https://www.tiktok.com/@pattyly.app"
 							target="_blank"
 						>

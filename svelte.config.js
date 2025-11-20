@@ -7,6 +7,9 @@ const config = {
 		adapter: adapter({
 			runtime: 'nodejs20.x'  // optionnel mais recommandé pour Node 20
 		}),
+		alias: {
+			'$src': 'src',
+		},
 	},
 	preprocess: vitePreprocess(),
 };

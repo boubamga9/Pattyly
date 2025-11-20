@@ -4,20 +4,26 @@
 		{
 			emoji: '⏰',
 			bgColor: 'bg-[#FFE8D6]',
+			iconColor: 'text-[#FF6F61]',
 			title: "Libère jusqu'à 2h par jour",
-			description: 'Rien que pour toi (ou pour un café tranquille ☕)',
+			description:
+				'En automatisant la prise de commande en ligne et la gestion de tes devis, tu récupères du temps précieux chaque jour. Plus besoin de répondre aux mêmes questions 50 fois : tout est dans ta boutique en ligne.',
 		},
 		{
 			emoji: '💼',
 			bgColor: 'bg-[#FFE0D6]',
+			iconColor: 'text-neutral-800',
 			title: 'Ne laisse plus filer tes clients',
-			description: 'Ils commandent même quand tu es occupée',
+			description:
+				'Avec un formulaire de commande accessible 24/7, tes clients peuvent passer commande même quand tu dors. Plus de clients perdus parce que tu n\'as pas répondu assez vite à leur message Instagram.',
 		},
 		{
 			emoji: '✨',
 			bgColor: 'bg-[#FFF1D6]',
+			iconColor: 'text-[#FF6F61]',
 			title: 'Montre une image pro',
-			description: 'Avec une boutique chic sans effort',
+			description:
+				'Ta boutique en ligne professionnelle donne confiance à tes clients. Ils voient tes créations, peuvent personnaliser leurs gâteaux, et payer en ligne de manière sécurisée. Une image de marque qui te démarque.',
 		},
 	];
 </script>
@@ -25,52 +31,57 @@
 <section class="bg-white py-16 sm:py-20 md:py-24">
 	<div class="mx-auto max-w-7xl px-6">
 		<!-- Header -->
-		<div class="mb-16 text-center">
+		<div class="mb-12 text-center md:mb-16">
 			<h2
-				class="mb-4 text-2xl font-normal leading-[120%] tracking-tight text-neutral-800 lg:text-3xl xl:text-4xl"
+				class="mb-4 text-2xl font-semibold leading-[120%] tracking-tight text-neutral-800 lg:text-3xl xl:text-4xl"
 			>
-				Le vrai bénéfice ?
+				Pourquoi choisir Pattyly ?
 			</h2>
-			<h3 class="text-xl font-medium leading-[120%] text-[#333] lg:text-2xl">
-				Tu retrouves du temps (et du plaisir) pour <span
-					class="font-bold text-[#FF6F61]">pâtisser</span
-				>.
-			</h3>
+			<p
+				class="mx-auto max-w-3xl text-base leading-relaxed text-neutral-700 md:text-lg lg:text-xl"
+			>
+				En automatisant tes tâches répétitives et en centralisant tes commandes,
+				Pattyly te redonne le temps précieux dont tu as besoin pour te concentrer
+				sur ce qui compte vraiment : créer des pâtisseries exceptionnelles et faire
+				grandir ton activité.
+			</p>
 		</div>
 
 		<!-- Benefits Cards -->
-		<div class="grid gap-8 md:grid-cols-3 lg:gap-12">
-			{#each benefits as benefit}
+		<div class="grid gap-6 md:grid-cols-3 lg:gap-8">
+			{#each benefits as benefit, index}
 				<div
-					class="group rounded-2xl border border-neutral-100 bg-white p-8 text-center shadow-sm transition-all duration-300 hover:border-neutral-200 hover:shadow-lg"
+					class="group rounded-2xl {benefit.bgColor} p-8 text-left transition-all duration-300 hover:shadow-lg sm:p-10"
 				>
-					<div class="mb-6 flex justify-center">
+					<!-- Icon -->
+					<div class="mb-6">
 						<div
-							class="flex h-16 w-16 items-center justify-center rounded-full {benefit.bgColor} text-2xl transition-all duration-300 group-hover:scale-110"
+							class="flex h-14 w-14 items-center justify-center text-3xl {benefit.iconColor} transition-all duration-300 group-hover:scale-110"
 						>
 							{benefit.emoji}
 						</div>
 					</div>
-					<h4 class="mb-4 text-lg font-medium text-neutral-800 lg:text-xl">
+
+					<!-- Title -->
+					<h3
+						class="mb-4 text-xl font-bold leading-[120%] text-neutral-800 lg:text-2xl"
+					>
 						{benefit.title}
-					</h4>
-					<p class="text-sm leading-relaxed text-neutral-600 lg:text-base">
+					</h3>
+
+					<!-- Separator line -->
+					<div
+						class="mb-6 h-0.5 w-16 {index === 1 ? 'bg-neutral-800' : 'bg-[#FF6F61]'}"
+					></div>
+
+					<!-- Description -->
+					<p
+						class="text-sm leading-relaxed text-neutral-700 lg:text-base"
+					>
 						{benefit.description}
 					</p>
 				</div>
 			{/each}
-		</div>
-
-		<!-- Description sous les bénéfices -->
-		<div class="mt-16 text-center">
-			<p
-				class="mx-auto max-w-3xl text-base leading-relaxed text-neutral-600 lg:text-lg"
-			>
-				En automatisant tes tâches répétitives et en centralisant tes commandes,
-				Pattyly te redonne le temps précieux dont tu as besoin pour te
-				concentrer sur ce qui compte vraiment : créer des pâtisseries
-				exceptionnelles et faire grandir ton activité.
-			</p>
 		</div>
 	</div>
 </section>

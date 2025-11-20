@@ -1,3 +1,23 @@
 User-agent: *
-Disallow:
+# Bloquer les pages privées et API
+Disallow: /dashboard/
+Disallow: /api/
+Disallow: /test/
+Disallow: /onboarding/
+Disallow: /checkout/
+Disallow: /subscription/
+Disallow: /early-adopter/
+
+# Autoriser les pages publiques
+Allow: /
+Allow: /pricing
+Allow: /contact
+Allow: /faq
+Allow: /about
+Allow: /cgu
+Allow: /legal
+Allow: /privacy
+
+# Sitemap
+Sitemap: https://pattyly.com/sitemap.xml
 

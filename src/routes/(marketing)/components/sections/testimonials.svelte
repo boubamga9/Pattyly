@@ -30,7 +30,7 @@
 		<!-- Header -->
 		<div class="mb-16 text-center">
 			<h2
-				class="mb-4 text-2xl font-normal leading-[120%] tracking-tight text-neutral-800 lg:text-3xl xl:text-4xl"
+				class="mb-4 text-2xl font-semibold leading-[120%] tracking-tight text-neutral-800 lg:text-3xl xl:text-4xl"
 			>
 				Oui, ça change vraiment la vie !
 			</h2>
