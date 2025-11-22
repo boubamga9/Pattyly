@@ -102,24 +102,14 @@ async function createTrialForUser(locals: any, trackingId: string) {
                 }
             });
 
-            // Créer l'enregistrement anti_fraud si nécessaire
-            const { data: existingFraudRecord } = await locals.supabaseServiceRole
+            // Créer l'enregistrement anti_fraud (on sait déjà qu'il n'existe pas grâce à la vérification précédente)
+            await locals.supabaseServiceRole
                 .from('anti_fraud')
-                .select('merchant_id')
-                .eq('merchant_id', paypalAccount.paypal_merchant_id)
-                .single();
-
-            if (!existingFraudRecord) {
-                await locals.supabaseServiceRole
-                    .from('anti_fraud')
-                    .insert({
-                        merchant_id: paypalAccount.paypal_merchant_id,
-                        created_at: new Date().toISOString()
-                    });
-                console.log('✅ [Webhook Trial] Anti-fraud record created');
-            } else {
-                console.log('ℹ️ [Webhook Trial] Anti-fraud record already exists');
-            }
+                .insert({
+                    merchant_id: paypalAccount.paypal_merchant_id,
+                    created_at: new Date().toISOString()
+                });
+            console.log('✅ [Webhook Trial] Anti-fraud record created');
         }
     } catch (error) {
         console.error('❌ [Webhook Trial] Failed to create trial:', error);
