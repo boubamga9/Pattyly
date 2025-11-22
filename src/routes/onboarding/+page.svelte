@@ -11,39 +11,34 @@
 	import { CheckCircle, Store } from 'lucide-svelte';
 	import OnboardingForm from './onboarding-form.svelte';
 	import PayPalForm from './paypal-form.svelte';
+	import DirectoryForm from '$lib/components/directory/directory-form.svelte';
 
 	export let data: {
 		step: number;
 		shop: {
 			id: string;
 			name: string;
-			bio: string;
+			bio?: string;
 			slug: string;
-			logo_url: string;
+			logo_url: string | null;
+			directory_city?: string | null;
+			directory_actual_city?: string | null;
+			directory_postal_code?: string | null;
+			directory_cake_types?: string[] | null;
+			directory_enabled?: boolean | null;
 		} | null;
 		form: any;
 		paypalPolling?: boolean;
 		paypalStatus?: string;
 	};
 
-	export let form: any;
+	// Supprimer l'export form qui n'est pas utilisé
 
-	let step = data.step;
-	let shop = data.shop;
 	let error = '';
 
-	$: if (form?.success && form?.shop) {
-		step = 2;
-		shop = form.shop;
-	}
-
-	// Watch for successful payment link creation
-	$: if (form?.success && step === 2) {
-		// Rediriger vers l'offre Early Adopter après création du payment link
-		setTimeout(() => {
-			goto('/dashboard');
-		}, 3000);
-	}
+	// Variables réactives qui se mettent à jour avec data
+	$: step = data.step;
+	$: shop = data.shop;
 </script>
 
 <svelte:head>
@@ -97,6 +92,27 @@
 					<div class="text-left">
 						<p class="text-sm font-medium text-foreground">Paiements</p>
 						<p class="text-xs text-muted-foreground">Configuration PayPal.me</p>
+					</div>
+				</div>
+
+				<div class="h-px w-8 bg-border"></div>
+
+				<div class="flex items-center space-x-3">
+					<div
+						class="flex h-10 w-10 items-center justify-center rounded-full {step >=
+						3
+							? 'bg-primary text-primary-foreground'
+							: 'bg-muted text-muted-foreground'} border-2 border-primary/20"
+					>
+						{#if step >= 3}
+							<CheckCircle class="h-5 w-5" />
+						{:else}
+							<span class="text-sm font-medium">3</span>
+						{/if}
+					</div>
+					<div class="text-left">
+						<p class="text-sm font-medium text-foreground">Annuaire</p>
+						<p class="text-xs text-muted-foreground">Inscription à l'annuaire</p>
 					</div>
 				</div>
 			</div>
@@ -164,6 +180,38 @@
 				<CardContent>
 					<!-- Formulaire PayPal.me -->
 					<PayPalForm data={data.form} />
+				</CardContent>
+			</Card>
+		{/if}
+
+		<!-- Step 3: Annuaire -->
+		{#if step === 3}
+			<Card class="w-full">
+				<CardHeader>
+					<div class="flex items-center space-x-3">
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="h-6 w-6 text-primary"
+						>
+							<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+							<circle cx="12" cy="10" r="3" />
+						</svg>
+						<div>
+							<CardTitle>Inscription à l'annuaire</CardTitle>
+							<CardDescription>
+								Renseignez vos informations pour apparaître dans l'annuaire des pâtissiers
+							</CardDescription>
+						</div>
+					</div>
+				</CardHeader>
+				<CardContent>
+					<DirectoryForm data={data.form} />
 				</CardContent>
 			</Card>
 		{/if}

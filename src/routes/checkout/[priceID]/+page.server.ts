@@ -91,11 +91,16 @@ export const load: PageServerLoad = async ({
 			mode: price.type === 'recurring' ? 'subscription' : 'payment',
 			success_url: `${url.origin}/dashboard`,
 			cancel_url: `${url.origin}/subscription`,
-			// ✅ PAS D'ESSAI GRATUIT - Géré séparément via start-trial
+			payment_method_collection: 'always', // ✅ Toujours demander la CB
 			...(price.type === 'recurring'
 				? {
 					subscription_data: {
-						// Pas de trial_period_days - facturation immédiate
+						trial_period_days: 7, // ✅ Essai gratuit de 7 jours
+						trial_settings: {
+							end_behavior: {
+								missing_payment_method: 'cancel' // Annuler si pas de CB après l'essai
+							}
+						}
 					},
 				}
 				: {

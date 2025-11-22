@@ -53,7 +53,7 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders }) => {
 
         if (activeSubscription) {
             if (activeSubscription.stripe_product_id === STRIPE_PRODUCTS.BASIC) {
-                currentPlan = 'basic';
+                currentPlan = 'starter'; // Basic devient Starter
             } else if (activeSubscription.stripe_product_id === STRIPE_PRODUCTS.PREMIUM) {
                 currentPlan = 'premium';
             }
@@ -73,24 +73,26 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders }) => {
         buttonType = 'choose';
     }
 
-    // Données des plans (en production, récupérer depuis Stripe)
+    // Données des plans (alignées avec /pricing)
     const plans = [
         {
-            id: 'basic',
-            name: 'Basic',
+            id: 'starter',
+            name: 'Starter',
             price: 14.99,
             currency: 'EUR',
-            stripePriceId: STRIPE_PRICES.BASIC,
+            stripePriceId: STRIPE_PRICES.BASIC, // Utilise BASIC pour Starter
             features: [
-                'Jusqu\'à 10 produits',
+                '30 commandes/mois',
                 'Boutique en ligne personnalisée',
                 'Gestion des commandes',
                 'Calendrier de disponibilités',
                 'Paiements sécurisés',
-                'Support email'
+                'Visibilité dans l\'annuaire',
+                'Support email prioritaire'
             ],
             limitations: [],
-            popular: false
+            popular: false,
+            isFree: false
         },
         {
             id: 'premium',
@@ -99,16 +101,19 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders }) => {
             currency: 'EUR',
             stripePriceId: STRIPE_PRICES.PREMIUM,
             features: [
-                'Produits illimités',
+                'Commandes illimitées',
                 'Boutique en ligne personnalisée',
                 'Gestion des commandes',
                 'Calendrier de disponibilités',
                 'Paiements sécurisés',
-                'Support email',
-                '💬 Envoi de devis'
+                'Visibilité + (mis en avant)',
+                'Badge vérifié',
+                '💬 Envoi de devis',
+                'Support email prioritaire'
             ],
             limitations: [],
-            popular: true
+            popular: true,
+            isFree: false
         }
     ];
 

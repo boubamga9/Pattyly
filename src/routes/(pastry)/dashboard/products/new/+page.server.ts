@@ -1,8 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { getUserPermissions, getShopIdAndSlug } from '$lib/auth';
-import { validateImageServer, validateAndRecompressImage, logValidationInfo } from '$lib/utils/images/server';
-import { sanitizeFileName } from '$lib/utils/filename-sanitizer';
+import { uploadProductImage } from '$lib/cloudinary';
 import { forceRevalidateShop } from '$lib/utils/catalog';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
@@ -10,10 +9,6 @@ import { createProductFormSchema, createCategoryFormSchema } from './schema';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
     const { userId, permissions } = await parent();
-
-    if (!permissions.canAddMoreProducts) {
-        throw redirect(303, '/dashboard/products');
-    }
 
     // Get shop_id for this user
     const { id: shopId } = await getShopIdAndSlug(userId, locals.supabase);
@@ -52,10 +47,6 @@ export const actions: Actions = {
 
         // Récupérer les permissions
         const permissions = await getUserPermissions(userId, locals.supabase);
-
-        if (!permissions.canAddMoreProducts) {
-            return fail(403, { error: 'Limite de produits atteinte. Passez au plan Premium pour ajouter plus de produits !' });
-        }
 
         // Get shop_id for this user
         const { id: shopId, slug: shopSlug } = await getShopIdAndSlug(userId, locals.supabase);
@@ -112,47 +103,25 @@ export const actions: Actions = {
 
         // Handle image upload if provided
         let imageUrl = null;
-        let oldImageUrl = null; // Stocker l'ancienne image pour suppression
 
         if (imageFile && imageFile.size > 0) {
-            // Stocker l'ancienne image avant de la remplacer
-            oldImageUrl = null; // Pas d'ancienne image pour un nouveau produit
-            // 🔍 Validation serveur stricte + re-compression automatique si nécessaire
-            const validationResult = await validateAndRecompressImage(imageFile, 'PRODUCT');
+            // Validation basique : taille max 10MB
+            if (imageFile.size > 10 * 1024 * 1024) {
+                return fail(400, { error: 'L\'image ne doit pas dépasser 10MB' });
+            }
 
-            // Log de validation pour le debugging
-            logValidationInfo(imageFile, 'PRODUCT', validationResult);
-
-            if (!validationResult.isValid) {
-                return fail(400, { error: validationResult.error || 'Validation de l\'image échouée' });
+            // Vérifier que c'est bien une image
+            if (!imageFile.type.startsWith('image/')) {
+                return fail(400, { error: 'Le fichier doit être une image' });
             }
 
             try {
-                // 🔄 Utiliser l'image re-compressée si disponible
-                const imageToUpload = validationResult.compressedFile || imageFile;
-
-                // Upload to Supabase Storage
-                const sanitizedFileName = sanitizeFileName(imageToUpload.name);
-                const fileName = `${shopId}/${Date.now()}-${sanitizedFileName}`;
-                const { error: uploadError } = await locals.supabase.storage
-                    .from('product-images')
-                    .upload(fileName, imageToUpload, {
-                        cacheControl: '3600',
-                        upsert: false
-                    });
-
-                if (uploadError) {
-                    return fail(500, { error: 'Erreur lors de l\'upload de l\'image' });
-                }
-
-                // Get public URL
-                const { data: urlData } = locals.supabase.storage
-                    .from('product-images')
-                    .getPublicUrl(fileName);
-
-                imageUrl = urlData.publicUrl;
+                // Upload vers Cloudinary (compression et optimisation automatiques)
+                const uploadResult = await uploadProductImage(imageFile, shopId);
+                imageUrl = uploadResult.secure_url;
             } catch (err) {
-                return fail(500, { error: 'Erreur lors du traitement de l\'image' });
+                console.error('❌ [Product Upload] Erreur Cloudinary:', err);
+                return fail(500, { error: 'Erreur lors de l\'upload de l\'image' });
             }
         }
 

@@ -21,7 +21,6 @@
 		CheckCircle,
 		Pencil,
 	} from 'lucide-svelte';
-	import { compressBackgroundImage } from '$lib/utils/images/client';
 
 	export let form: SuperValidated<Infer<typeof customizationSchema>>;
 
@@ -39,46 +38,37 @@
 	let _backgroundFile: File | null = null;
 	let backgroundPreview: string | null = $formData.background_image_url || null;
 	let backgroundInputElement: HTMLInputElement;
-	let isBackgroundCompressing = false;
 	let submitted = false;
 
-	// Handle background image selection with compression
-	async function handleBackgroundFileSelect(event: Event) {
+	// Handle background image selection (Cloudinary gère la compression automatiquement)
+	function handleBackgroundFileSelect(event: Event) {
 		const target = event.target as HTMLInputElement;
 		const file = target.files?.[0];
 
 		if (!file) return;
 
-		try {
-			isBackgroundCompressing = true;
-
-			// Validate file type
-			if (!file.type.startsWith('image/')) {
-				alert('Veuillez sélectionner un fichier image valide');
-				return;
-			}
-
-			// Compresser l'image de fond
-			const compressionResult = await compressBackgroundImage(file);
-
-			// Utiliser l'image compressée
-			_backgroundFile = compressionResult.file;
-			$formData.background_image = compressionResult.file;
-
-			// 🔄 Synchroniser l'input file avec l'image compressée
-			const dataTransfer = new DataTransfer();
-			dataTransfer.items.add(compressionResult.file);
-			backgroundInputElement.files = dataTransfer.files;
-
-			// Create preview
-			const reader = new FileReader();
-			reader.onload = (e) => {
-				backgroundPreview = e.target?.result as string;
-			};
-			reader.readAsDataURL(compressionResult.file);
-		} finally {
-			isBackgroundCompressing = false;
+		// Validate file type
+		if (!file.type.startsWith('image/')) {
+			alert('Veuillez sélectionner un fichier image valide');
+			return;
 		}
+
+		// Validate file size (max 5MB)
+		if (file.size > 5 * 1024 * 1024) {
+			alert('L\'image ne doit pas dépasser 5MB');
+			return;
+		}
+
+		// Utiliser le fichier original (Cloudinary compresse automatiquement)
+		_backgroundFile = file;
+		$formData.background_image = file;
+
+		// Create preview
+		const reader = new FileReader();
+		reader.onload = (e) => {
+			backgroundPreview = e.target?.result as string;
+		};
+		reader.readAsDataURL(file);
 	}
 
 	async function removeBackgroundImage() {
@@ -211,21 +201,11 @@
 							class="flex h-32 w-full max-w-md cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/20 transition-colors hover:border-primary hover:bg-muted/50"
 							on:click={() =>
 								document.getElementById('background_image')?.click()}
-							disabled={isBackgroundCompressing}
 						>
-							{#if isBackgroundCompressing}
-								<div
-									class="mb-2 h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent"
-								/>
-								<p class="text-center text-xs text-muted-foreground">
-									Compression en cours...
-								</p>
-							{:else}
-								<Upload class="mb-2 h-8 w-8 text-muted-foreground" />
-								<p class="text-center text-xs text-muted-foreground">
-									Cliquez pour sélectionner une image de fond
-								</p>
-							{/if}
+							<Upload class="mb-2 h-8 w-8 text-muted-foreground" />
+							<p class="text-center text-xs text-muted-foreground">
+								Cliquez pour sélectionner une image de fond
+							</p>
 						</button>
 					</div>
 				{/if}

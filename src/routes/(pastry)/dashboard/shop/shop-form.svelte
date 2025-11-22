@@ -15,7 +15,6 @@
 	import { Upload, X, Copy, CheckCircle, LoaderCircle } from 'lucide-svelte';
 	import { formSchema, type FormSchema } from './schema';
 	import { createEventDispatcher } from 'svelte';
-	import { compressLogo } from '$lib/utils/images/client';
 	import { env } from '$env/dynamic/public';
 
 	export let data: SuperValidated<Infer<FormSchema>>;
@@ -32,50 +31,33 @@
 	let copySuccess = false;
 	let logoInputElement: HTMLInputElement;
 	let submitted = false;
-	let isCompressing = false;
-
-	// Handle file selection with compression
-	async function handleFileSelect(event: Event) {
+	// Handle file selection (Cloudinary gère la compression automatiquement)
+	function handleFileSelect(event: Event) {
 		const target = event.target as HTMLInputElement;
 		const file = target.files?.[0];
 
 		if (!file) return;
 
-		try {
-			isCompressing = true;
-
-			// Validate file type
-			if (!file.type.startsWith('image/')) {
-				return;
-			}
-
-			// Validate file size before compression (max 5MB pour éviter les abus)
-			if (file.size > 5 * 1024 * 1024) {
-				return;
-			}
-
-			// Compresser et redimensionner le logo
-			const compressionResult = await compressLogo(file);
-
-			// Utiliser l'image compressée
-			_logoFile = compressionResult.file;
-			$formData.logo = compressionResult.file;
-
-			// 🔄 Synchroniser l'input file avec l'image compressée
-			// Créer un nouveau FileList avec l'image compressée
-			const dataTransfer = new DataTransfer();
-			dataTransfer.items.add(compressionResult.file);
-			logoInputElement.files = dataTransfer.files;
-
-			// Create preview
-			const reader = new FileReader();
-			reader.onload = (e) => {
-				logoPreview = e.target?.result as string;
-			};
-			reader.readAsDataURL(compressionResult.file);
-		} finally {
-			isCompressing = false;
+		// Validate file type
+		if (!file.type.startsWith('image/')) {
+			return;
 		}
+
+		// Validate file size (max 5MB)
+		if (file.size > 5 * 1024 * 1024) {
+			return;
+		}
+
+		// Utiliser le fichier original (Cloudinary compresse automatiquement)
+		_logoFile = file;
+		$formData.logo = file;
+
+		// Create preview
+		const reader = new FileReader();
+		reader.onload = (e) => {
+			logoPreview = e.target?.result as string;
+		};
+		reader.readAsDataURL(file);
 	}
 
 	function removeLogo() {

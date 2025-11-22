@@ -23,6 +23,5 @@ export { QuoteRejectedEmail } from './quote-rejected';
 export { RequestRejectedEmail } from './request-rejected';
 export { OrderCancelledEmail } from './order-cancelled';
 
-// Subscription and trial emails
-export { TrialEndingNotificationEmail } from './trial-ending-notification';
+// Subscription emails
 export { PaymentFailedNotificationEmail } from './payment-failed-notification';

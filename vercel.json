@@ -1,0 +1,15 @@
+{
+  "rewrites": [
+    {
+      "source": "/robots.txt",
+      "destination": "/test-robots.txt",
+      "has": [
+        {
+          "type": "host",
+          "value": "test.pattyly.com"
+        }
+      ]
+    }
+  ]
+}
+

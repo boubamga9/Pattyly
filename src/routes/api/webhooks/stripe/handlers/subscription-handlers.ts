@@ -20,33 +20,15 @@ export async function upsertSubscription(subscription: Stripe.Subscription, loca
 
         const profileId = customerData.profile_id;
         const productId = subscription.items.data[0].price.product as string;
-        const priceId = subscription.items.data[0].price.id as string;
         const productLookupKey = subscription.items.data[0].price.lookup_key as string;
         const subscriptionId = subscription.id;
 
         // Déterminer le statut de l'abonnement
         let subscriptionStatus: 'active' | 'inactive' = 'inactive';
 
-        if (subscription.status === 'active' || subscription.status === 'trialing') {
+        if (subscription.status === 'active' || subscription.status === 'trialing' || subscription.status === 'past_due' || subscription.status === 'unpaid') {
             subscriptionStatus = 'active';
         }
-
-        // Vérifier si c'est un Early Adopter (prix spécial à 15€)
-        const isEarlyAdopterPrice = priceId === STRIPE_PRICES.EARLY;
-
-        if (isEarlyAdopterPrice && subscriptionStatus === 'active') {
-            // Marquer l'utilisateur comme Early Adopter
-            await locals.supabaseServiceRole
-                .from('profiles')
-                .update({
-                    is_early_adopter: true,
-                    early_adopter_offer_shown_at: new Date().toISOString()
-                })
-                .eq('id', profileId);
-
-            console.log('✅ User marked as Early Adopter:', profileId);
-        }
-
 
         // Une seule logique UPSERT qui fonctionne pour tous les cas
         const { error: upsertError } = await locals.supabaseServiceRole
@@ -72,11 +54,12 @@ export async function upsertSubscription(subscription: Stripe.Subscription, loca
             .eq('profile_id', profileId)
             .single();
 
-        // Gérer is_custom_accepted selon le plan
+        // Gérer l'état de la boutique selon le statut de l'abonnement
         if (subscriptionStatus === 'active') {
 
+
             if (productLookupKey === 'price_basic_monthly') {
-                // Désactiver is_custom_accepted pour le plan basique
+                // Désactiver is_custom_accepted pour le plan basique (Starter)
                 const { error: shopUpdateError } = await locals.supabaseServiceRole
                     .from('shops')
                     .update({ is_custom_accepted: false })
@@ -85,11 +68,37 @@ export async function upsertSubscription(subscription: Stripe.Subscription, loca
                 if (shopUpdateError) {
                     throw error(500, 'Failed to disable custom requests for basic plan');
                 }
+            } else {
+                // Pour Premium, activer is_custom_accepted
+                const { error: shopUpdateError } = await locals.supabaseServiceRole
+                    .from('shops')
+                    .update({ is_custom_accepted: true })
+                    .eq('profile_id', profileId);
+
+                if (shopUpdateError) {
+                    throw error(500, 'Failed to enable custom requests for premium plan');
+                }
             }
 
             // Revalider le cache ISR avec délai pour éviter les race conditions
             if (shopData?.slug) {
+                setTimeout(async () => {
+                    await forceRevalidateShop(shopData.slug);
+                }, 3000);
+            }
+        } else {
+            // Abonnement inactif : désactiver les commandes personnalisées (retour au plan gratuit)
+            const { error: shopUpdateError } = await locals.supabaseServiceRole
+                .from('shops')
+                .update({ is_custom_accepted: false })
+                .eq('profile_id', profileId);
 
+            if (shopUpdateError) {
+                throw error(500, 'Failed to disable custom requests after subscription deactivation');
+            }
+
+            // Revalider le cache ISR avec délai
+            if (shopData?.slug) {
                 setTimeout(async () => {
                     await forceRevalidateShop(shopData.slug);
                 }, 3000);
@@ -130,37 +139,10 @@ export async function handleSubscriptionDeleted(subscription: Stripe.Subscriptio
             .eq('profile_id', profileId)
             .eq('stripe_product_id', productId);
 
-
-
         if (updateError) {
             throw error(500, 'Failed to update subscription status in database');
-        } else {
         }
 
-        // Récupérer le slug de la boutique avant de la désactiver
-        const { data: shopData } = await locals.supabaseServiceRole
-            .from('shops')
-            .select('slug')
-            .eq('profile_id', profileId)
-            .single();
-
-        // Désactiver is_custom_accepted et is_active quand l'abonnement est supprimé
-        const { error: shopUpdateError } = await locals.supabaseServiceRole
-            .from('shops')
-            .update({ is_custom_accepted: false, is_active: false })
-            .eq('profile_id', profileId);
-
-        if (shopUpdateError) {
-            throw error(500, 'Failed to disable custom requests after subscription deletion');
-        }
-
-        // Revalider le cache ISR de la boutique avec délai
-        if (shopData?.slug) {
-
-            setTimeout(async () => {
-                await forceRevalidateShop(shopData.slug);
-            }, 3000);
-        }
 
     } catch (err) {
         throw error(500, 'handleSubscriptionDeleted failed: ' + err);

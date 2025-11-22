@@ -1,11 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { Upload, X, LoaderCircle } from 'lucide-svelte';
-	import {
-		ImageService,
-		type ProcessedImage,
-	} from '$lib/utils/images/image-service';
+	import { Upload, X } from 'lucide-svelte';
 
 	export let type: 'product' | 'logo' = 'product';
 	export let currentImageUrl: string | null = null;
@@ -13,47 +9,58 @@
 	export let className = '';
 
 	const dispatch = createEventDispatcher<{
-		imageSelected: ProcessedImage;
+		imageSelected: File;
 		imageRemoved: void;
 	}>();
 
 	let imageFile: File | null = null;
 	let imagePreview: string | null = currentImageUrl;
-	let isProcessing = false;
 	let errorMessage = '';
 
+	// Validation basique
+	function validateFile(file: File): { valid: boolean; error?: string } {
+		// Vérifier que c'est une image
+		if (!file.type.startsWith('image/')) {
+			return { valid: false, error: 'Le fichier doit être une image' };
+		}
+
+		// Vérifier la taille selon le type
+		const maxSize = type === 'logo' ? 5 * 1024 * 1024 : 10 * 1024 * 1024; // 5MB pour logo, 10MB pour produit
+		if (file.size > maxSize) {
+			return {
+				valid: false,
+				error: `L'image ne doit pas dépasser ${type === 'logo' ? '5MB' : '10MB'}`
+			};
+		}
+
+		return { valid: true };
+	}
+
 	// Gestionnaire de sélection de fichier
-	async function handleFileSelect(event: Event) {
+	function handleFileSelect(event: Event) {
 		const target = event.target as HTMLInputElement;
 		const file = target.files?.[0];
 
 		if (!file) return;
 
-		// Valider le fichier
-		const validation = ImageService.validateImage(file, type);
+		// Validation basique
+		const validation = validateFile(file);
 		if (!validation.valid) {
 			errorMessage = validation.error || 'Fichier invalide';
 			return;
 		}
 
-		try {
-			isProcessing = true;
-			errorMessage = '';
+		errorMessage = '';
 
-			// Traiter l'image
-			const processedImage = await ImageService.processImage(file, type);
+		// Créer une URL de prévisualisation
+		const previewUrl = URL.createObjectURL(file);
 
-			// Mettre à jour l'état
-			imageFile = processedImage.file;
-			imagePreview = processedImage.url;
+		// Mettre à jour l'état
+		imageFile = file;
+		imagePreview = previewUrl;
 
-			// Émettre l'événement
-			dispatch('imageSelected', processedImage);
-		} catch (error) {
-			errorMessage = "Erreur lors du traitement de l'image";
-		} finally {
-			isProcessing = false;
-		}
+		// Émettre l'événement avec le fichier original (Cloudinary gère la compression)
+		dispatch('imageSelected', file);
 
 		// Réinitialiser l'input
 		target.value = '';
@@ -61,9 +68,9 @@
 
 	// Supprimer l'image
 	function removeImage() {
-		// Nettoyer l'ancienne URL de prévisualisation
-		if (imagePreview && imagePreview !== currentImageUrl) {
-			ImageService.cleanupPreviewUrl(imagePreview);
+		// Nettoyer l'URL de prévisualisation
+		if (imagePreview && imagePreview !== currentImageUrl && imagePreview.startsWith('blob:')) {
+			URL.revokeObjectURL(imagePreview);
 		}
 
 		imageFile = null;
@@ -76,8 +83,8 @@
 	// Nettoyer les ressources au démontage
 	import { onDestroy } from 'svelte';
 	onDestroy(() => {
-		if (imagePreview && imagePreview !== currentImageUrl) {
-			ImageService.cleanupPreviewUrl(imagePreview);
+		if (imagePreview && imagePreview !== currentImageUrl && imagePreview.startsWith('blob:')) {
+			URL.revokeObjectURL(imagePreview);
 		}
 	});
 
@@ -120,22 +127,13 @@
 				on:click={() =>
 					document.getElementById(`image-upload-${type}`)?.click()}
 			>
-				{#if isProcessing}
-					<LoaderCircle
-						class="mb-2 h-8 w-8 animate-spin text-muted-foreground"
-					/>
-					<p class="text-center text-xs text-muted-foreground">
-						Traitement en cours...
-					</p>
-				{:else}
-					<Upload class="mb-2 h-8 w-8 text-muted-foreground" />
-					<p class="text-center text-xs text-muted-foreground">
-						Cliquez pour sélectionner une image
-					</p>
-					<p class="text-center text-xs text-muted-foreground">
-						{type === 'logo' ? '400×400px max' : '800×800px max'}
-					</p>
-				{/if}
+				<Upload class="mb-2 h-8 w-8 text-muted-foreground" />
+				<p class="text-center text-xs text-muted-foreground">
+					Cliquez pour sélectionner une image
+				</p>
+				<p class="text-center text-xs text-muted-foreground">
+					{type === 'logo' ? 'Max 5MB' : 'Max 10MB'}
+				</p>
 			</div>
 		</div>
 	{/if}
@@ -153,7 +151,7 @@
 		accept="image/*"
 		on:change={handleFileSelect}
 		class="hidden"
-		disabled={disabled || isProcessing}
+		disabled={disabled}
 	/>
 
 	<!-- Bouton de sélection (si pas d'image) -->
@@ -164,7 +162,7 @@
 				variant="outline"
 				on:click={() =>
 					document.getElementById(`image-upload-${type}`)?.click()}
-				disabled={disabled || isProcessing}
+				disabled={disabled}
 			>
 				<Upload class="mr-2 h-4 w-4" />
 				Sélectionner une image

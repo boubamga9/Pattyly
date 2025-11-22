@@ -58,6 +58,19 @@
 	function goToFAQ() {
 		goto(`/${shop.slug}/faq`);
 	}
+
+	// Variables SEO réactives
+	$: productCount = products?.length || 0;
+	$: hasCustomOrders = shop?.is_custom_accepted || false;
+	$: seoTitle = shop?.name 
+		? `${shop.name} - Cake Designer & Pâtissier | Commandez vos gâteaux personnalisés en ligne`
+		: 'Boutique de pâtisserie - Pattyly';
+	$: seoDescription = shop?.bio 
+		? `${shop.bio} Commandez vos gâteaux personnalisés en ligne. ${productCount > 0 ? `${productCount} créations disponibles. ` : ''}${hasCustomOrders ? 'Demandes sur mesure acceptées. ' : ''}Livraison et retrait disponibles.`
+		: shop?.name
+			? `Découvrez ${shop.name}, votre cake designer et pâtissier. Commandez vos gâteaux personnalisés en ligne${productCount > 0 ? ` parmi ${productCount} créations disponibles` : ''}. ${hasCustomOrders ? 'Demandes sur mesure acceptées. ' : ''}Livraison et retrait disponibles.`
+			: 'Commandez vos gâteaux personnalisés en ligne. Livraison et retrait disponibles.';
+	$: seoKeywords = `cake designer, pâtissier, ${shop?.name || ''}, gâteaux personnalisés, commande en ligne, pâtisserie, gâteaux sur mesure${hasCustomOrders ? ', demande personnalisée' : ''}, livraison gâteaux`;
 </script>
 
 <svelte:head>
@@ -68,26 +81,30 @@
 			content="Cette boutique n'existe pas ou n'est plus disponible"
 		/>
 	{:else}
-		<title>{shop.name} - Pattyly</title>
+		<title>{seoTitle}</title>
 		<meta
 			name="description"
-			content={shop.bio ||
-				`Découvrez les délicieuses créations de ${shop.name}. Commandez en ligne vos gâteaux personnalisés.`}
+			content={seoDescription}
 		/>
 		<meta
 			name="keywords"
-			content="pâtisserie, gâteaux, {shop.name}, commande en ligne, personnalisation"
+			content={seoKeywords}
 		/>
-		<meta property="og:title" content="{shop.name} - Pattyly" />
+		<meta property="og:title" content={seoTitle} />
 		<meta
 			property="og:description"
-			content={shop.bio ||
-				`Découvrez les délicieuses créations de ${shop.name}`}
+			content={seoDescription}
 		/>
 		<meta property="og:type" content="website" />
 		<meta property="og:url" content={$page.url.href} />
-		{#if shop.logo_url}
+		{#if shop?.logo_url}
 			<meta property="og:image" content={shop.logo_url} />
+		{/if}
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={seoTitle} />
+		<meta name="twitter:description" content={seoDescription} />
+		{#if shop?.logo_url}
+			<meta name="twitter:image" content={shop.logo_url} />
 		{/if}
 	{/if}
 </svelte:head>

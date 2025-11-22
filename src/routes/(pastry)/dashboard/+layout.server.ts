@@ -10,7 +10,6 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 
     const userId = session.user.id;
 
-    // ✅ Utiliser getUserPermissions qui tient compte de trial_ending
     const permissions = await getUserPermissions(userId, locals.supabase);
 
     // Vérifications de sécurité
@@ -18,12 +17,8 @@ export const load: LayoutServerLoad = async ({ locals }) => {
         throw redirect(303, '/onboarding');
     }
 
-    // needsSubscription = true si plan === 'basic' (limité)
-    const hasInactiveSubscription = permissions.needsSubscription;
-
     return {
         permissions,
-        userId,
-        hasInactiveSubscription
+        userId
     };
 }; 

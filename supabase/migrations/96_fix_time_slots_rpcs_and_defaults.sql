@@ -85,7 +85,7 @@ BEGIN
                 'logo_url', s.logo_url,
                 'is_custom_accepted', s.is_custom_accepted,
                 'is_active', s.is_active,
-                'is_visible', is_shop_visible(s.profile_id, s.is_active)
+                'is_visible', s.is_active
             )
             FROM shops s
             WHERE s.id = v_shop_id

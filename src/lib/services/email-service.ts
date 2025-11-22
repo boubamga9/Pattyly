@@ -817,5 +817,4 @@ export class EmailService {
         }
     }
 
-    // ✅ sendTrialEndingNotification supprimé - l'essai gratuit est maintenant géré via trial_ending
 }

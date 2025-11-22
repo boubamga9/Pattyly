@@ -72,6 +72,8 @@
 				return { label: 'Prête', variant: 'default' };
 			case 'quoted':
 				return { label: 'Devis envoyé', variant: 'outline' };
+			case 'to_verify':
+				return { label: 'À vérifier', variant: 'secondary' };
 			default:
 				return { label: status, variant: 'outline' };
 		}

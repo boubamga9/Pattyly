@@ -102,31 +102,24 @@ async function createTrialForUser(locals: any, trackingId: string) {
                 }
             });
 
-            console.log('🔄 [Webhook Trial] Calling check_and_create_trial RPC with params:', {
-                p_email: profileData.email,
-                p_merchant_id: paypalAccount.paypal_merchant_id,
-                p_profile_id: paypalAccount.profile_id,
-                p_stripe_customer_id: stripeCustomerId,
-                p_subscription_id: subscription.id
-            });
-
-            const rpcResult = await (locals.supabaseServiceRole as any).rpc('check_and_create_trial', {
-                p_email: profileData.email,
-                p_merchant_id: paypalAccount.paypal_merchant_id,
-                p_profile_id: paypalAccount.profile_id,
-                p_stripe_customer_id: stripeCustomerId,
-                p_subscription_id: subscription.id
-            });
-
-            console.log('✅ [Webhook Trial] RPC check_and_create_trial result:', rpcResult);
-
-            // Vérifier que l'enregistrement anti_fraud a bien été créé
-            const { data: antiFraudCheck } = await locals.supabaseServiceRole
+            // Créer l'enregistrement anti_fraud si nécessaire
+            const { data: existingFraudRecord } = await locals.supabaseServiceRole
                 .from('anti_fraud')
-                .select('*')
-                .eq('merchant_id', paypalAccount.paypal_merchant_id);
+                .select('merchant_id')
+                .eq('merchant_id', paypalAccount.paypal_merchant_id)
+                .single();
 
-            console.log('🔍 [Webhook Trial] Anti-fraud record verification:', antiFraudCheck);
+            if (!existingFraudRecord) {
+                await locals.supabaseServiceRole
+                    .from('anti_fraud')
+                    .insert({
+                        merchant_id: paypalAccount.paypal_merchant_id,
+                        created_at: new Date().toISOString()
+                    });
+                console.log('✅ [Webhook Trial] Anti-fraud record created');
+            } else {
+                console.log('ℹ️ [Webhook Trial] Anti-fraud record already exists');
+            }
         }
     } catch (error) {
         console.error('❌ [Webhook Trial] Failed to create trial:', error);

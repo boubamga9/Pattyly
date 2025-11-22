@@ -54,6 +54,17 @@ export const toggleShopVisibilitySchema = z.object({
     is_active: z.boolean()
 });
 
+// Configuration de l'annuaire
+export const directorySchema = z.object({
+    directory_city: z.string().min(2, 'La grande ville est requise').max(100),
+    directory_actual_city: z.string().min(2, 'La ville est requise').max(100),
+    directory_postal_code: z.string().regex(/^[0-9]{5}$/, 'Le code postal doit contenir 5 chiffres'),
+    directory_cake_types: z.array(z.string())
+        .min(1, 'Sélectionnez au moins un type de gâteau')
+        .max(3, 'Vous ne pouvez sélectionner que 3 types de gâteaux maximum'),
+    directory_enabled: z.boolean().default(false)
+});
+
 // ===== TYPES EXPORTÉS =====
 
 export type ShopBase = z.infer<typeof shopBaseSchema>;
@@ -61,3 +72,4 @@ export type CreateShop = z.infer<typeof createShopSchema>;
 export type UpdateShop = z.infer<typeof updateShopSchema>;
 export type ToggleCustomRequests = z.infer<typeof toggleCustomRequestsSchema>;
 export type ToggleShopVisibility = z.infer<typeof toggleShopVisibilitySchema>;
+export type Directory = z.infer<typeof directorySchema>;

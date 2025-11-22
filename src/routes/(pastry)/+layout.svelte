@@ -15,9 +15,9 @@
 	import * as Drawer from '$lib/components/ui/drawer';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { Separator } from '$lib/components/ui/separator';
-	import SubscriptionAlert from '$lib/components/dashboard/subscription-alert.svelte';
 
 	import NavLink from './components/nav-link.svelte';
+	import OrderLimitAlert from './components/order-limit-alert.svelte';
 
 	export let data;
 
@@ -106,7 +106,12 @@
 						<span class="sr-only">Formulaire personnalisé</span>
 					</NavLink>
 				</Tooltip.Trigger>
-				<Tooltip.Content side="right">Formulaire personnalisé</Tooltip.Content>
+				<Tooltip.Content side="right">
+					Formulaire personnalisé
+					{#if !data.permissions.canManageCustomForms}
+						<span class="ml-1 text-[#FF6F61]">(Premium)</span>
+					{/if}
+				</Tooltip.Content>
 			</Tooltip.Root>
 			<Tooltip.Root>
 				<Tooltip.Trigger asChild let:builder>
@@ -293,16 +298,8 @@
 				</Drawer.Root>
 			</div>
 		</header>
-		<main class="flex flex-col items-start p-4 sm:px-6 sm:py-0">
-			<!-- Alerte d'abonnement inactif ou essai gratuit -->
-				<div class="w-full">
-				<SubscriptionAlert
-					hasInactiveSubscription={data.hasInactiveSubscription}
-					trialEnding={data.trialEnding}
-					isTrialActive={data.isTrialActive}
-				/>
-				</div>
-
+		<main class="flex w-full flex-col items-start p-4 sm:px-6 sm:py-0">
+			<OrderLimitAlert orderLimitStats={data.orderLimitStats} />
 			<slot />
 		</main>
 	</div>

@@ -3,6 +3,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { superValidate, fail, message, setError } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { createLocalDynamicSchema } from './schema';
+import { checkOrderLimit } from '$lib/utils/order-limits';
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
     try {
@@ -15,25 +16,58 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         });
 
         if (dbError) {
-            console.error('Error fetching product data:', dbError);
+            console.error('❌ Error fetching product data:', dbError);
             throw error(500, 'Erreur serveur lors du chargement de la boutique');
         }
 
         if (!productData) {
+            console.error('❌ productData is null for slug:', slug, 'product_id:', id);
             throw error(404, 'Boutique non trouvée');
         }
 
         const { shop, product, customForm, customFields, availabilities, unavailabilities, datesWithLimitReached } = productData;
 
-        console.log('productData', productData);
+        console.log('✅ productData received:', { 
+            hasShop: !!shop, 
+            shopId: shop?.id, 
+            shopIsVisible: shop?.is_visible,
+            shopIsActive: shop?.is_active,
+            hasProduct: !!product 
+        });
+
+        if (!shop) {
+            console.error('❌ shop is null in productData');
+            throw error(404, 'Boutique non trouvée');
+        }
 
         if (!product) {
+            console.error('❌ product is null for product_id:', id);
             throw error(404, 'Produit non trouvé');
         }
 
-        // Vérifier la visibilité (essai, abonnement, admin)
+        // Vérifier la visibilité (basée uniquement sur is_active)
         if (!shop.is_visible && !url.searchParams.get('preview')) {
+            console.error('❌ shop is not visible. is_visible:', shop.is_visible, 'is_active:', shop.is_active);
             throw error(404, 'Boutique non trouvée');
+        }
+
+        // Récupérer le profile_id pour vérifier la limite de commandes
+        // Utiliser le service role pour avoir accès aux données
+        const { data: shopData, error: shopDataError } = await locals.supabaseServiceRole
+            .from('shops')
+            .select('profile_id')
+            .eq('id', shop.id)
+            .single();
+
+        // Vérifier la limite de commandes (seulement si on a réussi à récupérer le profile_id)
+        let orderLimitStats = null;
+        if (!shopDataError && shopData?.profile_id) {
+            try {
+                orderLimitStats = await checkOrderLimit(shop.id, shopData.profile_id, locals.supabaseServiceRole);
+            } catch (limitError) {
+                console.error('Error checking order limit:', limitError);
+                // Ne pas bloquer la page si la vérification de limite échoue
+            }
         }
 
         // Les customizations sont chargées dans le layout parent
@@ -49,6 +83,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
             availabilities: availabilities || [],
             unavailabilities: unavailabilities || [],
             datesWithLimitReached: datesWithLimitReached || [],
+            orderLimitStats,
             form: await superValidate(zod(dynamicSchema))
         };
 
@@ -84,7 +119,7 @@ export const actions: Actions = {
             // Get shop
             const { data: shop, error: shopError } = await locals.supabase
                 .from('shops')
-                .select('id, name, slug')
+                .select('id, name, slug, profile_id')
                 .eq('slug', slug)
                 .eq('is_active', true)
                 .single();
@@ -92,6 +127,24 @@ export const actions: Actions = {
             if (shopError || !shop) {
                 throw error(404, 'Boutique non trouvée');
             }
+
+            // Vérifier la limite de commandes
+            console.log('🔍 [Product Order] Checking order limit before creating order...');
+            const orderLimitStats = await checkOrderLimit(shop.id, shop.profile_id, locals.supabase);
+            if (orderLimitStats.isLimitReached) {
+                console.warn('🚫 [Product Order] Order creation blocked - limit reached:', {
+                    shopId: shop.id,
+                    shopName: shop.name,
+                    orderCount: orderLimitStats.orderCount,
+                    orderLimit: orderLimitStats.orderLimit,
+                    plan: orderLimitStats.plan
+                });
+                const tempSchema = createLocalDynamicSchema([]);
+                const form = await superValidate(request, zod(tempSchema));
+                setError(form, '', `Limite de commandes atteinte (${orderLimitStats.orderCount}/${orderLimitStats.orderLimit} ce mois-ci). Passez au plan supérieur pour continuer.`);
+                return { form };
+            }
+            console.log('✅ [Product Order] Order limit check passed, proceeding with order creation');
 
             // Get product
             const { data: product, error: productError } = await locals.supabase

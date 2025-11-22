@@ -15,6 +15,7 @@
 		datesWithLimitReached,
 		form,
 		customizations,
+		orderLimitStats,
 	} = $page.data);
 
 	// Styles personnalisés
@@ -157,6 +158,7 @@
 					{shop}
 					{customFields}
 					{availabilities}
+					{orderLimitStats}
 					{unavailabilities}
 					{datesWithLimitReached}
 					{customizations}

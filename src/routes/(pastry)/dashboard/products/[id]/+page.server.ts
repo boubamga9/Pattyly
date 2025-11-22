@@ -1,9 +1,7 @@
 import { error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { getShopIdAndSlug } from '$lib/auth';
-import { deleteImageIfUnused } from '$lib/storage';
-import { validateImageServer, validateAndRecompressImage, logValidationInfo } from '$lib/utils/images/server';
-import { sanitizeFileName } from '$lib/utils/filename-sanitizer';
+import { uploadProductImage, deleteImage, extractPublicIdFromUrl } from '$lib/cloudinary';
 import { forceRevalidateShop } from '$lib/utils/catalog';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
@@ -192,47 +190,34 @@ export const actions: Actions = {
 
             // Handle image upload if provided
             let imageUrl = null;
-            let oldImageUrl = null; // Stocker l'ancienne image pour suppression
+            const oldImageUrl = currentProduct?.image_url || null;
 
             if (imageFile && imageFile.size > 0) {
-                // Stocker l'ancienne image avant de la remplacer
-                oldImageUrl = currentProduct?.image_url || null;
-                // 🔍 Validation serveur stricte + re-compression automatique si nécessaire
-                const validationResult = await validateAndRecompressImage(imageFile, 'PRODUCT');
+                // Validation basique : taille max 10MB
+                if (imageFile.size > 10 * 1024 * 1024) {
+                    return fail(400, { error: 'L\'image ne doit pas dépasser 10MB' });
+                }
 
-                // Log de validation pour le debugging
-                logValidationInfo(imageFile, 'PRODUCT', validationResult);
-
-                if (!validationResult.isValid) {
-                    return fail(400, { error: validationResult.error || 'Validation de l\'image échouée' });
+                // Vérifier que c'est bien une image
+                if (!imageFile.type.startsWith('image/')) {
+                    return fail(400, { error: 'Le fichier doit être une image' });
                 }
 
                 try {
-                    // 🔄 Utiliser l'image re-compressée si disponible
-                    const imageToUpload = validationResult.compressedFile || imageFile;
+                    // Upload vers Cloudinary (compression et optimisation automatiques)
+                    const uploadResult = await uploadProductImage(imageFile, shopId);
+                    imageUrl = uploadResult.secure_url;
 
-                    // Upload to Supabase Storage
-                    const sanitizedFileName = sanitizeFileName(imageToUpload.name);
-                    const fileName = `${shopId}/${Date.now()}-${sanitizedFileName}`;
-                    const { error: uploadError } = await locals.supabase.storage
-                        .from('product-images')
-                        .upload(fileName, imageToUpload, {
-                            cacheControl: '3600',
-                            upsert: false
-                        });
-
-                    if (uploadError) {
-                        return fail(500, { error: 'Erreur lors de l\'upload de l\'image' });
+                    // Supprimer l'ancienne image Cloudinary si elle existe
+                    if (oldImageUrl) {
+                        const oldPublicId = extractPublicIdFromUrl(oldImageUrl);
+                        if (oldPublicId) {
+                            await deleteImage(oldPublicId);
+                        }
                     }
-
-                    // Get public URL
-                    const { data: urlData } = locals.supabase.storage
-                        .from('product-images')
-                        .getPublicUrl(fileName);
-
-                    imageUrl = urlData.publicUrl;
                 } catch (err) {
-                    return fail(500, { error: 'Erreur lors du traitement de l\'image' });
+                    console.error('❌ [Product Update] Erreur Cloudinary:', err);
+                    return fail(500, { error: 'Erreur lors de l\'upload de l\'image' });
                 }
             }
 
@@ -264,9 +249,21 @@ export const actions: Actions = {
                 });
             }
 
-            // Supprimer l'ancienne image si elle n'est plus utilisée par d'autres produits
+            // Supprimer l'ancienne image Cloudinary si elle existe et a été remplacée
             if (oldImageUrl && oldImageUrl !== imageUrl) {
-                await deleteImageIfUnused(locals.supabase, oldImageUrl, productId);
+                const oldPublicId = extractPublicIdFromUrl(oldImageUrl);
+                if (oldPublicId) {
+                    // Vérifier que l'image n'est pas utilisée par d'autres produits
+                    const { data: otherProducts } = await locals.supabase
+                        .from('products')
+                        .select('id')
+                        .eq('image_url', oldImageUrl)
+                        .neq('id', productId);
+
+                    if (!otherProducts || otherProducts.length === 0) {
+                        await deleteImage(oldPublicId);
+                    }
+                }
             }
 
             // Mettre à jour les champs de personnalisation si fournis

@@ -4,7 +4,6 @@ import Stripe from 'stripe';
 import { EmailService } from '$lib/services/email-service';
 import { PUBLIC_SITE_URL } from '$env/static/public';
 import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
-import { forceRevalidateShop } from '$lib/utils/catalog/catalog-revalidation';
 
 export async function handlePaymentSucceeded(invoice: Stripe.Invoice, locals: any): Promise<void> {
 
@@ -34,32 +33,8 @@ export async function handlePaymentSucceeded(invoice: Stripe.Invoice, locals: an
             })
             .eq('profile_id', profileId);
 
-        // Récupérer le slug de la boutique avant de la réactiver
-        const { data: shopData } = await locals.supabaseServiceRole
-            .from('shops')
-            .select('slug')
-            .eq('profile_id', profileId)
-            .single();
-
-        // Réactiver is_active de la boutique
-        const { error: shopUpdateError } = await locals.supabaseServiceRole
-            .from('shops')
-            .update({ is_active: true })
-            .eq('profile_id', profileId);
-
         if (updateError) {
             throw error(500, 'Failed to reactivate subscription after payment success');
-        }
-
-        if (shopUpdateError) {
-            throw error(500, 'Failed to reactivate shop after payment success');
-        }
-
-        // Revalider le cache ISR de la boutique avec délai
-        if (shopData?.slug) {
-            setTimeout(async () => {
-                await forceRevalidateShop(shopData.slug);
-            }, 5000);
         }
 
     } catch (err) {
@@ -98,43 +73,8 @@ export async function handlePaymentFailed(invoice: Stripe.Invoice, locals: any):
             return;
         }
 
-        // Marquer l'abonnement comme inactif
-        const { error: updateError } = await locals.supabaseServiceRole
-            .from('user_products')
-            .update({
-                subscription_status: 'inactive'
-            })
-            .eq('profile_id', profileId);
-
-        if (updateError) {
-            throw error(500, 'Failed to update subscription status after payment failure');
-        }
-
-        // Désactiver la boutique et récupérer name + slug
-        const { data: shopUpdateData, error: shopUpdateError } = await locals.supabaseServiceRole
-            .from('shops')
-            .update({
-                is_custom_accepted: false,
-                is_active: false
-            })
-            .eq('profile_id', profileId)
-            .select('name, slug')
-            .single();
-
-        if (shopUpdateError) {
-            throw error(500, 'Failed to disable shop after payment failure');
-        }
-
-        // Revalider le cache ISR de la boutique avec délai (ne bloque pas si erreur)
-        if (shopUpdateData?.slug) {
-
-            setTimeout(async () => {
-                await forceRevalidateShop(shopUpdateData.slug);
-            }, 5000);
-        }
-
         // Envoyer l'email de notification de paiement échoué
-        if (userShopData.email && shopUpdateData) {
+        if (userShopData.email) {
             try {
                 // Créer une session de portail de facturation Stripe
                 const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
@@ -148,7 +88,7 @@ export async function handlePaymentFailed(invoice: Stripe.Invoice, locals: any):
 
                 await EmailService.sendPaymentFailedNotification({
                     pastryEmail: userShopData.email,
-                    shopName: shopUpdateData.name,
+                    shopName: userShopData.shops.name,
                     customerPortalUrl: portalSession.url,
                     date: new Date().toLocaleDateString("fr-FR"),
                 });
@@ -163,5 +103,3 @@ export async function handlePaymentFailed(invoice: Stripe.Invoice, locals: any):
         throw error(500, 'handlePaymentFailed failed: ' + err);
     }
 }
-
-// ✅ handleTrialWillEnd supprimé - l'essai gratuit est maintenant géré via la colonne trial_ending dans profiles

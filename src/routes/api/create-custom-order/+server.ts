@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { checkOrderLimit } from '$lib/utils/order-limits';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
     try {
@@ -9,6 +10,33 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         if (!orderData.shopId || !orderData.customerName || !orderData.customerEmail || !orderData.selectedDate) {
             return json({ error: 'Données manquantes' }, { status: 400 });
         }
+
+        // Récupérer le shop pour obtenir le profile_id
+        const { data: shop, error: shopError } = await locals.supabase
+            .from('shops')
+            .select('id, profile_id')
+            .eq('id', orderData.shopId)
+            .single();
+
+        if (shopError || !shop) {
+            return json({ error: 'Boutique non trouvée' }, { status: 404 });
+        }
+
+        // Vérifier la limite de commandes
+        console.log('🔍 [API Custom Order] Checking order limit before creating order...');
+        const orderLimitStats = await checkOrderLimit(shop.id, shop.profile_id, locals.supabase);
+        if (orderLimitStats.isLimitReached) {
+            console.warn('🚫 [API Custom Order] Order creation blocked - limit reached:', {
+                shopId: shop.id,
+                orderCount: orderLimitStats.orderCount,
+                orderLimit: orderLimitStats.orderLimit,
+                plan: orderLimitStats.plan
+            });
+            return json({ 
+                error: `Limite de commandes atteinte (${orderLimitStats.orderCount}/${orderLimitStats.orderLimit} ce mois-ci). Passez au plan supérieur pour continuer.` 
+            }, { status: 403 });
+        }
+        console.log('✅ [API Custom Order] Order limit check passed, proceeding with order creation');
 
         // Vérifier si une commande similaire existe déjà (protection contre les doublons)
         const { data: existingOrder, error: checkError } = await locals.supabase

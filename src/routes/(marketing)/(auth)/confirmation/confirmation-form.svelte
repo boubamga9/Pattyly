@@ -97,24 +97,9 @@
 	<Form.Errors {form} />
 
 	<!-- Instructions -->
-	<div class="text-center">
-		<h2 class="mb-2 text-xl font-semibold text-gray-900">
-			{#if type === 'recovery'}
-				Réinitialisation du mot de passe
-			{:else}
-				Confirmation de votre compte
-			{/if}
-		</h2>
-		<p class="text-gray-600">
-			{#if type === 'recovery'}
-				Entrez le code de réinitialisation à 6 chiffres envoyé à
-			{:else}
-				Entrez le code de vérification à 6 chiffres envoyé à
-			{/if}
-		</p>
-		<p class="font-medium text-gray-900">{email}</p>
-		<p class="mt-2 text-sm text-gray-500">
-			💡 Pensez à vérifier votre dossier spam si vous ne recevez pas l'email
+	<div class="text-center space-y-2">
+		<p class="text-sm text-neutral-500">
+			💡 Pense à vérifier ton dossier spam si tu ne reçois pas l'email
 		</p>
 	</div>
 
@@ -153,11 +138,11 @@
 	<!-- Bouton de soumission -->
 	<Button
 		type="submit"
-		class="w-full"
+		class="h-12 w-full rounded-xl bg-[#FF6F61] text-base font-medium text-white shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-[#e85a4f] hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
 		disabled={$submitting || $formData.code.length !== 6}
 	>
 		{#if $submitting}
-			<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+			<LoaderCircle class="mr-2 h-5 w-5 animate-spin" />
 			{#if type === 'recovery'}
 				Réinitialisation en cours...
 			{:else}

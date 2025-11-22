@@ -13,7 +13,9 @@
 	import { createLocalDynamicSchema } from './schema';
 	import { goto } from '$app/navigation';
 	import { Upload, X } from 'lucide-svelte';
-	import { compressProductImage } from '$lib/utils/images/client';
+	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert';
+	import { AlertTriangle } from 'lucide-svelte';
+	import type { OrderLimitStats } from '$lib/utils/order-limits';
 
 	export let data: SuperValidated<Record<string, any>>;
 	export let shop: {
@@ -59,8 +61,12 @@
 		background_image_url?: string;
 	};
 	export let onCancel: () => void;
+	export let orderLimitStats: OrderLimitStats | null = null;
 
 	const dynamicSchema = createLocalDynamicSchema(customFields);
+
+	// Vérifier si le formulaire doit être désactivé
+	$: isFormDisabled = orderLimitStats?.isLimitReached || false;
 
 	// Styles personnalisés
 	$: customStyles = {
@@ -104,7 +110,6 @@
 	// Variables pour l'upload de photos d'inspiration
 	let inspirationPhotos: string[] = $formData.inspiration_photos || [];
 	let inspirationFiles: File[] = [];
-	let isCompressing = false;
 	let inspirationInputElement: HTMLInputElement;
 
 	// État pour les créneaux horaires
@@ -194,7 +199,7 @@
 		loadTimeSlots($formData.pickup_date);
 	}
 
-	async function handleInspirationFileSelect(event: Event) {
+	function handleInspirationFileSelect(event: Event) {
 		const target = event.target as HTMLInputElement;
 		const files = Array.from(target.files || []);
 
@@ -208,27 +213,23 @@
 			return;
 		}
 
-		isCompressing = true;
-
 		for (const file of files) {
 			if (!file.type.startsWith('image/')) continue;
 			if (file.size > 5 * 1024 * 1024) continue;
 
-			const compressed = await compressProductImage(file);
-			inspirationFiles.push(compressed.file);
+			// Utiliser le fichier original (Cloudinary compresse automatiquement)
+			inspirationFiles.push(file);
 			const reader = new FileReader();
 			reader.onload = (e) => {
 				inspirationPhotos = [...inspirationPhotos, e.target?.result as string];
 			};
-			reader.readAsDataURL(compressed.file);
+			reader.readAsDataURL(file);
 		}
 
-		// Remplacer l'input file par les fichiers compressés
+		// Synchroniser l'input file
 		const dt = new DataTransfer();
 		inspirationFiles.forEach((f) => dt.items.add(f));
 		inspirationInputElement.files = dt.files;
-
-		isCompressing = false;
 	}
 
 	// Fonction pour supprimer une photo d'inspiration
@@ -251,7 +252,14 @@
 >
 	<Form.Errors {form} />
 
-	<div class="space-y-8">
+	{#if isFormDisabled}
+		<Alert class="mb-6 border-[#FF6F61] bg-[#FFF1F0] text-[#8B1A1A]">
+			<AlertTriangle class="h-4 w-4 text-[#FF6F61]" />
+			<AlertTitle>Commandes désactivées temporairement</AlertTitle>
+		</Alert>
+	{/if}
+
+	<div class="space-y-8" class:opacity-50={isFormDisabled} class:pointer-events-none={isFormDisabled}>
 		<!-- Section Photos d'inspiration -->
 		<div class="space-y-4">
 			<div class="space-y-2">
@@ -276,7 +284,7 @@
 							<button
 								type="button"
 								on:click={() => removeInspirationPhoto(index)}
-								disabled={$submitting}
+								disabled={$submitting || isFormDisabled}
 								class="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-sm transition-colors hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50"
 								title="Supprimer cette photo"
 							>
@@ -293,25 +301,16 @@
 					<button
 						type="button"
 						on:click={() => inspirationInputElement?.click()}
-						disabled={$submitting || isCompressing}
+						disabled={$submitting || isFormDisabled}
 						class="flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/20 transition-colors hover:border-primary hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-50"
 					>
-						{#if isCompressing}
-							<div
-								class="mb-2 h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent"
-							></div>
-							<p class="text-center text-sm text-muted-foreground">
-								Compression en cours...
-							</p>
-						{:else}
-							<Upload class="mb-2 h-8 w-8 text-muted-foreground" />
-							<p class="text-center text-sm text-muted-foreground">
-								Cliquez pour ajouter des photos
-							</p>
-							<p class="text-center text-xs text-muted-foreground">
-								{inspirationPhotos.length}/3 photos
-							</p>
-						{/if}
+						<Upload class="mb-2 h-8 w-8 text-muted-foreground" />
+						<p class="text-center text-sm text-muted-foreground">
+							Cliquez pour ajouter des photos
+						</p>
+						<p class="text-center text-xs text-muted-foreground">
+							{inspirationPhotos.length}/3 photos
+						</p>
 					</button>
 				</div>
 
@@ -323,7 +322,7 @@
 					multiple
 					on:change={handleInspirationFileSelect}
 					class="hidden"
-					disabled={$submitting || isCompressing}
+					disabled={$submitting || isFormDisabled}
 				/>
 			{/if}
 		</div>
@@ -367,6 +366,7 @@
 											placeholder="Votre réponse"
 											required={field.required}
 											rows={3}
+											disabled={isFormDisabled}
 											bind:value={$formData.customization_data[field.id]}
 										/>
 									</Form.Control>
@@ -382,6 +382,7 @@
 											step="1"
 											placeholder="Votre réponse"
 											required={field.required}
+											disabled={isFormDisabled}
 											bind:value={$formData.customization_data[field.id]}
 										/>
 									</Form.Control>
@@ -396,6 +397,7 @@
 											options={field.options || []}
 											selectedValues={$formData.customization_data[field.id]}
 											required={field.required}
+											disabled={isFormDisabled}
 											{customizations}
 											on:change={(e) =>
 												($formData.customization_data[field.id] =
@@ -446,7 +448,7 @@
 								<TimeSlotSelector
 									timeSlots={availableTimeSlots}
 									selectedTime={selectedTimeSlot}
-									disabled={isLoadingTimeSlots}
+									disabled={isLoadingTimeSlots || isFormDisabled}
 									required={true}
 									label="Choisir un créneau de récupération"
 									{customizations}
@@ -527,6 +529,7 @@
 								id="name"
 								placeholder="Votre nom complet"
 								required
+								disabled={isFormDisabled}
 								bind:value={$formData.customer_name}
 							/>
 						</Form.Control>
@@ -544,6 +547,7 @@
 								type="email"
 								placeholder="votre@email.com"
 								required
+								disabled={isFormDisabled}
 								bind:value={$formData.customer_email}
 							/>
 						</Form.Control>
@@ -560,6 +564,7 @@
 								id="phone"
 								type="tel"
 								placeholder="06 12 34 56 78"
+								disabled={isFormDisabled}
 								bind:value={$formData.customer_phone}
 							/>
 						</Form.Control>
@@ -575,6 +580,7 @@
 								{...attrs}
 								id="instagram"
 								placeholder="@votre_compte"
+								disabled={isFormDisabled}
 								bind:value={$formData.customer_instagram}
 							/>
 						</Form.Control>
@@ -591,6 +597,7 @@
 								id="info"
 								placeholder="Informations supplémentaires..."
 								rows={3}
+								disabled={isFormDisabled}
 								bind:value={$formData.additional_information}
 							/>
 						</Form.Control>
@@ -760,7 +767,7 @@
 			{#if $page.url.searchParams.get('preview') !== 'true'}
 				<Button
 					type="submit"
-					disabled={$submitting}
+					disabled={$submitting || isFormDisabled}
 					class="flex-1"
 					style={customStyles.buttonStyle}
 				>
@@ -771,7 +778,7 @@
 						Envoyer ma demande
 					{/if}
 				</Button>
-				<Button type="button" variant="outline" on:click={onCancel}>
+				<Button type="button" variant="outline" on:click={onCancel} disabled={isFormDisabled}>
 					Annuler
 				</Button>
 			{:else}

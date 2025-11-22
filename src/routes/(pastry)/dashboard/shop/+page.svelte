@@ -1,9 +1,11 @@
 <script lang="ts">
 	import ShopForm from './shop-form.svelte';
 	import CustomizationForm from './customization-form.svelte';
+	import DirectoryForm from '$lib/components/directory/directory-form.svelte';
 	import type { SuperValidated, Infer } from 'sveltekit-superforms';
 	import { formSchema } from './schema';
 	import { customizationSchema } from './customization-schema';
+	import { directorySchema } from '$lib/validations/schemas/shop';
 	import {
 		Card,
 		CardContent,
@@ -12,7 +14,8 @@
 		CardTitle,
 	} from '$lib/components/ui/card';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { Store } from 'lucide-svelte';
+	import { Store, Palette, MapPin } from 'lucide-svelte';
+	import { cn } from '$lib/utils';
 
 	export let data: {
 		shop: {
@@ -25,24 +28,27 @@
 			tiktok?: string | null;
 			website?: string | null;
 		};
-		stripeAccount: {
-			id: string;
-			stripe_account_id: string;
-			is_active: boolean;
-		} | null;
 		form: SuperValidated<Infer<typeof formSchema>>;
 		customizationForm: SuperValidated<Infer<typeof customizationSchema>>;
+		directoryForm: SuperValidated<Infer<typeof directorySchema>>;
 	};
 
 	let error = '';
 	let success = '';
+	let activeTab: 'info' | 'customization' | 'directory' = 'info';
+
+	const tabs = [
+		{ id: 'info' as const, label: 'Informations', icon: Store },
+		{ id: 'customization' as const, label: 'Personnalisation', icon: Palette },
+		{ id: 'directory' as const, label: 'Annuaire', icon: MapPin }
+	];
 </script>
 
 <svelte:head>
-	<title>Ma boutique - Pattyly</title>
+	<title>Paramètres de la boutique - Pattyly</title>
 </svelte:head>
 
-<div class="container mx-auto space-y-8 p-4 md:p-8">
+<div class="container mx-auto space-y-6 p-3 md:p-6">
 	<div class="mb-8">
 		<h1 class="text-3xl font-bold text-foreground">
 			Paramètres de la boutique
@@ -64,24 +70,66 @@
 		</Alert>
 	{/if}
 
-	<!-- Shop Information -->
-	<Card class="shadow-sm">
-		<CardHeader class="pb-6">
-			<div class="flex items-center space-x-4">
-				<Store class="h-7 w-7 text-primary" />
-				<div>
-					<CardTitle class="text-xl">Informations de la boutique</CardTitle>
-					<CardDescription class="text-base">
-						Modifiez les informations de votre boutique
-					</CardDescription>
-				</div>
-			</div>
-		</CardHeader>
-		<CardContent class="pt-0">
-			<ShopForm data={data.form} />
-		</CardContent>
-	</Card>
+	<!-- Navigation par onglets -->
+	<nav class="mb-6 border-b">
+		<ul class="flex gap-4">
+			{#each tabs as tab}
+				{@const Icon = tab.icon}
+				<li>
+					<button
+						type="button"
+						on:click={() => (activeTab = tab.id)}
+						class={cn(
+							'inline-flex items-center gap-2 border-b-2 px-1 pb-4 text-sm font-medium transition-colors',
+							activeTab === tab.id
+								? 'border-primary text-primary'
+								: 'border-transparent text-muted-foreground hover:border-muted-foreground hover:text-foreground'
+						)}
+					>
+						<Icon class="h-4 w-4" />
+						{tab.label}
+					</button>
+				</li>
+			{/each}
+		</ul>
+	</nav>
 
-	<!-- Customization -->
-	<CustomizationForm form={data.customizationForm} />
+	<!-- Contenu selon l'onglet actif -->
+	{#if activeTab === 'info'}
+		<Card class="shadow-sm">
+			<CardHeader class="pb-6">
+				<div class="flex items-center space-x-4">
+					<Store class="h-7 w-7 text-primary" />
+					<div>
+						<CardTitle class="text-xl">Informations de la boutique</CardTitle>
+						<CardDescription class="text-base">
+							Modifiez les informations de votre boutique
+						</CardDescription>
+					</div>
+				</div>
+			</CardHeader>
+			<CardContent class="pt-0">
+				<ShopForm data={data.form} />
+			</CardContent>
+		</Card>
+	{:else if activeTab === 'customization'}
+		<CustomizationForm form={data.customizationForm} />
+	{:else if activeTab === 'directory'}
+		<Card class="shadow-sm">
+			<CardHeader class="pb-6">
+				<div class="flex items-center space-x-4">
+					<MapPin class="h-7 w-7 text-primary" />
+					<div>
+						<CardTitle class="text-xl">Configuration de l'annuaire</CardTitle>
+						<CardDescription class="text-base">
+							Gérez vos informations pour apparaître dans l'annuaire des pâtissiers
+						</CardDescription>
+					</div>
+				</div>
+			</CardHeader>
+			<CardContent class="pt-0">
+				<DirectoryForm data={data.directoryForm} />
+			</CardContent>
+		</Card>
+	{/if}
 </div>

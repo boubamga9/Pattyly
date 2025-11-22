@@ -48,7 +48,7 @@ BEGIN
             s.website,
             s.is_custom_accepted,
             s.is_active,
-            is_shop_visible(s.profile_id, s.is_active) as is_visible
+            s.is_active as is_visible
         FROM shops s
         WHERE s.slug = p_slug
     ) s;

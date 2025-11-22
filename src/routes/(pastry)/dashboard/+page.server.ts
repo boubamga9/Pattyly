@@ -10,7 +10,6 @@ export const load = async ({ locals }) => {
         redirect(303, '/login');
     }
 
-    // ✅ Récupérer les permissions (inclut trial_ending, plan, limites)
     const permissions = await getUserPermissions(user.id, locals.supabase);
 
     if (!permissions.shopId) {

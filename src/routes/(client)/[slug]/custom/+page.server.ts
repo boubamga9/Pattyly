@@ -6,6 +6,7 @@ import { createLocalDynamicSchema } from './schema';
 import { sanitizeFileName } from '$lib/utils/filename-sanitizer';
 import { EmailService } from '$lib/services/email-service';
 import { PUBLIC_SITE_URL } from '$env/static/public';
+import { checkOrderLimit } from '$lib/utils/order-limits';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
     try {
@@ -17,23 +18,56 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         });
 
         if (dbError) {
-            console.error('Error fetching custom order data:', dbError);
+            console.error('❌ Error fetching custom order data:', dbError);
             throw error(500, 'Erreur serveur lors du chargement de la boutique');
         }
 
         if (!customOrderData) {
+            console.error('❌ customOrderData is null for slug:', slug);
             throw error(404, 'Boutique non trouvée');
         }
 
         const { shop, customForm, customFields, availabilities, unavailabilities, datesWithLimitReached } = customOrderData;
 
-        // Vérifier la visibilité (essai, abonnement, admin)
+        console.log('✅ customOrderData received:', { 
+            hasShop: !!shop, 
+            shopId: shop?.id, 
+            shopIsVisible: shop?.is_visible,
+            shopIsActive: shop?.is_active
+        });
+
+        if (!shop) {
+            console.error('❌ shop is null in customOrderData');
+            throw error(404, 'Boutique non trouvée');
+        }
+
+        // Vérifier la visibilité (basée uniquement sur is_active)
         if (!shop.is_visible) {
+            console.error('❌ shop is not visible. is_visible:', shop.is_visible, 'is_active:', shop.is_active);
             throw error(404, 'Boutique non trouvée');
         }
 
         if (!shop.is_custom_accepted) {
             throw error(404, 'Demandes personnalisées non disponibles');
+        }
+
+        // Récupérer le profile_id pour vérifier la limite de commandes
+        // Utiliser le service role pour avoir accès aux données
+        const { data: shopData, error: shopDataError } = await locals.supabaseServiceRole
+            .from('shops')
+            .select('profile_id')
+            .eq('id', shop.id)
+            .single();
+
+        // Vérifier la limite de commandes (seulement si on a réussi à récupérer le profile_id)
+        let orderLimitStats = null;
+        if (!shopDataError && shopData?.profile_id) {
+            try {
+                orderLimitStats = await checkOrderLimit(shop.id, shopData.profile_id, locals.supabaseServiceRole);
+            } catch (limitError) {
+                console.error('Error checking order limit:', limitError);
+                // Ne pas bloquer la page si la vérification de limite échoue
+            }
         }
 
         // Les customizations sont chargées dans le layout parent
@@ -47,6 +81,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             availabilities: availabilities || [],
             unavailabilities: unavailabilities || [],
             datesWithLimitReached: datesWithLimitReached || [],
+            orderLimitStats,
             form: await superValidate(zod(dynamicSchema))
         };
 
@@ -64,7 +99,7 @@ export const actions: Actions = {
 
             const { data: shop, error: shopError } = await locals.supabase
                 .from('shops')
-                .select('id, name, slug, logo_url')
+                .select('id, name, slug, logo_url, profile_id')
                 .eq('slug', slug)
                 .eq('is_active', true)
                 .single();
@@ -104,6 +139,22 @@ export const actions: Actions = {
             const form = await superValidate(formData, zod(dynamicSchema));
 
             if (!form.valid) return fail(400, { form });
+
+            // Vérifier la limite de commandes (après validation du formulaire)
+            console.log('🔍 [Custom Order] Checking order limit before creating order...');
+            const orderLimitStats = await checkOrderLimit(shop.id, shop.profile_id, locals.supabase);
+            if (orderLimitStats.isLimitReached) {
+                console.warn('🚫 [Custom Order] Order creation blocked - limit reached:', {
+                    shopId: shop.id,
+                    shopName: shop.name,
+                    orderCount: orderLimitStats.orderCount,
+                    orderLimit: orderLimitStats.orderLimit,
+                    plan: orderLimitStats.plan
+                });
+                setError(form, '', `Limite de commandes atteinte (${orderLimitStats.orderCount}/${orderLimitStats.orderLimit} ce mois-ci). Passez au plan supérieur pour continuer.`);
+                return fail(403, { form });
+            }
+            console.log('✅ [Custom Order] Order limit check passed, proceeding with order creation');
 
             const {
                 customer_name,

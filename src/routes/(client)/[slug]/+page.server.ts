@@ -21,7 +21,7 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders, url, re
         // 1. Récupérer l'ID de la boutique depuis le slug (actives et inactives)
         const { data: shopInfo, error: shopError } = await locals.supabase
             .from('shops')
-            .select('id, is_active, profile_id')
+            .select('id, is_active')
             .eq('slug', slug)
             .single();
 
@@ -36,35 +36,23 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders, url, re
         const revalidateHeader = request.headers.get('x-prerender-revalidate');
         const isRevalidation = bypassToken === env.REVALIDATION_TOKEN || revalidateHeader === env.REVALIDATION_TOKEN;
 
-
-
-        const { data: isVisibleData, error: visibilityError } = await (locals.supabaseServiceRole as any).rpc('is_shop_visible', {
-            p_profile_id: shopInfo.profile_id,
-            p_is_active: shopInfo.is_active
-        });
-
-
-        const isShopVisible = isVisibleData || false;
+        // La visibilité dépend uniquement de is_active
+        const isShopVisible = shopInfo.is_active;
 
 
         // Si la boutique n'est pas visible ET ce n'est pas une revalidation, retourner 404
         // ✅ ISR met en cache la 404 → pas de problème de cache
         // ✅ Si revalidation, on continue pour mettre à jour le cache même si invisible
         if (!isShopVisible && !isRevalidation) {
-            console.log('❌ [/slug] Shop not visible, returning 404');
             return { notFound: true };
         }
-
 
         // 4. Charger le catalogue (ISR gère le cache)
         const catalogData = await loadShopCatalog(locals.supabase, shopInfo.id);
 
-
-        // 5. Les customizations sont maintenant chargées dans +layout.server.ts
-
         // 6. Headers CDN pour optimiser la performance
         setHeaders({
-            'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+            'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=86400',
             'X-ISR-Revalidated': isRevalidation ? 'true' : 'false'
         });
 

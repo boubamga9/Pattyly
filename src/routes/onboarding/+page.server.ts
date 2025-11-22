@@ -3,8 +3,8 @@ import type { PageServerLoad, Actions } from './$types';
 import { superValidate, setError } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { shopCreationSchema, paypalConfigSchema } from './schema';
-import { validateImageServer, validateAndRecompressImage, logValidationInfo } from '$lib/utils/images/server';
-import { sanitizeFileName } from '$lib/utils/filename-sanitizer';
+import { directorySchema } from '$lib/validations/schemas/shop';
+import { uploadShopLogo } from '$lib/cloudinary';
 import Stripe from 'stripe';
 import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
 import { STRIPE_PRICES } from '$lib/config/server';
@@ -40,12 +40,46 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
 
     const { shop, payment_link } = onboardingData as any;
 
-    // 🟢 Redirection 2 — compte déjà actif (avec payment_link)
+    // 🟢 Redirection 2 — compte déjà actif (avec payment_link et annuaire configuré)
     if (shop && payment_link) {
-        throw redirect(303, '/dashboard');
+        // Vérifier si l'annuaire est déjà configuré
+        const { data: shopData } = await supabase
+            .from('shops')
+            .select('directory_city, directory_actual_city, directory_postal_code, directory_cake_types')
+            .eq('id', shop.id)
+            .single();
+
+        // Si l'annuaire est configuré, rediriger vers le dashboard
+        if (shopData?.directory_city && shopData?.directory_actual_city && shopData?.directory_postal_code) {
+            throw redirect(303, '/dashboard');
+        }
     }
 
-    // 🧩 Cas 1 : boutique créée mais pas PayPal → étape 2
+    // 🧩 Cas 1 : boutique + PayPal mais pas annuaire → étape 3
+    if (shop && payment_link) {
+        // Récupérer les données complètes de la boutique avec les champs directory
+        const { data: shopData } = await supabase
+            .from('shops')
+            .select('id, name, slug, logo_url, directory_city, directory_actual_city, directory_postal_code, directory_cake_types, directory_enabled')
+            .eq('id', shop.id)
+            .single();
+
+        return {
+            step: 3,
+            shop: shopData || shop,
+            form: await superValidate(zod(directorySchema), {
+                defaults: {
+                    directory_city: shopData?.directory_city || '',
+                    directory_actual_city: shopData?.directory_actual_city || '',
+                    directory_postal_code: shopData?.directory_postal_code || '',
+                    directory_cake_types: shopData?.directory_cake_types || [],
+                    directory_enabled: shopData?.directory_enabled || false
+                }
+            })
+        };
+    }
+
+    // 🧩 Cas 2 : boutique créée mais pas PayPal → étape 2
     if (shop) {
         return {
             step: 2,
@@ -54,7 +88,7 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
         };
     }
 
-    // 🧩 Cas 2 : aucune boutique → étape 1
+    // 🧩 Cas 3 : aucune boutique → étape 1
     return {
         step: 1,
         shop: null,
@@ -62,58 +96,8 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
     };
 };
 
-/**
- * Créer un essai gratuit pour un utilisateur avec PayPal.me
- * Inspiré de createTrialForUser mais adapté pour le nouveau système
- */
-async function createTrialForPayPalMe(locals: any, paypalMe: string, userId: string) {
-    console.log('🚀 [PayPal.me Trial] Starting createTrialForPayPalMe with paypalMe:', paypalMe);
-
-    try {
-        // Récupérer les infos du profile
-        const { data: profileData } = await locals.supabase
-            .from('profiles')
-            .select('email')
-            .eq('id', userId)
-            .single();
-
-        if (!profileData?.email) {
-            console.error('❌ [PayPal.me Trial] Profile email not found');
-            return false;
-        }
-
-        // ✅ La vérification anti-fraud et la création de l'essai sont gérées automatiquement par check_and_create_trial
-        console.log('🔄 [PayPal.me Trial] Calling check_and_create_trial RPC with params:', {
-            p_paypal_me: paypalMe
-        });
-
-        // Appeler la fonction RPC mise à jour
-        // Elle retourne TRUE si c'est un nouvel utilisateur, FALSE sinon
-        const { data: isNewUser, error: rpcError } = await locals.supabase.rpc('check_and_create_trial', {
-            p_paypal_me: paypalMe
-        });
-
-        if (rpcError) {
-            console.error('❌ [PayPal.me Trial] RPC check_and_create_trial error:', rpcError);
-            return false;
-        }
-
-        console.log('✅ [PayPal.me Trial] RPC check_and_create_trial result:', { isNewUser });
-
-        // Vérifier que l'enregistrement anti_fraud a bien été créé
-        const { data: antiFraudCheck } = await locals.supabase
-            .from('anti_fraud')
-            .select('*')
-            .eq('paypal_me', paypalMe);
-
-        console.log('🔍 [PayPal.me Trial] Anti-fraud record verification:', antiFraudCheck);
-
-        return true;
-    } catch (error) {
-        console.error('❌ [PayPal.me Trial] Failed to create trial:', error);
-        return false;
-    }
-}
+// ✅ Fonction supprimée : L'essai gratuit est maintenant géré uniquement via Stripe
+// lors du choix d'un plan payant dans /subscription avec demande de CB
 
 export const actions: Actions = {
     createShop: async ({ request, locals: { safeGetSession, supabase } }) => {
@@ -139,45 +123,15 @@ export const actions: Actions = {
             }
 
             const { name, bio, slug, logo, instagram, tiktok, website } = form.data;
-            let logoUrl: string | null = null;
-
-            // Gestion du logo si fourni
-            if (logo && logo.size > 0) {
-                const validationResult = await validateAndRecompressImage(logo, 'LOGO');
-                if (!validationResult.isValid) {
-                    const cleanForm = await superValidate(zod(shopCreationSchema));
-                    setError(cleanForm, 'logo', validationResult.error || 'Validation du logo échouée');
-                    console.log('Return error');
-                    return { form: cleanForm };
-                }
-
-                const imageToUpload = validationResult.compressedFile || logo;
-                const sanitizedFileName = sanitizeFileName(imageToUpload.name);
-                const fileName = `logos/${userId}/${Date.now()}_${sanitizedFileName}`;
-
-                const { data: uploadData, error: uploadError } = await supabase.storage
-                    .from('shop-logos')
-                    .upload(fileName, imageToUpload, { cacheControl: '3600', upsert: false });
-
-                if (uploadError) {
-                    const cleanForm = await superValidate(zod(shopCreationSchema));
-                    setError(cleanForm, 'logo', 'Erreur lors du téléchargement du logo');
-                    console.log('Return error');
-                    return { form: cleanForm };
-                }
-
-                const { data: urlData } = supabase.storage.from('shop-logos').getPublicUrl(fileName);
-                logoUrl = urlData.publicUrl;
-            }
 
             // ✅ OPTIMISÉ : Vérification du slug intégrée dans la fonction SQL
-            // Création de la boutique avec disponibilités en une transaction
+            // Création de la boutique avec disponibilités en une transaction (sans logo d'abord)
             const { data: shop, error: createError } = await supabase.rpc('create_shop_with_availabilities', {
                 p_profile_id: userId,
                 p_name: name,
                 p_bio: bio ?? null,
                 p_slug: slug,
-                p_logo_url: logoUrl,
+                p_logo_url: null, // Logo sera ajouté après si fourni
                 p_instagram: instagram ?? null,
                 p_tiktok: tiktok ?? null,
                 p_website: website ?? null
@@ -195,6 +149,47 @@ export const actions: Actions = {
                 }
                 console.log('Return error');
                 return { form: cleanForm };
+            }
+
+            // Gestion du logo si fourni (maintenant qu'on a le shopId)
+            let logoUrl: string | null = null;
+            if (logo && logo.size > 0 && shop?.id) {
+                // Validation basique : taille max 5MB
+                if (logo.size > 5 * 1024 * 1024) {
+                    // Supprimer la boutique créée si l'upload échoue
+                    await supabase.from('shops').delete().eq('id', shop.id);
+                    const cleanForm = await superValidate(zod(shopCreationSchema));
+                    setError(cleanForm, 'logo', 'Le logo ne doit pas dépasser 5MB');
+                    return { form: cleanForm };
+                }
+
+                // Vérifier que c'est bien une image
+                if (!logo.type.startsWith('image/')) {
+                    // Supprimer la boutique créée si l'upload échoue
+                    await supabase.from('shops').delete().eq('id', shop.id);
+                    const cleanForm = await superValidate(zod(shopCreationSchema));
+                    setError(cleanForm, 'logo', 'Le fichier doit être une image');
+                    return { form: cleanForm };
+                }
+
+                try {
+                    // Upload vers Cloudinary avec le shopId (organisation par boutique)
+                    const uploadResult = await uploadShopLogo(logo, shop.id);
+                    logoUrl = uploadResult.secure_url;
+
+                    // Mettre à jour la boutique avec l'URL du logo
+                    await supabase
+                        .from('shops')
+                        .update({ logo_url: logoUrl })
+                        .eq('id', shop.id);
+                } catch (err) {
+                    console.error('❌ [Onboarding] Erreur Cloudinary logo:', err);
+                    // Supprimer la boutique créée si l'upload échoue
+                    await supabase.from('shops').delete().eq('id', shop.id);
+                    const cleanForm = await superValidate(zod(shopCreationSchema));
+                    setError(cleanForm, 'logo', 'Erreur lors de l\'upload du logo');
+                    return { form: cleanForm };
+                }
             }
 
             // Retour succès
@@ -258,21 +253,23 @@ export const actions: Actions = {
 
             console.log('✅ [Onboarding] Payment link created successfully');
 
-            // Créer l'essai gratuit et la ligne anti_fraud
-            console.log('🚀 [Onboarding] Creating trial for PayPal.me user...');
-            const trialCreated = await createTrialForPayPalMe(locals, paypal_me, userId);
+            // ✅ L'essai gratuit est maintenant géré via Stripe lors du choix d'un plan payant
+            // Plus besoin de créer l'essai automatiquement à l'inscription
+            // L'utilisateur devra choisir un plan dans /subscription pour obtenir l'essai gratuit de 7 jours
 
-            if (trialCreated) {
-                console.log('✅ [Onboarding] Trial created successfully');
-            } else {
-                console.log('⚠️ [Onboarding] Trial creation failed or skipped (already exists)');
-            }
+            // Récupérer la boutique pour passer à l'étape 3
+            const { data: shopData } = await locals.supabase
+                .from('shops')
+                .select('id, name, slug, directory_city, directory_actual_city, directory_postal_code, directory_cake_types, directory_enabled')
+                .eq('profile_id', userId)
+                .single();
 
             const cleanForm = await superValidate(zod(paypalConfigSchema));
             cleanForm.message = 'Lien PayPal créé avec succès !';
             return {
                 form: cleanForm,
-                success: true
+                success: true,
+                shop: shopData
             };
 
         } catch (err) {
@@ -280,6 +277,110 @@ export const actions: Actions = {
             const cleanForm = await superValidate(zod(paypalConfigSchema));
             setError(cleanForm, 'paypal_me', 'Une erreur inattendue est survenue');
             return { form: cleanForm };
+        }
+    },
+
+    updateDirectory: async ({ request, locals: { safeGetSession, supabase } }) => {
+        try {
+            console.log('📋 [Onboarding Directory] updateDirectory called');
+            const { session, user } = await safeGetSession();
+
+            if (!session || !user) {
+                console.log('📋 [Onboarding Directory] No session or user');
+                const form = await superValidate(zod(directorySchema));
+                setError(form, 'directory_city', 'Non autorisé');
+                return { form };
+            }
+
+            const userId = user.id;
+            console.log('📋 [Onboarding Directory] Validating form for user:', userId);
+            const form = await superValidate(request, zod(directorySchema));
+
+            console.log('📋 [Onboarding Directory] Form validation result:', {
+                valid: form.valid,
+                data: form.data,
+                errors: form.errors
+            });
+
+            if (!form.valid) {
+                console.log('📋 [Onboarding Directory] Form invalid, returning errors');
+                const cleanForm = await superValidate(zod(directorySchema));
+                cleanForm.errors = form.errors;
+                cleanForm.valid = false;
+                return { form: cleanForm };
+            }
+
+            // Récupérer la boutique
+            const { data: shop, error: shopError } = await supabase
+                .from('shops')
+                .select('id')
+                .eq('profile_id', userId)
+                .single();
+
+            if (shopError || !shop) {
+                const cleanForm = await superValidate(zod(directorySchema));
+                setError(cleanForm, 'directory_city', 'Boutique non trouvée');
+                return { form: cleanForm };
+            }
+
+            // Mettre à jour les champs annuaire
+            console.log('📋 [Onboarding Directory] Updating shop with data:', {
+                shop_id: shop.id,
+                directory_city: form.data.directory_city,
+                directory_actual_city: form.data.directory_actual_city,
+                directory_postal_code: form.data.directory_postal_code,
+                directory_cake_types: form.data.directory_cake_types,
+                directory_enabled: form.data.directory_enabled
+            });
+
+            const { error: updateError } = await supabase
+                .from('shops')
+                .update({
+                    directory_city: form.data.directory_city,
+                    directory_actual_city: form.data.directory_actual_city,
+                    directory_postal_code: form.data.directory_postal_code,
+                    directory_cake_types: form.data.directory_cake_types,
+                    directory_enabled: form.data.directory_enabled
+                })
+                .eq('id', shop.id);
+
+            if (updateError) {
+                console.error('❌ [Onboarding Directory] Update error:', updateError);
+                const cleanForm = await superValidate(zod(directorySchema));
+                setError(cleanForm, 'directory_city', 'Erreur lors de la sauvegarde');
+                return { form: cleanForm };
+            }
+
+            console.log('📋 [Onboarding Directory] Update successful, creating success form');
+
+            // Retour succès - retourner le formulaire avec les valeurs soumises dans les defaults
+            const successForm = await superValidate(zod(directorySchema), {
+                defaults: {
+                    directory_city: form.data.directory_city,
+                    directory_actual_city: form.data.directory_actual_city,
+                    directory_postal_code: form.data.directory_postal_code,
+                    directory_cake_types: form.data.directory_cake_types,
+                    directory_enabled: form.data.directory_enabled
+                }
+            });
+            successForm.message = 'Inscription à l\'annuaire terminée !';
+
+            console.log('📋 [Onboarding Directory] Returning success form:', {
+                valid: successForm.valid,
+                data: successForm.data,
+                message: successForm.message
+            });
+
+            return {
+                form: successForm,
+                success: true
+            };
+
+        } catch (error) {
+            console.error('❌ [Onboarding Directory] Error:', error);
+            const form = await superValidate(zod(directorySchema));
+            setError(form, 'directory_city', 'Une erreur inattendue est survenue');
+            return { form };
         }
     }
 };

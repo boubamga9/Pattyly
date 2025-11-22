@@ -24,6 +24,7 @@
 		unavailabilities,
 		datesWithLimitReached,
 		customizations,
+		orderLimitStats,
 	} = $page.data);
 
 	// Styles personnalisés
@@ -196,6 +197,7 @@
 						{unavailabilities}
 						{datesWithLimitReached}
 						{customizations}
+						{orderLimitStats}
 						onCancel={goBack}
 					/>
 				</div>

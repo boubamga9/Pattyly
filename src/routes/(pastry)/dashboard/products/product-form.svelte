@@ -21,8 +21,6 @@
 		CustomizationFormBuilder,
 		type CustomizationField,
 	} from '$lib/components/forms';
-	import { compressProductImage } from '$lib/utils/images/client';
-
 	// Props
 	export let data: SuperValidated<Infer<CreateProductForm>>;
 	export let categories: any[] = [];
@@ -43,7 +41,6 @@
 	// Variables pour l'upload d'image
 	let _imageFile: File | null = null;
 	let imagePreview: string | null = null;
-	let isCompressing = false;
 	let imageInputElement: HTMLInputElement;
 
 	// Variables pour les champs de personnalisation
@@ -84,53 +81,36 @@
 		return optimisticCategories || [];
 	}
 
-	// Handle file selection with compression
-	async function handleFileSelect(event: Event) {
+	// Handle file selection (Cloudinary gère la compression automatiquement)
+	function handleFileSelect(event: Event) {
 		const target = event.target as HTMLInputElement;
 		const file = target.files?.[0];
 
 		if (!file) return;
 
-		try {
-			isCompressing = true;
-			$errors = {};
+		$errors = {};
 
-			// Validate file type
-			if (!file.type.startsWith('image/')) {
-				$errors = { image: 'Veuillez sélectionner une image' };
-				return;
-			}
-
-			// Validate file size before compression (max 10MB pour éviter les abus)
-			if (file.size > 5 * 1024 * 1024) {
-				$errors = { image: "L'image ne doit pas dépasser 5MB" };
-				return;
-			}
-
-			// Compresser et redimensionner l'image
-			const compressionResult = await compressProductImage(file);
-
-			// Utiliser l'image compressée
-			_imageFile = compressionResult.file;
-
-			// 🔄 Synchroniser l'input file avec l'image compressée
-			const dataTransfer = new DataTransfer();
-			dataTransfer.items.add(compressionResult.file);
-			imageInputElement.files = dataTransfer.files;
-
-			// Create preview
-			const reader = new FileReader();
-			reader.onload = (e) => {
-				imagePreview = e.target?.result as string;
-			};
-			reader.readAsDataURL(compressionResult.file);
-		} catch (error) {
-			$errors = {
-				image: "Erreur lors du traitement de l'image. Veuillez réessayer.",
-			};
-		} finally {
-			isCompressing = false;
+		// Validate file type
+		if (!file.type.startsWith('image/')) {
+			$errors = { image: 'Veuillez sélectionner une image' };
+			return;
 		}
+
+		// Validate file size (max 10MB)
+		if (file.size > 10 * 1024 * 1024) {
+			$errors = { image: "L'image ne doit pas dépasser 10MB" };
+			return;
+		}
+
+		// Utiliser le fichier original (Cloudinary compresse automatiquement)
+		_imageFile = file;
+
+		// Create preview
+		const reader = new FileReader();
+		reader.onload = (e) => {
+			imagePreview = e.target?.result as string;
+		};
+		reader.readAsDataURL(file);
 	}
 
 	// Remove image

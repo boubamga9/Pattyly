@@ -1,6 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { getUserPermissions } from '$lib/auth';
+import { checkOrderLimit } from '$lib/utils/order-limits';
 
 export const load: LayoutServerLoad = async ({
 	locals: { safeGetSession, supabase },
@@ -17,7 +18,6 @@ export const load: LayoutServerLoad = async ({
 
 	const hasShop = (userPermissions as any)?.[0]?.has_shop || false;
 	const hasPaymentMethod = (userPermissions as any)?.[0]?.has_payment_method || false;
-	const trialEnding = (userPermissions as any)?.[0]?.trial_ending || null;
 	const hasEverHadSubscription = (userPermissions as any)?.[0]?.has_ever_had_subscription || false;
 
 	// Vérifications de sécurité
@@ -27,25 +27,6 @@ export const load: LayoutServerLoad = async ({
 
 	if (!hasPaymentMethod) {
 		redirect(303, '/onboarding');
-	}
-
-	const { data: eligibility } = await (supabase as any).rpc('check_early_adopter_eligibility', {
-		p_profile_id: user.id
-	});
-
-	const result = eligibility?.[0];
-
-	// Si pas éligible, rediriger vers le dashboard
-	if (result?.is_eligible) {
-		// Marquer l'offre comme vue si elle ne l'était pas déjà
-		if (result?.offer_already_shown) {
-			await supabase
-				.from('profiles')
-				.update({ early_adopter_offer_shown_at: new Date().toISOString() })
-				.eq('id', user.id);
-		}
-
-		throw redirect(303, '/early-adopter');
 	}
 
 	// Récupérer shop details
@@ -58,20 +39,26 @@ export const load: LayoutServerLoad = async ({
 	// Récupérer les permissions complètes (plan, limites, etc.)
 	const permissions = await getUserPermissions(user.id, supabase);
 
-	// Bannière rouge si needsSubscription (plan === null)
-	const hasInactiveSubscription = permissions.needsSubscription;
-
-	// Essai gratuit valide si trial_ending > NOW ET jamais eu d'abonnement
-	const isTrialActive = trialEnding && !hasEverHadSubscription && new Date(trialEnding) > new Date();
-	const validTrialEnding = isTrialActive ? trialEnding : null;
+	// Récupérer les statistiques de commandes pour les alertes
+	let orderLimitStats = null;
+	if (permissions.shopId) {
+		console.log('🔍 [Dashboard Layout] Loading order limit stats for dashboard alerts...');
+		orderLimitStats = await checkOrderLimit(permissions.shopId, user.id, supabase);
+		console.log('📊 [Dashboard Layout] Order limit stats loaded:', {
+			plan: orderLimitStats.plan,
+			orderCount: orderLimitStats.orderCount,
+			orderLimit: orderLimitStats.orderLimit,
+			remaining: orderLimitStats.remaining,
+			showWarning: orderLimitStats.remaining <= 2 && !orderLimitStats.isLimitReached,
+			showError: orderLimitStats.isLimitReached
+		});
+	}
 
 	return {
 		user,
 		shop,
 		permissions,
-		hasInactiveSubscription,
 		isSubscriptionExists: hasEverHadSubscription,
-		trialEnding: validTrialEnding,
-		isTrialActive
+		orderLimitStats
 	};
 };

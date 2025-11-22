@@ -14,6 +14,7 @@
 	import { AlertTriangle, ExternalLink, ChevronDown } from 'lucide-svelte';
 	import { paypalConfigSchema } from './schema';
 	import { createEventDispatcher } from 'svelte';
+	import { invalidateAll } from '$app/navigation';
 
 	export let data: any; // We'll handle the form data manually for step 2
 
@@ -33,7 +34,19 @@
 	let isGuideOpen = false;
 </script>
 
-<form method="POST" action="?/createPaymentLink" use:enhance class="space-y-6">
+<form
+	method="POST"
+	action="?/createPaymentLink"
+	use:enhance={() => {
+		return async ({ result }) => {
+			if (result.type === 'success' && result.data?.success) {
+				// Recharger la page pour que le serveur détecte le changement d'état
+				await invalidateAll();
+			}
+		};
+	}}
+	class="space-y-6"
+>
 	<Form.Errors {form} />
 
 	<!-- Information importante -->

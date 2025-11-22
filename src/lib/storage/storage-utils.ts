@@ -1,7 +1,16 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { deleteImage, extractPublicIdFromUrl } from '$lib/cloudinary';
+
+/**
+ * Vérifie si une URL est une URL Cloudinary
+ */
+function isCloudinaryUrl(url: string): boolean {
+    return url.includes('cloudinary.com') || url.includes('res.cloudinary.com');
+}
 
 /**
  * Supprime une image du storage si elle n'est plus utilisée par d'autres produits
+ * Supporte à la fois Cloudinary et Supabase Storage (pour migration progressive)
  */
 export async function deleteImageIfUnused(
     supabase: SupabaseClient,
@@ -11,14 +20,6 @@ export async function deleteImageIfUnused(
     if (!imageUrl) return;
 
     try {
-        // Extraire le nom du fichier de l'URL
-        const urlParts = imageUrl.split('/');
-        const fileName = urlParts[urlParts.length - 1];
-
-        if (!fileName) {
-            return;
-        }
-
         // Vérifier si d'autres produits utilisent cette image
         const { data: productsUsingImage, error: checkError } = await supabase
             .from('products')
@@ -36,22 +37,31 @@ export async function deleteImageIfUnused(
 
         // Si aucun autre produit n'utilise cette image, la supprimer
         if (otherProductsUsingImage.length === 0) {
-
-            const { error: deleteError } = await supabase.storage
-                .from('product-images')
-                .remove([fileName]);
-
-            if (deleteError) {
+            if (isCloudinaryUrl(imageUrl)) {
+                // Supprimer depuis Cloudinary
+                const publicId = extractPublicIdFromUrl(imageUrl);
+                if (publicId) {
+                    await deleteImage(publicId);
+                }
             } else {
+                // Supprimer depuis Supabase Storage (ancien système)
+                const urlParts = imageUrl.split('/');
+                const fileName = urlParts[urlParts.length - 1];
+                if (fileName) {
+                    await supabase.storage
+                        .from('product-images')
+                        .remove([fileName]);
+                }
             }
-        } else {
         }
     } catch (error) {
+        console.error('Error deleting image:', error);
     }
 }
 
 /**
  * Supprime le logo d'une boutique du storage
+ * Supporte à la fois Cloudinary et Supabase Storage (pour migration progressive)
  */
 export async function deleteShopLogo(
     supabase: SupabaseClient,
@@ -60,36 +70,36 @@ export async function deleteShopLogo(
     if (!logoUrl) return;
 
     try {
-        // Extraire le chemin complet du fichier depuis l'URL Supabase
-        // Format: http://localhost:54321/storage/v1/object/public/shop-logos/userId/filename
-        const urlParts = logoUrl.split('/');
-        const storageIndex = urlParts.findIndex(part => part === 'shop-logos');
-
-        if (storageIndex === -1) {
-            return;
-        }
-
-        // Construire le chemin: userId/filename
-        const filePath = urlParts.slice(storageIndex + 1).join('/');
-
-        if (!filePath) {
-            return;
-        }
-
-
-        const { error: deleteError } = await supabase.storage
-            .from('shop-logos')
-            .remove([filePath]);
-
-        if (deleteError) {
+        if (isCloudinaryUrl(logoUrl)) {
+            // Supprimer depuis Cloudinary
+            const publicId = extractPublicIdFromUrl(logoUrl);
+            if (publicId) {
+                await deleteImage(publicId);
+            }
         } else {
+            // Supprimer depuis Supabase Storage (ancien système)
+            const urlParts = logoUrl.split('/');
+            const storageIndex = urlParts.findIndex(part => part === 'shop-logos');
+
+            if (storageIndex === -1) {
+                return;
+            }
+
+            const filePath = urlParts.slice(storageIndex + 1).join('/');
+            if (filePath) {
+                await supabase.storage
+                    .from('shop-logos')
+                    .remove([filePath]);
+            }
         }
     } catch (error) {
+        console.error('Error deleting shop logo:', error);
     }
 }
 
 /**
  * Supprime toutes les images d'une boutique (produits + logo)
+ * Supporte à la fois Cloudinary et Supabase Storage (pour migration progressive)
  */
 export async function deleteAllShopImages(
     supabase: SupabaseClient,
@@ -126,5 +136,6 @@ export async function deleteAllShopImages(
         }
 
     } catch (error) {
+        console.error('Error deleting all shop images:', error);
     }
 } 

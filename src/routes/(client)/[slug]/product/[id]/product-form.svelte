@@ -12,6 +12,9 @@
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import type { SuperValidated } from 'sveltekit-superforms';
 	import { createLocalDynamicSchema } from './schema';
+	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert';
+	import { AlertTriangle } from 'lucide-svelte';
+	import type { OrderLimitStats } from '$lib/utils/order-limits';
 
 	export let data: SuperValidated<any>;
 	export let shop: {
@@ -58,8 +61,12 @@
 		background_image_url?: string;
 	};
 	export let onCancel: () => void;
+	export let orderLimitStats: OrderLimitStats | null = null;
 
 	const dynamicSchema = createLocalDynamicSchema(customFields);
+
+	// Vérifier si le formulaire doit être désactivé
+	$: isFormDisabled = orderLimitStats?.isLimitReached || false;
 
 	// Styles personnalisés
 	$: customStyles = {
@@ -254,7 +261,14 @@
 <form method="POST" action="?/createProductOrder" use:enhance>
 	<Form.Errors {form} />
 
-	<div class="space-y-8">
+	{#if isFormDisabled}
+		<Alert class="mb-6 border-[#FF6F61] bg-[#FFF1F0] text-[#8B1A1A]">
+			<AlertTriangle class="h-4 w-4 text-[#FF6F61]" />
+			<AlertTitle>Commandes désactivées temporairement</AlertTitle>
+		</Alert>
+	{/if}
+
+	<div class="space-y-8" class:opacity-50={isFormDisabled} class:pointer-events-none={isFormDisabled}>
 		{#if customFields && customFields.length > 0}
 			<div class="space-y-4">
 				<h3 class="text-lg font-semibold text-foreground">
@@ -280,6 +294,7 @@
 											type="text"
 											placeholder="Votre réponse"
 											required={field.required}
+											disabled={isFormDisabled}
 											bind:value={$formData.customization_data[field.id]}
 										/>
 									</Form.Control>
@@ -294,6 +309,7 @@
 											placeholder="Votre réponse"
 											required={field.required}
 											rows={3}
+											disabled={isFormDisabled}
 											bind:value={$formData.customization_data[field.id]}
 										/>
 									</Form.Control>
@@ -309,6 +325,7 @@
 											step="1"
 											placeholder="Votre réponse"
 											required={field.required}
+											disabled={isFormDisabled}
 											bind:value={$formData.customization_data[field.id]}
 										/>
 									</Form.Control>
@@ -323,6 +340,7 @@
 											options={field.options || []}
 											selectedValues={$formData.customization_data[field.id]}
 											required={field.required}
+											disabled={isFormDisabled}
 											{customizations}
 											on:change={(e) =>
 												($formData.customization_data[field.id] =
@@ -373,7 +391,7 @@
 								<TimeSlotSelector
 									timeSlots={availableTimeSlots}
 									selectedTime={selectedTimeSlot}
-									disabled={isLoadingTimeSlots}
+									disabled={isLoadingTimeSlots || isFormDisabled}
 									required={true}
 									label="Choisir un créneau de récupération"
 									{customizations}
@@ -462,6 +480,7 @@
 								id="name"
 								placeholder="Votre nom complet"
 								required
+								disabled={isFormDisabled}
 								bind:value={$formData.customer_name}
 							/>
 						</Form.Control>
@@ -479,6 +498,7 @@
 								type="email"
 								placeholder="votre@email.com"
 								required
+								disabled={isFormDisabled}
 								bind:value={$formData.customer_email}
 							/>
 						</Form.Control>
@@ -495,6 +515,7 @@
 								id="phone"
 								type="tel"
 								placeholder="06 12 34 56 78"
+								disabled={isFormDisabled}
 								bind:value={$formData.customer_phone}
 							/>
 						</Form.Control>
@@ -510,6 +531,7 @@
 								{...attrs}
 								id="instagram"
 								placeholder="@votre_compte"
+								disabled={isFormDisabled}
 								bind:value={$formData.customer_instagram}
 							/>
 						</Form.Control>
@@ -526,6 +548,7 @@
 								id="info"
 								placeholder="Informations supplémentaires..."
 								rows={3}
+								disabled={isFormDisabled}
 								bind:value={$formData.additional_information}
 							/>
 						</Form.Control>
@@ -691,7 +714,7 @@
 			{#if $page.url.searchParams.get('preview') !== 'true'}
 				<Button
 					type="submit"
-					disabled={$submitting}
+					disabled={$submitting || isFormDisabled}
 					class="flex-1"
 					style={customStyles.buttonStyle}
 				>
@@ -702,7 +725,7 @@
 						Commander
 					{/if}
 				</Button>
-				<Button type="button" variant="outline" on:click={onCancel}>
+				<Button type="button" variant="outline" on:click={onCancel} disabled={isFormDisabled}>
 					Annuler
 				</Button>
 			{:else}

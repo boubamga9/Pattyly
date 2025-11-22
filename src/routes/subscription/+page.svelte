@@ -4,13 +4,39 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Star } from 'lucide-svelte';
+	import { Star, Check } from 'lucide-svelte';
 	import type { PageData } from './$types';
 
 	export let data: PageData;
 
-	// Plus besoin de logique d'essai gratuit
-	// L'essai gratuit est maintenant géré dans /onboarding
+	// Fonction pour identifier les différenciateurs de chaque plan
+	function isDifferentiator(planId: string, feature: string): boolean {
+		if (planId === 'starter') {
+			// Différenciateurs Starter
+			return feature.includes('30 commandes') || 
+			       feature.includes('prioritaire');
+		}
+		
+		if (planId === 'premium') {
+			// Différenciateurs Premium
+			return feature.includes('illimitées') || 
+			       feature.includes('Visibilité +') || 
+			       feature.includes('Envoi de devis');
+		}
+		
+		return false;
+	}
+
+	// Fonction pour obtenir la couleur du différenciateur selon le plan
+	function getDifferentiatorColor(planId: string): string {
+		if (planId === 'starter') {
+			return '#3B82F6'; // Bleu pour Starter
+		}
+		if (planId === 'premium') {
+			return '#FF6F61'; // Rouge/Orange pour Premium
+		}
+		return '';
+	}
 
 	// Fonction pour déterminer le texte et l'action du bouton selon le contexte
 	function getButtonConfig(plan: (typeof data.plans)[0]) {
@@ -28,7 +54,7 @@
 			return {
 				text: `Choisir ${plan.name}`,
 				action: 'checkout',
-				class: `w-full ${isPopular ? 'bg-[#FF6F61] hover:bg-[#e85a4f]' : 'bg-neutral-800 hover:bg-neutral-700'}`,
+				class: `w-full h-12 text-sm font-semibold transition-all duration-300 hover:scale-[1.02] ${isPopular ? 'bg-[#FF6F61] hover:bg-[#e85a4f] text-white shadow-lg hover:shadow-xl' : 'bg-neutral-800 hover:bg-neutral-700 text-white shadow-lg hover:shadow-xl'}`,
 				href: `/checkout/${plan.stripePriceId}`,
 			};
 		}
@@ -51,7 +77,7 @@
 			</Section.Title>
 			<Section.Description class="text-balance">
 				{data.currentPlan
-					? `Vous avez actuellement le plan ${data.currentPlan === 'basic' ? 'Basic' : 'Premium'}. Vous pouvez changer de plan à tout moment.`
+					? `Vous avez actuellement le plan ${data.currentPlan === 'starter' ? 'Starter' : 'Premium'}. Vous pouvez changer de plan à tout moment.`
 					: 'Démarrez votre activité de pâtissier en ligne avec nos plans flexibles. Créez votre boutique, gérez vos commandes et développez votre activité.'}
 			</Section.Description>
 		</Section.Header>
@@ -78,13 +104,16 @@
 
 							<Card.Header>
 								<Card.Title>{plan.name}</Card.Title>
-								<Card.Description>Facturation mensuelle</Card.Description>
+								<Card.Description>7 jours d'essai gratuit, puis facturation mensuelle</Card.Description>
 							</Card.Header>
 
 							<Card.Content class="flex flex-col gap-6">
 								<div
 									class="flex min-w-[280px] flex-col items-center justify-center gap-1"
 								>
+									<div class="text-center">
+										<span class="text-xs font-semibold text-green-600">7 jours gratuits</span>
+									</div>
 									<div class="flex items-baseline justify-center gap-1">
 										<span class="text-5xl font-bold tracking-tight">
 											{plan.price}€
@@ -111,23 +140,40 @@
 								{/if}
 							</Card.Content>
 
-							<Card.Footer>
-								<Pricing.PlanFeatures>
+							<Card.Footer class="pt-4 pb-6 px-4 sm:pt-6 sm:pb-8 sm:px-6">
+								<div class="space-y-3 sm:space-y-4">
 									{#each plan.features as feature}
-										<Pricing.FeatureItem
-											class={feature.includes('💬 Envoi de devis')
-												? 'font-semibold text-[#FF6F61]'
-												: ''}
-										>
-											{feature}
-										</Pricing.FeatureItem>
+										{@const isDiff = isDifferentiator(plan.id, feature)}
+										{@const diffColor = getDifferentiatorColor(plan.id)}
+										<div class="flex items-start gap-2.5 sm:gap-3 {isDiff ? 'rounded-lg px-2 py-1.5 -mx-2 sm:px-3 sm:py-2 sm:-mx-3' : ''}" style={isDiff ? `background-color: ${diffColor}15;` : ''}>
+											<div class="mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center sm:h-5 sm:w-5">
+												<Check class="h-3.5 w-3.5 sm:h-4 sm:w-4" style={isDiff ? `color: ${diffColor};` : plan.popular ? 'color: #FF6F61;' : 'color: #525252;'} />
+											</div>
+											<p 
+												class="text-sm leading-relaxed sm:text-base"
+												style={isDiff 
+													? `font-weight: 600; color: ${diffColor};`
+													: 'font-weight: 400; color: #404040;'}
+											>
+												{#if feature.includes('annuaire') || feature.includes('Annuaire')}
+													{@html feature.replace(/(annuaire|Annuaire)/gi, '<a href="/annuaire" class="underline transition-colors hover:text-[#FF6F61]" style="text-decoration-color: currentColor;">$&</a>')}
+												{:else}
+													{feature}
+												{/if}
+											</p>
+										</div>
 									{/each}
 									{#each plan.limitations as limitation}
-										<Pricing.FeatureItem class="text-muted-foreground">
-											{limitation}
-										</Pricing.FeatureItem>
+										<div class="flex items-start gap-3">
+											<div class="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center">
+												<div class="h-1 w-1 rounded-full bg-neutral-400"></div>
+											</div>
+											<p class="text-base leading-relaxed text-neutral-500" style="font-weight: 300;">
+												{limitation}
+											</p>
+										</div>
 									{/each}
-								</Pricing.PlanFeatures>
+								</div>
 							</Card.Footer>
 						</Card.Root>
 					</Pricing.Plan>

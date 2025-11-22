@@ -23,20 +23,20 @@ export async function getShopIdAndSlug(profileId: string, supabase: SupabaseClie
 
 /**
  * Get user's subscription plan
- * Returns: 'basic' | 'premium' | 'exempt' | null
+ * Returns: 'free' | 'basic' | 'premium' | 'exempt'
  * 
- * Logique basée sur le tableau de spécifications :
- * - Abonnement actif → Retourne le plan Stripe
- * - Abonnement inactif OU essai expiré → null (limité)
- * - Essai actif ET jamais eu d'abonnement → 'premium'
- * - Rien → null
+ * Nouvelle logique :
+ * - Abonnement Stripe actif → Retourne le plan Stripe ('basic' ou 'premium')
+ * - Pas d'abonnement actif → Retourne 'free' (plan gratuit permanent)
+ * - Utilisateur exempt → Retourne 'exempt'
+ * 
+ * Note : L'essai gratuit de 7 jours est géré par Stripe lors de l'abonnement,
+ * pas besoin de le gérer ici car Stripe retourne 'active' même pendant l'essai.
  */
 async function getUserPlan(
     profileId: string,
-    supabase: SupabaseClient,
-    trialEnding: string | null,
-    hasEverHadSubscription: boolean
-): Promise<string | null> {
+    supabase: SupabaseClient
+): Promise<'free' | 'basic' | 'premium' | 'exempt'> {
 
     // 1. Vérifier d'abord via Stripe (prioritaire)
     const { data: plan, error } = await supabase.rpc('get_user_plan', {
@@ -45,47 +45,15 @@ async function getUserPlan(
         basic_product_id: STRIPE_PRODUCTS.BASIC
     });
 
-    // Si abonnement actif → retourne le plan Stripe
-    if (!error && plan) {
+    // Si abonnement actif → retourne le plan Stripe ('basic' ou 'premium')
+    if (!error && plan && (plan === 'basic' || plan === 'premium' || plan === 'exempt')) {
         console.log('✅ Plan result (Stripe):', plan);
-        return plan;
+        return plan as 'basic' | 'premium' | 'exempt';
     }
 
-    // 2. Si l'utilisateur a déjà eu un abonnement (inactif)
-    // → Accès limité
-    if (hasEverHadSubscription) {
-        console.log('❌ User has inactive subscription → limited');
-        return null;
-    }
-
-    // 3. Si jamais eu d'abonnement, vérifier l'essai gratuit
-    const isTrialActive = trialEnding && new Date(trialEnding) > new Date();
-
-    if (isTrialActive) {
-        console.log('✅ User in trial period until:', trialEnding);
-        return 'premium'; // Essai gratuit = premium
-    }
-
-    // 4. Essai expiré, jamais eu d'abonnement → Accès limité
-    console.log('❌ Trial expired, no subscription → limited');
-    return null;
-}
-
-/**
- * Get current product count for a user
- */
-async function getProductCount(profileId: string, supabase: SupabaseClient): Promise<number> {
-    // First, get the shop_id for this profile
-    const { data: count, error } = await supabase.rpc('get_product_count', {
-        profile_id: profileId
-    });
-
-    if (error) {
-        console.error('Error in get_product_count RPC:', error);
-        return 0;
-    }
-    console.log('count', count);
-    return count || 0;
+    // 2. Pas d'abonnement actif → Plan gratuit permanent
+    console.log('✅ User on free plan (no active subscription)');
+    return 'free';
 }
 
 /**
@@ -98,29 +66,28 @@ export async function getUserPermissions(profileId: string, supabase: SupabaseCl
         p_profile_id: profileId
     });
 
-    const trialEnding = (basePermissions as any)?.[0]?.trial_ending || null;
-    const hasEverHadSubscription = (basePermissions as any)?.[0]?.has_ever_had_subscription || false;
-
     // 2. Récupérer shop details
     const { id: shopId, slug: shopSlug } = await getShopIdAndSlug(profileId, supabase);
 
-    // 3. Déterminer le plan (avec hasEverHadSubscription)
-    const plan = await getUserPlan(profileId, supabase, trialEnding, hasEverHadSubscription);
+    // 3. Déterminer le plan (plus besoin de trialEnding ou hasEverHadSubscription)
+    const plan = await getUserPlan(profileId, supabase);
 
-    // 4. Compter les produits
-    const productCount = await getProductCount(profileId, supabase);
-    const productLimit = plan === 'premium' || plan === 'exempt' ? 99 : 10;
+    // 4. Récupérer le nombre de produits actifs
+    const { data: productCount, error: productCountError } = await (supabase as any).rpc('get_product_count', {
+        profile_id: profileId
+    });
+
+    if (productCountError) {
+        console.error('Error fetching product count:', productCountError);
+    }
 
     return {
         shopId,
         shopSlug,
         plan,
-        productCount,
-        productLimit,
+        productCount: productCount || 0,
         canHandleCustomRequests: plan === 'premium' || plan === 'exempt',
         canManageCustomForms: plan === 'premium' || plan === 'exempt',
-        canAddMoreProducts: productCount < productLimit,
-        needsSubscription: plan === null,
         isExempt: plan === 'exempt'
     };
 }

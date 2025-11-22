@@ -29,11 +29,9 @@
 		const paypalLink = `https://paypal.me/${data.paypalMe}/${depositAmount}`;
 		window.open(paypalLink, '_blank');
 
-		// Attendre 20 secondes puis soumettre le formulaire
-		setTimeout(() => {
-			console.log('🔄 Auto-submitting payment confirmation form...');
-			confirmationForm?.requestSubmit();
-		}, 20000);
+		// Soumettre directement le formulaire de confirmation
+		console.log('🔄 Submitting payment confirmation form...');
+		confirmationForm?.requestSubmit();
 	}
 
 	// Fonction pour formater le prix

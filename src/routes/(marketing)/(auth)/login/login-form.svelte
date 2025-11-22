@@ -35,18 +35,19 @@
 		`${$page.url.origin}/auth/callback${$page.url.search}`,
 	)}"
 	use:enhance
-	class="grid gap-4"
+	class="grid gap-6"
 >
 	<Form.Errors {form} />
 	<Form.Field {form} name="email">
 		<Form.Control let:attrs>
-			<Form.Label class="mb-2">Email</Form.Label>
+			<Form.Label class="mb-2 text-sm font-medium text-neutral-700">Email</Form.Label>
 			<Input
 				{...attrs}
 				type="email"
-				placeholder="name@example.com"
+				placeholder="ton@email.com"
 				required
 				bind:value={$formData.email}
+				class="h-12 rounded-xl border-neutral-300 bg-white text-base transition-all duration-200 focus:border-[#FF6F61] focus:ring-2 focus:ring-[#FF6F61]/20"
 			/>
 		</Form.Control>
 		<Form.FieldErrors />
@@ -54,10 +55,10 @@
 	<Form.Field {form} name="password">
 		<Form.Control let:attrs>
 			<div class="mb-2 flex items-center">
-				<Form.Label>Mot de passe</Form.Label>
+				<Form.Label class="text-sm font-medium text-neutral-700">Mot de passe</Form.Label>
 				<a
 					href="/forgot-password"
-					class="ml-auto inline-block text-sm text-muted-foreground underline"
+					class="ml-auto inline-block text-sm text-[#FF6F61] underline transition-colors hover:text-[#e85a4f]"
 				>
 					Mot de passe oublié ?
 				</a>
@@ -69,29 +70,32 @@
 					placeholder="••••••••"
 					required
 					bind:value={$formData.password}
-					class="pr-10"
+					class="h-12 rounded-xl border-neutral-300 bg-white pr-10 text-base transition-all duration-200 focus:border-[#FF6F61] focus:ring-2 focus:ring-[#FF6F61]/20"
 				/>
 				<button
 					type="button"
 					on:click={togglePasswordVisibility}
-					class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 focus:outline-none"
+					class="absolute inset-y-0 right-0 flex items-center pr-3 text-neutral-400 transition-colors hover:text-neutral-600 focus:outline-none"
 					aria-label={showPassword
 						? 'Masquer le mot de passe'
 						: 'Afficher le mot de passe'}
 				>
 					{#if showPassword}
-						<EyeOff class="h-4 w-4" />
+						<EyeOff class="h-5 w-5" />
 					{:else}
-						<Eye class="h-4 w-4" />
+						<Eye class="h-5 w-5" />
 					{/if}
 				</button>
 			</div>
 		</Form.Control>
 		<Form.FieldErrors />
 	</Form.Field>
-	<Form.Button class="w-full" disabled={$submitting}>
+	<Form.Button 
+		class="h-12 w-full rounded-xl bg-[#FF6F61] text-base font-medium text-white shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-[#e85a4f] hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed" 
+		disabled={$submitting}
+	>
 		{#if $submitting}
-			<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+			<LoaderCircle class="mr-2 h-5 w-5 animate-spin" />
 			Connexion en cours…
 		{:else}
 			Se connecter

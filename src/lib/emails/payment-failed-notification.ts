@@ -26,7 +26,7 @@ export function PaymentFailedNotificationEmail({
             <div style="margin-bottom: 16px;">
                 <h2 style="color: #dc3545; margin-top: 0; font-size: 18px; font-weight: normal;">❌ Paiement échoué</h2>
                 <p>Bonjour,</p>
-                <p>Nous avons rencontré un problème lors du traitement de votre paiement pour votre abonnement. Votre boutique "${shopName}" a été temporairement désactivée jusqu'à la résolution du problème.</p>
+                <p>Nous avons rencontré un problème lors du traitement de votre paiement pour votre abonnement.</p>
             </div>
 
             <div style="text-align: center; margin-top: 24px; padding: 16px;">
@@ -44,8 +44,9 @@ export function PaymentFailedNotificationEmail({
             <div style="background-color: #fff3cd; padding: 16px; border-radius: 6px; border-left: 4px solid #ffc107; margin: 16px 0;">
                 <h3 style="margin-top: 0; color: #856404; font-size: 16px; font-weight: bold;">⚠️ Impact sur votre boutique</h3>
                 <ul style="margin: 0; padding-left: 20px; color: #856404;">
-                    <li>Votre boutique est temporairement inaccessible aux clients</li>
-                    <li>Les nouvelles commandes sont suspendues</li>
+                    <li><strong>Les nouvelles commandes risquent d'être bloquées</strong> - Si votre limite mensuelle est atteinte, vous ne pourrez plus recevoir de commandes</li>
+                    <li><strong>Votre visibilité dans l'annuaire risque de baisser</strong> - Les boutiques avec abonnement actif sont mises en avant</li>
+                    <li><strong>Votre badge vérifié sera perdu</strong> - Le badge vérifié est réservé aux abonnements actifs (Starter et Premium)</li>
                     <li>Vos données et commandes existantes restent en sécurité</li>
                     <li>Vous pouvez toujours accéder à votre dashboard</li>
                 </ul>

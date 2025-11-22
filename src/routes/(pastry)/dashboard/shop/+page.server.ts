@@ -1,17 +1,14 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import Stripe from 'stripe';
 import { getUserPermissions } from '$lib/auth';
 
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { formSchema } from './schema';
 import { customizationSchema } from './customization-schema';
-import { validateImageServer, validateAndRecompressImage, logValidationInfo } from '$lib/utils/images/server';
-import { sanitizeFileName } from '$lib/utils/filename-sanitizer';
+import { directorySchema } from '$lib/validations/schemas/shop';
+import { uploadShopLogo, uploadBackgroundImage, deleteImage, extractPublicIdFromUrl } from '$lib/cloudinary';
 import { forceRevalidateShop } from '$lib/utils/catalog';
-
-
 
 export const load: PageServerLoad = async ({ locals }) => {
     // Récupérer l'utilisateur connecté
@@ -26,16 +23,15 @@ export const load: PageServerLoad = async ({ locals }) => {
     // Vérifier les permissions
     const permissions = await getUserPermissions(user.id, locals.supabase);
 
-
     // Récupérer l'ID de la boutique
     if (!permissions.shopId) {
         throw error(400, 'Boutique non trouvée');
     }
 
-    // Get shop data
+    // Get shop data (including directory fields)
     const { data: shop, error: shopError } = await locals.supabase
         .from('shops')
-        .select('id, name, bio, slug, logo_url, instagram, tiktok, website')
+        .select('id, name, bio, slug, logo_url, instagram, tiktok, website, directory_city, directory_actual_city, directory_postal_code, directory_cake_types, directory_enabled')
         .eq('id', permissions.shopId)
         .single();
 
@@ -81,6 +77,15 @@ export const load: PageServerLoad = async ({ locals }) => {
                 secondary_text_color: customizations?.secondary_text_color || '#333333',
                 background_color: customizations?.background_color || '#ffe8d6',
                 background_image_url: customizations?.background_image_url || '',
+            }
+        }),
+        directoryForm: await superValidate(zod(directorySchema), {
+            defaults: {
+                directory_city: shop.directory_city || '',
+                directory_actual_city: shop.directory_actual_city || '',
+                directory_postal_code: shop.directory_postal_code || '',
+                directory_cake_types: shop.directory_cake_types || [],
+                directory_enabled: shop.directory_enabled || false
             }
         })
     };
@@ -140,42 +145,31 @@ export const actions: Actions = {
         let logoUrl = currentLogoUrl;
 
         if (logoFile && logoFile.size > 0) {
-            // 🔍 Validation serveur stricte + re-compression automatique si nécessaire
-            const validationResult = await validateAndRecompressImage(logoFile, 'LOGO');
+            // Validation basique : taille max 5MB
+            if (logoFile.size > 5 * 1024 * 1024) {
+                return { success: false, error: 'Le logo ne doit pas dépasser 5MB' };
+            }
 
-            // Log de validation pour le debugging
-            logValidationInfo(logoFile, 'LOGO', validationResult);
-
-            if (!validationResult.isValid) {
-                return { success: false, error: validationResult.error || 'Validation du logo échouée' };
+            // Vérifier que c'est bien une image
+            if (!logoFile.type.startsWith('image/')) {
+                return { success: false, error: 'Le fichier doit être une image' };
             }
 
             try {
-                // 🔄 Utiliser l'image re-compressée si disponible
-                const imageToUpload = validationResult.compressedFile || logoFile;
+                // Upload vers Cloudinary (compression et optimisation automatiques)
+                const uploadResult = await uploadShopLogo(logoFile, shop.id);
+                logoUrl = uploadResult.secure_url;
 
-                // Upload to Supabase Storage
-                const sanitizedFileName = sanitizeFileName(imageToUpload.name);
-                const fileName = `${userId}/${Date.now()}-${sanitizedFileName}`;
-                const { error: uploadError } = await locals.supabase.storage
-                    .from('shop-logos')
-                    .upload(fileName, imageToUpload, {
-                        cacheControl: '3600',
-                        upsert: false
-                    });
-
-                if (uploadError) {
-                    return { success: false, error: 'Erreur lors de l\'upload du logo' };
+                // Supprimer l'ancien logo Cloudinary si il existe
+                if (currentLogoUrl) {
+                    const oldPublicId = extractPublicIdFromUrl(currentLogoUrl);
+                    if (oldPublicId) {
+                        await deleteImage(oldPublicId);
+                    }
                 }
-
-                // Get public URL
-                const { data: urlData } = locals.supabase.storage
-                    .from('shop-logos')
-                    .getPublicUrl(fileName);
-
-                logoUrl = urlData.publicUrl;
             } catch (err) {
-                return { success: false, error: 'Erreur lors du traitement du logo' };
+                console.error('❌ [Shop Update] Erreur Cloudinary logo:', err);
+                return { success: false, error: 'Erreur lors de l\'upload du logo' };
             }
         }
 
@@ -222,7 +216,6 @@ export const actions: Actions = {
             }
         }
 
-
         // Return form data for Superforms compatibility with updated data
         const updatedForm = await superValidate(zod(formSchema), {
             defaults: {
@@ -240,7 +233,6 @@ export const actions: Actions = {
     },
 
     updateCustomizationForm: async ({ request, locals }) => {
-
         const { session } = await locals.safeGetSession();
         if (!session) {
             return { form: await superValidate(zod(customizationSchema)) };
@@ -248,7 +240,6 @@ export const actions: Actions = {
 
         const userId = session.user.id;
         const form = await superValidate(request, zod(customizationSchema));
-
 
         if (!form.valid) {
             return { form };
@@ -270,33 +261,35 @@ export const actions: Actions = {
         let finalBackgroundImageUrl = background_image_url;
 
         if (background_image && background_image.size > 0) {
-            try {
-                // Upload to Supabase Storage
-                const sanitizedFileName = sanitizeFileName(background_image.name);
-                const fileName = `${userId}/${Date.now()}-${sanitizedFileName}`;
-                const { error: uploadError } = await locals.supabase.storage
-                    .from('shop_backgrounds')
-                    .upload(fileName, background_image, {
-                        cacheControl: '3600',
-                        upsert: false
-                    });
+            // Validation basique : taille max 5MB
+            if (background_image.size > 5 * 1024 * 1024) {
+                form.message = 'L\'image de fond ne doit pas dépasser 5MB';
+                return { form };
+            }
 
-                if (uploadError) {
-                    console.error('🎨 [Dashboard Shop] Background upload error:', uploadError);
-                    form.message = 'Erreur lors de l\'upload de l\'image de fond';
-                    return { form };
+            // Vérifier que c'est bien une image
+            if (!background_image.type.startsWith('image/')) {
+                form.message = 'Le fichier doit être une image';
+                return { form };
+            }
+
+            try {
+                // Upload vers Cloudinary (compression et optimisation automatiques)
+                const uploadResult = await uploadBackgroundImage(background_image, shop.id);
+                finalBackgroundImageUrl = uploadResult.secure_url;
+
+                // Supprimer l'ancienne image de fond Cloudinary si elle existe
+                if (background_image_url) {
+                    const oldPublicId = extractPublicIdFromUrl(background_image_url);
+                    if (oldPublicId) {
+                        await deleteImage(oldPublicId);
+                    }
                 }
 
-                // Get public URL
-                const { data: urlData } = locals.supabase.storage
-                    .from('shop_backgrounds')
-                    .getPublicUrl(fileName);
-
-                finalBackgroundImageUrl = urlData.publicUrl;
                 console.log('🎨 [Dashboard Shop] Background image uploaded:', finalBackgroundImageUrl);
             } catch (err) {
                 console.error('🎨 [Dashboard Shop] Background image processing error:', err);
-                form.message = 'Erreur lors du traitement de l\'image de fond';
+                form.message = 'Erreur lors de l\'upload de l\'image de fond';
                 return { form };
             }
         }
@@ -346,10 +339,8 @@ export const actions: Actions = {
     },
 
     removeBackgroundImage: async ({ locals }) => {
-
         const { session } = await locals.safeGetSession();
         if (!session) {
-
             return { success: false, error: 'Non autorisé' };
         }
 
@@ -375,18 +366,11 @@ export const actions: Actions = {
 
         if (customizations?.background_image_url) {
             try {
-                // Supprimer le fichier du storage
-                const fileName = customizations.background_image_url.split('/').pop();
-                if (fileName) {
-                    const { error: deleteError } = await locals.supabase.storage
-                        .from('shop_backgrounds')
-                        .remove([`${userId}/${fileName}`]);
-
-                    if (deleteError) {
-                        console.error('🎨 [Dashboard Shop] Error deleting background image:', deleteError);
-                    } else {
-                        console.log('🎨 [Dashboard Shop] Background image deleted from storage');
-                    }
+                // Supprimer l'image Cloudinary
+                const publicId = extractPublicIdFromUrl(customizations.background_image_url);
+                if (publicId) {
+                    await deleteImage(publicId);
+                    console.log('🎨 [Dashboard Shop] Background image deleted from Cloudinary');
                 }
             } catch (error) {
                 console.error('🎨 [Dashboard Shop] Error processing background image deletion:', error);
@@ -415,6 +399,70 @@ export const actions: Actions = {
         }
 
         return { success: true };
-    }
+    },
 
+    updateDirectory: async ({ request, locals }) => {
+        const { session } = await locals.safeGetSession();
+        if (!session) {
+            return { form: await superValidate(zod(directorySchema)) };
+        }
+
+        const userId = session.user.id;
+        const form = await superValidate(request, zod(directorySchema));
+
+        if (!form.valid) {
+            return { form };
+        }
+
+        const { data: shop } = await locals.supabase
+            .from('shops')
+            .select('id, slug')
+            .eq('profile_id', userId)
+            .single();
+
+        if (!shop) {
+            form.message = 'Boutique non trouvée';
+            return { form };
+        }
+
+        // Mettre à jour les champs annuaire
+        const { error: updateError } = await locals.supabase
+            .from('shops')
+            .update({
+                directory_city: form.data.directory_city,
+                directory_actual_city: form.data.directory_actual_city,
+                directory_postal_code: form.data.directory_postal_code,
+                directory_cake_types: form.data.directory_cake_types,
+                directory_enabled: form.data.directory_enabled
+            })
+            .eq('id', shop.id);
+
+        if (updateError) {
+            console.error('📋 [Directory] Update error:', updateError);
+            form.message = 'Erreur lors de la mise à jour des informations annuaire';
+            return { form };
+        }
+
+        // Revalidate shop cache
+        try {
+            await forceRevalidateShop(shop.slug);
+        } catch (error) {
+            console.error('📋 [Directory] Cache revalidation failed:', error);
+        }
+
+        // Retourner le formulaire mis à jour
+        const updatedForm = await superValidate(zod(directorySchema), {
+            defaults: {
+                directory_city: form.data.directory_city,
+                directory_actual_city: form.data.directory_actual_city,
+                directory_postal_code: form.data.directory_postal_code,
+                directory_cake_types: form.data.directory_cake_types,
+                directory_enabled: form.data.directory_enabled
+            }
+        });
+
+        updatedForm.message = 'Informations annuaire sauvegardées avec succès !';
+        return { form: updatedForm };
+    }
 };
+

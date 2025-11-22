@@ -6,7 +6,6 @@ Disallow: /test/
 Disallow: /onboarding/
 Disallow: /checkout/
 Disallow: /subscription/
-Disallow: /early-adopter/
 
 # Autoriser les pages publiques
 Allow: /

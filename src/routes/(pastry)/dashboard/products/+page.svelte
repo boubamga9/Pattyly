@@ -32,7 +32,6 @@
 		products,
 		categories,
 		currentProductCount,
-		canAddProducts,
 		permissions,
 		shopSlug,
 	} = $page.data);
@@ -165,25 +164,11 @@
 		<div
 			class="flex flex-col space-y-2 sm:flex-row sm:items-center sm:gap-4 sm:space-y-0"
 		>
-			<!-- Compteur de produits (seulement pour Basic) -->
-			{#if permissions.plan === 'basic' || permissions.plan === null}
-				<div class="text-sm text-muted-foreground">
-					{currentProductCount} / {permissions.productLimit} gâteaux
-				</div>
-			{/if}
-
 			<!-- Bouton d'ajout -->
-			{#if canAddProducts}
-				<Button on:click={goToNewProduct} class="w-full sm:w-auto">
-					<Plus class="mr-2 h-4 w-4" />
-					Ajouter un Gâteau
-				</Button>
-			{:else}
-				<Button variant="outline" disabled class="w-full sm:w-auto">
-					<Plus class="mr-2 h-4 w-4" />
-					Limite Atteinte
-				</Button>
-			{/if}
+			<Button on:click={goToNewProduct} class="w-full sm:w-auto">
+				<Plus class="mr-2 h-4 w-4" />
+				Ajouter un Gâteau
+			</Button>
 		</div>
 	</div>
 
@@ -200,20 +185,6 @@
 		</Alert>
 	{/if}
 
-	<!-- Alerte de limite atteinte (seulement pour Basic) -->
-	{#if !canAddProducts && (permissions.plan === 'basic' || permissions.plan === null)}
-		<Alert>
-			<Crown class="h-4 w-4" />
-			<AlertDescription>
-				<strong>Limite de gâteaux atteinte !</strong>
-				Vous avez atteint la limite de {permissions.productLimit} gâteaux.
-				<a href="/subscription" class="font-medium underline"
-					>Passez au plan Premium</a
-				>
-				pour ajouter autant de gâteaux que vous voulez !
-			</AlertDescription>
-		</Alert>
-	{/if}
 
 	<!-- Section de filtres -->
 	<div class="space-y-4">
@@ -438,13 +409,7 @@
 										type="submit"
 										variant="ghost"
 										size="sm"
-										title={canAddProducts
-											? 'Dupliquer le gâteau'
-											: 'Limite de gâteaux atteinte'}
-										disabled={!canAddProducts}
-										class={!canAddProducts
-											? 'cursor-not-allowed opacity-50'
-											: ''}
+										title="Dupliquer le gâteau"
 									>
 										<Copy class="h-4 w-4" />
 									</Button>
@@ -515,14 +480,10 @@
 							<p class="mb-4 text-muted-foreground">
 								Commencez par ajouter votre premier gâteau à votre catalogue.
 							</p>
-							{#if canAddProducts}
-								<Button on:click={goToNewProduct}>
-									<Plus class="mr-2 h-4 w-4" />
-									Ajouter un Gâteau
-								</Button>
-							{:else}
-								<Button variant="outline" disabled>Limite Atteinte</Button>
-							{/if}
+							<Button on:click={goToNewProduct}>
+								<Plus class="mr-2 h-4 w-4" />
+								Ajouter un Gâteau
+							</Button>
 						</div>
 					</CardContent>
 				</Card>

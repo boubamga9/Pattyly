@@ -14,7 +14,7 @@
 	import { Upload, X } from 'lucide-svelte';
 	import { shopCreationSchema, type FormSchema } from './schema';
 	import { createEventDispatcher } from 'svelte';
-	import { compressLogo } from '$lib/utils/images/client';
+	import { invalidateAll } from '$app/navigation';
 
 	export let data: SuperValidated<Infer<FormSchema>>;
 	const dispatch = createEventDispatcher();
@@ -33,8 +33,8 @@
 		dispatch('message', message);
 	}
 
-	// Handle file selection with compression
-	async function handleFileSelect(event: Event) {
+	// Handle file selection (Cloudinary gère la compression automatiquement)
+	function handleFileSelect(event: Event) {
 		const target = event.target as HTMLInputElement;
 		const file = target.files?.[0];
 
@@ -43,40 +43,27 @@
 		// Reset error
 		logoError = null;
 
-		try {
-			// Validate file type
-			if (!file.type.startsWith('image/')) {
-				logoError = 'Veuillez sélectionner une image valide';
-				return;
-			}
-
-			// Validate file size before compression (max 5MB pour éviter les abus)
-			if (file.size > 5 * 1024 * 1024) {
-				logoError = "L'image ne doit pas dépasser 5MB";
-				return;
-			}
-
-			// Compresser et redimensionner le logo
-			const compressionResult = await compressLogo(file);
-
-			// Utiliser l'image compressée
-			$formData.logo = compressionResult.file;
-
-			// 🔄 Synchroniser l'input file avec l'image compressée
-			// Créer un nouveau FileList avec l'image compressée
-			const dataTransfer = new DataTransfer();
-			dataTransfer.items.add(compressionResult.file);
-			logoInputElement.files = dataTransfer.files;
-
-			// Create preview
-			const reader = new FileReader();
-			reader.onload = (e) => {
-				logoPreview = e.target?.result as string;
-			};
-			reader.readAsDataURL(compressionResult.file);
-		} catch (error) {
-			logoError = "Erreur lors du traitement de l'image. Veuillez réessayer.";
+		// Validate file type
+		if (!file.type.startsWith('image/')) {
+			logoError = 'Veuillez sélectionner une image valide';
+			return;
 		}
+
+		// Validate file size (max 5MB)
+		if (file.size > 5 * 1024 * 1024) {
+			logoError = "L'image ne doit pas dépasser 5MB";
+			return;
+		}
+
+		// Utiliser le fichier original (Cloudinary compresse automatiquement)
+		$formData.logo = file;
+
+		// Create preview
+		const reader = new FileReader();
+		reader.onload = (e) => {
+			logoPreview = e.target?.result as string;
+		};
+		reader.readAsDataURL(file);
 	}
 
 	// Remove logo
@@ -90,7 +77,14 @@
 <form
 	method="POST"
 	action="?/createShop"
-	use:enhance
+	use:enhance={() => {
+		return async ({ result }) => {
+			if (result.type === 'success' && result.data?.success) {
+				// Recharger la page pour que le serveur détecte le changement d'état
+				await invalidateAll();
+			}
+		};
+	}}
 	enctype="multipart/form-data"
 	class="space-y-6"
 >

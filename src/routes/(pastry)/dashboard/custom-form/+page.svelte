@@ -247,7 +247,7 @@
 						<Button
 							size="lg"
 							class="bg-[#FF6F61] px-8 py-3 text-white transition-colors duration-200 hover:bg-[#e85a4f]"
-							on:click={() => (window.location.href = '/subscription')}
+							href="/checkout/{$page.data.premiumPriceId}"
 						>
 							<svg
 								class="mr-2 h-5 w-5"

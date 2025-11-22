@@ -10,7 +10,6 @@ import { createCategoryFormSchema, updateCategoryFormSchema, deleteCategoryFormS
 export const load: PageServerLoad = async ({ locals, parent }) => {
     const { userId, permissions } = await parent();
     const currentProductCount = permissions.productCount;
-    const canAddProducts = permissions.canAddMoreProducts;
 
     // ✅ OPTIMISÉ : Un seul appel DB pour toutes les données produits
     const { data: productsData, error } = await locals.supabase.rpc('get_products_data', {
@@ -33,7 +32,6 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
         products,
         categories,
         currentProductCount,
-        canAddProducts,
         userPlan: permissions.plan,
         permissions,
         shopSlug: shop.slug,
@@ -158,10 +156,6 @@ export const actions: Actions = {
 
         // Récupérer les permissions
         const permissions = await getUserPermissions(userId, locals.supabase);
-
-        if (!permissions.canAddMoreProducts) {
-            return fail(403, { error: 'Limite de produits atteinte. Passez au plan Premium pour ajouter plus de produits !' });
-        }
 
         const formData = await request.formData();
         const productId = formData.get('productId') as string;
