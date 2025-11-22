@@ -133,10 +133,12 @@
 		});
 	}
 
-	// Synchroniser cityInput avec le formulaire (réactif) - seulement si les valeurs changent vraiment
+	// Synchroniser cityInput avec le formulaire (réactif) - seulement si l'input n'est pas en focus
+	let isCityInputFocused = false;
+	
 	$: {
-		// Ne logger que si les valeurs changent significativement (pas juste une réinitialisation)
-		if ($formData.directory_actual_city && cityInput !== $formData.directory_actual_city) {
+		// Ne synchroniser que si l'input n'est pas en focus (pour éviter de bloquer la saisie)
+		if (!isCityInputFocused && $formData.directory_actual_city && cityInput !== $formData.directory_actual_city) {
 			console.log('📋 [Directory Form] Syncing cityInput from', cityInput, 'to', $formData.directory_actual_city);
 			cityInput = $formData.directory_actual_city;
 		}
@@ -286,8 +288,12 @@
 					type="text"
 					bind:value={cityInput}
 					on:input={handleCityInput}
-					on:blur={handleCityBlur}
+					on:blur={() => {
+						isCityInputFocused = false;
+						handleCityBlur();
+					}}
 					on:focus={() => {
+						isCityInputFocused = true;
 						if (citySuggestions.length > 0) showSuggestions = true;
 					}}
 					placeholder="Commencez à taper le nom de votre ville..."
