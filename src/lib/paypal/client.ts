@@ -1,6 +1,5 @@
 // src/lib/paypal/client.ts
-import { PRIVATE_PAYPAL_CLIENT_ID, PRIVATE_PAYPAL_CLIENT_SECRET } from '$env/static/private';
-import { PUBLIC_PAYPAL_BASE_URL } from '$env/static/public';
+// Note: PayPal environment variables are optional - if not configured, PayPal features will be disabled
 import type {
     PayPalConfig,
     PayPalAccessToken,
@@ -15,18 +14,40 @@ class PayPalClient {
     private accessToken: PayPalAccessToken | null = null;
 
     constructor() {
+        // Use dynamic imports to avoid build-time errors if variables are not set
+        // These will be loaded at runtime
+        this.config = {
+            clientId: '',
+            clientSecret: '',
+            baseUrl: ''
+        };
+    }
+
+    private async loadConfig() {
+        if (this.config.clientId && this.config.clientSecret && this.config.baseUrl) {
+            return; // Already loaded
+        }
+
+        const { env } = await import('$env/dynamic/private');
+        const { env: publicEnv } = await import('$env/dynamic/public');
 
         this.config = {
-            clientId: PRIVATE_PAYPAL_CLIENT_ID,
-            clientSecret: PRIVATE_PAYPAL_CLIENT_SECRET,
-            baseUrl: PUBLIC_PAYPAL_BASE_URL
+            clientId: env.PRIVATE_PAYPAL_CLIENT_ID || '',
+            clientSecret: env.PRIVATE_PAYPAL_CLIENT_SECRET || '',
+            baseUrl: publicEnv.PUBLIC_PAYPAL_BASE_URL || ''
         };
+
+        if (!this.config.clientId || !this.config.clientSecret || !this.config.baseUrl) {
+            throw new Error('PayPal environment variables are not configured');
+        }
     }
 
     /**
      * Get or refresh PayPal access token (public for webhook verification)
      */
     public async getAccessToken(): Promise<string> {
+        await this.loadConfig();
+        
         // Check if token is still valid (with 5min buffer)
         if (this.accessToken && Date.now() < this.accessToken.expires_at - 300000) {
             return this.accessToken.access_token;

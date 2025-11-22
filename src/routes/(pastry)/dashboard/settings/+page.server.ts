@@ -7,7 +7,6 @@ import { message, setError, superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad } from './$types';
 import { getUserPermissions } from '$lib/auth';
-import { paypalClient } from '$lib/paypal/client.js';
 import {
     deleteAccountFormSchema,
     infoFormSchema,
