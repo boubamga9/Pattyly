@@ -149,7 +149,7 @@ export const actions: Actions = {
         const newCategoryName = formData.get('newCategoryName') as string;
         let finalCategoryId = category_id;
 
-        // Créer la nouvelle catégorie si nécessaire
+        // ✅ OPTIMISÉ : Créer la nouvelle catégorie avec ON CONFLICT (évite la vérification préalable)
         if (newCategoryName && newCategoryName.trim()) {
             try {
                 const { data: newCategory, error: categoryError } = await locals.supabase
@@ -159,7 +159,9 @@ export const actions: Actions = {
                         shop_id: shopId
                     })
                     .select()
-                    .single();
+                    .single()
+                    .onConflict('name,shop_id')
+                    .merge(); // Si existe déjà, on récupère l'existant
 
                 if (categoryError) {
                     return fail(500, { form, error: 'Erreur lors de la création de la catégorie' });
@@ -180,10 +182,10 @@ export const actions: Actions = {
         }
 
         try {
-            // Récupérer l'ancienne image pour la supprimer si nécessaire
+            // ✅ OPTIMISÉ : Récupérer le produit avec form_id en une seule requête (au lieu de 2)
             const { data: currentProduct } = await locals.supabase
                 .from('products')
-                .select('image_url')
+                .select('image_url, form_id')
                 .eq('id', productId)
                 .eq('shop_id', shopId)
                 .single();
@@ -191,6 +193,7 @@ export const actions: Actions = {
             // Handle image upload if provided
             let imageUrl = null;
             const oldImageUrl = currentProduct?.image_url || null;
+            const currentFormId = currentProduct?.form_id || null;
 
             if (imageFile && imageFile.size > 0) {
                 // Validation basique : taille max 10MB
@@ -293,7 +296,7 @@ export const actions: Actions = {
                         // Identifier les champs à mettre à jour ou ajouter
                         const fieldsToUpsert = customizationFields.map((field: any, index: number) => ({
                             id: field.id || undefined, // Garder l'ID si il existe
-                            form_id: updatedProduct.form_id!,
+                            form_id: formIdToUse!,
                             label: field.label,
                             type: field.type,
                             options: field.options && field.options.length > 0 ? field.options : null,
@@ -302,12 +305,24 @@ export const actions: Actions = {
                         }));
 
 
-                        // Supprimer les champs supprimés
-                        if (fieldsToDelete.length > 0) {
+                        // ✅ OPTIMISÉ : Regrouper toutes les suppressions en une seule requête
+                        // Identifier tous les IDs à supprimer (champs supprimés + cas où tous les champs sont supprimés)
+                        const idsToDelete: string[] = [];
+                        
+                        if (fieldsToUpsert.length === 0 && existingFields.length > 0) {
+                            // Tous les champs ont été supprimés
+                            idsToDelete.push(...existingFields.map(f => f.id));
+                        } else if (fieldsToDelete.length > 0) {
+                            // Seulement les champs spécifiques à supprimer
+                            idsToDelete.push(...fieldsToDelete.map(f => f.id));
+                        }
+
+                        // Supprimer tous les champs en une seule requête
+                        if (idsToDelete.length > 0) {
                             const { error: deleteError } = await locals.supabase
                                 .from('form_fields')
                                 .delete()
-                                .in('id', fieldsToDelete.map(f => f.id));
+                                .in('id', idsToDelete);
 
                             if (deleteError) {
                                 return fail(500, {
@@ -329,20 +344,6 @@ export const actions: Actions = {
                                 return fail(500, {
                                     error: 'Erreur lors de la mise à jour des champs de personnalisation'
                                 });
-                            }
-                        } else {
-                            // Tous les champs ont été supprimés, supprimer tous les champs existants
-                            if (existingFields.length > 0) {
-                                const { error: deleteAllError } = await locals.supabase
-                                    .from('form_fields')
-                                    .delete()
-                                    .eq('form_id', updatedProduct.form_id);
-
-                                if (deleteAllError) {
-                                    return fail(500, {
-                                        error: 'Erreur lors de la suppression de tous les champs'
-                                    });
-                                }
                             }
                         }
                     } else if (customizationFields.length > 0) {

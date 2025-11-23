@@ -1,6 +1,5 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { getUserPermissions } from '$lib/auth';
 
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
@@ -10,25 +9,20 @@ import { directorySchema } from '$lib/validations/schemas/shop';
 import { uploadShopLogo, uploadBackgroundImage, deleteImage, extractPublicIdFromUrl } from '$lib/cloudinary';
 import { forceRevalidateShop } from '$lib/utils/catalog';
 
-export const load: PageServerLoad = async ({ locals }) => {
-    // Récupérer l'utilisateur connecté
-    const {
-        data: { user },
-    } = await locals.supabase.auth.getUser();
+export const load: PageServerLoad = async ({ locals, parent }) => {
+    // ✅ OPTIMISÉ : Réutiliser les permissions et shop du layout
+    const { permissions, shop: layoutShop, user } = await parent();
 
     if (!user) {
         throw redirect(302, '/login');
     }
-
-    // Vérifier les permissions
-    const permissions = await getUserPermissions(user.id, locals.supabase);
 
     // Récupérer l'ID de la boutique
     if (!permissions.shopId) {
         throw error(400, 'Boutique non trouvée');
     }
 
-    // Get shop data (including directory fields)
+    // Get shop data (including directory fields) - on récupère seulement les champs supplémentaires
     const { data: shop, error: shopError } = await locals.supabase
         .from('shops')
         .select('id, name, bio, slug, logo_url, instagram, tiktok, website, directory_city, directory_actual_city, directory_postal_code, directory_cake_types, directory_enabled')
@@ -109,11 +103,30 @@ export const actions: Actions = {
         const logoFile = logo;
         const currentLogoUrl = form.data.logo_url;
 
-        // Get shop data including logo_url
+        // ✅ OPTIMISÉ : Utiliser parent() pour récupérer shopId, puis vérifier la propriété
+        // Note: On récupère quand même logo_url et slug car nécessaires pour la logique
+        const { permissions } = await parent();
+        const shopId = permissions?.shopId;
+
+        if (!shopId) {
+            return { success: false, error: 'Boutique non trouvée' };
+        }
+
+        // Vérifier la propriété avec le RPC optimisé
+        const { data: isOwner, error: verifyError } = await (locals.supabase as any).rpc('verify_shop_ownership', {
+            p_profile_id: userId,
+            p_shop_id: shopId
+        });
+
+        if (verifyError || !isOwner) {
+            return { success: false, error: 'Boutique non trouvée ou non autorisée' };
+        }
+
+        // Récupérer seulement les champs nécessaires
         const { data: shop } = await locals.supabase
             .from('shops')
             .select('id, logo_url, slug')
-            .eq('profile_id', userId)
+            .eq('id', shopId)
             .single();
 
         if (!shop) {

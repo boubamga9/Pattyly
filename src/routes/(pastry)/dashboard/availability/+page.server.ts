@@ -5,8 +5,9 @@ import type { PageServerLoad, Actions } from './$types';
 import { getUserPermissions } from '$lib/auth';
 import { addUnavailabilityFormSchema } from './schema';
 
-export const load: PageServerLoad = async ({ locals }) => {
-    const { data: { user } } = await locals.supabase.auth.getUser();
+export const load: PageServerLoad = async ({ locals, parent }) => {
+    // ✅ OPTIMISÉ : Réutiliser user du layout
+    const { user } = await parent();
 
     if (!user) {
         throw redirect(302, '/login');

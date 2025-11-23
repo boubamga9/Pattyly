@@ -1,29 +1,17 @@
 import { redirect } from '@sveltejs/kit';
-import { getUserPermissions } from '$lib/auth';
 import { validateTransferData, getTransferErrorMessage } from '$lib/utils/transfer-utils';
+import { verifyShopOwnership } from '$lib/auth';
 import type { Actions } from './$types';
 
-export const load = async ({ locals }) => {
-    const { session, user } = await locals.safeGetSession();
-
-    if (!session || !user) {
-        redirect(303, '/login');
-    }
-
-    const permissions = await getUserPermissions(user.id, locals.supabase);
+export const load = async ({ locals, parent }) => {
+    // ✅ OPTIMISÉ : Réutiliser les permissions du layout au lieu de refaire la requête
+    const { permissions, shop, user } = await parent();
 
     if (!permissions.shopId) {
         redirect(303, '/onboarding');
     }
 
-    // Récupérer les infos de la boutique
-    const { data: shop } = await locals.supabase
-        .from('shops')
-        .select('*')
-        .eq('profile_id', user.id)
-        .single();
-
-    if (!shop) {
+    if (!shop || !user) {
         redirect(303, '/onboarding');
     }
 
@@ -126,15 +114,10 @@ export const actions: Actions = {
             return { error: validation.errorMessage };
         }
 
-        // Vérifier que l'utilisateur possède cette boutique
-        const { data: shop } = await locals.supabase
-            .from('shops')
-            .select('id')
-            .eq('id', shopId)
-            .eq('profile_id', user.id)
-            .single();
+        // ✅ OPTIMISÉ : Utiliser la fonction utilitaire pour vérifier la propriété
+        const isOwner = await verifyShopOwnership(user.id, shopId, locals.supabase);
 
-        if (!shop) {
+        if (!isOwner) {
             return { error: 'Boutique introuvable ou non autorisée' };
         }
 

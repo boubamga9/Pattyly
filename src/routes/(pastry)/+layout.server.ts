@@ -2,6 +2,7 @@ import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { getUserPermissions } from '$lib/auth';
 import { checkOrderLimit } from '$lib/utils/order-limits';
+import { STRIPE_PRODUCTS } from '$lib/config/server';
 
 export const load: LayoutServerLoad = async ({
 	locals: { safeGetSession, supabase },
@@ -11,14 +12,21 @@ export const load: LayoutServerLoad = async ({
 		redirect(303, '/login');
 	}
 
-	// ✅ OPTIMISÉ : Récupérer toutes les infos en un seul appel RPC
-	const { data: userPermissions } = await (supabase as any).rpc('get_user_permissions', {
-		p_profile_id: user.id
+	// ✅ OPTIMISÉ : Utiliser get_user_permissions_complete qui regroupe tout en 1 requête
+	const { data: permissionsData, error: permissionsError } = await (supabase as any).rpc('get_user_permissions_complete', {
+		p_profile_id: user.id,
+		p_premium_product_id: STRIPE_PRODUCTS.PREMIUM,
+		p_basic_product_id: STRIPE_PRODUCTS.BASIC
 	});
 
-	const hasShop = (userPermissions as any)?.[0]?.has_shop || false;
-	const hasPaymentMethod = (userPermissions as any)?.[0]?.has_payment_method || false;
-	const hasEverHadSubscription = (userPermissions as any)?.[0]?.has_ever_had_subscription || false;
+	if (permissionsError) {
+		console.error('Error fetching permissions:', permissionsError);
+		redirect(303, '/login');
+	}
+
+	const hasShop = permissionsData?.has_shop || false;
+	const hasPaymentMethod = permissionsData?.has_payment_method || false;
+	const hasEverHadSubscription = permissionsData?.has_ever_had_subscription || false;
 
 	// Vérifications de sécurité
 	if (!hasShop) {
@@ -29,15 +37,19 @@ export const load: LayoutServerLoad = async ({
 		redirect(303, '/onboarding');
 	}
 
-	// Récupérer shop details
-	const { data: shop } = await supabase
-		.from('shops')
-		.select('*')
-		.eq('profile_id', user.id)
-		.single();
+	// ✅ OPTIMISÉ : Le shop est maintenant inclus dans le RPC permissions
+	const shop = permissionsData?.shop || null;
 
-	// Récupérer les permissions complètes (plan, limites, etc.)
-	const permissions = await getUserPermissions(user.id, supabase);
+	// Construire l'objet permissions à partir des données du RPC
+	const permissions = {
+		shopId: permissionsData?.shopId || null,
+		shopSlug: permissionsData?.shopSlug || null,
+		plan: (permissionsData?.plan || 'free') as 'free' | 'basic' | 'premium' | 'exempt',
+		productCount: permissionsData?.productCount || 0,
+		canHandleCustomRequests: permissionsData?.canHandleCustomRequests || false,
+		canManageCustomForms: permissionsData?.canManageCustomForms || false,
+		isExempt: permissionsData?.isExempt || false
+	};
 
 	// Récupérer les statistiques de commandes pour les alertes
 	let orderLimitStats = null;

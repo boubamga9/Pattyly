@@ -232,23 +232,7 @@ export const actions: Actions = {
         const { name: trimmedName } = form.data;
 
         try {
-            // Vérifier si la catégorie existe déjà
-            const { data: existingCategory, error: checkError } = await locals.supabase
-                .from('categories')
-                .select('id')
-                .eq('shop_id', shopId)
-                .eq('name', trimmedName)
-                .single();
-
-            if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
-                return fail(500, { form, error: 'Erreur lors de la vérification de la catégorie' });
-            }
-
-            if (existingCategory) {
-                return fail(400, { form, error: 'Cette catégorie existe déjà' });
-            }
-
-            // Créer la nouvelle catégorie
+            // ✅ OPTIMISÉ : Utiliser ON CONFLICT pour éviter la vérification préalable (2 requêtes → 1 requête)
             const { data: newCategory, error: insertError } = await locals.supabase
                 .from('categories')
                 .insert({
@@ -256,7 +240,9 @@ export const actions: Actions = {
                     shop_id: shopId
                 })
                 .select('id, name')
-                .single();
+                .single()
+                .onConflict('name,shop_id')
+                .merge(); // Si existe déjà, on récupère l'existant
 
             if (insertError) {
                 return fail(500, { form, error: 'Erreur lors de la création de la catégorie' });

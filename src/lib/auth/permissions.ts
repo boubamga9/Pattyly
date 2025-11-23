@@ -20,6 +20,28 @@ export async function getShopIdAndSlug(profileId: string, supabase: SupabaseClie
     };
 }
 
+/**
+ * ✅ OPTIMISÉ : Vérifier la propriété d'un shop
+ * Utilise le RPC verify_shop_ownership pour une vérification rapide
+ */
+export async function verifyShopOwnership(
+    profileId: string,
+    shopId: string,
+    supabase: SupabaseClient
+): Promise<boolean> {
+    const { data: isOwner, error } = await (supabase as any).rpc('verify_shop_ownership', {
+        p_profile_id: profileId,
+        p_shop_id: shopId
+    });
+
+    if (error) {
+        console.error('Error verifying shop ownership:', error);
+        return false;
+    }
+
+    return isOwner === true;
+}
+
 
 /**
  * Get user's subscription plan
@@ -59,35 +81,31 @@ async function getUserPlan(
 /**
  * Get all user permissions in one call
  * This is the main function to use throughout the app
+ * 
+ * ✅ OPTIMISÉ : Utilise maintenant get_user_permissions_complete qui regroupe
+ * toutes les requêtes en une seule (4 requêtes → 1 requête)
  */
 export async function getUserPermissions(profileId: string, supabase: SupabaseClient) {
-    // 1. Récupérer toutes les infos de base en un seul appel
-    const { data: basePermissions } = await (supabase as any).rpc('get_user_permissions', {
-        p_profile_id: profileId
+    // ✅ OPTIMISÉ : Un seul appel RPC qui regroupe toutes les permissions
+    const { data: permissions, error } = await (supabase as any).rpc('get_user_permissions_complete', {
+        p_profile_id: profileId,
+        p_premium_product_id: STRIPE_PRODUCTS.PREMIUM,
+        p_basic_product_id: STRIPE_PRODUCTS.BASIC
     });
 
-    // 2. Récupérer shop details
-    const { id: shopId, slug: shopSlug } = await getShopIdAndSlug(profileId, supabase);
-
-    // 3. Déterminer le plan (plus besoin de trialEnding ou hasEverHadSubscription)
-    const plan = await getUserPlan(profileId, supabase);
-
-    // 4. Récupérer le nombre de produits actifs
-    const { data: productCount, error: productCountError } = await (supabase as any).rpc('get_product_count', {
-        profile_id: profileId
-    });
-
-    if (productCountError) {
-        console.error('Error fetching product count:', productCountError);
+    if (error) {
+        console.error('Error fetching user permissions:', error);
+        throw error;
     }
 
+    // Le RPC retourne déjà tout ce dont on a besoin
     return {
-        shopId,
-        shopSlug,
-        plan,
-        productCount: productCount || 0,
-        canHandleCustomRequests: plan === 'premium' || plan === 'exempt',
-        canManageCustomForms: plan === 'premium' || plan === 'exempt',
-        isExempt: plan === 'exempt'
+        shopId: permissions?.shopId || null,
+        shopSlug: permissions?.shopSlug || null,
+        plan: (permissions?.plan || 'free') as 'free' | 'basic' | 'premium' | 'exempt',
+        productCount: permissions?.productCount || 0,
+        canHandleCustomRequests: permissions?.canHandleCustomRequests || false,
+        canManageCustomForms: permissions?.canManageCustomForms || false,
+        isExempt: permissions?.isExempt || false
     };
 }

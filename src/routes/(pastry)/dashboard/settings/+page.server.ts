@@ -20,18 +20,13 @@ const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
     apiVersion: '2024-04-10'
 });
 
-export const load: PageServerLoad = async ({ locals }) => {
-    // Récupérer l'utilisateur connecté
-    const {
-        data: { user },
-    } = await locals.supabase.auth.getUser();
+export const load: PageServerLoad = async ({ locals, parent }) => {
+    // ✅ OPTIMISÉ : Réutiliser user et permissions du layout
+    const { user, permissions } = await parent();
 
     if (!user) {
         throw redirect(302, '/login');
     }
-
-    // Vérifier les permissions
-    const permissions = await getUserPermissions(user.id, locals.supabase);
 
     // Récupérer l'ID de la boutique
     if (!permissions.shopId) {

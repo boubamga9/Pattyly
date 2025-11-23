@@ -1,6 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
-import { getUserPermissions } from '$lib/auth';
+import { getUserPermissions, verifyShopOwnership } from '$lib/auth';
 import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
 import { PUBLIC_SITE_URL } from '$env/static/public';
 import Stripe from 'stripe';
@@ -97,15 +97,18 @@ export const actions: Actions = {
                 return fail(401, { error: 'Non autorisé' });
             }
 
-            // Récupérer la boutique de l'utilisateur
-            const { data: shop, error: shopError } = await locals.supabase
-                .from('shops')
-                .select('id')
-                .eq('profile_id', user.id)
-                .single();
+            // ✅ OPTIMISÉ : Utiliser getUserPermissions pour récupérer shopId, puis vérifier
+            const permissions = await getUserPermissions(user.id, locals.supabase);
+            const shopId = permissions?.shopId;
 
-            if (shopError || !shop) {
+            if (!shopId) {
                 return fail(404, { error: 'Boutique non trouvée' });
+            }
+
+            // Vérifier la propriété avec la fonction optimisée
+            const isOwner = await verifyShopOwnership(user.id, shopId, locals.supabase);
+            if (!isOwner) {
+                return fail(404, { error: 'Boutique non trouvée ou non autorisée' });
             }
 
             // Insérer ou mettre à jour la note
@@ -320,15 +323,18 @@ export const actions: Actions = {
                 return fail(401, { error: 'Non autorisé' });
             }
 
-            // Récupérer la boutique de l'utilisateur via profile_id
-            const { data: shop, error: shopError } = await locals.supabase
-                .from('shops')
-                .select('id')
-                .eq('profile_id', user.id)
-                .single();
+            // ✅ OPTIMISÉ : Utiliser getUserPermissions pour récupérer shopId, puis vérifier
+            const permissions = await getUserPermissions(user.id, locals.supabase);
+            const shopId = permissions?.shopId;
 
-            if (shopError || !shop) {
+            if (!shopId) {
                 return fail(404, { error: 'Boutique non trouvée' });
+            }
+
+            // Vérifier la propriété avec la fonction optimisée
+            const isOwner = await verifyShopOwnership(user.id, shopId, locals.supabase);
+            if (!isOwner) {
+                return fail(404, { error: 'Boutique non trouvée ou non autorisée' });
             }
 
             // Récupérer les détails de la commande avant mise à jour
@@ -336,7 +342,7 @@ export const actions: Actions = {
                 .from('orders')
                 .select('*, shops(name, logo_url, slug)')
                 .eq('id', params.id)
-                .eq('shop_id', shop.id)
+                .eq('shop_id', shopId)
                 .eq('status', 'to_verify')
                 .single();
 
@@ -350,7 +356,7 @@ export const actions: Actions = {
                 .from('orders')
                 .update({ status: 'confirmed' })
                 .eq('id', params.id)
-                .eq('shop_id', shop.id)
+                .eq('shop_id', shopId)
                 .eq('status', 'to_verify');
 
             if (updateError) {

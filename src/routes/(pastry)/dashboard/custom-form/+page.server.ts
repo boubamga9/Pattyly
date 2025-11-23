@@ -2,20 +2,18 @@ import { error } from '@sveltejs/kit';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad, Actions } from './$types';
-import { getUserPermissions } from '$lib/auth';
+import { getUserPermissions } from '$lib/auth'; // Encore utilisé dans les actions pour sécurité
 import { STRIPE_PRICES } from '$lib/config/server';
 import { forceRevalidateShop } from '$lib/utils/catalog';
 import { toggleCustomRequestsFormSchema, updateCustomFormFormSchema } from './schema';
 
-export const load: PageServerLoad = async ({ locals }) => {
-    const { data: { user } } = await locals.supabase.auth.getUser();
+export const load: PageServerLoad = async ({ locals, parent }) => {
+    // ✅ OPTIMISÉ : Réutiliser les permissions du layout
+    const { permissions, user } = await parent();
 
     if (!user) {
         throw error(401, 'Non autorisé');
     }
-
-    // Vérifier les permissions
-    const permissions = await getUserPermissions(user.id, locals.supabase);
 
     // Préparer un formulaire de toggle par défaut (toujours présent)
     const toggleForm = await superValidate(zod(toggleCustomRequestsFormSchema));

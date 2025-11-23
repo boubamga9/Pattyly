@@ -6,8 +6,9 @@ import { getUserPermissions } from '$lib/auth';
 import { formSchema } from './schema';
 import { forceRevalidateShop } from '$lib/utils/catalog';
 
-export const load: PageServerLoad = async ({ locals }) => {
-    const { data: { user } } = await locals.supabase.auth.getUser();
+export const load: PageServerLoad = async ({ locals, parent }) => {
+    // ✅ OPTIMISÉ : Réutiliser les permissions du layout (pas besoin de vérifier user ici)
+    const { user } = await parent();
 
     if (!user) {
         throw redirect(302, '/login');
