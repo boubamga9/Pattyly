@@ -33,14 +33,15 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			image_url,
 			base_price,
 			cake_type,
-			shops(
+			shops!inner(
 				id,
 				name,
 				slug,
 				logo_url,
 				directory_city,
 				directory_actual_city,
-				directory_postal_code
+				directory_postal_code,
+				profile_id
 			)
 		`)
 		.eq('is_active', true)
@@ -78,51 +79,35 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		};
 	}
 
-	// Récupérer tous les profile_ids des shops uniques
-	const shopProfileIds = new Set<string>();
-	(products || []).forEach((product: any) => {
-		if (product.shops?.id) {
-			// Récupérer le profile_id du shop
-			const shopId = product.shops.id;
-			// On va devoir faire une requête pour obtenir les profile_ids
-		}
-	});
-
-	// Récupérer les profile_ids des shops
-	const shopIds = [...new Set((products || []).map((p: any) => p.shops?.id).filter(Boolean))];
-	const { data: shopsData } = await locals.supabase
-		.from('shops')
-		.select('id, profile_id')
-		.in('id', shopIds);
-
-	const shopIdToProfileId = new Map<string, string>();
-	(shopsData || []).forEach((shop: any) => {
-		if (shop.profile_id) {
-			shopIdToProfileId.set(shop.id, shop.profile_id);
-		}
-	});
-
-	// Récupérer tous les profile_ids uniques
-	const profileIds = [...new Set(Array.from(shopIdToProfileId.values()))];
+	// Récupérer tous les profile_ids des shops directement depuis les produits
+	const profileIds = [...new Set(
+		(products || [])
+			.map((p: any) => p.shops?.profile_id)
+			.filter(Boolean)
+	)];
 
 	// Récupérer les plans premium pour tous les profiles en une seule requête
+	// Utilise une fonction RPC SECURITY DEFINER pour contourner les RLS policies
 	const premiumProfileIds = new Set<string>();
 	if (profileIds.length > 0) {
-		const { data: userProducts } = await locals.supabase
-			.from('user_products')
-			.select('profile_id, stripe_product_id')
-			.in('profile_id', profileIds)
-			.eq('subscription_status', 'active')
-			.eq('stripe_product_id', STRIPE_PRODUCTS.PREMIUM);
+		const { data: premiumIds, error: premiumError } = await locals.supabase.rpc(
+			'check_premium_profiles',
+			{
+				p_profile_ids: profileIds,
+				p_premium_product_id: STRIPE_PRODUCTS.PREMIUM
+			}
+		);
 		
-		if (userProducts) {
-			userProducts.forEach(up => premiumProfileIds.add(up.profile_id));
+		if (!premiumError && premiumIds && Array.isArray(premiumIds)) {
+			premiumIds.forEach((id: string) => premiumProfileIds.add(id));
+		} else if (premiumError) {
+			console.error('❌ [Tous les gateaux] Error checking premium profiles:', premiumError);
 		}
 	}
 
 	// Transformer les données pour correspondre au format attendu par le frontend
 	const formattedProducts = (products || []).map((product: any) => {
-		const shopProfileId = shopIdToProfileId.get(product.shops.id);
+		const shopProfileId = product.shops?.profile_id;
 		const isPremium = shopProfileId ? premiumProfileIds.has(shopProfileId) : false;
 
 		return {
