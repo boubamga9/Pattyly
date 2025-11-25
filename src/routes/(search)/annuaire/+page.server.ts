@@ -8,7 +8,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	// Charger tous les pâtissiers qui ont activé leur visibilité dans l'annuaire
 	let query = locals.supabase
 		.from('shops')
-		.select('id, name, slug, logo_url, directory_city, directory_actual_city, directory_postal_code, directory_cake_types, profile_id')
+		.select('id, name, slug, logo_url, bio, directory_city, directory_actual_city, directory_postal_code, directory_cake_types, profile_id')
 		.eq('directory_enabled', true);
 
 	// Si une ville est spécifiée, filtrer par directory_city
@@ -109,10 +109,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		id: shop.id,
 		name: shop.name,
 		slug: shop.slug,
-		city: shop.directory_actual_city || shop.directory_city || '', // Afficher la ville exacte, fallback sur grande ville
+		city: shop.directory_city || '', // Grande ville pour le filtrage
+		actualCity: shop.directory_actual_city || shop.directory_city || '', // Ville précise pour le placement sur la carte
 		postalCode: shop.directory_postal_code || '',
 		specialties: (shop.directory_cake_types || []) as string[],
 		logo: shop.logo_url || '/images/logo_icone.svg',
+		bio: shop.bio || '',
 		isPremium: shop.isPremium
 	}));
 

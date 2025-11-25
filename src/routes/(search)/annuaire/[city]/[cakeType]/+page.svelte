@@ -3,7 +3,7 @@
 	import { WebsiteName } from '$src/config';
 	import { revealElement, revealStagger } from '$lib/utils/animations';
 	import { Button } from '$lib/components/ui/button';
-	import { Search, MapPin, Cake, X } from 'lucide-svelte';
+	import { MapPin, Search } from 'lucide-svelte';
 	import * as Card from '$lib/components/ui/card';
 
 	export let data: {
@@ -29,26 +29,7 @@
 	};
 
 	let heroTitle: HTMLElement;
-	let searchContainer: HTMLElement;
 	let resultsContainer: HTMLElement;
-
-	let selectedCakeType = '';
-	let searchQuery = '';
-
-	const cities = [
-		'Paris',
-		'Lyon',
-		'Marseille',
-		'Toulouse',
-		'Nice',
-		'Nantes',
-		'Strasbourg',
-		'Montpellier',
-		'Bordeaux',
-		'Lille',
-		'Rennes',
-		'Reims',
-	];
 
 	// Utiliser les données du serveur
 	$: cakeDesigners = data.shops || [];
@@ -69,11 +50,6 @@
 	}
 	
 	$: displayTitle = getDisplayTitle(cakeTypeName);
-
-	// Initialiser le filtre avec le type de gâteau de l'URL
-	$: if (cakeTypeParam) {
-		selectedCakeType = cakeTypeParam;
-	}
 
 	onMount(async () => {
 		// Schema.org LocalBusiness (pour chaque ville)
@@ -197,14 +173,8 @@
 		};
 	});
 
-	// Filtrer les résultats (les données sont déjà filtrées côté serveur par ville et type de gâteau, mais on peut encore filtrer par recherche)
-	$: filteredDesigners = cakeDesigners.filter((designer) => {
-		const matchesSearch =
-			!searchQuery ||
-			designer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			designer.city.toLowerCase().includes(searchQuery.toLowerCase());
-		return matchesSearch;
-	});
+	// Afficher directement tous les résultats (pas de filtrage, déjà filtré côté serveur)
+	$: filteredDesigners = cakeDesigners;
 
 	// Mettre à jour le Schema.org ItemList quand les résultats changent
 	$: if (typeof document !== 'undefined' && filteredDesigners) {
@@ -266,6 +236,8 @@
 					style="font-weight: 600; letter-spacing: -0.03em;"
 				>
 					{displayTitle} à <span class="text-[#FF6F61]">{cityName}</span>
+					<br />
+					et aux alentours
 				</h1>
 				<p
 					class="mx-auto max-w-2xl text-lg leading-relaxed text-neutral-600 sm:text-xl"
@@ -273,46 +245,32 @@
 				>
 					{cakeTypeInfo?.description || ''} Découvre les meilleurs cake designers spécialisés en {cakeTypeName.toLowerCase()} à {cityName} et commande directement depuis leur boutique en ligne.
 				</p>
-			</div>
-
-			<!-- Search bar -->
-			<div bind:this={searchContainer} class="mx-auto max-w-4xl">
-				<Card.Root class="rounded-2xl border border-neutral-200 bg-white p-6 shadow-lg transition-all duration-300 hover:shadow-xl sm:p-8">
-					<div class="relative">
-						<Search class="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-neutral-400" />
-						<input
-							type="text"
-							bind:value={searchQuery}
-							placeholder="Recherche un cake designer..."
-							class="w-full rounded-xl border border-neutral-300 bg-white px-12 py-4 text-base transition-colors focus:border-[#FF6F61] focus:outline-none focus:ring-2 focus:ring-[#FF6F61]/20"
-						/>
-					</div>
-					{#if searchQuery}
-						<button
-							on:click={clearFilters}
-							class="mt-4 flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
-						>
-							<X class="h-4 w-4" />
-							<span>Effacer la recherche</span>
-						</button>
-					{/if}
-				</Card.Root>
+				<!-- Bouton vers l'annuaire pour recherche plus précise -->
+				<div class="mt-6">
+					<Button
+						href="/annuaire?city={data.city}&type={data.cakeType}"
+						class="inline-flex items-center gap-2 rounded-full bg-[#FF6F61] px-6 py-3 text-sm font-medium text-white shadow-lg transition-all duration-300 hover:scale-105 hover:bg-[#e85a4f] hover:shadow-xl"
+					>
+						<Search class="h-4 w-4" />
+						Recherche plus précise
+					</Button>
+				</div>
 			</div>
 		</div>
 	</section>
 
 	<!-- Résultats -->
-	<section class="relative overflow-hidden bg-white py-12 sm:py-16 md:py-24">
+	<section class="relative overflow-hidden bg-white pt-2 pb-12 sm:pt-4 sm:pb-16 md:pb-24">
 		<div class="relative mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
 			<!-- Compteur de résultats -->
 			<div class="mb-10">
 				<p class="text-base font-medium text-neutral-700">
 					{#if filteredDesigners.length === 0}
-						Aucun cake designer trouvé pour {cakeTypeName.toLowerCase()} à {cityName}
+						Aucun cake designer trouvé pour {cakeTypeName.toLowerCase()} aux alentours de {cityName}
 					{:else if filteredDesigners.length === 1}
-						1 cake designer spécialisé en {cakeTypeName.toLowerCase()} à {cityName}
+						1 cake designer spécialisé en {cakeTypeName.toLowerCase()} aux alentours de {cityName}
 					{:else}
-						{filteredDesigners.length} cake designers spécialisés en {cakeTypeName.toLowerCase()} à {cityName}
+						{filteredDesigners.length} cake designers spécialisés en {cakeTypeName.toLowerCase()} aux alentours de {cityName}
 					{/if}
 				</p>
 			</div>

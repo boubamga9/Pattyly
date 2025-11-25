@@ -20,7 +20,8 @@ export const load: PageServerLoad = async () => {
             price: 'gratuit',
             currency: 'EUR',
             features: [
-                '15 commandes/mois',
+                '10 commandes/mois',
+                '3 gâteaux maximum',
                 'Boutique en ligne personnalisée',
                 'Gestion des commandes',
                 'Calendrier de disponibilités',
@@ -39,6 +40,7 @@ export const load: PageServerLoad = async () => {
             currency: 'EUR',
             features: [
                 '30 commandes/mois',
+                '10 gâteaux maximum',
                 'Boutique en ligne personnalisée',
                 'Gestion des commandes',
                 'Calendrier de disponibilités',
@@ -57,6 +59,7 @@ export const load: PageServerLoad = async () => {
             currency: 'EUR',
             features: [
                 'Commandes illimitées',
+                'Gâteaux illimités',
                 'Boutique en ligne personnalisée',
                 'Gestion des commandes',
                 'Calendrier de disponibilités',

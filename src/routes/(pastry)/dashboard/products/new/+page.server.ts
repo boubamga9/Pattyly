@@ -6,6 +6,7 @@ import { forceRevalidateShop } from '$lib/utils/catalog';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { createProductFormSchema, createCategoryFormSchema } from './schema';
+import { checkProductLimit } from '$lib/utils/product-limits';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
     const { userId, permissions } = await parent();
@@ -55,6 +56,21 @@ export const actions: Actions = {
             return fail(500, { error: 'Boutique non trouvée' });
         }
 
+        // Vérifier la limite de produits
+        console.log('🔍 [Product Creation] Checking product limit before creating product...');
+        const productLimitStats = await checkProductLimit(shopId, userId, locals.supabase);
+        if (productLimitStats.isLimitReached) {
+            console.warn('🚫 [Product Creation] Product creation blocked - limit reached:', {
+                shopId,
+                productCount: productLimitStats.productCount,
+                productLimit: productLimitStats.productLimit,
+                plan: productLimitStats.plan
+            });
+            return fail(403, { 
+                error: `Limite de gâteaux atteinte. Vous avez atteint la limite de ${productLimitStats.productLimit} gâteau${productLimitStats.productLimit > 1 ? 'x' : ''} pour votre plan ${productLimitStats.plan === 'free' ? 'gratuit' : productLimitStats.plan === 'basic' ? 'Starter' : 'Premium'}. Passez à un plan supérieur pour ajouter plus de gâteaux.`
+            });
+        }
+
         const formData = await request.formData();
 
         // Valider avec Superforms
@@ -65,7 +81,7 @@ export const actions: Actions = {
         }
 
         // Extraire les données validées
-        const { name, description, base_price, category_id, min_days_notice, customizationFields } = form.data;
+        const { name, description, base_price, category_id, min_days_notice, cake_type, customizationFields } = form.data;
         const imageFile = formData.get('image') as File;
 
         // Vérifier s'il y a une nouvelle catégorie à créer
@@ -136,6 +152,7 @@ export const actions: Actions = {
                     category_id: finalCategoryId || null,
                     shop_id: shopId,
                     min_days_notice,
+                    cake_type: cake_type || null,
                     image_url: imageUrl
                 })
                 .select()

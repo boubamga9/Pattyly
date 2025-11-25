@@ -104,6 +104,6 @@ GRANT EXECUTE ON FUNCTION check_order_limit(UUID, UUID) TO authenticated;
 
 -- Comments
 COMMENT ON FUNCTION get_monthly_order_count(UUID) IS 'Compte les commandes du mois calendaire en cours pour un shop';
-COMMENT ON FUNCTION get_order_limit(TEXT) IS 'Retourne la limite de commandes selon le plan (15 pour free, 30 pour basic, 999999 pour premium/exempt)';
+COMMENT ON FUNCTION get_order_limit(TEXT) IS 'Retourne la limite de commandes selon le plan (10 pour free, 30 pour basic, 999999 pour premium/exempt)';
 COMMENT ON FUNCTION check_order_limit(UUID, UUID) IS 'Vérifie si la limite de commandes est atteinte pour un shop et retourne les statistiques';
 

@@ -28,6 +28,15 @@
 		{ name: 'Lille', code: 'lille' },
 		{ name: 'Rennes', code: 'rennes' },
 		{ name: 'Reims', code: 'reims' },
+		{ name: 'Grenoble', code: 'grenoble' },
+		{ name: 'Dijon', code: 'dijon' },
+		{ name: 'Angers', code: 'angers' },
+		{ name: 'Le Havre', code: 'le-havre' },
+		{ name: 'Toulon', code: 'toulon' },
+		{ name: 'Nancy', code: 'nancy' },
+		{ name: 'Rouen', code: 'rouen' },
+		{ name: 'Amiens', code: 'amiens' },
+		{ name: 'Caen', code: 'caen' },
 	];
 
 	onMount(async () => {
@@ -94,6 +103,15 @@
 				>
 					Des pâtissiers professionnels près de chez toi, avec leur boutique en ligne pour commander facilement.
 				</p>
+				<!-- Bouton Trouver un patissier rapidement -->
+				<div class="mt-8">
+					<Button
+						href="/annuaire"
+						class="inline-flex items-center gap-2 rounded-full bg-[#FF6F61] px-8 py-4 text-base font-medium text-white shadow-lg transition-all duration-300 hover:scale-105 hover:bg-[#e85a4f] hover:shadow-xl"
+					>
+						Trouver un patissier rapidement
+					</Button>
+				</div>
 			</div>
 
 			<!-- Cities list minimaliste -->
@@ -117,6 +135,15 @@
 							</span>
 						</a>
 					{/each}
+				</div>
+				<!-- Bouton Autres villes -->
+				<div class="mt-6 pb-16 text-center">
+					<Button
+						href="/annuaire"
+						class="inline-flex items-center gap-2 rounded-xl bg-[#FF6F61] px-6 py-3 text-sm font-medium text-white transition-all duration-300 hover:bg-[#e85a4f] hover:shadow-lg"
+					>
+						Autres villes
+					</Button>
 				</div>
 			</div>
 		</div>

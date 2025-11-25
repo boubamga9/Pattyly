@@ -194,7 +194,7 @@
 					</h2>
 					<p class="mt-4 text-base leading-relaxed text-neutral-700">
 						Crée gratuitement ton compte, configure ta boutique en quelques minutes
-						et commence à recevoir tes premières commandes. Essai gratuit 7 jours.
+						et commence à recevoir tes premières commandes. Version gratuite disponible à vie.
 					</p>
 					<a
 						href="/register"
@@ -296,7 +296,7 @@
 					href="/register"
 					class="inline-flex h-14 items-center justify-center rounded-xl border-2 border-[#FF6F61] bg-white px-8 text-base font-semibold text-[#FF6F61] transition-all duration-300 hover:bg-[#FFE8D6] hover:scale-[1.02]"
 				>
-					Essayer gratuitement
+					Commencer gratuitement
 				</a>
 			</div>
 		</div>

@@ -177,4 +177,51 @@ export function extractPublicIdFromUrl(url: string): string | null {
 	}
 }
 
+/**
+ * Upload d'une image statique marketing vers Cloudinary
+ * @param filePath - Chemin du fichier à uploader
+ * @param fileName - Nom du fichier (sans extension)
+ * @param folder - Dossier dans Cloudinary (ex: 'marketing/carousel' ou 'marketing/mockup')
+ * @returns Promise avec l'URL sécurisée de l'image
+ */
+export async function uploadMarketingImage(filePath: string, fileName: string, folder: string = 'marketing') {
+	try {
+		const fs = await import('fs/promises');
+		const path = await import('path');
+		
+		// Lire le fichier
+		const fileBuffer = await fs.readFile(filePath);
+		
+		// Upload vers Cloudinary
+		const result = await new Promise<cloudinary.UploadApiResponse>((resolve, reject) => {
+			cloudinary.uploader
+				.upload_stream(
+					{
+						folder: folder,
+						public_id: fileName,
+						overwrite: true,
+						resource_type: 'image',
+						transformation: [
+							{ quality: 'auto', format: 'auto' }
+						]
+					},
+					(error, result) => {
+						if (error) reject(error);
+						else if (result) resolve(result);
+						else reject(new Error('Upload failed'));
+					}
+				)
+				.end(fileBuffer);
+		});
+
+		return {
+			secure_url: result.secure_url,
+			public_id: result.public_id
+		};
+	} catch (error) {
+		console.error(`❌ [Cloudinary] Error uploading marketing image ${fileName}:`, error);
+		throw error;
+	}
+}
+
 

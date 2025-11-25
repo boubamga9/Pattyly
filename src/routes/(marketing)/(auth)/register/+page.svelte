@@ -28,16 +28,16 @@
 	<title>Créer un compte - Logiciel de gestion cake designer | {WebsiteName}</title>
 	<meta
 		name="description"
-		content="Crée ton compte Pattyly gratuitement et commence à gérer ton activité de cake designer en ligne. Essai gratuit 7 jours, boutique en ligne incluse, sans engagement."
+		content="Crée ton compte Pattyly gratuitement et commence à gérer ton activité de cake designer en ligne. Version gratuite disponible, boutique en ligne incluse, sans engagement."
 	/>
 	<meta
 		name="keywords"
-		content="inscription pattyly, créer compte cake designer, logiciel gestion pâtisserie, essai gratuit, boutique en ligne pâtissier"
+		content="inscription pattyly, créer compte cake designer, logiciel gestion pâtisserie, logiciel gratuit, boutique en ligne pâtissier"
 	/>
 	<meta property="og:title" content="Créer un compte - Logiciel de gestion cake designer | {WebsiteName}" />
 	<meta
 		property="og:description"
-		content="Crée ton compte Pattyly gratuitement et commence à gérer ton activité de cake designer en ligne. Essai gratuit 7 jours."
+		content="Crée ton compte Pattyly gratuitement et commence à gérer ton activité de cake designer en ligne. Version gratuite disponible."
 	/>
 	<meta property="og:type" content="website" />
 	<meta property="og:url" content="https://pattyly.com/register" />
@@ -78,7 +78,7 @@
 					class="mx-auto max-w-xl text-lg leading-[180%] text-neutral-600 sm:text-xl"
 					style="font-weight: 300; letter-spacing: -0.01em;"
 				>
-					Commence à gérer ton activité de cake designer en ligne. Essai gratuit 7 jours, sans engagement.
+					Commence à gérer ton activité de cake designer en ligne. Version gratuite disponible, sans engagement.
 				</p>
 			</div>
 
@@ -90,13 +90,7 @@
 					<Card.Content class="p-8 sm:p-10">
 						<SocialsAuth />
 
-						<div class="my-6 flex items-center gap-4">
-							<div class="h-px flex-1 bg-neutral-200"></div>
-							<span class="text-sm text-neutral-500">ou</span>
-							<div class="h-px flex-1 bg-neutral-200"></div>
-						</div>
-
-						<div class="space-y-6">
+						<div class="mt-6 space-y-6">
 							<RegisterForm data={data.form} />
 							<div class="text-center text-sm text-neutral-600">
 								Tu as déjà un compte ?

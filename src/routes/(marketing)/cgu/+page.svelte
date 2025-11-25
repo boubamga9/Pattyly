@@ -275,20 +275,17 @@
 					</ul>
 
 					<h3 class="mb-2 mt-6 text-lg font-semibold text-gray-900">
-						5.2 Essai gratuit
+						5.2 Version gratuite
 					</h3>
 					<p>
-						Un essai gratuit de 7 jours est proposé aux nouveaux Pâtissiers,
-						limité à :
+						Une version gratuite est proposée à tous les Pâtissiers, disponible à vie.
+						Cette version gratuite permet de créer et gérer une boutique en ligne avec
+						des fonctionnalités de base. Les limitations de la version gratuite sont
+						détaillées dans les conditions d'utilisation.
 					</p>
-					<ul class="list-inside list-disc space-y-2">
-						<li>Un essai par adresse email</li>
-						<li>Un essai par compte PayPal</li>
-						<li>Un essai par réseau social (Instagram, TikTok)</li>
-					</ul>
 					<p>
-						En cas de tentative de fraude détectée, l'accès à l'essai gratuit
-						peut être refusé.
+						En cas de tentative de fraude détectée, l'accès à la version gratuite
+						peut être refusé ou suspendu.
 					</p>
 
 					<h3 class="mb-2 mt-6 text-lg font-semibold text-gray-900">
@@ -625,7 +622,7 @@
 					<ul class="list-inside list-disc space-y-2">
 						<li>Non-paiement de l'abonnement</li>
 						<li>Violation des présentes CGU</li>
-						<li>Tentative de fraude (essai gratuit, paiements)</li>
+						<li>Tentative de fraude (version gratuite, paiements)</li>
 						<li>Comportement inapproprié ou abusif</li>
 					</ul>
 

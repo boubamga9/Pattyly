@@ -8,6 +8,7 @@
 	import LastCta from './components/sections/last-cta.svelte';
 	import Faq from './components/sections/faq.svelte';
 	import ScrollToTop from './components/scroll-to-top.svelte';
+	import CakeDesignerPopup from './components/cake-designer-popup.svelte';
 	import { onMount } from 'svelte';
 
 	// Schema.org Organization et WebSite pour SEO
@@ -118,7 +119,7 @@
 	<title>Logiciel de gestion pour cake designers - Gagnez du temps avec {WebsiteName}</title>
 	<meta
 		name="description"
-		content="Gagnez 2h par jour avec Pattyly ! Logiciel de gestion pour cake designers : boutique en ligne, commandes, devis, factures. Essai gratuit 7 jours, sans CB."
+		content="Gagnez 2h par jour avec Pattyly ! Logiciel de gestion pour cake designers : boutique en ligne, commandes, devis, factures. Plan gratuit disponible, sans CB."
 	/>
 	<meta
 		name="keywords"
@@ -130,7 +131,7 @@
 	/>
 	<meta
 		property="og:description"
-		content="Gagnez 2h par jour avec Pattyly ! Logiciel de gestion pour cake designers : boutique en ligne, commandes, devis, factures. Essai gratuit 7 jours, sans CB."
+		content="Gagnez 2h par jour avec Pattyly ! Logiciel de gestion pour cake designers : boutique en ligne, commandes, devis, factures. Plan gratuit disponible, sans CB."
 	/>
 	<meta property="og:type" content="website" />
 	<meta property="og:url" content="https://pattyly.com" />
@@ -139,6 +140,9 @@
 </svelte:head>
 
 <div class="flex flex-col">
+	<!-- Popup de redirection vers l'annuaire -->
+	<CakeDesignerPopup />
+	
 	<!-- Hero section - Premier impact -->
 	<HeroSection />
 	

@@ -6,6 +6,7 @@ import { forceRevalidateShop } from '$lib/utils/catalog';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { createCategoryFormSchema, updateCategoryFormSchema, deleteCategoryFormSchema } from './schema';
+import { checkProductLimit } from '$lib/utils/product-limits';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
     const { userId, permissions } = await parent();
@@ -156,6 +157,21 @@ export const actions: Actions = {
 
         // Récupérer les permissions
         const permissions = await getUserPermissions(userId, locals.supabase);
+
+        // Vérifier la limite de produits
+        console.log('🔍 [Product Duplication] Checking product limit before duplicating product...');
+        const productLimitStats = await checkProductLimit(shopId, userId, locals.supabase);
+        if (productLimitStats.isLimitReached) {
+            console.warn('🚫 [Product Duplication] Product duplication blocked - limit reached:', {
+                shopId,
+                productCount: productLimitStats.productCount,
+                productLimit: productLimitStats.productLimit,
+                plan: productLimitStats.plan
+            });
+            return fail(403, { 
+                error: `Limite de gâteaux atteinte. Vous avez atteint la limite de ${productLimitStats.productLimit} gâteau${productLimitStats.productLimit > 1 ? 'x' : ''} pour votre plan ${productLimitStats.plan === 'free' ? 'gratuit' : productLimitStats.plan === 'basic' ? 'Starter' : 'Premium'}. Passez à un plan supérieur pour ajouter plus de gâteaux.`
+            });
+        }
 
         const formData = await request.formData();
         const productId = formData.get('productId') as string;

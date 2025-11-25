@@ -104,6 +104,7 @@ export async function getUserPermissions(profileId: string, supabase: SupabaseCl
         shopSlug: permissions?.shopSlug || null,
         plan: (permissions?.plan || 'free') as 'free' | 'basic' | 'premium' | 'exempt',
         productCount: permissions?.productCount || 0,
+        productLimit: permissions?.productLimit || 3,
         canHandleCustomRequests: permissions?.canHandleCustomRequests || false,
         canManageCustomForms: permissions?.canManageCustomForms || false,
         isExempt: permissions?.isExempt || false

@@ -27,7 +27,10 @@
 	import Info from 'virtual:icons/lucide/info';
 	import Mail from 'virtual:icons/lucide/mail';
 	import { Cake } from 'lucide-svelte';
-	import { initSmoothScroll, destroySmoothScroll } from '$lib/utils/smooth-scroll';
+	import {
+		initSmoothScroll,
+		destroySmoothScroll,
+	} from '$lib/utils/smooth-scroll';
 	import { gsap } from 'gsap';
 	import { ScrollTrigger } from 'gsap/ScrollTrigger';
 	import '../../app.css';
@@ -142,8 +145,12 @@
 						/>
 					</Button>
 					<!-- Dropdown au hover -->
-					<div class="invisible absolute left-1/2 top-full z-50 mt-2 -translate-x-1/2 opacity-0 transition-all duration-200 group-hover:visible group-hover:opacity-100">
-						<div class="w-[600px] rounded-2xl border border-neutral-200 bg-white p-0 shadow-xl">
+					<div
+						class="invisible absolute left-1/2 top-full z-50 mt-2 -translate-x-1/2 opacity-0 transition-all duration-200 group-hover:visible group-hover:opacity-100"
+					>
+						<div
+							class="w-[600px] rounded-2xl border border-neutral-200 bg-white p-0 shadow-xl"
+						>
 							<div class="grid grid-cols-2 divide-x divide-neutral-200">
 								<!-- Colonne gauche : Logiciel de gestion -->
 								<div class="p-6">
@@ -175,7 +182,9 @@
 									</div>
 									<div class="my-8 border-t border-neutral-200"></div>
 									<div class="space-y-1">
-										<p class="mb-4 px-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+										<p
+											class="mb-4 px-2 text-xs font-semibold uppercase tracking-wide text-neutral-500"
+										>
 											Solutions
 										</p>
 										<a
@@ -228,10 +237,19 @@
 											<Search class="h-4 w-4 text-neutral-500" />
 											<span>Annuaire complet</span>
 										</a>
+										<a
+											href="/tous-les-gateaux"
+											class="flex items-center gap-3 rounded-sm px-2 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-100"
+										>
+											<Cake class="h-4 w-4 text-neutral-500" />
+											<span>Tous les gâteaux</span>
+										</a>
 									</div>
 									<div class="my-8 border-t border-neutral-200"></div>
 									<div class="space-y-1">
-										<p class="mb-4 px-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+										<p
+											class="mb-4 px-2 text-xs font-semibold uppercase tracking-wide text-neutral-500"
+										>
 											Types de gâteaux
 										</p>
 										<a
@@ -272,7 +290,9 @@
 									</div>
 									<div class="my-8 border-t border-neutral-200"></div>
 									<div class="space-y-1">
-										<p class="mb-4 px-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+										<p
+											class="mb-4 px-2 text-xs font-semibold uppercase tracking-wide text-neutral-500"
+										>
 											Villes populaires
 										</p>
 										<a
@@ -364,12 +384,16 @@
 							<div class="py-2">
 								<!-- Accordéon Logiciel de gestion -->
 								<Collapsible class="border-b border-neutral-100">
-									<CollapsibleTrigger class="group flex w-full items-center justify-between px-4 py-4 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
+									<CollapsibleTrigger
+										class="group flex w-full items-center justify-between px-4 py-4 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50"
+									>
 										<span class="flex items-center gap-2">
 											<Settings class="h-4 w-4" />
 											Logiciel de gestion
 										</span>
-										<ChevronDown class="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+										<ChevronDown
+											class="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180"
+										/>
 									</CollapsibleTrigger>
 									<CollapsibleContent class="px-4 pb-2">
 										<div class="space-y-1">
@@ -400,27 +424,13 @@
 												<HelpCircle class="mr-2 h-4 w-4" />
 												FAQ
 											</Button>
-											<Button
-												href="/about"
-												variant="ghost"
-												class="w-full justify-start py-3 pl-8 text-sm"
-												onclick={() => (menuOpen = false)}
-											>
-												<Info class="mr-2 h-4 w-4" />
-												À propos
-											</Button>
-											<Button
-												href="/contact"
-												variant="ghost"
-												class="w-full justify-start py-3 pl-8 text-sm"
-												onclick={() => (menuOpen = false)}
-											>
-												<Mail class="mr-2 h-4 w-4" />
-												Contact
-											</Button>
 										</div>
 										<div class="my-2 border-t border-neutral-100"></div>
-										<p class="px-8 pb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">Solutions</p>
+										<p
+											class="px-8 pb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500"
+										>
+											Solutions
+										</p>
 										<div class="space-y-1">
 											<Button
 												href="/boutique-en-ligne-patissier"
@@ -464,12 +474,16 @@
 
 								<!-- Accordéon Recherche -->
 								<Collapsible class="border-b border-neutral-100">
-									<CollapsibleTrigger class="group flex w-full items-center justify-between px-4 py-4 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
+									<CollapsibleTrigger
+										class="group flex w-full items-center justify-between px-4 py-4 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50"
+									>
 										<span class="flex items-center gap-2">
 											<Search class="h-4 w-4" />
 											Recherche
 										</span>
-										<ChevronDown class="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+										<ChevronDown
+											class="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180"
+										/>
 									</CollapsibleTrigger>
 									<CollapsibleContent class="px-4 pb-2">
 										<div class="space-y-1">
@@ -489,9 +503,21 @@
 											>
 												Annuaire complet
 											</Button>
+											<Button
+												href="/tous-les-gateaux"
+												variant="ghost"
+												class="w-full justify-start py-3 pl-8 text-sm"
+												onclick={() => (menuOpen = false)}
+											>
+												Tous les gâteaux
+											</Button>
 										</div>
 										<div class="my-2 border-t border-neutral-100"></div>
-										<p class="px-8 pb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">Types de gâteaux</p>
+										<p
+											class="px-8 pb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500"
+										>
+											Types de gâteaux
+										</p>
 										<div class="space-y-1">
 											<Button
 												href="/gateau-anniversaire"
@@ -535,7 +561,11 @@
 											</Button>
 										</div>
 										<div class="my-2 border-t border-neutral-100"></div>
-										<p class="px-8 pb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">Villes populaires</p>
+										<p
+											class="px-8 pb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500"
+										>
+											Villes populaires
+										</p>
 										<div class="space-y-1">
 											<Button
 												href="/annuaire/paris"
@@ -569,39 +599,39 @@
 							<!-- Actions utilisateur -->
 							<div class="flex flex-col py-2">
 								{#if !data.user}
-										<Button
-											href="/register"
-											variant="ghost"
-										class="w-full justify-start py-4 px-4 text-base font-semibold"
+									<Button
+										href="/register"
+										variant="ghost"
+										class="w-full justify-start px-4 py-4 text-base font-semibold"
 										onclick={() => (menuOpen = false)}
-										>
-											S'inscrire
-										</Button>
-										<Button
-											href="/login"
-											variant="ghost"
-										class="w-full justify-start py-4 px-4 text-base"
+									>
+										S'inscrire
+									</Button>
+									<Button
+										href="/login"
+										variant="ghost"
+										class="w-full justify-start px-4 py-4 text-base"
 										onclick={() => (menuOpen = false)}
-										>
-											Se connecter
-										</Button>
+									>
+										Se connecter
+									</Button>
 								{:else}
-										<Button
-											href="/dashboard"
-											variant="ghost"
-										class="w-full justify-start py-4 px-4 text-base"
+									<Button
+										href="/dashboard"
+										variant="ghost"
+										class="w-full justify-start px-4 py-4 text-base"
 										onclick={() => (menuOpen = false)}
-										>
-											Dashboard
-										</Button>
-										<Button
-											href="/dashboard/settings"
-											variant="ghost"
-										class="w-full justify-start py-4 px-4 text-base"
+									>
+										Dashboard
+									</Button>
+									<Button
+										href="/dashboard/settings"
+										variant="ghost"
+										class="w-full justify-start px-4 py-4 text-base"
 										onclick={() => (menuOpen = false)}
-										>
-											Paramètres
-										</Button>
+									>
+										Paramètres
+									</Button>
 								{/if}
 							</div>
 						</nav>
@@ -630,12 +660,14 @@
 				/>
 			</a>
 		</div>
-		
+
 		<!-- Links grid avec icônes - disposition améliorée -->
 		<div class="grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-5">
 			<!-- Logiciel de gestion -->
 			<div class="flex flex-col gap-4">
-				<p class="text-sm font-semibold text-neutral-900">Logiciel de gestion</p>
+				<p class="text-sm font-semibold text-neutral-900">
+					Logiciel de gestion
+				</p>
 				<nav class="flex flex-col gap-2">
 					<a
 						href="/"
@@ -659,7 +691,11 @@
 						<span>FAQ</span>
 					</a>
 					<div class="my-3 border-t border-neutral-200"></div>
-					<p class="mt-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">Solutions</p>
+					<p
+						class="mt-1 text-xs font-semibold uppercase tracking-wide text-neutral-500"
+					>
+						Solutions
+					</p>
 					<a
 						href="/boutique-en-ligne-patissier"
 						class="flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
@@ -690,7 +726,7 @@
 					</a>
 				</nav>
 			</div>
-			
+
 			<!-- Recherche -->
 			<div class="flex flex-col gap-4">
 				<p class="text-sm font-semibold text-neutral-900">Recherche</p>
@@ -709,8 +745,19 @@
 						<Search class="h-3.5 w-3.5" />
 						<span>Annuaire complet</span>
 					</a>
+					<a
+						href="/tous-les-gateaux"
+						class="flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
+					>
+						<Cake class="h-3.5 w-3.5" />
+						<span>Tous les gâteaux</span>
+					</a>
 					<div class="my-3 border-t border-neutral-200"></div>
-					<p class="mt-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">Villes populaires</p>
+					<p
+						class="mt-1 text-xs font-semibold uppercase tracking-wide text-neutral-500"
+					>
+						Villes populaires
+					</p>
 					<a
 						href="/annuaire/paris"
 						class="flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
@@ -748,7 +795,7 @@
 					</a>
 				</nav>
 			</div>
-			
+
 			<!-- Types de gâteaux -->
 			<div class="flex flex-col gap-4">
 				<p class="text-sm font-semibold text-neutral-900">Types de gâteaux</p>
@@ -788,91 +835,89 @@
 						<Cake class="h-3.5 w-3.5" />
 						<span>Gâteau personnalisé</span>
 					</a>
-					<div class="my-3 border-t border-neutral-200"></div>
-					<a
-						href="/annuaire"
-						class="flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
-					>
-						<Cake class="h-3.5 w-3.5" />
-						<span>Tous les types</span>
-					</a>
 				</nav>
 			</div>
-			
+
 			<!-- Menu & App -->
 			<div class="flex flex-col gap-4">
 				<p class="text-sm font-semibold text-neutral-900">Menu</p>
 				<nav class="flex flex-col gap-2">
-						{#each Object.entries(menuItems) as [href, text]}
-						<a
-								{href}
-							class="text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
-							>
-								{text}
-						</a>
-						{/each}
-					</nav>
+					<a
+						href="/about"
+						class="flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
+					>
+						<Info class="h-3.5 w-3.5" />
+						<span>À propos</span>
+					</a>
+					<a
+						href="/contact"
+						class="flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
+					>
+						<Mail class="h-3.5 w-3.5" />
+						<span>Contact</span>
+					</a>
+				</nav>
 				<div class="my-3 border-t border-neutral-200"></div>
 				<p class="text-sm font-semibold text-neutral-900">App</p>
 				<nav class="flex flex-col gap-2">
 					<a
-							href="/login"
+						href="/login"
 						class="text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
-						>
-							Se connecter
+					>
+						Se connecter
 					</a>
 					<a
-							href="/register"
+						href="/register"
 						class="text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
-						>
-							S'inscrire
+					>
+						S'inscrire
 					</a>
-					</nav>
-				</div>
-			
+				</nav>
+			</div>
+
 			<!-- Légal & Réseaux -->
 			<div class="flex flex-col gap-4">
 				<p class="text-sm font-semibold text-neutral-900">Légal</p>
 				<nav class="flex flex-col gap-2">
 					<a
-							href="/cgu"
+						href="/cgu"
 						class="text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
-						>
-							CGU
+					>
+						CGU
 					</a>
 					<a
-							href="/legal"
+						href="/legal"
 						class="text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
-						>
-							Mentions légales
+					>
+						Mentions légales
 					</a>
 					<a
-							href="/privacy"
+						href="/privacy"
 						class="text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
-						>
-							Confidentialité
+					>
+						Confidentialité
 					</a>
-					</nav>
+				</nav>
 				<div class="my-3 border-t border-neutral-200"></div>
 				<p class="text-sm font-semibold text-neutral-900">Retrouvez-nous</p>
 				<nav class="flex flex-col gap-2">
 					<a
-							href="https://www.instagram.com/pattyly.app"
-							target="_blank"
+						href="https://www.instagram.com/pattyly.app"
+						target="_blank"
 						rel="noopener noreferrer"
 						class="text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
-						>
-							Instagram
+					>
+						Instagram
 					</a>
 					<a
-							href="https://www.tiktok.com/@pattyly.app"
-							target="_blank"
+						href="https://www.tiktok.com/@pattyly.com"
+						target="_blank"
 						rel="noopener noreferrer"
 						class="text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
-						>
-							Tiktok
+					>
+						Tiktok
 					</a>
-					</nav>
+				</nav>
 			</div>
 		</div>
 	</div>

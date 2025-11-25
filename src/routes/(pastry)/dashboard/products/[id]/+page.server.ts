@@ -91,6 +91,7 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
                 base_price: product.base_price,
                 category_id: product.category_id || '',
                 min_days_notice: product.min_days_notice,
+                cake_type: product.cake_type || null,
                 customizationFields: customizationFields
             }
         }
@@ -142,7 +143,7 @@ export const actions: Actions = {
         }
 
         // Extraire les données validées
-        const { name, description, base_price, category_id, min_days_notice, customizationFields } = form.data;
+        const { name, description, base_price, category_id, min_days_notice, cake_type, customizationFields } = form.data;
         const imageFile = formData.get('image') as File;
 
         // Vérifier s'il y a une nouvelle catégorie à créer
@@ -230,7 +231,8 @@ export const actions: Actions = {
                 description,
                 base_price,
                 category_id: finalCategoryId || null,
-                min_days_notice
+                min_days_notice,
+                cake_type: cake_type || null
             };
 
             // Ajouter l'image URL seulement si une nouvelle image a été uploadée

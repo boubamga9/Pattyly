@@ -18,6 +18,21 @@
 		{ name: 'Toulouse', code: 'toulouse' },
 		{ name: 'Nice', code: 'nice' },
 		{ name: 'Nantes', code: 'nantes' },
+		{ name: 'Strasbourg', code: 'strasbourg' },
+		{ name: 'Montpellier', code: 'montpellier' },
+		{ name: 'Bordeaux', code: 'bordeaux' },
+		{ name: 'Lille', code: 'lille' },
+		{ name: 'Rennes', code: 'rennes' },
+		{ name: 'Reims', code: 'reims' },
+		{ name: 'Grenoble', code: 'grenoble' },
+		{ name: 'Dijon', code: 'dijon' },
+		{ name: 'Angers', code: 'angers' },
+		{ name: 'Le Havre', code: 'le-havre' },
+		{ name: 'Toulon', code: 'toulon' },
+		{ name: 'Nancy', code: 'nancy' },
+		{ name: 'Rouen', code: 'rouen' },
+		{ name: 'Amiens', code: 'amiens' },
+		{ name: 'Caen', code: 'caen' },
 	];
 
 	const benefits = [
@@ -213,14 +228,13 @@
 				</div>
 				<div
 					bind:this={citiesContainer}
-					class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6"
+					class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 pb-16"
 				>
 					{#each cities as city}
 						<a
 							href="/annuaire/{city.code}/cupcakes"
 							class="group flex flex-col items-center justify-center rounded-xl border border-neutral-200 bg-white p-6 text-center transition-all duration-300 hover:scale-105 hover:border-[#FF6F61] hover:bg-[#FFE8D6]/20 hover:shadow-lg"
 						>
-							<MapPin class="mb-2 h-6 w-6 text-neutral-400 transition-colors group-hover:text-[#FF6F61]" />
 							<span class="text-base font-medium text-neutral-700 transition-colors group-hover:text-[#FF6F61] sm:text-lg">
 								{city.name}
 							</span>

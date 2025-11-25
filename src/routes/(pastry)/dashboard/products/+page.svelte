@@ -36,6 +36,11 @@
 		shopSlug,
 	} = $page.data);
 
+	// Calculer si la limite est atteinte et les informations de limite
+	$: isLimitReached = permissions.productLimit && currentProductCount >= permissions.productLimit;
+	$: showLimitInfo = permissions.plan === 'free' || permissions.plan === 'basic';
+	$: productLimit = permissions.productLimit || 0;
+
 	// Store local pour les catégories (permet la mise à jour de l'interface)
 	const localCategories = writable(categories || []);
 
@@ -165,7 +170,11 @@
 			class="flex flex-col space-y-2 sm:flex-row sm:items-center sm:gap-4 sm:space-y-0"
 		>
 			<!-- Bouton d'ajout -->
-			<Button on:click={goToNewProduct} class="w-full sm:w-auto">
+			<Button 
+				on:click={goToNewProduct} 
+				class="w-full sm:w-auto"
+				disabled={isLimitReached}
+			>
 				<Plus class="mr-2 h-4 w-4" />
 				Ajouter un Gâteau
 			</Button>
@@ -182,6 +191,39 @@
 	{#if successMessage}
 		<Alert>
 			<AlertDescription>{successMessage}</AlertDescription>
+		</Alert>
+	{/if}
+
+	<!-- Message de limite atteinte (uniquement pour free et starter) -->
+	{#if isLimitReached && showLimitInfo}
+		<Alert variant="default" class="border-[#FF6F61] bg-[#FFE8D6]/30">
+			<AlertDescription class="space-y-2">
+				<div class="font-semibold text-[#FF6F61]">
+					Limite de gâteaux atteinte ({currentProductCount}/{productLimit})
+				</div>
+				<div class="text-sm text-neutral-700">
+					Plus vous avez de gâteaux, plus vous avez de chance d'être visible. Pour en ajouter plus, passez au plan supérieur.
+				</div>
+				<div class="pt-2">
+					<Button 
+						href="/subscription" 
+						variant="default" 
+						size="sm"
+						class="bg-[#FF6F61] hover:bg-[#e85a4f] text-white"
+					>
+						Passer au plan supérieur
+					</Button>
+				</div>
+			</AlertDescription>
+		</Alert>
+	{/if}
+
+	<!-- Info sur la limite (uniquement pour free et starter, si pas encore atteinte) -->
+	{#if !isLimitReached && showLimitInfo}
+		<Alert variant="outline" class="border-neutral-200 bg-neutral-50/50">
+			<AlertDescription class="text-sm text-neutral-600">
+				<span class="font-medium">Gâteaux :</span> {currentProductCount}/{productLimit} utilisés
+			</AlertDescription>
 		</Alert>
 	{/if}
 
@@ -409,7 +451,8 @@
 										type="submit"
 										variant="ghost"
 										size="sm"
-										title="Dupliquer le gâteau"
+										title={isLimitReached ? 'Limite de gâteaux atteinte' : 'Dupliquer le gâteau'}
+										disabled={isLimitReached}
 									>
 										<Copy class="h-4 w-4" />
 									</Button>
@@ -480,7 +523,10 @@
 							<p class="mb-4 text-muted-foreground">
 								Commencez par ajouter votre premier gâteau à votre catalogue.
 							</p>
-							<Button on:click={goToNewProduct}>
+							<Button 
+								on:click={goToNewProduct}
+								disabled={isLimitReached}
+							>
 								<Plus class="mr-2 h-4 w-4" />
 								Ajouter un Gâteau
 							</Button>

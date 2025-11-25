@@ -54,11 +54,11 @@
 	<title>Tarifs et abonnements - Logiciel gestion pâtisserie | {WebsiteName}</title>
 	<meta
 		name="description"
-		content="Tarifs transparents pour logiciel gestion cake designers. Plan gratuit disponible. Abonnements flexibles dès 14,99€/mois. Essai gratuit 7 jours sans CB. Crée ta boutique sans engagement."
+		content="Tarifs transparents pour logiciel gestion cake designers. Plan gratuit disponible à vie. Abonnements flexibles dès 14,99€/mois. Crée ta boutique sans engagement."
 	/>
 	<meta
 		name="keywords"
-		content="tarifs pattyly, prix logiciel pâtisserie, abonnement cake designer, logiciel gestion pâtissier prix, tarif boutique en ligne pâtisserie, essai gratuit logiciel pâtisserie"
+		content="tarifs pattyly, prix logiciel pâtisserie, abonnement cake designer, logiciel gestion pâtissier prix, tarif boutique en ligne pâtisserie, logiciel pâtisserie gratuit"
 	/>
 </svelte:head>
 
@@ -136,11 +136,11 @@
 								</Card.Title>
 								{#if !plan.isFree}
 									<Card.Description class="text-sm leading-relaxed text-neutral-600 sm:text-base" style="font-weight: 300;">
-										7 jours d'essai gratuit, puis facturation mensuelle
+										Facturation mensuelle, sans engagement
 									</Card.Description>
 								{:else}
 									<Card.Description class="text-sm leading-relaxed text-neutral-600 sm:text-base" style="font-weight: 300;">
-										Parfait pour démarrer ton activité
+										Version gratuite à vie, parfait pour démarrer
 									</Card.Description>
 								{/if}
 							</Card.Header>
@@ -150,7 +150,7 @@
 								<div class="flex flex-col items-center gap-2">
 									{#if plan.isFree}
 										<div class="text-center">
-											<span class="text-xs font-semibold text-green-600 sm:text-sm">Gratuit</span>
+											<span class="text-xs font-semibold text-green-600 sm:text-sm">Gratuit à vie</span>
 										</div>
 										<div class="flex items-baseline justify-center">
 											<span class="text-5xl font-bold tracking-tight text-neutral-900 sm:text-6xl" style="font-weight: 700; letter-spacing: -0.04em;">
@@ -179,7 +179,7 @@
 											: 'bg-neutral-800 hover:bg-neutral-700 text-white shadow-lg hover:shadow-xl'}"
 									href="/register"
 								>
-									{plan.isFree ? 'Commencer gratuitement' : 'Essayer gratuitement'}
+									{plan.isFree ? 'Commencer gratuitement' : 'Choisir ce plan'}
 								</Button>
 							</Card.Content>
 

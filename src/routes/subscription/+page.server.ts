@@ -83,6 +83,7 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders }) => {
             stripePriceId: STRIPE_PRICES.BASIC, // Utilise BASIC pour Starter
             features: [
                 '30 commandes/mois',
+                '10 gâteaux maximum',
                 'Boutique en ligne personnalisée',
                 'Gestion des commandes',
                 'Calendrier de disponibilités',
@@ -102,6 +103,7 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders }) => {
             stripePriceId: STRIPE_PRICES.PREMIUM,
             features: [
                 'Commandes illimitées',
+                'Gâteaux illimités',
                 'Boutique en ligne personnalisée',
                 'Gestion des commandes',
                 'Calendrier de disponibilités',

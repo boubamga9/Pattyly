@@ -139,7 +139,7 @@
 		{
 			question: 'Combien ça coûte par rapport à un logiciel classique ?',
 			answer:
-				'Pattyly démarre à partir de [prix]€ par mois, ce qui est bien moins cher qu\'un développeur web ou une solution e-commerce classique. Tu as accès à tout : boutique en ligne, gestion des commandes, devis, facturation, planning. Et tu peux essayer gratuitement pendant 7 jours, sans carte bancaire.',
+				'Pattyly démarre à partir de [prix]€ par mois, ce qui est bien moins cher qu\'un développeur web ou une solution e-commerce classique. Tu as accès à tout : boutique en ligne, gestion des commandes, devis, facturation, planning. Et tu peux commencer avec la version gratuite, sans carte bancaire.',
 		},
 		{
 			question: 'Dois-je avoir des connaissances techniques ?',
@@ -181,7 +181,7 @@
 			price: '0',
 			priceCurrency: 'EUR',
 			availability: 'https://schema.org/InStock',
-			description: 'Essai gratuit 7 jours, sans carte bancaire',
+			description: 'Version gratuite disponible, sans carte bancaire',
 		},
 		aggregateRating: {
 			'@type': 'AggregateRating',
@@ -200,7 +200,7 @@
 	>
 	<meta
 		name="description"
-		content="Logiciel de gestion complet pour pâtissiers. Gérez commandes, devis, factures et planning depuis un seul tableau de bord. Spécialement conçu pour cake designers et pâtissiers indépendants. Essai gratuit 7 jours."
+		content="Logiciel de gestion complet pour pâtissiers. Gérez commandes, devis, factures et planning depuis un seul tableau de bord. Spécialement conçu pour cake designers et pâtissiers indépendants. Version gratuite disponible."
 	/>
 	<meta
 		name="keywords"
@@ -265,7 +265,7 @@
 						href="/register"
 						class="h-14 rounded-xl bg-[#FF6F61] px-8 text-base font-semibold text-white shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-[#e85a4f] hover:shadow-xl"
 					>
-						Commencer mon essai gratuit
+						Commencer gratuitement
 					</Button>
 					<a
 						href="/pricing"
@@ -275,7 +275,7 @@
 					</a>
 				</div>
 				<p class="mt-4 text-sm font-light text-neutral-600">
-					✔️ <strong>Essai gratuit 7 jours</strong> • Sans carte bancaire • Configuration en 5
+					✔️ <strong>Version gratuite disponible</strong> • Sans carte bancaire • Configuration en 5
 					minutes
 				</p>
 			</div>
@@ -567,7 +567,7 @@
 				Prêt à simplifier la gestion de ton activité ?
 			</h2>
 			<p class="mt-6 text-lg leading-[180%] text-neutral-600 sm:text-xl md:text-2xl" style="font-weight: 300; letter-spacing: -0.01em;">
-				Essaie Pattyly gratuitement pendant 7 jours. Gère toutes tes commandes, devis,
+				Utilise Pattyly gratuitement. Gère toutes tes commandes, devis,
 				factures et planning depuis un seul tableau de bord. Sans carte bancaire.
 			</p>
 			<div
@@ -656,7 +656,7 @@
 			</h2>
 			<p class="mt-6 text-lg leading-[180%] text-neutral-600 sm:text-xl md:text-2xl" style="font-weight: 300; letter-spacing: -0.01em;">
 				Rejoins les pâtissiers qui ont choisi Pattyly pour simplifier la gestion de leur
-				activité. Essai gratuit 7 jours, sans carte bancaire.
+				activité. Version gratuite disponible, sans carte bancaire.
 			</p>
 			<div
 				class="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row"

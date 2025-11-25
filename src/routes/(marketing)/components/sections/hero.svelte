@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { ArrowRight } from 'lucide-svelte';
 	import { revealElement, parallaxImage } from '$lib/utils/animations';
 
 	let headline: HTMLElement;
@@ -38,6 +39,18 @@
 			Logiciel de gestion pour cake designers et pâtissiers indépendants
 		</h1>
 		
+		<!-- Bouton "Envie d'un gâteau" -->
+		<div class="mb-8">
+			<Button
+				href="/tous-les-gateaux"
+				variant="outline"
+				class="group rounded-full border-2 border-[#FF6F61] bg-white px-6 py-2.5 text-sm font-medium text-[#FF6F61] transition-all duration-300 hover:bg-[#FF6F61] hover:text-white hover:scale-105"
+			>
+				Envie d'un gâteau ? Par ici
+				<ArrowRight class="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+			</Button>
+		</div>
+		
 		<!-- Main headline avec typographie premium -->
 		<h2 
 			bind:this={headline}
@@ -67,7 +80,7 @@
 				href="/register"
 				class="h-14 w-[280px] rounded-xl bg-[#FF6F61] text-base font-medium text-white shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-[#e85a4f] hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#FF6F61] focus:ring-offset-2"
 			>
-				Commencer mon essai gratuit
+				Commencer gratuitement
 			</Button>
 			<a
 				href="/pricing"
@@ -107,7 +120,7 @@
 					<!-- Répétition automatique -->
 					<div class="carousel-item">
 						<img
-							src="/carousel/image_1.jpg"
+							src="https://res.cloudinary.com/dnyffye6y/image/upload/v1763992841/marketing/carousel/image_1.jpg"
 							alt="Gâteau d'anniversaire personnalisé avec décorations colorées"
 							loading="lazy"
 							class="h-[140px] w-[210px] rounded-xl object-cover shadow-lg sm:h-[180px] sm:w-[270px] md:h-[210px] md:w-[315px]"
@@ -115,7 +128,7 @@
 					</div>
 					<div class="carousel-item">
 						<img
-							src="/carousel/image_2.jpg"
+							src="https://res.cloudinary.com/dnyffye6y/image/upload/v1763992843/marketing/carousel/image_2.jpg"
 							alt="Macarons artisanaux aux saveurs variées"
 							loading="lazy"
 							class="h-[140px] w-[210px] rounded-xl object-cover shadow-lg sm:h-[180px] sm:w-[270px] md:h-[210px] md:w-[315px]"
@@ -123,7 +136,7 @@
 					</div>
 					<div class="carousel-item">
 						<img
-							src="/carousel/image_3.jpg"
+							src="https://res.cloudinary.com/dnyffye6y/image/upload/v1763992844/marketing/carousel/image_3.jpg"
 							alt="Tarte aux fruits frais avec pâte sablée maison"
 							loading="lazy"
 							class="h-[140px] w-[210px] rounded-xl object-cover shadow-lg sm:h-[180px] sm:w-[270px] md:h-[210px] md:w-[315px]"

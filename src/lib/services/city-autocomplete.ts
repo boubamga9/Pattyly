@@ -113,6 +113,15 @@ export const MAJOR_CITIES = [
 	'Lille',
 	'Rennes',
 	'Reims',
+	'Grenoble',
+	'Dijon',
+	'Angers',
+	'Le Havre',
+	'Toulon',
+	'Nancy',
+	'Rouen',
+	'Amiens',
+	'Caen',
 ] as const;
 
 /**

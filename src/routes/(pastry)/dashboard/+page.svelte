@@ -29,6 +29,11 @@
 	// Données de la page
 	$: ({ shop, metrics, permissions } = $page.data);
 
+	// Calculer si la limite est atteinte
+	$: isProductLimitReached =
+		permissions.productLimit &&
+		(permissions.productCount || 0) >= permissions.productLimit;
+
 	// État pour le filtre de revenus
 	let selectedRevenuePeriod: 'weekly' | 'monthly' | 'threeMonths' | 'yearly' =
 		'monthly';
@@ -327,6 +332,10 @@
 					variant="outline"
 					class="h-auto flex-col space-y-2 p-4"
 					on:click={goToAddProduct}
+					disabled={isProductLimitReached}
+					title={isProductLimitReached
+						? 'Limite de gâteaux atteinte'
+						: 'Ajouter un gâteau'}
 				>
 					<Plus class="h-6 w-6" />
 					<span>Ajouter un gâteau</span>

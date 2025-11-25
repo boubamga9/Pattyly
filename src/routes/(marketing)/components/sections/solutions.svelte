@@ -63,7 +63,7 @@
 			description: '📊 Gère ton activité depuis un seul endroit',
 			detailedDescription:
 				'Ton tableau de bord centralise toutes tes commandes de gâteaux, tes devis en cours, tes factures, et ton planning. Plus besoin de jongler entre plusieurs outils : tout est là, en un coup d\'œil.',
-			image: '/mockup/1_dashboard.png',
+			image: 'https://res.cloudinary.com/dnyffye6y/image/upload/v1763992845/marketing/mockup/1_dashboard.png',
 			alt: 'Dashboard principal de gestion pour pâtissiers - Logiciel de gestion cake designers',
 			bgColor: 'bg-[#FFE8D6]',
 		},
@@ -72,7 +72,7 @@
 			description: '🎂 Crée ton catalogue en ligne avec toutes tes options',
 			detailedDescription:
 				'Transforme tes créations en <a href="/boutique-en-ligne-patissier" class="font-semibold text-[#FF6F61] hover:underline">boutique en ligne professionnelle</a>. Ajoute tes gâteaux personnalisés avec photos, descriptions, et options de personnalisation. Tes clients peuvent voir tes créations et commander directement via un <a href="/formulaire-commande-gateau" class="font-semibold text-[#FF6F61] hover:underline">formulaire de commande en ligne</a>, même quand tu es occupée.',
-			image: '/mockup/2_cakes.png',
+			image: 'https://res.cloudinary.com/dnyffye6y/image/upload/v1763992850/marketing/mockup/2_cakes.png',
 			alt: 'Catalogue de gâteaux en ligne - Boutique en ligne pour pâtissiers',
 			bgColor: 'bg-[#FFF1D6]',
 		},
@@ -81,7 +81,7 @@
 			description: '🛒 Gère tes commandes en ligne facilement',
 			detailedDescription:
 				'Reçois et organise toutes tes commandes de gâteaux depuis un seul endroit. <span class="font-medium text-neutral-900">Comment gérer les commandes de gâteaux</span> efficacement ? Avec Pattyly, tu suis l\'état de chaque commande, communiques avec tes clients, et valides les paiements en quelques clics. Fini les messages perdus dans tes DM Instagram.',
-			image: '/mockup/3_orders.png',
+			image: 'https://res.cloudinary.com/dnyffye6y/image/upload/v1763992852/marketing/mockup/3_orders.png',
 			alt: 'Interface de gestion des commandes en ligne - Logiciel gestion commandes pâtisserie',
 			bgColor: 'bg-[#FFE0D6]',
 		},
@@ -91,7 +91,7 @@
 				'📑 Envoie un devis en deux clics pour les demandes spéciales',
 			detailedDescription:
 				'Notre <a href="/devis-factures-cake-designer" class="font-semibold text-[#FF6F61] hover:underline">logiciel de devis pour cake designers</a> génère automatiquement des devis professionnels pour tes gâteaux personnalisés. <span class="font-medium text-neutral-900">Comment faire un devis de gâteau</span> rapidement ? Personnalise les prix selon les options choisies, envoie le devis par email, et transforme-le en commande quand le client valide.',
-			image: '/mockup/4_quoting.png',
+			image: 'https://res.cloudinary.com/dnyffye6y/image/upload/v1763992854/marketing/mockup/4_quoting.png',
 			alt: 'Interface de devis pour cake designers - Logiciel devis pâtisserie',
 			bgColor: 'bg-[#FFD8D6]',
 		},
@@ -191,7 +191,7 @@
 				<!-- Visual Section -->
 				<div class="mb-8 flex flex-1 items-center justify-center rounded-xl bg-[#FFE8D6] p-6">
 					<img
-						src="/mockup/5_availability.png"
+						src="https://res.cloudinary.com/dnyffye6y/image/upload/v1763992856/marketing/mockup/5_availability.png"
 						alt="Interface de gestion des disponibilités"
 						class="h-auto max-h-[280px] w-full max-w-full rounded-lg object-contain transition-transform duration-300 group-hover:scale-[1.02] sm:max-h-[320px] lg:max-h-[360px]"
 						loading="lazy"
@@ -232,7 +232,7 @@
 				<!-- Visual Section -->
 				<div class="mb-8 flex flex-1 items-center justify-center rounded-xl bg-[#FFE8D6] p-6">
 					<img
-						src="/mockup/6_faq.png"
+						src="https://res.cloudinary.com/dnyffye6y/image/upload/v1763992857/marketing/mockup/6_faq.png"
 						alt="Interface de FAQ et communication"
 						class="h-auto max-h-[280px] w-full max-w-full rounded-lg object-contain transition-transform duration-300 group-hover:scale-[1.02] sm:max-h-[320px] lg:max-h-[360px]"
 						loading="lazy"
@@ -285,13 +285,13 @@
 			class="mb-8 text-lg leading-[160%] text-neutral-700 sm:text-xl md:text-2xl"
 			style="font-weight: 300; letter-spacing: -0.01em;"
 		>
-			Teste maintenant, ça ne prend que 2 minutes
+			Démarre maintenant, ça ne prend que 2 minutes
 		</p>
 		<a
 			href="/register"
 			class="inline-flex items-center justify-center rounded-xl bg-[#FF6F61] px-10 py-4 text-base font-medium text-white shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-[#e85a4f] hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#FF6F61] focus:ring-offset-2"
 		>
-			Commencer mon essai gratuit
+			Commencer gratuitement
 		</a>
 	</div>
 </section>

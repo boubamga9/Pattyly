@@ -34,7 +34,7 @@
 			class="mb-12 max-w-2xl mx-auto text-lg leading-[180%] text-neutral-600 sm:text-xl md:text-2xl"
 			style="font-weight: 300; letter-spacing: -0.01em;"
 		>
-			Teste maintenant, ça ne prend que 2 minutes
+			Démarre maintenant, ça ne prend que 2 minutes
 		</p>
 		<div class="mb-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center sm:gap-6">
 			<a
@@ -42,7 +42,7 @@
 				class="inline-flex items-center justify-center rounded-xl bg-[#FF6F61] px-10 py-4 text-base font-medium text-white shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-[#e85a4f] hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#FF6F61] focus:ring-offset-2"
 				style="width: 280px; height: 56px;"
 			>
-				Commencer mon essai gratuit
+				Commencer gratuitement
 			</a>
 		</div>
 		<p 

@@ -13,6 +13,62 @@ import type { Handle } from '@sveltejs/kit';
 import Stripe from 'stripe';
 import { RateLimiterRedis, type RateLimitResult } from '$lib/rate-limiting';
 import { RATE_LIMITS } from '$lib/rate-limiting/config';
+import { gzip, brotliCompress } from 'zlib';
+import { promisify } from 'util';
+
+// ============================================================================
+// COMPRESSION UTILITIES
+// ============================================================================
+
+const gzipAsync = promisify(gzip);
+const brotliCompressAsync = promisify(brotliCompress);
+
+/**
+ * Check if content should be compressed
+ */
+function shouldCompress(contentType: string | null): boolean {
+	if (!contentType) return false;
+	
+	const compressibleTypes = [
+		'text/html',
+		'text/css',
+		'text/javascript',
+		'application/javascript',
+		'application/json',
+		'application/xml',
+		'text/xml',
+		'text/plain',
+		'application/wasm',
+		'application/manifest+json',
+		'text/markdown',
+		'application/xhtml+xml',
+		'application/rss+xml',
+		'application/atom+xml',
+		'image/svg+xml',
+		'font/woff',
+		'font/woff2',
+		'application/font-woff',
+		'application/font-woff2'
+	];
+	
+	return compressibleTypes.some(type => contentType.includes(type));
+}
+
+/**
+ * Compress response body
+ */
+async function compressResponse(
+	body: string | Uint8Array,
+	encoding: 'gzip' | 'br'
+): Promise<Uint8Array> {
+	const buffer = typeof body === 'string' ? Buffer.from(body, 'utf-8') : Buffer.from(body);
+	
+	if (encoding === 'br') {
+		return await brotliCompressAsync(buffer);
+	} else {
+		return await gzipAsync(buffer);
+	}
+}
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -26,6 +82,30 @@ function applyRateLimitHeaders(request: Request, result: RateLimitResult): void 
 		request.headers.set('x-rate-limit-exceeded', 'true');
 		request.headers.set('x-rate-limit-message', result.message || '');
 		request.headers.set('x-rate-limit-retry-after', result.retryAfter.toString());
+	}
+}
+
+/**
+ * Apply performance and security headers
+ */
+function applyPerformanceHeaders(response: Response, pathname: string): void {
+	// Security headers
+	response.headers.set('X-Content-Type-Options', 'nosniff');
+	response.headers.set('X-Frame-Options', 'SAMEORIGIN');
+	response.headers.set('X-XSS-Protection', '1; mode=block');
+	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+	
+	// Performance headers
+	response.headers.set('X-DNS-Prefetch-Control', 'on');
+	
+	// Cache headers for static assets
+	if (pathname.startsWith('/_app/') || pathname.match(/\.(js|css|woff|woff2|png|jpg|jpeg|gif|svg|ico|webp)$/)) {
+		response.headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+	} else if (pathname.match(/\.(json|xml)$/)) {
+		response.headers.set('Cache-Control', 'public, max-age=3600');
+	} else {
+		// HTML pages - short cache with revalidation
+		response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate');
 	}
 }
 
@@ -137,17 +217,79 @@ export const handle: Handle = async ({ event, resolve }) => {
 		// Validate session early to clean up invalid tokens before response is generated
 		await event.locals.supabase.auth.getSession();
 
-		return resolve(event, {
+		// Resolve the request
+		const response = await resolve(event, {
 			filterSerializedResponseHeaders(name) {
 				return name === 'content-range' || name === 'x-supabase-api-version';
 			},
 		});
-	} catch (error) {
 
+		// Apply performance headers
+		applyPerformanceHeaders(response, event.url.pathname);
+
+		// Compression (only if not already compressed and not on Vercel)
+		// Vercel handles compression automatically, so we skip it in production
+		const isVercel = process.env.VERCEL === '1';
+		const isAlreadyCompressed = response.headers.get('content-encoding');
+		
+		if (!isVercel && !isAlreadyCompressed) {
+			const acceptEncoding = event.request.headers.get('accept-encoding') || '';
+			const contentType = response.headers.get('content-type');
+			
+			// Only compress text-based content
+			if (shouldCompress(contentType) && response.body) {
+				// Prefer Brotli, fallback to Gzip
+				const supportsBrotli = acceptEncoding.includes('br');
+				const supportsGzip = acceptEncoding.includes('gzip');
+				
+				if (supportsBrotli || supportsGzip) {
+					try {
+						// Clone response to read body
+						const clonedResponse = response.clone();
+						const bodyText = await clonedResponse.text();
+						
+						// Skip compression for very small responses (overhead not worth it)
+						// Only compress responses larger than 2KB to avoid overhead
+						if (bodyText.length > 2048) {
+							const encoding = supportsBrotli ? 'br' : 'gzip';
+							const compressed = await compressResponse(bodyText, encoding);
+							
+							// Only compress if we achieve at least 10% reduction
+							if (compressed.length < bodyText.length * 0.9) {
+								// Create new response with compressed body
+								const compressedResponse = new Response(compressed, {
+									status: response.status,
+									statusText: response.statusText,
+									headers: new Headers(response.headers),
+								});
+								
+								compressedResponse.headers.set('Content-Encoding', encoding);
+								compressedResponse.headers.set('Content-Length', compressed.length.toString());
+								compressedResponse.headers.set('Vary', 'Accept-Encoding');
+								
+								return compressedResponse;
+							}
+						}
+					} catch (error) {
+						// If compression fails, return original response
+						console.warn('Compression failed:', error);
+					}
+				}
+			}
+		}
+
+		return response;
+	} catch (error) {
+		console.error('Error in handle:', error);
+		
 		// Return a basic error response
 		return new Response('Internal Server Error', {
 			status: 500,
-			statusText: 'Internal Server Error'
+			statusText: 'Internal Server Error',
+			headers: {
+				'Content-Type': 'text/plain; charset=utf-8',
+				'X-Content-Type-Options': 'nosniff',
+			},
 		});
 	}
 };

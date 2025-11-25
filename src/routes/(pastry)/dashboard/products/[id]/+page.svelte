@@ -48,6 +48,7 @@
 			base_price: product?.base_price,
 			category_id: product?.category_id,
 			min_days_notice: product?.min_days_notice,
+			cake_type: product?.cake_type,
 			image_url: product?.image_url,
 			customizationFields: customizationFields,
 		}}

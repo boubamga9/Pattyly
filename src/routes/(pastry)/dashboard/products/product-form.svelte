@@ -68,6 +68,7 @@
 		$formData.base_price = initialData.base_price || 0;
 		$formData.category_id = initialData.category_id || '';
 		$formData.min_days_notice = initialData.min_days_notice || 0;
+		$formData.cake_type = initialData.cake_type || null;
 		if (initialData.image_url) {
 			imagePreview = initialData.image_url;
 		}
@@ -445,6 +446,32 @@
 						{/if}
 					</div>
 				</div>
+
+				<!-- Type de gâteau -->
+				<Form.Field {form} name="cake_type">
+					<Form.Control let:attrs>
+						<Form.Label>Type de gâteau</Form.Label>
+						<select
+							{...attrs}
+							bind:value={$formData.cake_type}
+							class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+						>
+							<option value="">Aucun type</option>
+							<option value="Gâteau d'anniversaire">Gâteau d'anniversaire</option>
+							<option value="Gâteau de mariage">Gâteau de mariage</option>
+							<option value="Cupcakes">Cupcakes</option>
+							<option value="Macarons">Macarons</option>
+							<option value="Gâteau personnalisé">Gâteau personnalisé</option>
+							<option value="Gâteau pour événement">Gâteau pour événement</option>
+							<option value="Gâteau vegan">Gâteau vegan</option>
+							<option value="Gâteau sans gluten">Gâteau sans gluten</option>
+							<option value="Pâtisserie orientale">Pâtisserie orientale</option>
+							<option value="Traiteur événementiel">Traiteur événementiel</option>
+							<option value="Mignardise">Mignardise</option>
+						</select>
+					</Form.Control>
+					<Form.FieldErrors />
+				</Form.Field>
 
 				<!-- Délai de préparation -->
 				<Form.Field {form} name="min_days_notice">

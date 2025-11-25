@@ -17,6 +17,15 @@ const cityToSlug: Record<string, string> = {
 	'Lille': 'lille',
 	'Rennes': 'rennes',
 	'Reims': 'reims',
+	'Grenoble': 'grenoble',
+	'Dijon': 'dijon',
+	'Angers': 'angers',
+	'Le Havre': 'le-havre',
+	'Toulon': 'toulon',
+	'Nancy': 'nancy',
+	'Rouen': 'rouen',
+	'Amiens': 'amiens',
+	'Caen': 'caen',
 };
 
 const slugToCity: Record<string, string> = Object.fromEntries(
@@ -53,8 +62,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		};
 	}
 
+	// S'assurer que shops est toujours un tableau
+	const shopsArray = Array.isArray(shops) ? shops : [];
+
 	// Récupérer tous les profile_ids des shops
-	const profileIds = (shops || []).map(shop => shop.profile_id).filter(Boolean);
+	const profileIds = shopsArray.map(shop => shop.profile_id).filter(Boolean);
 	
 	// Récupérer les plans premium pour tous les profiles en une seule requête
 	const premiumProfileIds = new Set<string>();
@@ -72,7 +84,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	}
 
 	// Marquer les shops premium et trier
-	const shopsWithPremium = (shops || []).map(shop => ({
+	const shopsWithPremium = shopsArray.map(shop => ({
 		...shop,
 		isPremium: shop.profile_id ? premiumProfileIds.has(shop.profile_id) : false
 	}));

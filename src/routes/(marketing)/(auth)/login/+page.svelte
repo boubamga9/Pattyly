@@ -99,13 +99,7 @@
 				<Card.Content class="p-8 sm:p-10">
 					<SocialsAuth />
 
-					<div class="my-6 flex items-center gap-4">
-						<div class="h-px flex-1 bg-neutral-200"></div>
-						<span class="text-sm text-neutral-500">ou</span>
-						<div class="h-px flex-1 bg-neutral-200"></div>
-					</div>
-
-					<div class="space-y-6">
+					<div class="mt-6 space-y-6">
 						<LoginForm data={data.form} />
 						<div class="text-center text-sm text-neutral-600">
 							Tu n&apos;as pas encore de compte ?

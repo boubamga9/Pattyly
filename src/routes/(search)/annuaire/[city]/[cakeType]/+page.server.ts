@@ -17,6 +17,15 @@ const cityToSlug: Record<string, string> = {
 	'Lille': 'lille',
 	'Rennes': 'rennes',
 	'Reims': 'reims',
+	'Grenoble': 'grenoble',
+	'Dijon': 'dijon',
+	'Angers': 'angers',
+	'Le Havre': 'le-havre',
+	'Toulon': 'toulon',
+	'Nancy': 'nancy',
+	'Rouen': 'rouen',
+	'Amiens': 'amiens',
+	'Caen': 'caen',
 };
 
 const slugToCity: Record<string, string> = Object.fromEntries(

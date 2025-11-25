@@ -27,14 +27,17 @@
 	import Info from 'virtual:icons/lucide/info';
 	import Mail from 'virtual:icons/lucide/mail';
 	import { Cake } from 'lucide-svelte';
-	import { initSmoothScroll, destroySmoothScroll } from '$lib/utils/smooth-scroll';
+	import {
+		initSmoothScroll,
+		destroySmoothScroll,
+	} from '$lib/utils/smooth-scroll';
 	import { gsap } from 'gsap';
 	import { ScrollTrigger } from 'gsap/ScrollTrigger';
 	import '../../app.css';
 
 	const menuItems = {
-		'/about': 'À propos',
-		'/contact': 'Contact',
+		'/annuaire': 'Tous les pâtissiers',
+		'/tous-les-gateaux': 'Tous les gâteaux',
 	};
 
 	let menuOpen = false;
@@ -135,8 +138,12 @@
 						/>
 					</Button>
 					<!-- Dropdown au hover -->
-					<div class="invisible absolute left-1/2 top-full z-50 mt-2 -translate-x-1/2 opacity-0 transition-all duration-200 group-hover:visible group-hover:opacity-100">
-						<div class="w-[600px] rounded-2xl border border-neutral-200 bg-white p-0 shadow-xl">
+					<div
+						class="invisible absolute left-1/2 top-full z-50 mt-2 -translate-x-1/2 opacity-0 transition-all duration-200 group-hover:visible group-hover:opacity-100"
+					>
+						<div
+							class="w-[600px] rounded-2xl border border-neutral-200 bg-white p-0 shadow-xl"
+						>
 							<div class="grid grid-cols-2 divide-x divide-neutral-200">
 								<!-- Colonne gauche : Logiciel de gestion -->
 								<div class="p-6">
@@ -168,7 +175,9 @@
 									</div>
 									<div class="my-8 border-t border-neutral-200"></div>
 									<div class="space-y-1">
-										<p class="mb-4 px-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+										<p
+											class="mb-4 px-2 text-xs font-semibold uppercase tracking-wide text-neutral-500"
+										>
 											Solutions
 										</p>
 										<a
@@ -221,10 +230,19 @@
 											<Search class="h-4 w-4 text-neutral-500" />
 											<span>Annuaire complet</span>
 										</a>
+										<a
+											href="/tous-les-gateaux"
+											class="flex items-center gap-3 rounded-sm px-2 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-100"
+										>
+											<Cake class="h-4 w-4 text-neutral-500" />
+											<span>Tous les gâteaux</span>
+										</a>
 									</div>
 									<div class="my-8 border-t border-neutral-200"></div>
 									<div class="space-y-1">
-										<p class="mb-4 px-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+										<p
+											class="mb-4 px-2 text-xs font-semibold uppercase tracking-wide text-neutral-500"
+										>
 											Types de gâteaux
 										</p>
 										<a
@@ -265,7 +283,9 @@
 									</div>
 									<div class="my-8 border-t border-neutral-200"></div>
 									<div class="space-y-1">
-										<p class="mb-4 px-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+										<p
+											class="mb-4 px-2 text-xs font-semibold uppercase tracking-wide text-neutral-500"
+										>
 											Villes populaires
 										</p>
 										<a
@@ -318,18 +338,11 @@
 					<Button href="/dashboard">Dashboard</Button>
 				{:else}
 					<Button
-						variant="ghost"
-						href="/login"
-						class="text-base font-medium text-neutral-700 transition-all duration-200 hover:scale-105 hover:bg-white/20 hover:text-neutral-800"
-					>
-						Se connecter
-					</Button>
-					<Button
-						href="/register"
+						href="/"
 						class="rounded-xl bg-[#FF6F61] text-base font-medium text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-[#e85a4f]"
-						style="width: 140px; height: 48px;"
+						style="width: 160px; height: 48px;"
 					>
-						Commencer
+						Je suis pâtissier
 					</Button>
 				{/if}
 			</div>
@@ -353,16 +366,39 @@
 							</Drawer.Close>
 						</Drawer.Header>
 						<nav class="flex flex-col divide-y divide-neutral-200">
+							<!-- Liens principaux en haut -->
+							<div class="py-2">
+								<Button
+									href="/annuaire"
+									variant="ghost"
+									class="w-full justify-start px-4 py-4 text-base font-semibold"
+									onclick={() => (menuOpen = false)}
+								>
+									Tous les pâtissiers
+								</Button>
+								<Button
+									href="/tous-les-gateaux"
+									variant="ghost"
+									class="w-full justify-start px-4 py-4 text-base font-semibold"
+									onclick={() => (menuOpen = false)}
+								>
+									Tous les gâteaux
+								</Button>
+							</div>
 							<!-- Menu Produits avec accordéons -->
 							<div class="py-2">
 								<!-- Accordéon Logiciel de gestion -->
 								<Collapsible class="border-b border-neutral-100">
-									<CollapsibleTrigger class="group flex w-full items-center justify-between px-4 py-4 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
+									<CollapsibleTrigger
+										class="group flex w-full items-center justify-between px-4 py-4 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50"
+									>
 										<span class="flex items-center gap-2">
 											<Settings class="h-4 w-4" />
 											Logiciel de gestion
 										</span>
-										<ChevronDown class="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+										<ChevronDown
+											class="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180"
+										/>
 									</CollapsibleTrigger>
 									<CollapsibleContent class="px-4 pb-2">
 										<div class="space-y-1">
@@ -413,7 +449,11 @@
 											</Button>
 										</div>
 										<div class="my-2 border-t border-neutral-100"></div>
-										<p class="px-8 pb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">Solutions</p>
+										<p
+											class="px-8 pb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500"
+										>
+											Solutions
+										</p>
 										<div class="space-y-1">
 											<Button
 												href="/boutique-en-ligne-patissier"
@@ -457,12 +497,16 @@
 
 								<!-- Accordéon Recherche -->
 								<Collapsible class="border-b border-neutral-100">
-									<CollapsibleTrigger class="group flex w-full items-center justify-between px-4 py-4 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50">
+									<CollapsibleTrigger
+										class="group flex w-full items-center justify-between px-4 py-4 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50"
+									>
 										<span class="flex items-center gap-2">
 											<Search class="h-4 w-4" />
 											Recherche
 										</span>
-										<ChevronDown class="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+										<ChevronDown
+											class="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180"
+										/>
 									</CollapsibleTrigger>
 									<CollapsibleContent class="px-4 pb-2">
 										<div class="space-y-1">
@@ -482,9 +526,21 @@
 											>
 												Annuaire complet
 											</Button>
+											<Button
+												href="/tous-les-gateaux"
+												variant="ghost"
+												class="w-full justify-start py-3 pl-8 text-sm"
+												onclick={() => (menuOpen = false)}
+											>
+												Tous les gâteaux
+											</Button>
 										</div>
 										<div class="my-2 border-t border-neutral-100"></div>
-										<p class="px-8 pb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">Types de gâteaux</p>
+										<p
+											class="px-8 pb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500"
+										>
+											Types de gâteaux
+										</p>
 										<div class="space-y-1">
 											<Button
 												href="/gateau-anniversaire"
@@ -528,7 +584,11 @@
 											</Button>
 										</div>
 										<div class="my-2 border-t border-neutral-100"></div>
-										<p class="px-8 pb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">Villes populaires</p>
+										<p
+											class="px-8 pb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500"
+										>
+											Villes populaires
+										</p>
 										<div class="space-y-1">
 											<Button
 												href="/annuaire/paris"
@@ -563,26 +623,18 @@
 							<div class="flex flex-col py-2">
 								{#if !data.user}
 									<Button
-										href="/register"
+										href="/"
 										variant="ghost"
-										class="w-full justify-start py-4 px-4 text-base font-semibold"
+										class="w-full justify-start px-4 py-4 text-base font-semibold"
 										onclick={() => (menuOpen = false)}
 									>
-										S'inscrire
-									</Button>
-									<Button
-										href="/login"
-										variant="ghost"
-										class="w-full justify-start py-4 px-4 text-base"
-										onclick={() => (menuOpen = false)}
-									>
-										Se connecter
+										Je suis pâtissier
 									</Button>
 								{:else}
 									<Button
 										href="/dashboard"
 										variant="ghost"
-										class="w-full justify-start py-4 px-4 text-base"
+										class="w-full justify-start px-4 py-4 text-base"
 										onclick={() => (menuOpen = false)}
 									>
 										Dashboard
@@ -602,7 +654,9 @@
 </main>
 
 <!-- Footer -->
-<footer class="relative overflow-hidden border-t border-neutral-200 bg-white py-16 sm:py-20">
+<footer
+	class="relative overflow-hidden border-t border-neutral-200 bg-white py-16 sm:py-20"
+>
 	<div class="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
 		<!-- Logo centré en haut -->
 		<div class="mb-12 flex justify-center">
@@ -614,12 +668,14 @@
 				/>
 			</a>
 		</div>
-		
+
 		<!-- Links grid avec icônes - disposition améliorée -->
 		<div class="grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-5">
 			<!-- Logiciel de gestion -->
 			<div class="flex flex-col gap-4">
-				<p class="text-sm font-semibold text-neutral-900">Logiciel de gestion</p>
+				<p class="text-sm font-semibold text-neutral-900">
+					Logiciel de gestion
+				</p>
 				<nav class="flex flex-col gap-2">
 					<a
 						href="/"
@@ -642,8 +698,26 @@
 						<HelpCircle class="h-3.5 w-3.5" />
 						<span>FAQ</span>
 					</a>
+					<a
+						href="/about"
+						class="flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
+					>
+						<Info class="h-3.5 w-3.5" />
+						<span>À propos</span>
+					</a>
+					<a
+						href="/contact"
+						class="flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
+					>
+						<Mail class="h-3.5 w-3.5" />
+						<span>Contact</span>
+					</a>
 					<div class="my-3 border-t border-neutral-200"></div>
-					<p class="mt-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">Solutions</p>
+					<p
+						class="mt-1 text-xs font-semibold uppercase tracking-wide text-neutral-500"
+					>
+						Solutions
+					</p>
 					<a
 						href="/boutique-en-ligne-patissier"
 						class="flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
@@ -674,7 +748,7 @@
 					</a>
 				</nav>
 			</div>
-			
+
 			<!-- Recherche -->
 			<div class="flex flex-col gap-4">
 				<p class="text-sm font-semibold text-neutral-900">Recherche</p>
@@ -693,8 +767,19 @@
 						<Search class="h-3.5 w-3.5" />
 						<span>Annuaire complet</span>
 					</a>
+					<a
+						href="/tous-les-gateaux"
+						class="flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
+					>
+						<Cake class="h-3.5 w-3.5" />
+						<span>Tous les gâteaux</span>
+					</a>
 					<div class="my-3 border-t border-neutral-200"></div>
-					<p class="mt-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">Villes populaires</p>
+					<p
+						class="mt-1 text-xs font-semibold uppercase tracking-wide text-neutral-500"
+					>
+						Villes populaires
+					</p>
 					<a
 						href="/annuaire/paris"
 						class="flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
@@ -732,7 +817,7 @@
 					</a>
 				</nav>
 			</div>
-			
+
 			<!-- Types de gâteaux -->
 			<div class="flex flex-col gap-4">
 				<p class="text-sm font-semibold text-neutral-900">Types de gâteaux</p>
@@ -772,17 +857,9 @@
 						<Cake class="h-3.5 w-3.5" />
 						<span>Gâteau personnalisé</span>
 					</a>
-					<div class="my-3 border-t border-neutral-200"></div>
-					<a
-						href="/annuaire"
-						class="flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
-					>
-						<Cake class="h-3.5 w-3.5" />
-						<span>Tous les types</span>
-					</a>
 				</nav>
 			</div>
-			
+
 			<!-- Menu & App -->
 			<div class="flex flex-col gap-4">
 				<p class="text-sm font-semibold text-neutral-900">Menu</p>
@@ -797,7 +874,7 @@
 					{/each}
 				</nav>
 				<div class="my-3 border-t border-neutral-200"></div>
-				<p class="text-sm font-semibold text-neutral-900">App</p>
+				<p class="text-sm font-semibold text-neutral-900">Espace pâtissier</p>
 				<nav class="flex flex-col gap-2">
 					<a
 						href="/login"
@@ -813,7 +890,7 @@
 					</a>
 				</nav>
 			</div>
-			
+
 			<!-- Légal & Réseaux -->
 			<div class="flex flex-col gap-4">
 				<p class="text-sm font-semibold text-neutral-900">Légal</p>
@@ -849,7 +926,7 @@
 						Instagram
 					</a>
 					<a
-						href="https://www.tiktok.com/@pattyly.app"
+						href="https://www.tiktok.com/@pattyly.com"
 						target="_blank"
 						rel="noopener noreferrer"
 						class="text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
@@ -859,7 +936,7 @@
 				</nav>
 			</div>
 		</div>
-		
+
 		<!-- Copyright -->
 		<div class="mt-12 border-t border-neutral-200 pt-8 text-center">
 			<p class="text-sm text-neutral-500">
@@ -868,4 +945,3 @@
 		</div>
 	</div>
 </footer>
-

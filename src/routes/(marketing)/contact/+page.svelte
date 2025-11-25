@@ -72,7 +72,7 @@
 		{
 			question: 'Puis-je tester avant de payer ?',
 			answer:
-				'Oui, tu peux créer ton compte gratuitement, configurer ta boutique et commencer à recevoir des commandes. Essai gratuit 7 jours, sans engagement.',
+				'Oui, tu peux créer ton compte gratuitement et utiliser la version gratuite à vie. Configure ta boutique et commence à recevoir des commandes sans engagement.',
 		},
 		{
 			question: 'Comment modifier ma boutique après création ?',
@@ -85,9 +85,9 @@
 				'Bien sûr. Écris-nous simplement le nom de ta boutique, les infos de facturation et on t\'envoie le document rapidement.',
 		},
 		{
-			question: 'Que se passe-t-il après mon essai gratuit ?',
+			question: 'Puis-je rester sur la version gratuite ?',
 			answer:
-				'Tu gardes l\'accès à toutes tes données. Si tu choisis de continuer, tu passes à un abonnement mensuel. Si tu arrêtes, tes données restent à toi.',
+				'Absolument ! La version gratuite est disponible à vie. Tu peux rester sur ce plan aussi longtemps que tu veux. Si tu as besoin de plus de fonctionnalités, tu peux passer à un plan payant à tout moment.',
 		},
 	];
 </script>

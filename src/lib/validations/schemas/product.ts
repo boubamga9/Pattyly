@@ -18,6 +18,7 @@ export const productBaseSchema = z.object({
     base_price: priceSchema,          // Prix de base (0 à 10 000€)
     category_id: uuidSchema,          // Lien vers la catégorie
     form_id: uuidSchema,              // Lien vers le formulaire de personnalisation
+    cake_type: z.string().max(50, 'Le type de gâteau ne doit pas dépasser 50 caractères').optional().nullable(), // Type de gâteau (anniversaire, mariage, etc.)
     min_days_notice: z.preprocess(
         (val) => {
             // Convertir string → number avant validation
@@ -48,6 +49,7 @@ export const updateProductSchema = productBaseSchema.pick({
     base_price: true,
     category_id: true,
     form_id: true,
+    cake_type: true,
     min_days_notice: true
 });
 

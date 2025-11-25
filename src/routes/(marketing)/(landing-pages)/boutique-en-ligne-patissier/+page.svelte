@@ -181,7 +181,7 @@
 			price: '0',
 			priceCurrency: 'EUR',
 			availability: 'https://schema.org/InStock',
-			description: 'Essai gratuit 7 jours, sans carte bancaire',
+			description: 'Version gratuite disponible, sans carte bancaire',
 		},
 		aggregateRating: {
 			'@type': 'AggregateRating',
@@ -200,7 +200,7 @@
 	>
 	<meta
 		name="description"
-		content="Créez votre boutique en ligne pour pâtissiers en 5 minutes. Vendez vos gâteaux en ligne, recevez des commandes 24/7, acceptez les paiements sécurisés. Logiciel spécialisé pour cake designers. Essai gratuit 7 jours."
+		content="Créez votre boutique en ligne pour pâtissiers en 5 minutes. Vendez vos gâteaux en ligne, recevez des commandes 24/7, acceptez les paiements sécurisés. Logiciel spécialisé pour cake designers. Version gratuite disponible."
 	/>
 	<meta
 		name="keywords"
@@ -266,7 +266,7 @@
 						href="/register"
 						class="h-14 rounded-xl bg-[#FF6F61] px-8 text-base font-semibold text-white shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-[#e85a4f] hover:shadow-xl"
 					>
-						Commencer mon essai gratuit
+						Commencer gratuitement
 					</Button>
 					<a
 						href="/pricing"
@@ -276,7 +276,7 @@
 					</a>
 				</div>
 				<p class="mt-4 text-sm font-light text-neutral-600">
-					✔️ <strong>Essai gratuit 7 jours</strong> • Sans carte bancaire • Configuration en 5
+					✔️ <strong>Version gratuite disponible</strong> • Sans carte bancaire • Configuration en 5
 					minutes
 				</p>
 			</div>
@@ -674,7 +674,7 @@
 			</h2>
 			<p class="mt-6 text-lg leading-[180%] text-neutral-600 sm:text-xl md:text-2xl" style="font-weight: 300; letter-spacing: -0.01em;">
 				Rejoins les pâtissiers qui ont choisi Pattyly pour simplifier leur vente en ligne.
-				Essai gratuit 7 jours, sans carte bancaire.
+				Version gratuite disponible, sans carte bancaire.
 			</p>
 			<div
 				class="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row"
