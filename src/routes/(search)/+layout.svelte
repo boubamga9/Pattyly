@@ -918,7 +918,7 @@
 				<p class="text-sm font-semibold text-neutral-900">Retrouvez-nous</p>
 				<nav class="flex flex-col gap-2">
 					<a
-						href="https://www.instagram.com/pattyly.app"
+						href="https://www.instagram.com/pattyly_com"
 						target="_blank"
 						rel="noopener noreferrer"
 						class="text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"

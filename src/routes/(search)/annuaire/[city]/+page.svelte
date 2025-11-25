@@ -41,8 +41,12 @@
 		}
 	});
 
-	// Afficher directement tous les résultats (pas de filtrage)
-	$: filteredDesigners = cakeDesigners;
+	// Afficher directement tous les résultats triés (vérifiés en premier)
+	$: filteredDesigners = [...cakeDesigners].sort((a, b) => {
+		if (a.isPremium && !b.isPremium) return -1;
+		if (!a.isPremium && b.isPremium) return 1;
+		return a.name.localeCompare(b.name);
+	});
 </script>
 
 <svelte:head>

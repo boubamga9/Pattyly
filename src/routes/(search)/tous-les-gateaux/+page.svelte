@@ -45,6 +45,7 @@
 	let selectedCakeType = '';
 	let searchRadius = 30; // Rayon par défaut en km
 	let filtersExpanded = true;
+	let showOnlyVerified = false; // Filtre pour afficher uniquement les gâteaux des pâtissiers vérifiés
 
 	const cakeTypes = [
 		"Gâteau d'anniversaire",
@@ -214,6 +215,13 @@
 				);
 			}
 
+			// Filtre par pâtissiers vérifiés
+			if (showOnlyVerified) {
+				filtered = filtered.filter(
+					(product) => product.shop.isPremium === true,
+				);
+			}
+
 			// Filtre par rayon si une ville est sélectionnée
 			if (selectedCitySuggestion?.coordinates) {
 				const [centerLat, centerLon] = [
@@ -266,6 +274,13 @@
 					.map((item) => item.product);
 			}
 
+			// Trier : vérifiés en premier, puis par nom de produit
+			filtered.sort((a, b) => {
+				if (a.shop.isPremium && !b.shop.isPremium) return -1;
+				if (!a.shop.isPremium && b.shop.isPremium) return 1;
+				return a.name.localeCompare(b.name);
+			});
+
 			// S'assurer que filtered est toujours un tableau
 			filteredProductsSync = Array.isArray(filtered) ? filtered : [];
 			isLoadingFilter = false;
@@ -279,11 +294,13 @@
 		}
 	}
 
-	// Réactif aux changements de filtres (inclut searchRadius pour déclencher le filtrage)
+	// Réactif aux changements de filtres (inclut searchRadius et showOnlyVerified pour déclencher le filtrage)
 	$: {
-		const hasFilters = selectedCitySuggestion || selectedCakeType;
-		// Inclure searchRadius dans les dépendances pour déclencher le filtrage
+		const hasFilters =
+			selectedCitySuggestion || selectedCakeType || showOnlyVerified;
+		// Inclure searchRadius et showOnlyVerified dans les dépendances pour déclencher le filtrage
 		const _currentRadius = searchRadius;
+		const _currentVerified = showOnlyVerified;
 
 		if (hasFilters) {
 			// Debounce plus long pour le slider (300ms) pour éviter trop d'appels pendant le glissement
@@ -298,7 +315,13 @@
 				clearTimeout(filterTimeout);
 				filterTimeout = null;
 			}
-			filteredProductsSync = allProducts;
+			// Trier : vérifiés en premier, puis par nom de produit
+			const sorted = [...allProducts].sort((a, b) => {
+				if (a.shop.isPremium && !b.shop.isPremium) return -1;
+				if (!a.shop.isPremium && b.shop.isPremium) return 1;
+				return a.name.localeCompare(b.name);
+			});
+			filteredProductsSync = sorted;
 			isLoadingFilter = false;
 			isFiltering = false;
 		}
@@ -311,6 +334,7 @@
 		selectedCitySuggestion = null;
 		selectedCakeType = '';
 		searchRadius = 30;
+		showOnlyVerified = false;
 		updateUrl();
 	}
 
@@ -439,6 +463,45 @@
 							</div>
 						{/if}
 
+						<!-- Filtre "Notre sélection" (pâtissiers vérifiés) -->
+						<button
+							on:click={() => {
+								showOnlyVerified = !showOnlyVerified;
+							}}
+							class="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-all hover:border-[#FF6F61] hover:bg-[#FFE8D6]/20 {showOnlyVerified
+								? 'border-[#FF6F61] bg-[#FFE8D6]/30'
+								: 'border-neutral-300 bg-white'}"
+						>
+							<span class="flex items-center gap-1.5">
+								<svg
+									class="h-4 w-4 shrink-0 {showOnlyVerified
+										? 'text-[#FF6F61]'
+										: 'text-neutral-400'}"
+									viewBox="0 0 22 22"
+									fill="none"
+								>
+									<circle
+										cx="11"
+										cy="11"
+										r="10"
+										fill={showOnlyVerified ? '#FF6F61' : 'currentColor'}
+									/>
+									<path
+										d="M6.5 11l2.5 2.5 5-5"
+										stroke="white"
+										stroke-width="2"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+									/>
+								</svg>
+								<span
+									class={showOnlyVerified
+										? 'text-[#FF6F61]'
+										: 'text-neutral-700'}>Notre sélection de pâtissiers</span
+								>
+							</span>
+						</button>
+
 						<!-- Filtre par type de gâteau -->
 						<div class="flex flex-wrap gap-2">
 							{#each cakeTypes as cakeType}
@@ -460,7 +523,7 @@
 						</div>
 
 						<!-- Bouton réinitialiser -->
-						{#if selectedCitySuggestion || selectedCakeType}
+						{#if selectedCitySuggestion || selectedCakeType || showOnlyVerified}
 							<button
 								on:click={clearFilters}
 								class="ml-auto flex items-center gap-2 rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-all hover:border-[#FF6F61] hover:bg-[#FFE8D6]/20 hover:text-[#FF6F61]"

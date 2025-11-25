@@ -173,8 +173,12 @@
 		};
 	});
 
-	// Afficher directement tous les résultats (pas de filtrage, déjà filtré côté serveur)
-	$: filteredDesigners = cakeDesigners;
+	// Afficher directement tous les résultats triés (vérifiés en premier)
+	$: filteredDesigners = [...cakeDesigners].sort((a, b) => {
+		if (a.isPremium && !b.isPremium) return -1;
+		if (!a.isPremium && b.isPremium) return 1;
+		return a.name.localeCompare(b.name);
+	});
 
 	// Mettre à jour le Schema.org ItemList quand les résultats changent
 	$: if (typeof document !== 'undefined' && filteredDesigners) {

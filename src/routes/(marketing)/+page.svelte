@@ -22,9 +22,8 @@
 			description:
 				'Logiciel de gestion pour cake designers et pâtissiers indépendants. Créez votre boutique en ligne, gérez commandes, devis, factures et planning facilement.',
 			sameAs: [
-				// Ajouter les réseaux sociaux quand disponibles
-				// 'https://www.facebook.com/pattyly',
-				// 'https://www.instagram.com/pattyly',
+				'https://www.instagram.com/pattyly_com',
+				'https://www.tiktok.com/@pattyly.com',
 			],
 			contactPoint: {
 				'@type': 'ContactPoint',
@@ -116,7 +115,9 @@
 </script>
 
 <svelte:head>
-	<title>Logiciel de gestion pour cake designers - Gagnez du temps avec {WebsiteName}</title>
+	<title
+		>Logiciel de gestion pour cake designers - Gagnez du temps avec {WebsiteName}</title
+	>
 	<meta
 		name="description"
 		content="Gagnez 2h par jour avec Pattyly ! Logiciel de gestion pour cake designers : boutique en ligne, commandes, devis, factures. Plan gratuit disponible, sans CB."
@@ -142,28 +143,28 @@
 <div class="flex flex-col">
 	<!-- Popup de redirection vers l'annuaire -->
 	<CakeDesignerPopup />
-	
+
 	<!-- Hero section - Premier impact -->
 	<HeroSection />
-	
+
 	<!-- Introduction - Présentation du produit -->
 	<Intro />
-	
+
 	<!-- Pain Points - Problèmes rencontrés -->
 	<PainPoints />
-	
+
 	<!-- Before/After - Comparaison visuelle -->
 	<BeforeAfter />
-	
+
 	<!-- Solutions - Fonctionnalités principales (avec benefits intégrés) -->
 	<Solutions />
-	
+
 	<!-- FAQ - Réponses aux questions -->
 	<Faq />
-	
+
 	<!-- Last CTA - Appel à l'action final -->
 	<LastCta />
-	
+
 	<!-- Scroll to top button -->
 	<ScrollToTop />
 </div>
