@@ -30,6 +30,7 @@
 				city: string;
 				actualCity: string;
 				postalCode: string;
+				isPremium?: boolean;
 			};
 		}>;
 	};
@@ -547,6 +548,29 @@
 					<Card.Root
 						class="group relative overflow-hidden rounded-2xl border border-neutral-200 bg-white transition-all duration-300 hover:scale-[1.02] hover:border-[#FF6F61]/50 hover:shadow-xl"
 					>
+						<!-- Badge vérifié (si shop premium) -->
+						{#if product.shop.isPremium}
+							<div
+								class="absolute right-3 top-3 z-10 flex items-center gap-1.5 rounded-full bg-white/90 px-2 py-1 shadow-md backdrop-blur-sm"
+							>
+								<svg
+									class="h-4 w-4 shrink-0"
+									viewBox="0 0 22 22"
+									aria-label="Compte vérifié"
+									fill="none"
+								>
+									<circle cx="11" cy="11" r="10" fill="#FF6F61" />
+									<path
+										d="M6.5 11l2.5 2.5 5-5"
+										stroke="white"
+										stroke-width="2"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+									/>
+								</svg>
+								<span class="text-xs font-medium text-[#FF6F61]">Vérifié</span>
+							</div>
+						{/if}
 						<!-- Image du gâteau -->
 						<div
 							class="relative h-48 w-full overflow-hidden bg-gradient-to-br from-[#FFE8D6]/20 to-white"
