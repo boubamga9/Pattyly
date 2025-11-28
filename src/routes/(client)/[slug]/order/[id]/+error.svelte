@@ -3,8 +3,8 @@
 	import { Button } from '$lib/components/ui/button';
 	import { ArrowLeft, Package } from 'lucide-svelte';
 
-	$: status = $page.status;
-	$: message = $page.error?.message || 'Une erreur est survenue';
+	$: status = page.status;
+	$: message = page.error?.message || 'Une erreur est survenue';
 	$: shopSlug = $page.params.slug;
 </script>
 

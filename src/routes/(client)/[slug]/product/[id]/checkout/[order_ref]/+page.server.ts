@@ -79,7 +79,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 export const actions: Actions = {
     confirmPayment: async ({ params, request, locals }) => {
-        const { slug, order_ref } = params;
+        const { slug, id, order_ref } = params;
 
         try {
             console.log('🚀 [Confirm Payment] Starting for order_ref:', order_ref);

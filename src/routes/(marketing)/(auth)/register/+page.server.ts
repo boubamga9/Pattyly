@@ -9,6 +9,7 @@ import { formSchema } from './schema';
 
 export const load: PageServerLoad = async ({ url }) => {
 	const next = url.searchParams.get('next');
+	const plan = url.searchParams.get('plan'); // Récupérer le plan depuis l'URL
 	const isCheckout = Boolean(
 		typeof next === 'string' &&
 		decodeURIComponent(next).match(/^\/checkout\/.+$/),
@@ -16,6 +17,7 @@ export const load: PageServerLoad = async ({ url }) => {
 
 	return {
 		isCheckout,
+		plan, // Passer le plan aux données
 		form: await superValidate(zod(formSchema)),
 	};
 };
@@ -103,7 +105,11 @@ export const actions: Actions = {
 
 		// Si l'inscription a réussi (avec ou sans session), rediriger vers la confirmation
 		if (user && user.email) {
-			throw redirect(303, `/confirmation?email=${encodeURIComponent(user.email)}`);
+			const plan = event.url.searchParams.get('plan');
+			const redirectUrl = plan 
+				? `/confirmation?email=${encodeURIComponent(user.email)}&plan=${encodeURIComponent(plan)}`
+				: `/confirmation?email=${encodeURIComponent(user.email)}`;
+			throw redirect(303, redirectUrl);
 		}
 
 

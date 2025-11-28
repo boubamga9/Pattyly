@@ -27,6 +27,7 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
     }
 
     const userId = user.id;
+    const selectedPlan = url.searchParams.get('plan'); // Récupérer le plan depuis l'URL
 
     // 🧠 On récupère les données, mais sans inclure les redirections ici
     const { data: onboardingData, error: dbError } = await supabase.rpc('get_onboarding_data', {
@@ -50,6 +51,7 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
             .single();
 
         // Si l'annuaire est configuré, rediriger vers le dashboard
+        // (La redirection vers subscription se fera côté client si un plan est dans localStorage)
         if (shopData?.directory_city && shopData?.directory_actual_city && shopData?.directory_postal_code) {
             throw redirect(303, '/dashboard');
         }
@@ -67,6 +69,7 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
         return {
             step: 3,
             shop: shopData || shop,
+            selectedPlan: selectedPlan || null, // Passer le plan aux données
             form: await superValidate(zod(directorySchema), {
                 defaults: {
                     directory_city: shopData?.directory_city || '',
@@ -84,6 +87,7 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
         return {
             step: 2,
             shop,
+            selectedPlan: selectedPlan || null, // Passer le plan aux données
             form: await superValidate(zod(paypalConfigSchema))
         };
     }
@@ -92,6 +96,7 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
     return {
         step: 1,
         shop: null,
+        selectedPlan: selectedPlan || null, // Passer le plan aux données
         form: await superValidate(zod(shopCreationSchema))
     };
 };
@@ -100,7 +105,7 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
 // lors du choix d'un plan payant dans /subscription avec demande de CB
 
 export const actions: Actions = {
-    createShop: async ({ request, locals: { safeGetSession, supabase } }) => {
+    createShop: async ({ request, locals: { safeGetSession, supabase, supabaseServiceRole } }) => {
         try {
             const { session, user } = await safeGetSession();
 
@@ -195,7 +200,7 @@ export const actions: Actions = {
             // ✅ Tracking: Shop created (fire-and-forget pour ne pas bloquer)
             const { logEventAsync, Events } = await import('$lib/utils/analytics');
             logEventAsync(
-                locals.supabaseServiceRole,
+                supabaseServiceRole,
                 Events.SHOP_CREATED,
                 { shop_id: shop.id, shop_name: name, shop_slug: slug },
                 userId,
@@ -300,7 +305,7 @@ export const actions: Actions = {
         }
     },
 
-    updateDirectory: async ({ request, locals: { safeGetSession, supabase } }) => {
+    updateDirectory: async ({ request, locals: { safeGetSession, supabase }, url }) => {
         try {
             console.log('📋 [Onboarding Directory] updateDirectory called');
             const { session, user } = await safeGetSession();
@@ -401,6 +406,52 @@ export const actions: Actions = {
             const form = await superValidate(zod(directorySchema));
             setError(form, 'directory_city', 'Une erreur inattendue est survenue');
             return { form };
+        }
+    },
+
+    skipDirectory: async ({ locals: { safeGetSession, supabase }, url }) => {
+        try {
+            const { session, user } = await safeGetSession();
+
+            if (!session || !user) {
+                throw redirect(303, '/login');
+            }
+
+            const userId = user.id;
+
+            // Récupérer la boutique
+            const { data: shop, error: shopError } = await supabase
+                .from('shops')
+                .select('id')
+                .eq('profile_id', userId)
+                .single();
+
+            if (shopError || !shop) {
+                throw error(500, 'Boutique non trouvée');
+            }
+
+            // Mettre directory_enabled à false
+            const { error: updateError } = await supabase
+                .from('shops')
+                .update({
+                    directory_enabled: false
+                })
+                .eq('id', shop.id);
+
+            if (updateError) {
+                console.error('❌ [Onboarding Directory] Skip error:', updateError);
+                throw error(500, 'Erreur lors de la sauvegarde');
+            }
+
+            // Note: Le plan sera récupéré depuis localStorage côté client dans directory-form
+            // Rediriger vers le dashboard (la redirection vers subscription se fera côté client)
+            throw redirect(303, '/dashboard');
+        } catch (err) {
+            if (err && typeof err === 'object' && 'status' in err) {
+                throw err; // C'est une redirection ou une erreur
+            }
+            console.error('❌ [Onboarding Directory] Skip error:', err);
+            throw error(500, 'Une erreur inattendue est survenue');
         }
     }
 };

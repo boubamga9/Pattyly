@@ -25,13 +25,25 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { enhance as formEnhance } from '$app/forms';
 
 	export let data: SuperValidated<Infer<typeof directorySchema>>;
 	export let toggleForm:
 		| SuperValidated<Infer<typeof toggleDirectorySchema>>
 		| undefined = undefined;
 	export let shop: { id: string; slug: string } | null | undefined = undefined;
-	export let alwaysShowForm: boolean = false; // Pour l'onboarding, toujours afficher le formulaire
+	export let showSkipButton: boolean = false; // Afficher le bouton pour passer l'étape
+	export let userPlan: 'free' | 'basic' | 'premium' | 'exempt' | undefined =
+		undefined; // Plan de l'utilisateur
+
+	// Déterminer si on est dans l'onboarding (pour masquer certains éléments)
+	$: isOnboarding =
+		showSkipButton || $page.url.pathname.includes('/onboarding');
+
+	// Déterminer si l'utilisateur a un plan payant
+	$: hasPaidPlan =
+		userPlan &&
+		(userPlan === 'basic' || userPlan === 'premium' || userPlan === 'exempt');
 
 	const form = superForm(data, {
 		validators: zodClient(directorySchema),
@@ -140,6 +152,20 @@
 		setTimeout(() => {
 			showSuggestions = false;
 		}, 200);
+	}
+
+	// Fonction pour obtenir le plan sélectionné depuis localStorage
+	function getSelectedPlan(): string | null {
+		if (typeof window === 'undefined') return null;
+
+		const selectedPlan = localStorage.getItem('selected_plan');
+
+		// Nettoyer localStorage après utilisation
+		if (selectedPlan) {
+			localStorage.removeItem('selected_plan');
+		}
+
+		return selectedPlan;
 	}
 
 	// Gestion des types de gâteaux (limite à 3 maximum)
@@ -307,6 +333,18 @@
 			Si activé, votre boutique sera visible dans l'annuaire et pourra être
 			trouvée par les clients
 		</p>
+		{#if !isOnboarding && !hasPaidPlan}
+			<p class="mt-2 text-xs text-[#FF6F61]">
+				<a
+					href="/subscription?plan=premium"
+					class="underline transition-colors hover:text-[#e85a4f]"
+				>
+					Multipliez votre visibilité par 5 et augmentez le nombre de commandes
+					reçues
+				</a>
+				{' '}en souscrivant au plan Premium
+			</p>
+		{/if}
 	</div>
 	<Switch
 		checked={localDirectoryEnabled}
@@ -335,7 +373,16 @@
 
 				if (pathname.includes('/onboarding')) {
 					console.log('📋 [Directory Form] In onboarding - redirecting');
-					goto('/dashboard');
+					// Vérifier si un plan était pré-sélectionné (depuis localStorage ou URL)
+					const selectedPlan = getSelectedPlan();
+					if (
+						selectedPlan &&
+						(selectedPlan === 'starter' || selectedPlan === 'premium')
+					) {
+						goto(`/subscription?plan=${encodeURIComponent(selectedPlan)}`);
+					} else {
+						goto('/dashboard');
+					}
 				} else {
 					console.log(
 						'📋 [Directory Form] In dashboard - success, showing feedback',
@@ -367,7 +414,7 @@
 
 	<Form.Errors {form} />
 
-	{#if localDirectoryEnabled || alwaysShowForm}
+	{#if localDirectoryEnabled}
 		<!-- Grande ville la plus proche -->
 		<Form.Field {form} name="directory_city">
 			<Form.Control let:attrs>
@@ -513,7 +560,7 @@
 	{/if}
 
 	<!-- Bouton de soumission (affiché uniquement si l'annuaire est activé) -->
-	{#if localDirectoryEnabled || alwaysShowForm}
+	{#if localDirectoryEnabled}
 		<div class="flex">
 			<Button
 				type="submit"
@@ -539,6 +586,21 @@
 		</div>
 	{/if}
 </form>
+
+<!-- Bouton pour passer l'étape (visible quand toggle est off et showSkipButton est true) -->
+{#if !localDirectoryEnabled && showSkipButton}
+	<form method="POST" action="?/skipDirectory" use:formEnhance>
+		<div class="mt-6 space-y-3">
+			<Button type="submit" variant="outline" class="w-full">
+				Je ne veux pas apparaître dans l'annuaire
+			</Button>
+			<p class="text-center text-xs text-muted-foreground">
+				Vous pourrez modifier ce choix plus tard dans les paramètres de votre
+				boutique
+			</p>
+		</div>
+	</form>
+{/if}
 
 <style>
 	/* Style pour les suggestions d'autocomplétion */

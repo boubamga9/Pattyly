@@ -27,12 +27,12 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
         const { shop, product, customForm, customFields, availabilities, unavailabilities, datesWithLimitReached } = productData;
 
-        console.log('✅ productData received:', { 
-            hasShop: !!shop, 
-            shopId: shop?.id, 
+        console.log('✅ productData received:', {
+            hasShop: !!shop,
+            shopId: shop?.id,
             shopIsVisible: shop?.is_visible,
             shopIsActive: shop?.is_active,
-            hasProduct: !!product 
+            hasProduct: !!product
         });
 
         if (!shop) {
@@ -377,3 +377,4 @@ export const actions: Actions = {
             return { form };
         }
     }
+};

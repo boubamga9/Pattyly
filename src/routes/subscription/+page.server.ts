@@ -9,7 +9,7 @@ function getBaseEmail(email: string): string {
     return `${baseLocalPart}@${domain}`;
 }
 
-export const load: PageServerLoad = async ({ locals, request, setHeaders }) => {
+export const load: PageServerLoad = async ({ locals, request, setHeaders, url }) => {
     const { session } = await locals.safeGetSession();
 
     // Rediriger vers login si pas connecté
@@ -19,6 +19,7 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders }) => {
 
     const userId = session.user.id;
     const userEmail = session.user.email;
+    const selectedPlan = url.searchParams.get('plan'); // Récupérer le plan depuis l'URL
 
     // Vérifier si l'utilisateur est exempté
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -82,13 +83,10 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders }) => {
             currency: 'EUR',
             stripePriceId: STRIPE_PRICES.BASIC, // Utilise BASIC pour Starter
             features: [
-                '30 commandes/mois',
-                '10 gâteaux maximum',
-                'Boutique en ligne personnalisée',
-                'Gestion des commandes',
-                'Calendrier de disponibilités',
-                'Paiements sécurisés',
-                'Visibilité dans l\'annuaire',
+                'Tout le plan Gratuit',
+                '20 commandes/mois (au lieu de 5)',
+                '10 gâteaux maximum (au lieu de 3)',
+                'Visibilité améliorée dans l\'annuaire',
                 'Support email prioritaire'
             ],
             limitations: [],
@@ -102,16 +100,12 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders }) => {
             currency: 'EUR',
             stripePriceId: STRIPE_PRICES.PREMIUM,
             features: [
+                'Tout le plan Starter',
                 'Commandes illimitées',
                 'Gâteaux illimités',
-                'Boutique en ligne personnalisée',
-                'Gestion des commandes',
-                'Calendrier de disponibilités',
-                'Paiements sécurisés',
-                'Visibilité + (mis en avant)',
-                'Badge vérifié',
-                '💬 Envoi de devis',
-                'Support email prioritaire'
+                'Visibilité + : mis en avant en haut de liste = plus de commandes',
+                'Badge vérifié (gagne la confiance des clients)',
+                '💬 Envoi de devis (augmente vos ventes)'
             ],
             limitations: [],
             popular: true,
@@ -123,6 +117,7 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders }) => {
         plans,
         currentPlan,
         buttonType, // Type de boutons à afficher
+        selectedPlan: selectedPlan || null, // Plan pré-sélectionné depuis l'URL
         user: {
             id: userId,
             email: userEmail

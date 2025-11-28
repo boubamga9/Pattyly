@@ -61,7 +61,7 @@ export async function logEvent(
 	try {
 		const sessionId = getSessionId();
 
-		const { error } = await supabase.from('events').insert({
+		const eventData = {
 			user_id: userId,
 			event_name: eventName,
 			metadata: {
@@ -70,17 +70,58 @@ export async function logEvent(
 				page: page || (typeof window !== 'undefined' ? window.location.pathname : null),
 				timestamp: new Date().toISOString()
 			}
-		});
+		};
+
+		const { data, error } = await supabase.from('events').insert(eventData).select();
 
 		if (error) {
 			console.error('❌ [Analytics] Error logging event:', eventName, error);
+			console.error('❌ [Analytics] Event data:', JSON.stringify(eventData, null, 2));
 		} else {
-			console.log('✅ [Analytics] Event logged:', eventName, { userId, ...metadata });
+			console.log('✅ [Analytics] Event logged:', eventName, { userId, ...metadata, inserted: data?.[0]?.id });
 		}
 	} catch (error) {
 		// Ne pas bloquer l'application en cas d'erreur de tracking
 		console.error('❌ [Analytics] Unexpected error logging event:', eventName, error);
 	}
+}
+
+/**
+ * Détermine le type d'utilisateur basé sur l'URL et localStorage
+ */
+function getUserTypeFromContext(): 'pastry' | 'client' | 'visitor' {
+	if (typeof window === 'undefined') {
+		return 'visitor';
+	}
+
+	const pathname = window.location.pathname;
+
+	// 1. Détection basée sur l'URL (priorité haute)
+	if (pathname.startsWith('/dashboard') || pathname.startsWith('/onboarding')) {
+		return 'pastry';
+	}
+
+	// 2. Détection basée sur localStorage (popup home page)
+	const popupAnswer = localStorage.getItem('pattyly_cake_designer_popup_answered');
+	if (popupAnswer === 'createur') {
+		return 'pastry';
+	}
+	if (popupAnswer === 'gourmand') {
+		return 'client';
+	}
+
+	// 3. Détection basée sur les routes client
+	if (
+		pathname.match(/^\/[^\/]+$/) || // /slug (boutique)
+		pathname.startsWith('/tous-les-gateaux') ||
+		pathname.startsWith('/annuaire') ||
+		pathname.match(/^\/[^\/]+\/product\/[^\/]+$/) // /slug/product/id
+	) {
+		return 'client';
+	}
+
+	// 4. Par défaut : visitor
+	return 'visitor';
 }
 
 /**
@@ -121,6 +162,7 @@ export async function logPageView(
 		}
 
 		const sessionId = getSessionId(); // Récupère depuis localStorage côté client
+		const userType = getUserTypeFromContext(); // Détermine le type d'utilisateur
 
 		const { error } = await client.from('events').insert({
 			user_id: null, // Page views sont anonymes
@@ -129,6 +171,7 @@ export async function logPageView(
 				...metadata,
 				session_id: sessionId,
 				page: window.location.pathname,
+				user_type: userType, // ✅ NOUVEAU : Type d'utilisateur (pastry, client, visitor)
 				timestamp: new Date().toISOString()
 			}
 		});

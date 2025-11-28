@@ -6,14 +6,42 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Star, Check } from 'lucide-svelte';
 	import type { PageData } from './$types';
+	import { onMount } from 'svelte';
 
 	export let data: PageData;
+
+	// Déterminer le plan à afficher (depuis l'URL ou localStorage)
+	$: displayPlan = data.selectedPlan || (typeof window !== 'undefined' ? localStorage.getItem('selected_plan') : null);
+	$: shouldShowOnlySelectedPlan = displayPlan && (displayPlan === 'starter' || displayPlan === 'premium');
+
+	// Scroll automatique vers le plan pré-sélectionné si présent
+	onMount(() => {
+		// Nettoyer localStorage une fois qu'on est sur la page subscription
+		if (typeof window !== 'undefined') {
+			localStorage.removeItem('selected_plan');
+		}
+
+		if (data.selectedPlan) {
+			// Attendre que le DOM soit rendu
+			setTimeout(() => {
+				const planElement = document.getElementById(`plan-${data.selectedPlan}`);
+				if (planElement) {
+					planElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+					// Ajouter un effet visuel pour attirer l'attention
+					planElement.classList.add('ring-2', 'ring-[#FF6F61]', 'ring-offset-2');
+					setTimeout(() => {
+						planElement.classList.remove('ring-2', 'ring-[#FF6F61]', 'ring-offset-2');
+					}, 2000);
+				}
+			}, 100);
+		}
+	});
 
 	// Fonction pour identifier les différenciateurs de chaque plan
 	function isDifferentiator(planId: string, feature: string): boolean {
 		if (planId === 'starter') {
 			// Différenciateurs Starter
-			return feature.includes('30 commandes') || 
+			return feature.includes('20 commandes') || 
 			       feature.includes('prioritaire');
 		}
 		
@@ -47,14 +75,14 @@
 			return {
 				text: 'Plan actuel',
 				action: 'disabled',
-				class: 'w-full cursor-not-allowed bg-gray-500',
+				class: 'w-full rounded-lg cursor-not-allowed bg-gray-500',
 				disabled: true,
 			};
 		} else {
 			return {
 				text: `Choisir ${plan.name}`,
 				action: 'checkout',
-				class: `w-full h-12 text-sm font-semibold transition-all duration-300 hover:scale-[1.02] ${isPopular ? 'bg-[#FF6F61] hover:bg-[#e85a4f] text-white shadow-lg hover:shadow-xl' : 'bg-neutral-800 hover:bg-neutral-700 text-white shadow-lg hover:shadow-xl'}`,
+				class: `w-full h-12 rounded-lg text-sm font-semibold transition-all duration-300 hover:scale-[1.02] ${isPopular ? 'bg-[#FF6F61] hover:bg-[#e85a4f] text-white shadow-lg hover:shadow-xl' : 'bg-neutral-800 hover:bg-neutral-700 text-white shadow-lg hover:shadow-xl'}`,
 				href: `/checkout/${plan.stripePriceId}`,
 			};
 		}
@@ -83,10 +111,11 @@
 		</Section.Header>
 
 		<div
-			class="grid gap-12 pt-12 md:mx-auto md:max-w-4xl md:grid-cols-2 md:gap-8"
+			class="grid gap-12 pt-12 md:mx-auto md:max-w-4xl {shouldShowOnlySelectedPlan ? 'md:grid-cols-1 md:max-w-2xl' : 'md:grid-cols-2'} md:gap-8"
 		>
 			{#each data.plans as plan}
-				<div class="flex justify-center">
+				{#if !shouldShowOnlySelectedPlan || plan.id === displayPlan}
+					<div class="flex justify-center" id="plan-{plan.id}">
 					<Pricing.Plan emphasized={plan.popular}>
 						<Card.Root class="relative">
 							{#if plan.popular}
@@ -119,6 +148,11 @@
 											{plan.price}€
 										</span>
 										<span class="text-muted-foreground">/mois</span>
+									</div>
+									<div class="mt-2 text-center">
+										<span class="text-xs text-muted-foreground">
+											✔ Rentabilisé dès la première commande
+										</span>
 									</div>
 								</div>
 
@@ -175,10 +209,11 @@
 									{/each}
 								</div>
 							</Card.Footer>
-						</Card.Root>
-					</Pricing.Plan>
-				</div>
-			{/each}
+					</Card.Root>
+				</Pricing.Plan>
+			</div>
+		{/if}
+		{/each}
 		</div>
 	</Section.Root>
 

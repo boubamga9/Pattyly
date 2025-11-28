@@ -306,15 +306,15 @@
 	</div>
 
 	<!-- Messages d'erreur/succès -->
-	{#if $page.form?.error}
+	{#if page.form?.error}
 		<Alert variant="destructive">
-			<AlertDescription>{$page.form.error}</AlertDescription>
+			<AlertDescription>{page.form.error}</AlertDescription>
 		</Alert>
 	{/if}
 
-	{#if $page.form?.message}
+	{#if page.form?.message}
 		<Alert>
-			<AlertDescription>{$page.form.message}</AlertDescription>
+			<AlertDescription>{page.form.message}</AlertDescription>
 		</Alert>
 	{/if}
 

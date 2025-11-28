@@ -2,24 +2,66 @@ import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { EmailService } from '$lib/services/email-service';
 import { env } from '$env/dynamic/private';
+import { randomBytes } from 'crypto';
 
 // Liste des emails autorisés (à mettre dans les variables d'environnement en production)
 const ADMIN_EMAILS = (env.ADMIN_EMAILS || '').split(',').filter(Boolean);
 
+/**
+ * Génère un token de session sécurisé
+ */
+function generateSessionToken(): string {
+	return randomBytes(32).toString('hex');
+}
+
+/**
+ * Vérifie si un token de session est valide
+ */
+async function verifyAdminSession(
+	supabase: any,
+	token: string | undefined
+): Promise<{ valid: boolean; email: string | null }> {
+	if (!token) {
+		return { valid: false, email: null };
+	}
+
+	try {
+		const { data: session, error: sessionError } = await supabase
+			.from('admin_sessions')
+			.select('email, expires_at')
+			.eq('token', token)
+			.gt('expires_at', new Date().toISOString())
+			.single();
+
+		if (sessionError || !session) {
+			return { valid: false, email: null };
+		}
+
+		return { valid: true, email: session.email };
+	} catch (err) {
+		console.error('Error verifying admin session:', err);
+		return { valid: false, email: null };
+	}
+}
+
 export const load: PageServerLoad = async ({ locals, cookies, url }) => {
+	const supabase = locals.supabaseServiceRole as any;
+
 	// Vérifier si l'utilisateur est déjà authentifié en tant qu'admin
-	const adminSession = cookies.get('admin_session');
-	if (adminSession === 'authenticated') {
+	const sessionToken = cookies.get('admin_session_token');
+	const sessionVerification = await verifyAdminSession(supabase, sessionToken);
+
+	if (sessionVerification.valid) {
 		// Charger les analytics
 		return await loadAnalytics(locals);
 	}
 
 	// Récupérer l'email depuis l'URL si présent (après envoi OTP)
-	const email = url.searchParams.get('email');
+	const emailFromUrl = url.searchParams.get('email');
 
 	return {
 		authenticated: false,
-		email: email || null
+		email: emailFromUrl || null
 	};
 };
 
@@ -35,7 +77,9 @@ async function loadAnalytics(locals: any) {
 		// Nouveaux inscrits (7j, 1mois, 3mois)
 		const now = new Date();
 		const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+		const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 		const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+		const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 		const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 
 		const { count: signups7d } = await supabase
@@ -76,9 +120,54 @@ async function loadAnalytics(locals: any) {
 			.select('metadata')
 			.eq('event_name', 'page_view');
 
-		const uniqueSessions = new Set(
-			pageViews?.map((e) => e.metadata?.session_id).filter(Boolean) || []
+		// ✅ NOUVEAU : Séparer les visites par type d'utilisateur
+		const pageViewsByType = {
+			pastry: [] as any[],
+			client: [] as any[],
+			visitor: [] as any[]
+		};
+
+		pageViews?.forEach((event: any) => {
+			const userType = event.metadata?.user_type || 'visitor';
+			if (userType === 'pastry') {
+				pageViewsByType.pastry.push(event);
+			} else if (userType === 'client') {
+				pageViewsByType.client.push(event);
+			} else {
+				pageViewsByType.visitor.push(event);
+			}
+		});
+
+		// Sessions uniques par type
+		const uniqueSessionsPastry = new Set(
+			pageViewsByType.pastry.map((e: any) => e.metadata?.session_id).filter(Boolean)
 		);
+		const uniqueSessionsClient = new Set(
+			pageViewsByType.client.map((e: any) => e.metadata?.session_id).filter(Boolean)
+		);
+		const uniqueSessionsVisitor = new Set(
+			pageViewsByType.visitor.map((e: any) => e.metadata?.session_id).filter(Boolean)
+		);
+
+		// Total unique sessions (tous types confondus)
+		const uniqueSessions = new Set(
+			pageViews?.map((e: any) => e.metadata?.session_id).filter(Boolean) || []
+		);
+
+		// ✅ NOUVEAU : Pages visitées (grouper par page et compter)
+		const pageViewsCount: Record<string, number> = {};
+		pageViews?.forEach((event: any) => {
+			const page = event.metadata?.page;
+			if (page) {
+				pageViewsCount[page] = (pageViewsCount[page] || 0) + 1;
+			}
+		});
+
+		// Trier les pages par nombre de vues (décroissant) et prendre le top 10
+		const topPages = Object.entries(pageViewsCount)
+			.map(([page, count]) => ({ page, count }))
+			.sort((a, b) => b.count - a.count)
+			.slice(0, 10);
 
 		const { count: signupEvents } = await supabase
 			.from('events')
@@ -99,6 +188,58 @@ async function loadAnalytics(locals: any) {
 			.from('events')
 			.select('*', { count: 'exact', head: true })
 			.eq('event_name', 'subscription_cancelled');
+
+		// ✅ NOUVEAU : Calcul du churn rate par période (souscriptions vs annulations)
+		// Souscriptions par période
+		const { count: subscriptions7d } = await supabase
+			.from('events')
+			.select('*', { count: 'exact', head: true })
+			.eq('event_name', 'subscription_started')
+			.gte('created_at', sevenDaysAgo.toISOString());
+
+		const { count: subscriptions30d } = await supabase
+			.from('events')
+			.select('*', { count: 'exact', head: true })
+			.eq('event_name', 'subscription_started')
+			.gte('created_at', thirtyDaysAgo.toISOString());
+
+		const { count: subscriptions90d } = await supabase
+			.from('events')
+			.select('*', { count: 'exact', head: true })
+			.eq('event_name', 'subscription_started')
+			.gte('created_at', ninetyDaysAgo.toISOString());
+
+		// Annulations par période
+		const { count: cancellations7d } = await supabase
+			.from('events')
+			.select('*', { count: 'exact', head: true })
+			.eq('event_name', 'subscription_cancelled')
+			.gte('created_at', sevenDaysAgo.toISOString());
+
+		const { count: cancellations30d } = await supabase
+			.from('events')
+			.select('*', { count: 'exact', head: true })
+			.eq('event_name', 'subscription_cancelled')
+			.gte('created_at', thirtyDaysAgo.toISOString());
+
+		const { count: cancellations90d } = await supabase
+			.from('events')
+			.select('*', { count: 'exact', head: true })
+			.eq('event_name', 'subscription_cancelled')
+			.gte('created_at', ninetyDaysAgo.toISOString());
+
+		// Calculer les churn rates
+		const churn7d = (subscriptions7d || 0) > 0
+			? (((cancellations7d || 0) / subscriptions7d) * 100).toFixed(1)
+			: '0.0';
+
+		const churn30d = (subscriptions30d || 0) > 0
+			? (((cancellations30d || 0) / subscriptions30d) * 100).toFixed(1)
+			: '0.0';
+
+		const churn90d = (subscriptions90d || 0) > 0
+			? (((cancellations90d || 0) / subscriptions90d) * 100).toFixed(1)
+			: '0.0';
 
 		// Commandes récentes (7j, 1mois)
 		const { count: orders7d } = await supabase
@@ -140,7 +281,7 @@ async function loadAnalytics(locals: any) {
 			}
 		});
 
-		// Taux de churn (abonnements annulés / abonnements actifs)
+		// Ancien calcul de churn (déprécié - gardé pour compatibilité)
 		const churnRate = activeSubscriptions && activeSubscriptions > 0
 			? ((subscriptionCancelledEvents || 0) / activeSubscriptions * 100).toFixed(1)
 			: '0.0';
@@ -160,11 +301,38 @@ async function loadAnalytics(locals: any) {
 				activeProducts: activeProducts || 0,
 				pageViews: pageViews?.length || 0,
 				uniqueVisits: uniqueSessions.size,
+				// ✅ NOUVEAU : Visites séparées par type d'utilisateur
+				visitsByType: {
+					pastry: {
+						pageViews: pageViewsByType.pastry.length,
+						uniqueSessions: uniqueSessionsPastry.size
+					},
+					client: {
+						pageViews: pageViewsByType.client.length,
+						uniqueSessions: uniqueSessionsClient.size
+					},
+					visitor: {
+						pageViews: pageViewsByType.visitor.length,
+						uniqueSessions: uniqueSessionsVisitor.size
+					}
+				},
 				signupEvents: signupEvents || 0,
 				shopCreatedEvents: shopCreatedEvents || 0,
 				paymentEnabledEvents: paymentEnabledEvents || 0,
 				subscriptionCancelledEvents: subscriptionCancelledEvents || 0,
-				churnRate: churnRate,
+				churnRate: churnRate, // Ancien calcul (déprécié)
+				churnRates: {
+					churn7d: churn7d,
+					churn30d: churn30d,
+					churn90d: churn90d,
+					subscriptions7d: subscriptions7d || 0,
+					subscriptions30d: subscriptions30d || 0,
+					subscriptions90d: subscriptions90d || 0,
+					cancellations7d: cancellations7d || 0,
+					cancellations30d: cancellations30d || 0,
+					cancellations90d: cancellations90d || 0
+				},
+				topPages: topPages,
 				ordersByStatus: ordersStatusCounts
 			}
 		};
@@ -268,13 +436,14 @@ export const actions: Actions = {
 	verifyOTP: async ({ request, locals, cookies, url }) => {
 		const formData = await request.formData();
 		let email = (formData.get('email') as string)?.toLowerCase().trim();
-		
+
 		// Si l'email n'est pas dans le formData, le récupérer depuis l'URL
 		if (!email) {
 			email = url.searchParams.get('email')?.toLowerCase().trim() || '';
 		}
-		
-		const code = formData.get('code') as string;
+
+		// Nettoyer le code : enlever les espaces et ne garder que les chiffres
+		const code = (formData.get('code') as string)?.trim().replace(/\s/g, '');
 
 		if (!email || !code) {
 			return {
@@ -286,7 +455,7 @@ export const actions: Actions = {
 		try {
 			const supabase = locals.supabaseServiceRole as any;
 
-			// Vérifier le code
+			// Vérifier le code (sans la vérification used pour debug)
 			const { data: otpData, error: otpError } = await supabase
 				.from('admin_otp_codes')
 				.select('*')
@@ -296,12 +465,19 @@ export const actions: Actions = {
 				.gt('expires_at', new Date().toISOString())
 				.single();
 
+			console.log('🔍 [Admin OTP] Verification attempt:', {
+				email,
+				code,
+				otpError: otpError?.message,
+				otpData: otpData ? 'found' : 'not found'
+			});
+
 			if (otpError || !otpData) {
 				return {
 					success: false,
 					error: 'Code invalide ou expiré'
 				};
-		}
+			}
 
 			// Marquer le code comme utilisé
 			await supabase
@@ -309,8 +485,36 @@ export const actions: Actions = {
 				.update({ used: true })
 				.eq('id', otpData.id);
 
-			// Créer la session admin
-			cookies.set('admin_session', 'authenticated', {
+			// Générer un token de session sécurisé
+			const sessionToken = generateSessionToken();
+			const expiresAt = new Date();
+			expiresAt.setHours(expiresAt.getHours() + 24); // 24 heures
+
+			// Supprimer les anciennes sessions pour cet email
+			await supabase
+				.from('admin_sessions')
+				.delete()
+				.eq('email', email);
+
+			// Créer une nouvelle session en base de données
+			const { error: sessionError } = await supabase
+				.from('admin_sessions')
+				.insert({
+					email,
+					token: sessionToken,
+					expires_at: expiresAt.toISOString()
+				});
+
+			if (sessionError) {
+				console.error('Error creating admin session:', sessionError);
+				return {
+					success: false,
+					error: 'Erreur lors de la création de la session'
+				};
+			}
+
+			// Créer le cookie avec le token (pas juste 'authenticated')
+			cookies.set('admin_session_token', sessionToken, {
 				path: '/',
 				httpOnly: true,
 				secure: process.env.NODE_ENV === 'production',
@@ -331,9 +535,22 @@ export const actions: Actions = {
 		}
 	},
 
-	logout: async ({ cookies }) => {
-		cookies.delete('admin_session', { path: '/' });
+	logout: async ({ cookies, locals }) => {
+		const supabase = locals.supabaseServiceRole as any;
+		const sessionToken = cookies.get('admin_session_token');
+
+		// Supprimer la session de la base de données
+		if (sessionToken) {
+			await supabase
+				.from('admin_sessions')
+				.delete()
+				.eq('token', sessionToken);
+		}
+
+		// Supprimer le cookie
+		cookies.delete('admin_session_token', { path: '/' });
 		throw redirect(303, '/admin');
 	}
 };
+
 

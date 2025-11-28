@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { error as svelteError } from '@sveltejs/kit';
+import { checkOrderLimit } from '$lib/utils/order-limits';
 
 // Types
 interface Order {
@@ -51,11 +52,18 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
         // Compter les commandes par statut
         const statusCounts = getStatusCounts(orders || []);
 
+        // Récupérer les statistiques de limite de commandes
+        let orderLimitStats = null;
+        if (shop?.id) {
+            orderLimitStats = await checkOrderLimit(shop.id, user.id, locals.supabase);
+        }
+
         return {
             orders: orders || [],
             groupedOrders,
             statusCounts,
-            shop
+            shop,
+            orderLimitStats
         };
     } catch (err) {
         throw err;

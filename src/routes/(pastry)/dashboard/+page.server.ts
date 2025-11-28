@@ -1,6 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import { validateTransferData, getTransferErrorMessage } from '$lib/utils/transfer-utils';
 import { verifyShopOwnership } from '$lib/auth';
+import { STRIPE_PRODUCTS, STRIPE_PRICES } from '$lib/config/server';
 import type { Actions } from './$types';
 
 export const load = async ({ locals, parent }) => {
@@ -67,10 +68,75 @@ export const load = async ({ locals, parent }) => {
 
     // ✅ Tracking: Page view déplacé côté client pour avoir un session_id persistant
 
+    // Récupérer les abonnements pour déterminer le plan actuel
+    const { data: allSubscriptions } = await (locals.supabase as any)
+        .from('user_products')
+        .select('stripe_product_id, subscription_status')
+        .eq('profile_id', user.id);
+
+    // Déterminer le plan actuel
+    let currentPlan = null;
+
+    if (allSubscriptions && allSubscriptions.length > 0) {
+        // Chercher un abonnement actif ou en essai
+        const activeSubscription = allSubscriptions.find((sub: any) =>
+            sub.subscription_status === 'active' || sub.subscription_status === 'trialing'
+        );
+
+        if (activeSubscription) {
+            if (activeSubscription.stripe_product_id === STRIPE_PRODUCTS.BASIC) {
+                currentPlan = 'starter'; // Basic devient Starter
+            } else if (activeSubscription.stripe_product_id === STRIPE_PRODUCTS.PREMIUM) {
+                currentPlan = 'premium';
+            }
+        }
+    }
+
+    // Données des plans (alignées avec /subscription)
+    const plans = [
+        {
+            id: 'starter',
+            name: 'Starter',
+            price: 14.99,
+            currency: 'EUR',
+            stripePriceId: STRIPE_PRICES.BASIC,
+            features: [
+                'Tout le plan Gratuit',
+                '20 commandes/mois (au lieu de 5)',
+                '10 gâteaux maximum (au lieu de 3)',
+                'Visibilité améliorée dans l\'annuaire',
+                'Support email prioritaire'
+            ],
+            limitations: [],
+            popular: false,
+            isFree: false
+        },
+        {
+            id: 'premium',
+            name: 'Premium',
+            price: 19.99,
+            currency: 'EUR',
+            stripePriceId: STRIPE_PRICES.PREMIUM,
+            features: [
+                'Tout le plan Starter',
+                'Commandes illimitées',
+                'Gâteaux illimités',
+                'Visibilité + : mis en avant en haut de liste = plus de commandes',
+                'Badge vérifié (gagne la confiance des clients)',
+                '💬 Envoi de devis (augmente vos ventes)'
+            ],
+            limitations: [],
+            popular: true,
+            isFree: false
+        }
+    ];
+
     return {
         user,
         shop,
         permissions,
+        plans,
+        currentPlan,
         metrics: {
             productsCount: permissions.productCount || 0,
             recentOrders: metrics?.recent_orders || [],

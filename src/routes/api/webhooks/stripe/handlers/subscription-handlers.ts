@@ -30,6 +30,33 @@ export async function upsertSubscription(subscription: Stripe.Subscription, loca
             subscriptionStatus = 'active';
         }
 
+        // ✅ Vérifier si l'abonnement existait déjà AVANT l'upsert (pour éviter de logger plusieurs fois)
+        const { data: existingSubscription, error: existingError } = await locals.supabaseServiceRole
+            .from('user_products')
+            .select('stripe_subscription_id, subscription_status')
+            .eq('profile_id', profileId)
+            .maybeSingle(); // Utiliser maybeSingle() au lieu de single() pour éviter les erreurs si non trouvé
+
+        const isNewSubscription = !existingSubscription || !existingSubscription.stripe_subscription_id;
+        const wasInactive = existingSubscription && existingSubscription.subscription_status === 'inactive';
+        const hasDifferentSubscriptionId = existingSubscription && 
+            existingSubscription.stripe_subscription_id && 
+            existingSubscription.stripe_subscription_id !== subscriptionId;
+
+        console.log('🔍 [Subscription Webhook] Checking subscription:', {
+            profileId,
+            subscriptionId,
+            subscriptionStatus,
+            stripeStatus: subscription.status,
+            isNewSubscription,
+            wasInactive,
+            hasDifferentSubscriptionId,
+            existingSubscription: existingSubscription ? {
+                stripe_subscription_id: existingSubscription.stripe_subscription_id,
+                subscription_status: existingSubscription.subscription_status
+            } : null
+        });
+
         // Une seule logique UPSERT qui fonctionne pour tous les cas
         const { error: upsertError } = await locals.supabaseServiceRole
             .from('user_products')
@@ -55,8 +82,27 @@ export async function upsertSubscription(subscription: Stripe.Subscription, loca
             .single();
 
         // ✅ Tracking: Subscription started (fire-and-forget pour ne pas bloquer le webhook)
-        if (subscriptionStatus === 'active' && subscription.status === 'active') {
+        // Logger l'événement si l'abonnement est actif (active ou trialing) ET :
+        // 1. C'est une nouvelle souscription (n'existait pas avant)
+        // 2. L'abonnement passe de inactif à actif
+        // 3. C'est un nouvel ID de souscription (changement de plan)
+        const isActivating = subscriptionStatus === 'active';
+        const shouldLog = isActivating && (
+            isNewSubscription || 
+            wasInactive || 
+            hasDifferentSubscriptionId
+        );
+
+        console.log('📊 [Subscription Webhook] Logging decision:', {
+            isActivating,
+            shouldLog,
+            subscriptionStatus,
+            stripeStatus: subscription.status
+        });
+
+        if (shouldLog) {
             const { logEventAsync, Events } = await import('$lib/utils/analytics');
+            console.log('✅ [Subscription Webhook] Logging SUBSCRIPTION_STARTED event');
             logEventAsync(
                 locals.supabaseServiceRole,
                 Events.SUBSCRIPTION_STARTED,
@@ -64,11 +110,14 @@ export async function upsertSubscription(subscription: Stripe.Subscription, loca
                     subscription_id: subscriptionId,
                     product_id: productId,
                     product_lookup_key: productLookupKey,
-                    plan: productLookupKey === 'price_basic_monthly' ? 'basic' : 'premium'
+                    plan: productLookupKey === 'price_basic_monthly' ? 'basic' : 'premium',
+                    status: subscription.status // Inclure le statut réel (active, trialing, etc.)
                 },
                 profileId,
                 '/api/webhooks/stripe'
             );
+        } else {
+            console.log('⏭️ [Subscription Webhook] Skipping event log (conditions not met)');
         }
 
         // Gérer l'état de la boutique selon le statut de l'abonnement

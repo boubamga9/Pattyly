@@ -2,8 +2,8 @@
 	import { page } from '$app/stores';
 	import { Search } from 'lucide-svelte';
 
-	$: status = $page.status;
-	$: message = $page.error?.message || 'Une erreur est survenue';
+	$: status = page.status;
+	$: message = page.error?.message || 'Une erreur est survenue';
 </script>
 
 <svelte:head>

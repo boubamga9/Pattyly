@@ -4,8 +4,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
  * Limites de commandes par plan (selon /pricing)
  */
 export const ORDER_LIMITS = {
-    free: 10,
-    basic: 30, // Starter
+    free: 5,
+    basic: 20, // Starter
     premium: 999999, // Illimité
     exempt: 999999 // Illimité
 } as const;

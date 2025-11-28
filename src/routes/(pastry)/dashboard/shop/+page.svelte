@@ -32,6 +32,9 @@ import { directorySchema, toggleDirectorySchema } from '$lib/validations/schemas
 		customizationForm: SuperValidated<Infer<typeof customizationSchema>>;
 		directoryForm: SuperValidated<Infer<typeof directorySchema>>;
 		toggleDirectoryForm: SuperValidated<Infer<typeof toggleDirectorySchema>>;
+		permissions?: {
+			plan: 'free' | 'basic' | 'premium' | 'exempt';
+		};
 	};
 
 	let error = '';
@@ -129,7 +132,7 @@ import { directorySchema, toggleDirectorySchema } from '$lib/validations/schemas
 				</div>
 			</CardHeader>
 			<CardContent class="pt-0">
-				<DirectoryForm data={data.directoryForm} toggleForm={data.toggleDirectoryForm} />
+				<DirectoryForm data={data.directoryForm} toggleForm={data.toggleDirectoryForm} userPlan={data.permissions?.plan} />
 			</CardContent>
 		</Card>
 	{/if}

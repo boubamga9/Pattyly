@@ -100,7 +100,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
             defaults: {
                 directory_enabled: shop.directory_enabled || false
             }
-        })
+        }),
+        permissions // ✅ Ajouter permissions pour passer le plan au composant
     };
 };
 

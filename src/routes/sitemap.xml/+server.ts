@@ -284,7 +284,7 @@ export const GET: RequestHandler = async () => {
 ${pages
 	.map(
 		(page) => `  <url>
-    <loc>${baseUrl}${page.url}</loc>
+    <loc>${baseUrl}${$page.url}</loc>
     <changefreq>${page.changefreq}</changefreq>
     <priority>${page.priority}</priority>
   </url>`,

@@ -52,3 +52,4 @@ COMMIT;
 -- ✅ Migration sécurisée pour la production
 
 
+

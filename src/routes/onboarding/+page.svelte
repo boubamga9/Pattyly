@@ -32,6 +32,7 @@
 		form: any;
 		paypalPolling?: boolean;
 		paypalStatus?: string;
+		selectedPlan?: string | null;
 	};
 
 	// Supprimer l'export form qui n'est pas utilisé
@@ -228,7 +229,7 @@
 					</div>
 				</CardHeader>
 				<CardContent>
-					<DirectoryForm data={data.form} shop={shop} alwaysShowForm={true} />
+					<DirectoryForm data={data.form} shop={shop} showSkipButton={true} />
 				</CardContent>
 			</Card>
 		{/if}

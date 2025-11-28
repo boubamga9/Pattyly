@@ -8,6 +8,7 @@ import { fail } from '@sveltejs/kit';
 export const load: PageServerLoad = async ({ url }) => {
     const email = url.searchParams.get('email');
     const typeParam = url.searchParams.get('type');
+    const plan = url.searchParams.get('plan'); // Récupérer le plan depuis l'URL
     const type: 'signup' | 'recovery' = (typeParam === 'recovery' ? 'recovery' : 'signup');
 
 
@@ -25,6 +26,7 @@ export const load: PageServerLoad = async ({ url }) => {
     return {
         userEmail: email,
         type,
+        plan, // Passer le plan aux données
         form
     };
 };
@@ -83,12 +85,16 @@ export const actions: Actions = {
 
                     if (transferError) {
                         console.error('Transfer RPC error:', transferError);
-                        throw redirect(303, '/onboarding');
+                        const plan = url.searchParams.get('plan');
+                        const redirectUrl = plan ? `/onboarding?plan=${encodeURIComponent(plan)}` : '/onboarding';
+                        throw redirect(303, redirectUrl);
                     }
 
                     if (!transferResult?.success) {
                         // Pas de transfert trouvé ou erreur - continuer avec le flux normal
-                        throw redirect(303, '/onboarding');
+                        const plan = url.searchParams.get('plan');
+                        const redirectUrl = plan ? `/onboarding?plan=${encodeURIComponent(plan)}` : '/onboarding';
+                        throw redirect(303, redirectUrl);
                     }
 
                     // Supprimer l'ancien utilisateur Auth (après le transfert réussi)
@@ -109,9 +115,14 @@ export const actions: Actions = {
             }
 
             // Redirection selon le type
-            const redirectTo = type === 'recovery' ? '/new-password' : '/onboarding';
-
-            throw redirect(303, redirectTo);
+            if (type === 'recovery') {
+                throw redirect(303, '/new-password');
+            } else {
+                // Pour signup, passer le plan à l'onboarding si présent
+                const plan = url.searchParams.get('plan');
+                const redirectUrl = plan ? `/onboarding?plan=${encodeURIComponent(plan)}` : '/onboarding';
+                throw redirect(303, redirectUrl);
+            }
         }
 
         return setError(form, '', 'Vérification échouée');

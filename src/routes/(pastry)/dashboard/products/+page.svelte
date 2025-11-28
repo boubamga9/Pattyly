@@ -68,7 +68,7 @@
 					(product: (typeof products)[0]) =>
 						product.category_id === selectedCategory,
 				);
-	$: form = $page.form;
+	$: form = page.form;
 
 	// Messages d'erreur/succès
 	$: errorMessage = form?.error;
@@ -164,6 +164,26 @@
 		<div>
 			<h1 class="text-3xl font-bold">Mes Gâteaux</h1>
 			<p class="text-muted-foreground">Gérez votre catalogue de gâteaux</p>
+			{#if showLimitInfo && productLimit > 0}
+				{#if permissions.plan === 'free'}
+					<!-- Plan gratuit : afficher le message de souscription -->
+					<p class="mt-1 text-xs text-[#FF6F61]">
+						{currentProductCount}/{productLimit} gâteaux,
+						<a
+							href="/subscription"
+							class="underline transition-colors hover:text-[#e85a4f]"
+						>
+							souscrivez à un plan
+						</a>
+						{' '}pour augmenter la limite
+					</p>
+				{:else}
+					<!-- Plan avec limite (Starter) : afficher juste X/Y -->
+					<p class="mt-1 text-xs text-[#FF6F61]">
+						{currentProductCount}/{productLimit} gâteaux
+					</p>
+				{/if}
+			{/if}
 		</div>
 
 		<div
@@ -191,31 +211,6 @@
 	{#if successMessage}
 		<Alert>
 			<AlertDescription>{successMessage}</AlertDescription>
-		</Alert>
-	{/if}
-
-	<!-- Message de limite atteinte (uniquement pour free et starter) -->
-	{#if isLimitReached && showLimitInfo}
-		<Alert variant="default" class="border-[#FF6F61] bg-[#FFE8D6]/30">
-			<AlertDescription class="space-y-2">
-				<div class="font-semibold text-[#FF6F61]">
-					Limite de gâteaux atteinte ({currentProductCount}/{productLimit})
-				</div>
-				<div class="text-sm text-neutral-700">
-					Plus vous avez de gâteaux, plus vous avez de chance d'être visible.
-					Pour en ajouter plus, passez au plan supérieur.
-				</div>
-				<div class="pt-2">
-					<Button
-						href="/subscription"
-						variant="default"
-						size="sm"
-						class="bg-[#FF6F61] text-white hover:bg-[#e85a4f]"
-					>
-						Passer au plan supérieur
-					</Button>
-				</div>
-			</AlertDescription>
 		</Alert>
 	{/if}
 

@@ -24,11 +24,12 @@
 		Minus,
 		Copy,
 		Check,
+		CreditCard,
 	} from 'lucide-svelte';
 	import { env } from '$env/dynamic/public';
 	import TransferButton from '$lib/components/TransferButton.svelte';
 	// Données de la page
-	$: ({ shop, metrics, permissions, user } = $page.data);
+	$: ({ shop, metrics, permissions, user, plans, currentPlan } = $page.data);
 	
 	// ✅ Tracking: Page view côté client (session_id persistant)
 	onMount(() => {
@@ -144,6 +145,7 @@
 			copySuccess = false;
 		}, 2000);
 	}
+
 </script>
 
 <svelte:head>
@@ -337,6 +339,63 @@
 			</Button>
 		</div>
 	</div>
+
+	<!-- Section Plans -->
+	<Card>
+		<CardHeader>
+			<CardTitle class="flex items-center gap-2">
+				<CreditCard class="h-5 w-5" />
+				Votre abonnement
+			</CardTitle>
+			<CardDescription>
+				{#if currentPlan}
+					{@const currentPlanData = plans.find(p => p.id === currentPlan)}
+					{#if currentPlanData}
+						Plan {currentPlanData.name} - {currentPlanData.price}€/mois
+					{/if}
+				{:else}
+					Aucun abonnement actif
+				{/if}
+			</CardDescription>
+		</CardHeader>
+		<CardContent>
+			{#if currentPlan}
+				{@const currentPlanData = plans.find(p => p.id === currentPlan)}
+				{#if currentPlanData}
+					<div class="flex items-center justify-between">
+						<div class="flex items-center gap-3">
+							<Badge class="bg-[#FF6F61] text-white">
+								Plan actuel
+							</Badge>
+							<div>
+								<p class="font-semibold">{currentPlanData.name}</p>
+								<p class="text-sm text-muted-foreground">
+									{currentPlanData.price}€/mois
+								</p>
+							</div>
+						</div>
+						<Button href="/subscription">
+							Gérer l'abonnement
+							<ArrowUpRight class="ml-2 h-4 w-4" />
+						</Button>
+					</div>
+				{/if}
+			{:else}
+				<div class="flex items-center justify-between">
+					<p class="text-muted-foreground">
+						Vous n'avez pas encore d'abonnement actif
+					</p>
+					<Button 
+						href="/subscription"
+						class="bg-[#FF6F61] text-white hover:bg-[#e85a4f]"
+					>
+						Souscrire
+						<ArrowUpRight class="ml-2 h-4 w-4" />
+					</Button>
+				</div>
+			{/if}
+		</CardContent>
+	</Card>
 
 	<!-- Actions rapides -->
 	<Card>

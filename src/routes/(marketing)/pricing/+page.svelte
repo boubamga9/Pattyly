@@ -3,7 +3,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Star, Check } from 'lucide-svelte';
+	import { Star, Check, X } from 'lucide-svelte';
 	import { revealElement, revealStagger } from '$lib/utils/animations';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
@@ -31,7 +31,7 @@
 	function isDifferentiator(planId: string, feature: string): boolean {
 		if (planId === 'starter') {
 			// Différenciateurs Starter vs Gratuit
-			return feature.includes('30 commandes') || 
+			return feature.includes('20 commandes') || 
 			       feature.includes('prioritaire');
 		}
 		
@@ -180,17 +180,22 @@
 											</span>
 											<span class="text-base text-neutral-600 sm:text-lg" style="font-weight: 300;">/mois</span>
 										</div>
+										<div class="mt-2 text-center">
+											<span class="text-xs text-neutral-600 sm:text-sm" style="font-weight: 400;">
+												✔ Rentabilisé dès la première commande
+											</span>
+										</div>
 									{/if}
 								</div>
 
 								<!-- Bouton CTA -->
 								<Button
-									class="w-full h-12 text-sm font-semibold transition-all duration-300 hover:scale-[1.02] sm:h-14 sm:text-base {plan.popular
+									class="w-full h-12 rounded-2xl text-sm font-semibold transition-all duration-300 hover:scale-[1.02] sm:h-14 sm:text-base {plan.popular
 										? 'bg-[#FF6F61] hover:bg-[#e85a4f] text-white shadow-lg hover:shadow-xl'
 										: plan.isFree
 											? 'bg-neutral-800 hover:bg-neutral-700 text-white shadow-lg hover:shadow-xl'
 											: 'bg-neutral-800 hover:bg-neutral-700 text-white shadow-lg hover:shadow-xl'}"
-									href="/register"
+									href={plan.isFree ? "/register" : `/register?plan=${plan.id}`}
 								>
 									{plan.isFree ? 'Commencer gratuitement' : 'Choisir ce plan'}
 								</Button>
@@ -202,9 +207,14 @@
 									{#each plan.features as feature}
 										{@const isDiff = isDifferentiator(plan.id, feature)}
 										{@const diffColor = getDifferentiatorColor(plan.id)}
+										{@const isLimitedVisibility = plan.isFree && feature.includes('Visibilité limitée')}
 										<div class="flex items-start gap-2.5 sm:gap-3 {isDiff ? 'rounded-lg px-2 py-1.5 -mx-2 sm:px-3 sm:py-2 sm:-mx-3' : ''}" style={isDiff ? `background-color: ${diffColor}15;` : ''}>
 											<div class="mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center sm:h-5 sm:w-5">
-												<Check class="h-3.5 w-3.5 sm:h-4 sm:w-4" style={isDiff ? `color: ${diffColor};` : plan.popular ? 'color: #FF6F61;' : 'color: #525252;'} />
+												{#if isLimitedVisibility}
+													<X class="h-3.5 w-3.5 sm:h-4 sm:w-4 text-neutral-400" />
+												{:else}
+													<Check class="h-3.5 w-3.5 sm:h-4 sm:w-4" style={isDiff ? `color: ${diffColor};` : plan.popular ? 'color: #FF6F61;' : 'color: #525252;'} />
+												{/if}
 											</div>
 											<p 
 												class="text-sm leading-relaxed sm:text-base"

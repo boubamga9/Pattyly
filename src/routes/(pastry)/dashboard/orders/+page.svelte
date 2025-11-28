@@ -41,7 +41,7 @@
 	}
 
 	// Données de la page
-	$: ({ orders, statusCounts } = $page.data);
+	$: ({ orders, statusCounts, orderLimitStats } = $page.data);
 
 	// État du filtre
 	let selectedStatus: string | null = null;
@@ -272,6 +272,26 @@
 		<div>
 			<h1 class="text-3xl font-bold">Mes Commandes</h1>
 			<p class="text-muted-foreground">Gérez toutes vos commandes</p>
+			{#if orderLimitStats}
+				{#if orderLimitStats.plan === 'free'}
+					<!-- Plan gratuit : afficher le message de souscription -->
+					<p class="mt-1 text-xs text-[#FF6F61]">
+						{orderLimitStats.orderCount}/{orderLimitStats.orderLimit} ce mois, 
+						<a
+							href="/subscription"
+							class="underline transition-colors hover:text-[#e85a4f]"
+						>
+							souscrivez à un plan
+						</a>
+						{' '}pour augmenter la limite
+					</p>
+				{:else if orderLimitStats.orderLimit < 999999}
+					<!-- Plan avec limite (Starter) : afficher juste X/Y -->
+					<p class="mt-1 text-xs text-[#FF6F61]">
+						{orderLimitStats.orderCount}/{orderLimitStats.orderLimit} ce mois
+					</p>
+				{/if}
+			{/if}
 		</div>
 	</div>
 
