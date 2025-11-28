@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import ProductForm from '../product-form.svelte';
 
 	// Données de la page
@@ -15,6 +16,20 @@
 	function handleSuccess() {
 		goto('/dashboard/products');
 	}
+
+	// ✅ Tracking: Page view côté client (dashboard products new page)
+	onMount(() => {
+		import('$lib/utils/analytics').then(({ logPageView }) => {
+			const supabase = $page.data.supabase;
+			if (supabase) {
+				logPageView(supabase, {
+					page: '/dashboard/products/new'
+				}).catch((err: unknown) => {
+					console.error('Error tracking page_view:', err);
+				});
+			}
+		});
+	});
 </script>
 
 <svelte:head>

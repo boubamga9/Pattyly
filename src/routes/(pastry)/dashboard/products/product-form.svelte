@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/stores';
 	import * as Form from '$lib/components/ui/form';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -12,7 +13,7 @@
 		CardTitle,
 	} from '$lib/components/ui/card';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { Save, Upload, X, Plus, Check } from 'lucide-svelte';
+	import { Save, Upload, X, Plus, Check, LoaderCircle } from 'lucide-svelte';
 	import { superForm } from 'sveltekit-superforms/client';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import type { SuperValidated, Infer } from 'sveltekit-superforms';
@@ -37,6 +38,9 @@
 	});
 
 	const { form: formData, enhance, submitting, message, errors } = form;
+
+	// État pour le feedback de succès
+	let submitted = false;
 
 	// Variables pour l'upload d'image
 	let _imageFile: File | null = null;
@@ -236,13 +240,24 @@
 				use:enhance={() => {
 					return async ({ result }) => {
 						if (result.type === 'success') {
-							onSuccess();
+							submitted = true;
+							setTimeout(() => {
+								submitted = false;
+								onSuccess();
+							}, 2000);
 						}
 					};
 				}}
 				enctype="multipart/form-data"
 				class="space-y-6"
 			>
+				<!-- ✅ OPTIMISÉ : Passer shopId et shopSlug pour éviter getShopIdAndSlug + requête shop -->
+				{#if $page.data.shopId}
+					<input type="hidden" name="shopId" value={$page.data.shopId} />
+				{/if}
+				{#if $page.data.shopSlug}
+					<input type="hidden" name="shopSlug" value={$page.data.shopSlug} />
+				{/if}
 				{#if isEditing && productId}
 					<input type="hidden" name="productId" value={productId} />
 				{/if}
@@ -514,7 +529,15 @@
 		<Button
 			type="submit"
 			form="product-form"
-			class="h-11 flex-1 transition-all duration-200"
+			class={`h-10 flex-1 text-sm font-medium text-white transition-all duration-200 disabled:cursor-not-allowed ${
+				submitted
+					? 'bg-[#FF6F61] hover:bg-[#e85a4f] disabled:opacity-100'
+					: $submitting
+						? 'bg-gray-600 hover:bg-gray-700 disabled:opacity-50'
+						: $formData.name && $formData.base_price !== undefined && $formData.base_price > 0
+							? 'bg-primary hover:bg-primary/90 disabled:opacity-50'
+							: 'bg-gray-500 disabled:opacity-50'
+			}`}
 			disabled={$submitting ||
 				!(
 					$formData.name &&
@@ -523,13 +546,15 @@
 				)}
 		>
 			{#if $submitting}
-				<div
-					class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-				/>
+				<LoaderCircle class="mr-2 h-5 w-5 animate-spin" />
+				{isEditing ? 'Sauvegarde...' : 'Création...'}
+			{:else if submitted}
+				<Check class="mr-2 h-5 w-5" />
+				{isEditing ? 'Sauvegardé !' : 'Créé !'}
 			{:else if !($formData.name && $formData.base_price !== undefined && $formData.base_price > 0)}
 				Remplissez les champs requis
 			{:else}
-				<Save class="mr-2 h-4 w-4" />
+				<Save class="mr-2 h-5 w-5" />
 				{isEditing ? 'Sauvegarder' : 'Créer'} le Gâteau
 			{/if}
 		</Button>
@@ -537,7 +562,7 @@
 			type="button"
 			variant="outline"
 			on:click={onCancel}
-			class="h-11 flex-1"
+			class="h-10 flex-1"
 		>
 			Annuler
 		</Button>

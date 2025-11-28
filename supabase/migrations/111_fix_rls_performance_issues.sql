@@ -179,97 +179,137 @@ CREATE POLICY "Users can access their own shop customizations" ON shop_customiza
     );
 
 -- Shop transfers policies
-DROP POLICY IF EXISTS "Authenticated users can create transfers" ON shop_transfers;
-CREATE POLICY "Authenticated users can create transfers" ON shop_transfers
-  FOR INSERT WITH CHECK ((select auth.uid()) IS NOT NULL);
+-- Only apply if the table exists (it may be created in a later migration)
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'shop_transfers'
+    ) THEN
+        DROP POLICY IF EXISTS "Authenticated users can create transfers" ON shop_transfers;
+        CREATE POLICY "Authenticated users can create transfers" ON shop_transfers
+          FOR INSERT WITH CHECK ((select auth.uid()) IS NOT NULL);
 
-DROP POLICY IF EXISTS "Authenticated users can view transfers" ON shop_transfers;
-CREATE POLICY "Authenticated users can view transfers" ON shop_transfers
-  FOR SELECT USING ((select auth.uid()) IS NOT NULL);
+        DROP POLICY IF EXISTS "Authenticated users can view transfers" ON shop_transfers;
+        CREATE POLICY "Authenticated users can view transfers" ON shop_transfers
+          FOR SELECT USING ((select auth.uid()) IS NOT NULL);
 
-DROP POLICY IF EXISTS "Users can mark transfers as used for their email" ON shop_transfers;
-CREATE POLICY "Users can mark transfers as used for their email" ON shop_transfers
-  FOR UPDATE USING (
-    (select auth.uid()) IS NOT NULL 
-    AND target_email = (SELECT email FROM auth.users WHERE id = (select auth.uid()))
-    AND used_at IS NULL
-  );
+        DROP POLICY IF EXISTS "Users can mark transfers as used for their email" ON shop_transfers;
+        CREATE POLICY "Users can mark transfers as used for their email" ON shop_transfers
+          FOR UPDATE USING (
+            (select auth.uid()) IS NOT NULL 
+            AND target_email = (SELECT email FROM auth.users WHERE id = (select auth.uid()))
+            AND used_at IS NULL
+          );
+    END IF;
+END $$;
 
 -- Note: "Users can view transfers for their email" policy is redundant
 -- since "Authenticated users can view transfers" already covers all cases
 -- We'll drop it in the consolidation section below
 
 -- Personal order notes policies
-DROP POLICY IF EXISTS "Users can view personal notes for their own shop" ON personal_order_notes;
-CREATE POLICY "Users can view personal notes for their own shop" ON personal_order_notes
-FOR SELECT USING (
-    shop_id IN (
-        SELECT id FROM shops 
-        WHERE profile_id = (select auth.uid())
-    )
-);
+-- Only apply if the table exists (it may be created in a later migration)
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'personal_order_notes'
+    ) THEN
+        DROP POLICY IF EXISTS "Users can view personal notes for their own shop" ON personal_order_notes;
+        CREATE POLICY "Users can view personal notes for their own shop" ON personal_order_notes
+        FOR SELECT USING (
+            shop_id IN (
+                SELECT id FROM shops 
+                WHERE profile_id = (select auth.uid())
+            )
+        );
 
-DROP POLICY IF EXISTS "Users can insert personal notes for their own shop" ON personal_order_notes;
-CREATE POLICY "Users can insert personal notes for their own shop" ON personal_order_notes
-FOR INSERT WITH CHECK (
-    shop_id IN (
-        SELECT id FROM shops 
-        WHERE profile_id = (select auth.uid())
-    )
-);
+        DROP POLICY IF EXISTS "Users can insert personal notes for their own shop" ON personal_order_notes;
+        CREATE POLICY "Users can insert personal notes for their own shop" ON personal_order_notes
+        FOR INSERT WITH CHECK (
+            shop_id IN (
+                SELECT id FROM shops 
+                WHERE profile_id = (select auth.uid())
+            )
+        );
 
-DROP POLICY IF EXISTS "Users can update personal notes for their own shop" ON personal_order_notes;
-CREATE POLICY "Users can update personal notes for their own shop" ON personal_order_notes
-FOR UPDATE USING (
-    shop_id IN (
-        SELECT id FROM shops 
-        WHERE profile_id = (select auth.uid())
-    )
-);
+        DROP POLICY IF EXISTS "Users can update personal notes for their own shop" ON personal_order_notes;
+        CREATE POLICY "Users can update personal notes for their own shop" ON personal_order_notes
+        FOR UPDATE USING (
+            shop_id IN (
+                SELECT id FROM shops 
+                WHERE profile_id = (select auth.uid())
+            )
+        );
 
-DROP POLICY IF EXISTS "Users can delete personal notes for their own shop" ON personal_order_notes;
-CREATE POLICY "Users can delete personal notes for their own shop" ON personal_order_notes
-FOR DELETE USING (
-    shop_id IN (
-        SELECT id FROM shops 
-        WHERE profile_id = (select auth.uid())
-    )
-);
+        DROP POLICY IF EXISTS "Users can delete personal notes for their own shop" ON personal_order_notes;
+        CREATE POLICY "Users can delete personal notes for their own shop" ON personal_order_notes
+        FOR DELETE USING (
+            shop_id IN (
+                SELECT id FROM shops 
+                WHERE profile_id = (select auth.uid())
+            )
+        );
+    END IF;
+END $$;
 
 -- FAQ policies
 -- Note: "Users can view their own shop's FAQ" will be created in consolidation section
-DROP POLICY IF EXISTS "Users can manage their own shop's FAQ" ON faq;
-CREATE POLICY "Users can insert their own shop's FAQ" ON faq
-    FOR INSERT WITH CHECK (
-        shop_id IN (
-            SELECT id FROM shops WHERE profile_id = (select auth.uid())
-        )
-    );
-CREATE POLICY "Users can update their own shop's FAQ" ON faq
-    FOR UPDATE USING (
-        shop_id IN (
-            SELECT id FROM shops WHERE profile_id = (select auth.uid())
-        )
-    );
-CREATE POLICY "Users can delete their own shop's FAQ" ON faq
-    FOR DELETE USING (
-        shop_id IN (
-            SELECT id FROM shops WHERE profile_id = (select auth.uid())
-        )
-    );
+-- Only apply if the table exists (it may be created in a later migration)
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'faq'
+    ) THEN
+        DROP POLICY IF EXISTS "Users can manage their own shop's FAQ" ON faq;
+        CREATE POLICY "Users can insert their own shop's FAQ" ON faq
+            FOR INSERT WITH CHECK (
+                shop_id IN (
+                    SELECT id FROM shops WHERE profile_id = (select auth.uid())
+                )
+            );
+        CREATE POLICY "Users can update their own shop's FAQ" ON faq
+            FOR UPDATE USING (
+                shop_id IN (
+                    SELECT id FROM shops WHERE profile_id = (select auth.uid())
+                )
+            );
+        CREATE POLICY "Users can delete their own shop's FAQ" ON faq
+            FOR DELETE USING (
+                shop_id IN (
+                    SELECT id FROM shops WHERE profile_id = (select auth.uid())
+                )
+            );
+    END IF;
+END $$;
 
 -- Payment links policies
-DROP POLICY IF EXISTS "Users can view their own payment links" ON payment_links;
-CREATE POLICY "Users can view their own payment links" ON payment_links
-    FOR SELECT USING ((select auth.uid()) = profile_id);
+-- Only apply if the table exists (it may be created in a later migration)
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'payment_links'
+    ) THEN
+        DROP POLICY IF EXISTS "Users can view their own payment links" ON payment_links;
+        CREATE POLICY "Users can view their own payment links" ON payment_links
+            FOR SELECT USING ((select auth.uid()) = profile_id);
 
-DROP POLICY IF EXISTS "Users can create their own payment links" ON payment_links;
-CREATE POLICY "Users can create their own payment links" ON payment_links
-    FOR INSERT WITH CHECK ((select auth.uid()) = profile_id);
+        DROP POLICY IF EXISTS "Users can create their own payment links" ON payment_links;
+        CREATE POLICY "Users can create their own payment links" ON payment_links
+            FOR INSERT WITH CHECK ((select auth.uid()) = profile_id);
 
-DROP POLICY IF EXISTS "Users can update their own payment links" ON payment_links;
-CREATE POLICY "Users can update their own payment links" ON payment_links
-    FOR UPDATE USING ((select auth.uid()) = profile_id);
+        DROP POLICY IF EXISTS "Users can update their own payment links" ON payment_links;
+        CREATE POLICY "Users can update their own payment links" ON payment_links
+            FOR UPDATE USING ((select auth.uid()) = profile_id);
+    END IF;
+END $$;
 
 -- ==============================================
 -- 2. CONSOLIDATE MULTIPLE PERMISSIVE POLICIES
@@ -358,22 +398,42 @@ CREATE POLICY "Users can view own unavailabilities" ON unavailabilities
   );
 
 -- FAQ: Combine public and user policies
-DROP POLICY IF EXISTS "Public can view FAQ" ON faq;
-DROP POLICY IF EXISTS "Users can view their own shop's FAQ" ON faq;
-CREATE POLICY "Users can view their own shop's FAQ" ON faq
-    FOR SELECT USING (
-        shop_id IN (SELECT id FROM shops WHERE is_active = true)
-        OR shop_id IN (
-            SELECT id FROM shops WHERE profile_id = (select auth.uid())
-        )
-    );
+-- Only apply if the table exists (it may be created in a later migration)
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'faq'
+    ) THEN
+        DROP POLICY IF EXISTS "Public can view FAQ" ON faq;
+        DROP POLICY IF EXISTS "Users can view their own shop's FAQ" ON faq;
+        CREATE POLICY "Users can view their own shop's FAQ" ON faq
+            FOR SELECT USING (
+                shop_id IN (SELECT id FROM shops WHERE is_active = true)
+                OR shop_id IN (
+                    SELECT id FROM shops WHERE profile_id = (select auth.uid())
+                )
+            );
+    END IF;
+END $$;
 
 -- Shop transfers: Remove redundant SELECT policy
 -- "Authenticated users can view transfers" already covers all authenticated users viewing all transfers
 -- "Users can view transfers for their email" is redundant for SELECT (but we keep it for clarity if needed)
 -- However, to fix the linter warning, we remove the redundant one
-DROP POLICY IF EXISTS "Users can view transfers for their email" ON shop_transfers;
--- The "Authenticated users can view transfers" policy (already updated above) covers all cases
+-- Only apply if the table exists (it may be created in a later migration)
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'shop_transfers'
+    ) THEN
+        DROP POLICY IF EXISTS "Users can view transfers for their email" ON shop_transfers;
+        -- The "Authenticated users can view transfers" policy (already updated above) covers all cases
+    END IF;
+END $$;
 
 -- User products: "Server can manage subscriptions" has been split into
 -- separate INSERT, UPDATE, DELETE policies (no SELECT), so it won't conflict

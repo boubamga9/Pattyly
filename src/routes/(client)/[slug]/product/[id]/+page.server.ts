@@ -51,19 +51,12 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
             throw error(404, 'Boutique non trouvée');
         }
 
-        // Récupérer le profile_id pour vérifier la limite de commandes
-        // Utiliser le service role pour avoir accès aux données
-        const { data: shopData, error: shopDataError } = await locals.supabaseServiceRole
-            .from('shops')
-            .select('profile_id')
-            .eq('id', shop.id)
-            .single();
-
+        // ✅ OPTIMISÉ : profile_id est maintenant retourné par le RPC get_order_data
         // Vérifier la limite de commandes (seulement si on a réussi à récupérer le profile_id)
         let orderLimitStats = null;
-        if (!shopDataError && shopData?.profile_id) {
+        if (shop.profile_id) {
             try {
-                orderLimitStats = await checkOrderLimit(shop.id, shopData.profile_id, locals.supabaseServiceRole);
+                orderLimitStats = await checkOrderLimit(shop.id, shop.profile_id, locals.supabaseServiceRole);
             } catch (limitError) {
                 console.error('Error checking order limit:', limitError);
                 // Ne pas bloquer la page si la vérification de limite échoue
@@ -116,11 +109,22 @@ export const actions: Actions = {
                 throw error(400, 'Paramètre produit manquant');
             }
 
-            // Get shop
+            const formData = await request.formData();
+
+            // ✅ OPTIMISÉ : Récupérer shopId et productId depuis formData (passés par le frontend)
+            const shopId = formData.get('shopId') as string;
+            const productId = formData.get('productId') as string || id; // Fallback sur id si non fourni
+
+            if (!shopId || !productId) {
+                throw error(400, 'Données manquantes');
+            }
+
+            // Get shop (vérification de sécurité : shop existe, est actif, et correspond au slug)
             const { data: shop, error: shopError } = await locals.supabase
                 .from('shops')
                 .select('id, name, slug, profile_id')
-                .eq('slug', slug)
+                .eq('id', shopId)
+                .eq('slug', slug) // ✅ SÉCURITÉ : Vérifier que shopId correspond au slug
                 .eq('is_active', true)
                 .single();
 
@@ -156,7 +160,7 @@ export const actions: Actions = {
                     base_price,
                     form_id
                 `)
-                .eq('id', id)
+                .eq('id', productId)
                 .eq('shop_id', shop.id)
                 .eq('is_active', true)
                 .single();
@@ -178,7 +182,6 @@ export const actions: Actions = {
 
             // Dynamic validation
             const dynamicSchema = createLocalDynamicSchema(customFields);
-            const formData = await request.formData();
             const form = await superValidate(formData, zod(dynamicSchema));
 
             if (!form.valid) {
@@ -374,5 +377,3 @@ export const actions: Actions = {
             return { form };
         }
     }
-
-};

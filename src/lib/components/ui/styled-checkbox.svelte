@@ -22,7 +22,7 @@
 		text_color: '#333333',
 		icon_color: '#6b7280',
 		secondary_text_color: '#333333',
-		background_color: '#ffe8d6',
+		background_color: '#fafafa',
 		background_image_url: null,
 	};
 
@@ -60,7 +60,7 @@
 	<button
 		type="button"
 		class={cn(
-			'flex items-center rounded-lg border px-3 py-2 text-sm font-medium transition-all duration-200',
+			'flex items-center rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200',
 			'cursor-pointer select-none',
 			checked
 				? 'shadow-sm'
@@ -69,7 +69,7 @@
 		)}
 		style={checked
 			? `background-color: ${customizations.button_color}; color: ${customizations.button_text_color}; border-color: ${customizations.button_color};`
-			: ''}
+			: 'background-color: white;'}
 		{disabled}
 		on:click={handleChange}
 		on:keydown={handleKeydown}

@@ -1,16 +1,20 @@
-import { error as svelteError, redirect } from '@sveltejs/kit';
+import { error as svelteError, redirect, fail } from '@sveltejs/kit';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad, Actions } from './$types';
-import { getUserPermissions } from '$lib/auth';
+import { verifyShopOwnership } from '$lib/auth';
 import { addUnavailabilityFormSchema } from './schema';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
-    // ✅ OPTIMISÉ : Réutiliser user du layout
-    const { user } = await parent();
+    // ✅ OPTIMISÉ : Réutiliser user, permissions et shop du layout
+    const { user, permissions, shop } = await parent();
 
     if (!user) {
         throw redirect(302, '/login');
+    }
+
+    if (!permissions.shopId || !shop) {
+        throw svelteError(400, 'Boutique non trouvée');
     }
 
     // ✅ OPTIMISÉ : Un seul appel DB pour toutes les données disponibilités
@@ -33,6 +37,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
         availabilities: availabilities || [],
         unavailabilities: unavailabilities || [],
         shopId: shopId,
+        shopSlug: permissions.shopSlug || shop.slug,
         form: await superValidate(zod(addUnavailabilityFormSchema), {
             defaults: {
                 startDate: '',
@@ -44,22 +49,42 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
 export const actions: Actions = {
     updateAvailability: async ({ request, locals }) => {
-        const { data: { user } } = await locals.supabase.auth.getUser();
-
-        if (!user) {
-            throw error(401, 'Non autorisé');
-        }
-
-        const permissions = await getUserPermissions(user.id, locals.supabase);
-
-
-
-        if (!permissions.shopId) {
-            throw error(400, 'Boutique non trouvée');
-        }
-
+        // ✅ OPTIMISÉ : Lire formData AVANT superValidate (car superValidate consomme le body)
         const formData = await request.formData();
+        const shopId = formData.get('shopId') as string;
         const availabilityId = formData.get('availabilityId') as string;
+
+        if (!shopId || !availabilityId) {
+            const form = await superValidate(zod(addUnavailabilityFormSchema));
+            form.message = 'Données manquantes';
+            return fail(400, { form });
+        }
+
+        // ✅ OPTIMISÉ : Utiliser safeGetSession au lieu de getUser()
+        const { session } = await locals.safeGetSession();
+        const userId = session?.user.id;
+
+        if (!userId) {
+            throw svelteError(401, 'Non autorisé');
+        }
+
+        // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (remplace la vérification manuelle)
+        const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+        if (!isOwner) {
+            throw svelteError(403, 'Accès non autorisé à cette boutique');
+        }
+
+        // Vérifier que l'availability appartient bien à ce shop (sécurité supplémentaire)
+        const { data: availability } = await locals.supabase
+            .from('availabilities')
+            .select('shop_id')
+            .eq('id', availabilityId)
+            .single();
+
+        if (!availability || availability.shop_id !== shopId) {
+            throw svelteError(404, 'Disponibilité non trouvée');
+        }
+
         const isAvailableRaw = formData.get('isAvailable') as string;
         const isAvailable = isAvailableRaw === 'true';
         const dailyOrderLimitRaw = formData.get('dailyOrderLimit') as string;
@@ -67,23 +92,6 @@ export const actions: Actions = {
         const startTime = formData.get('startTime') as string || null;
         const endTime = formData.get('endTime') as string || null;
         const intervalTime = formData.get('intervalTime') as string || null;
-
-
-        if (!availabilityId) {
-            throw error(400, 'ID de disponibilité requis');
-        }
-
-        // Verify the availability belongs to this shop
-        const { data: availability } = await locals.supabase
-            .from('availabilities')
-            .select('shop_id, is_open, daily_order_limit')
-            .eq('id', availabilityId)
-            .single();
-
-        if (!availability || availability.shop_id !== permissions.shopId) {
-            throw error(404, 'Disponibilité non trouvée');
-        }
-
 
         // Update availability
         const { error: updateError } = await locals.supabase
@@ -98,9 +106,10 @@ export const actions: Actions = {
             .eq('id', availabilityId);
 
         if (updateError) {
-            throw error(500, 'Erreur lors de la mise à jour');
+            const form = await superValidate(zod(addUnavailabilityFormSchema));
+            form.message = 'Erreur lors de la mise à jour';
+            return fail(500, { form });
         }
-
 
         // Retourner le formulaire pour Superforms
         const form = await superValidate(zod(addUnavailabilityFormSchema));
@@ -109,32 +118,42 @@ export const actions: Actions = {
     },
 
     addUnavailability: async ({ request, locals }) => {
-        const { data: { user } } = await locals.supabase.auth.getUser();
+        // ✅ OPTIMISÉ : Lire formData AVANT superValidate (car superValidate consomme le body)
+        const formData = await request.formData();
+        const shopId = formData.get('shopId') as string;
 
-        if (!user) {
-            throw error(401, 'Non autorisé');
+        if (!shopId) {
+            const form = await superValidate(zod(addUnavailabilityFormSchema));
+            form.message = 'Données de boutique manquantes';
+            return fail(400, { form });
         }
 
-        const permissions = await getUserPermissions(user.id, locals.supabase);
+        // ✅ OPTIMISÉ : Utiliser safeGetSession au lieu de getUser()
+        const { session } = await locals.safeGetSession();
+        const userId = session?.user.id;
 
-
-
-        if (!permissions.shopId) {
-            throw error(400, 'Boutique non trouvée');
+        if (!userId) {
+            throw svelteError(401, 'Non autorisé');
         }
 
-        // Valider le formulaire avec Superforms
-        const form = await superValidate(request, zod(addUnavailabilityFormSchema));
+        // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite getUserPermissions + requête shop)
+        const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+        if (!isOwner) {
+            throw svelteError(403, 'Accès non autorisé à cette boutique');
+        }
+
+        // Valider le formulaire avec Superforms (passer formData au lieu de request)
+        const form = await superValidate(formData, zod(addUnavailabilityFormSchema));
 
         if (!form.valid) {
-            return { form };
+            return fail(400, { form });
         }
 
         // Récupérer les périodes existantes pour la validation des chevauchements
         const { data: existingUnavailabilities } = await locals.supabase
             .from('unavailabilities')
             .select('start_date, end_date')
-            .eq('shop_id', permissions.shopId);
+            .eq('shop_id', shopId);
 
         // Valider avec le schéma étendu (incluant les chevauchements)
         const validationForm = await superValidate(
@@ -143,20 +162,22 @@ export const actions: Actions = {
         );
 
         if (!validationForm.valid) {
-            return { form: validationForm };
+            return fail(400, { form: validationForm });
         }
 
         // Add unavailability
         const { error: insertError } = await locals.supabase
             .from('unavailabilities')
             .insert({
-                shop_id: permissions.shopId,
+                shop_id: shopId,
                 start_date: form.data.startDate,
                 end_date: form.data.endDate
             });
 
         if (insertError) {
-            throw error(500, 'Erreur lors de l\'ajout de l\'indisponibilité');
+            const errorForm = await superValidate(zod(addUnavailabilityFormSchema));
+            errorForm.message = 'Erreur lors de l\'ajout de l\'indisponibilité';
+            return fail(500, { form: errorForm });
         }
 
         // Retourner le formulaire pour Superforms
@@ -165,34 +186,40 @@ export const actions: Actions = {
     },
 
     deleteUnavailability: async ({ request, locals }) => {
-        const { data: { user } } = await locals.supabase.auth.getUser();
-
-        if (!user) {
-            throw error(401, 'Non autorisé');
-        }
-
-        const permissions = await getUserPermissions(user.id, locals.supabase);
-
-        if (!permissions.shopId) {
-            throw error(400, 'Boutique non trouvée');
-        }
-
+        // ✅ OPTIMISÉ : Lire formData AVANT superValidate (car superValidate consomme le body)
         const formData = await request.formData();
+        const shopId = formData.get('shopId') as string;
         const unavailabilityId = formData.get('unavailabilityId') as string;
 
-        if (!unavailabilityId) {
-            throw error(400, 'ID d\'indisponibilité requis');
+        if (!shopId || !unavailabilityId) {
+            const form = await superValidate(zod(addUnavailabilityFormSchema));
+            form.message = 'Données manquantes';
+            return fail(400, { form });
         }
 
-        // Verify the unavailability belongs to this shop
+        // ✅ OPTIMISÉ : Utiliser safeGetSession au lieu de getUser()
+        const { session } = await locals.safeGetSession();
+        const userId = session?.user.id;
+
+        if (!userId) {
+            throw svelteError(401, 'Non autorisé');
+        }
+
+        // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (remplace la vérification manuelle)
+        const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+        if (!isOwner) {
+            throw svelteError(403, 'Accès non autorisé à cette boutique');
+        }
+
+        // Vérifier que l'unavailability appartient bien à ce shop (sécurité supplémentaire)
         const { data: unavailability } = await locals.supabase
             .from('unavailabilities')
             .select('shop_id')
             .eq('id', unavailabilityId)
             .single();
 
-        if (!unavailability || unavailability.shop_id !== permissions.shopId) {
-            throw error(404, 'Indisponibilité non trouvée');
+        if (!unavailability || unavailability.shop_id !== shopId) {
+            throw svelteError(404, 'Indisponibilité non trouvée');
         }
 
         // Delete unavailability
@@ -202,7 +229,9 @@ export const actions: Actions = {
             .eq('id', unavailabilityId);
 
         if (deleteError) {
-            throw error(500, 'Erreur lors de la suppression');
+            const form = await superValidate(zod(addUnavailabilityFormSchema));
+            form.message = 'Erreur lors de la suppression';
+            return fail(500, { form });
         }
 
         // Retourner le formulaire pour Superforms

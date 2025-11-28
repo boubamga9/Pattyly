@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/stores';
 	import * as Form from '$lib/components/ui/form';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -15,8 +16,7 @@
 		CustomizationFormBuilder,
 		type CustomizationField,
 	} from '$lib/components/forms';
-	import { tick } from 'svelte';
-	import { LoaderCircle, CheckCircle } from 'lucide-svelte';
+	import { LoaderCircle, Check } from 'lucide-svelte';
 
 	export let data: SuperValidated<Infer<UpdateCustomFormForm>>;
 	export let customFields: CustomizationField[];
@@ -37,12 +37,6 @@
 		$formData.customFields = event.detail;
 	}
 
-	async function handleSubmit() {
-		submitted = true;
-		await tick();
-		setTimeout(() => (submitted = false), 2000);
-	}
-
 	// Synchroniser customFields avec le formulaire au chargement
 	$: if (customFields && customFields.length > 0) {
 		$formData.customFields = customFields;
@@ -60,9 +54,21 @@
 <form
 	method="POST"
 	action="?/updateCustomForm"
-	use:enhance
-	on:submit|preventDefault={handleSubmit}
+	use:enhance={{
+		onResult: ({ result }) => {
+			// Only show success feedback if the request succeeded
+			if (result.type === 'success') {
+				submitted = true;
+				setTimeout(() => (submitted = false), 2000);
+			}
+		},
+	}}
 >
+	<!-- ✅ OPTIMISÉ : Passer shopId et shopSlug pour éviter getUserPermissions + requête shop -->
+	{#if $page.data.shop}
+		<input type="hidden" name="shopId" value={$page.data.shop.id} />
+		<input type="hidden" name="shopSlug" value={$page.data.shop.slug} />
+	{/if}
 	<Form.Errors {form} />
 
 	<!-- Les données customFields seront envoyées automatiquement par Superforms -->
@@ -78,7 +84,7 @@
 					type="text"
 					placeholder="Ex: Votre Gâteau Sur Mesure"
 					bind:value={$formData.title}
-					maxlength="200"
+					maxlength={200}
 				/>
 				<div class="mt-1 text-xs text-gray-500">
 					<span>{($formData.title || '').length}/200 caractères</span>
@@ -98,7 +104,7 @@
 					placeholder="Ex: Décrivez votre gâteau idéal et nous vous proposerons une estimation personnalisée"
 					rows={3}
 					bind:value={$formData.description}
-					maxlength="500"
+					maxlength={500}
 				/>
 				<div class="mt-1 text-xs text-gray-500">
 					<span>{($formData.description || '').length}/500 caractères</span>
@@ -125,26 +131,26 @@
 		<Button
 			type="submit"
 			disabled={$submitting || customFields.length === 0}
-			class={`h-11 w-full transition-all duration-200 ${
-				$submitting
-					? 'cursor-not-allowed bg-gray-300'
-					: submitted
-						? 'bg-green-700 hover:bg-green-800'
+			class={`h-10 w-full text-sm font-medium text-white transition-all duration-200 disabled:cursor-not-allowed ${
+				submitted
+					? 'bg-[#FF6F61] hover:bg-[#e85a4f] disabled:opacity-100'
+					: $submitting
+						? 'bg-gray-600 hover:bg-gray-700 disabled:opacity-50'
 						: customFields.length > 0
-							? 'bg-primary shadow-sm hover:bg-primary/90 hover:shadow-md'
-							: 'cursor-not-allowed bg-gray-500 opacity-60'
+							? 'bg-primary shadow-sm hover:bg-primary/90 hover:shadow-md disabled:opacity-50'
+							: 'bg-gray-500 disabled:opacity-50'
 			}`}
 		>
 			{#if $submitting}
-				<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+				<LoaderCircle class="mr-2 h-5 w-5 animate-spin" />
 				Mise à jour...
 			{:else if submitted}
-				<CheckCircle class="mr-2 h-4 w-4" />
+				<Check class="mr-2 h-5 w-5" />
 				Mis à jour
 			{:else if customFields.length === 0}
 				Ajoutez au moins un champ
 			{:else}
-				<Save class="mr-2 h-4 w-4" />
+				<Save class="mr-2 h-5 w-5" />
 				Sauvegarder le Formulaire
 			{/if}
 		</Button>

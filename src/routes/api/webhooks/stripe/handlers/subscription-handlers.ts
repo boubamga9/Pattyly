@@ -54,6 +54,23 @@ export async function upsertSubscription(subscription: Stripe.Subscription, loca
             .eq('profile_id', profileId)
             .single();
 
+        // ✅ Tracking: Subscription started (fire-and-forget pour ne pas bloquer le webhook)
+        if (subscriptionStatus === 'active' && subscription.status === 'active') {
+            const { logEventAsync, Events } = await import('$lib/utils/analytics');
+            logEventAsync(
+                locals.supabaseServiceRole,
+                Events.SUBSCRIPTION_STARTED,
+                {
+                    subscription_id: subscriptionId,
+                    product_id: productId,
+                    product_lookup_key: productLookupKey,
+                    plan: productLookupKey === 'price_basic_monthly' ? 'basic' : 'premium'
+                },
+                profileId,
+                '/api/webhooks/stripe'
+            );
+        }
+
         // Gérer l'état de la boutique selon le statut de l'abonnement
         if (subscriptionStatus === 'active') {
 
@@ -143,6 +160,18 @@ export async function handleSubscriptionDeleted(subscription: Stripe.Subscriptio
             throw error(500, 'Failed to update subscription status in database');
         }
 
+        // ✅ Tracking: Subscription cancelled (fire-and-forget pour ne pas bloquer le webhook)
+        const { logEventAsync, Events } = await import('$lib/utils/analytics');
+        logEventAsync(
+            locals.supabaseServiceRole,
+            Events.SUBSCRIPTION_CANCELLED,
+            {
+                subscription_id: subscription.id,
+                product_id: productId
+            },
+            profileId,
+            '/api/webhooks/stripe'
+        );
 
     } catch (err) {
         throw error(500, 'handleSubscriptionDeleted failed: ' + err);

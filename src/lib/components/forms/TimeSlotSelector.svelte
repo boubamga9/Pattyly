@@ -23,7 +23,7 @@
 		text_color: '#333333',
 		icon_color: '#6b7280',
 		secondary_text_color: '#333333',
-		background_color: '#ffe8d6',
+		background_color: '#fafafa',
 		background_image_url: null,
 	};
 
@@ -62,7 +62,7 @@
 				<button
 					type="button"
 					class={cn(
-						'flex items-center justify-center rounded-lg border px-3 py-2 text-sm font-medium transition-all duration-200',
+						'flex items-center justify-center rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200',
 						'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
 						isSelected
 							? 'shadow-sm'
@@ -71,7 +71,7 @@
 					)}
 					style={isSelected
 						? `background-color: ${customizations.button_color}; color: ${customizations.button_text_color}; border-color: ${customizations.button_color};`
-						: ''}
+						: 'background-color: white;'}
 					{disabled}
 					on:click={() => handleTimeSelect(time)}
 					on:keydown={(e) => {
@@ -100,7 +100,7 @@
 		</div>
 	{:else}
 		<!-- Aucun créneau disponible -->
-		<div class="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
+		<div class="rounded-xl border border-gray-200 bg-gray-50 p-4 text-center">
 			<p class="text-sm text-gray-500">
 				<span class="mr-2">⚠️</span>
 				Aucun créneau disponible pour cette date

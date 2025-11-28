@@ -14,6 +14,18 @@
 		type CitySuggestion,
 	} from '$lib/services/city-autocomplete';
 
+	// ✅ Tracking: Page view côté client (tous-les-gateaux page)
+	onMount(() => {
+		import('$lib/utils/analytics').then(({ logPageView }) => {
+			const supabase = $page.data.supabase;
+			logPageView(supabase, {
+				page: '/tous-les-gateaux'
+			}).catch((err: unknown) => {
+				console.error('Error tracking page_view:', err);
+			});
+		});
+	});
+
 	export let data: {
 		products: Array<{
 			id: string;

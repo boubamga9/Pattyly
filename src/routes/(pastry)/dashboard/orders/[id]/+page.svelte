@@ -20,13 +20,12 @@
 	import {
 		ArrowLeft,
 		Clock,
-		CheckCircle,
+		Check,
 		AlertCircle,
 		XCircle,
 		Package,
 		CheckSquare,
 		MessageSquare,
-		Check,
 		X,
 		PackageCheck,
 		StickyNote,
@@ -36,6 +35,7 @@
 	// Données de la page
 	$: ({
 		order,
+		shop,
 		paidAmount,
 		personalNote,
 		makeQuoteForm,
@@ -159,7 +159,7 @@
 			case 'quoted':
 				return AlertCircle;
 			case 'confirmed':
-				return CheckCircle;
+				return Check;
 			case 'ready':
 				return Package;
 			case 'completed':
@@ -232,11 +232,13 @@
 	// Fonction de suppression avec enhance
 	async function handleDeleteNote() {
 		try {
+			const formData = new FormData();
+			// ✅ OPTIMISÉ : Passer shopId pour éviter getUser + requête shop
+			formData.append('shopId', shop.id);
+
 			const response = await fetch('?/deletePersonalNote', {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/x-www-form-urlencoded',
-				},
+				body: formData,
 			});
 
 			if (response.ok) {
@@ -793,6 +795,9 @@
 										}}
 										class="flex-1"
 									>
+										<!-- ✅ OPTIMISÉ : Passer shopId et shopSlug pour éviter getUser + requête shop -->
+										<input type="hidden" name="shopId" value={shop.id} />
+										<input type="hidden" name="shopSlug" value={shop.slug} />
 										<Button
 											type="submit"
 											variant="destructive"
@@ -847,8 +852,10 @@
 									};
 								}}
 							>
-								<Button type="submit" class="w-full gap-2">
-									<CheckCircle class="h-4 w-4" />
+								<!-- ✅ OPTIMISÉ : Passer shopId pour éviter getUserPermissions -->
+								<input type="hidden" name="shopId" value={shop.id} />
+								<Button type="submit" class="h-10 w-full gap-2">
+									<Check class="h-4 w-4" />
 									J'ai reçu le paiement
 								</Button>
 							</form>
@@ -866,7 +873,9 @@
 								};
 							}}
 						>
-							<Button type="submit" class="w-full gap-2">
+							<!-- ✅ OPTIMISÉ : Passer shopId pour éviter getUser + requête shop -->
+							<input type="hidden" name="shopId" value={shop.id} />
+							<Button type="submit" class="h-10 w-full gap-2">
 								<PackageCheck class="h-4 w-4" />
 								Marquer comme prête
 							</Button>
@@ -884,7 +893,9 @@
 								};
 							}}
 						>
-							<Button type="submit" class="w-full gap-2">
+							<!-- ✅ OPTIMISÉ : Passer shopId pour éviter getUser + requête shop -->
+							<input type="hidden" name="shopId" value={shop.id} />
+							<Button type="submit" class="h-10 w-full gap-2">
 								<CheckSquare class="h-4 w-4" />
 								Marquer comme terminée
 							</Button>

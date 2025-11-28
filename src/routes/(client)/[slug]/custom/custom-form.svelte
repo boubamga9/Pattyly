@@ -5,7 +5,6 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import { Separator } from '$lib/components/ui/separator';
 	import { DatePicker, OptionGroup, TimeSlotSelector } from '$lib/components';
 	import { superForm } from 'sveltekit-superforms/client';
 	import { zodClient } from 'sveltekit-superforms/adapters';
@@ -13,7 +12,7 @@
 	import { createLocalDynamicSchema } from './schema';
 	import { goto } from '$app/navigation';
 	import { Upload, X } from 'lucide-svelte';
-	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert';
+	import { Alert, AlertTitle } from '$lib/components/ui/alert';
 	import { AlertTriangle } from 'lucide-svelte';
 	import type { OrderLimitStats } from '$lib/utils/order-limits';
 
@@ -27,6 +26,7 @@
 		is_custom_accepted: boolean;
 		is_active: boolean;
 		is_visible: boolean;
+		profile_id?: string;
 	};
 	export let customFields: Array<{
 		id: string;
@@ -73,6 +73,7 @@
 		buttonStyle: `background-color: ${customizations?.button_color || '#ff6f61'}; color: ${customizations?.button_text_color || '#ffffff'};`,
 		textStyle: `color: ${customizations?.text_color || '#333333'};`,
 		secondaryTextStyle: `color: ${customizations?.secondary_text_color || '#333333'};`,
+		separatorColor: 'rgba(0, 0, 0, 0.3)',
 	};
 
 	const form = superForm(data, {
@@ -250,6 +251,9 @@
 	enctype="multipart/form-data"
 	use:enhance
 >
+	<!-- ✅ OPTIMISÉ : Passer shopId et profileId via formData pour éviter requêtes redondantes -->
+	<input type="hidden" name="shopId" value={shop.id} />
+	<input type="hidden" name="profileId" value={shop.profile_id} />
 	<Form.Errors {form} />
 
 	{#if isFormDisabled}
@@ -259,7 +263,11 @@
 		</Alert>
 	{/if}
 
-	<div class="space-y-8" class:opacity-50={isFormDisabled} class:pointer-events-none={isFormDisabled}>
+	<div
+		class="space-y-8"
+		class:opacity-50={isFormDisabled}
+		class:pointer-events-none={isFormDisabled}
+	>
 		<!-- Section Photos d'inspiration -->
 		<div class="space-y-4">
 			<div class="space-y-2">
@@ -411,9 +419,11 @@
 					{/each}
 				</div>
 			</div>
-			<Separator
-				style={`background-color: ${customizations?.secondary_text_color || '#333333'};`}
-			/>
+			<!-- Separator - Dégradé -->
+			<div
+				class="h-px bg-gradient-to-r from-transparent to-transparent"
+				style={`background: linear-gradient(to right, transparent, ${customStyles.separatorColor}, transparent);`}
+			></div>
 		{/if}
 
 		<!-- Section 2: Information of pickup -->
@@ -510,9 +520,11 @@
 				{/if}
 			</div>
 		</div>
-		<Separator
-			style={`background-color: ${customizations?.secondary_text_color || '#333333'};`}
-		/>
+		<!-- Separator - Dégradé -->
+		<div
+			class="h-px bg-gradient-to-r from-transparent to-transparent"
+			style={`background: linear-gradient(to right, transparent, ${customStyles.separatorColor}, transparent);`}
+		></div>
 
 		<!-- Section 3: Information of contact -->
 		<div class="space-y-4">
@@ -607,9 +619,11 @@
 			</div>
 		</div>
 
-		<Separator
-			style={`background-color: ${customizations?.secondary_text_color || '#333333'};`}
-		/>
+		<!-- Separator - Dégradé -->
+		<div
+			class="h-px bg-gradient-to-r from-transparent to-transparent"
+			style={`background: linear-gradient(to right, transparent, ${customStyles.separatorColor}, transparent);`}
+		></div>
 
 		<!-- Section 4: Summary of the request -->
 		<div class="space-y-4">
@@ -750,10 +764,11 @@
 						</div>
 					{/if}
 
-					<Separator
-						class="my-2"
-						style={`background-color: ${customizations?.secondary_text_color || '#333333'};`}
-					/>
+					<!-- Separator - Dégradé -->
+					<div
+						class="my-2 h-px bg-gradient-to-r from-transparent to-transparent"
+						style={`background: linear-gradient(to right, transparent, ${customStyles.separatorColor}, transparent);`}
+					></div>
 					<p class="text-xs italic text-muted-foreground">
 						* Le prix final sera confirmé par le pâtissier après étude de votre
 						demande
@@ -768,7 +783,7 @@
 				<Button
 					type="submit"
 					disabled={$submitting || isFormDisabled}
-					class="flex-1"
+					class="flex-1 rounded-xl"
 					style={customStyles.buttonStyle}
 				>
 					{#if $submitting}
@@ -778,7 +793,13 @@
 						Envoyer ma demande
 					{/if}
 				</Button>
-				<Button type="button" variant="outline" on:click={onCancel} disabled={isFormDisabled}>
+				<Button
+					type="button"
+					variant="outline"
+					on:click={onCancel}
+					disabled={isFormDisabled}
+					class="rounded-xl"
+				>
 					Annuler
 				</Button>
 			{:else}

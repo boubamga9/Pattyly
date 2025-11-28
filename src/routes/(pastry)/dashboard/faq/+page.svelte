@@ -63,6 +63,11 @@
 	async function handleDelete(faqId: string) {
 		const formData = new FormData();
 		formData.append('id', faqId);
+		// ✅ OPTIMISÉ : Passer shopId et shopSlug pour éviter getUserPermissions + requête shop
+		if ($page.data.shopId && $page.data.shopSlug) {
+			formData.append('shopId', $page.data.shopId);
+			formData.append('shopSlug', $page.data.shopSlug);
+		}
 
 		try {
 			const response = await fetch('?/delete', {

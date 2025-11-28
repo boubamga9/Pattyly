@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/stores';
 	import { Switch } from '$lib/components/ui/switch';
 	import { enhance } from '$app/forms';
 
@@ -153,6 +154,10 @@
 						};
 					}}
 				>
+					<!-- ✅ OPTIMISÉ : Passer shopId pour éviter getUserPermissions + requête shop -->
+					{#if $page.data.shopId}
+						<input type="hidden" name="shopId" value={$page.data.shopId} />
+					{/if}
 					<input type="hidden" name="availabilityId" value={availability.id} />
 					<input
 						type="hidden"
@@ -229,6 +234,10 @@
 							};
 						}}
 					>
+						<!-- ✅ OPTIMISÉ : Passer shopId pour éviter getUserPermissions + requête shop -->
+						{#if $page.data.shopId}
+							<input type="hidden" name="shopId" value={$page.data.shopId} />
+						{/if}
 						<input
 							type="hidden"
 							name="availabilityId"
@@ -373,13 +382,13 @@
 										on:click={() => handleTimeConfigUpdate(availability.id)}
 										disabled={isSubmitting[availability.id] ||
 											showSuccessFeedback[availability.id]}
-										class="rounded-md px-3 py-1.5 text-xs text-white transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 {showSuccessFeedback[
+										class="rounded-md px-3 py-1.5 text-xs text-white transition-all duration-200 disabled:cursor-not-allowed {showSuccessFeedback[
 											availability.id
 										]
-											? 'bg-green-600 hover:bg-green-700'
+											? 'bg-[#FF6F61] hover:bg-[#e85a4f] disabled:opacity-100'
 											: isSubmitting[availability.id]
-												? 'bg-blue-600 hover:bg-blue-700'
-												: 'bg-primary hover:bg-primary/90'}"
+												? 'bg-gray-600 hover:bg-gray-700 disabled:opacity-50'
+												: 'bg-primary hover:bg-primary/90 disabled:opacity-50'}"
 									>
 										{#if showSuccessFeedback[availability.id]}
 											<div class="flex items-center gap-2">
@@ -401,7 +410,7 @@
 										{:else if isSubmitting[availability.id]}
 											<div class="flex items-center gap-2">
 												<svg
-													class="h-3 w-3 animate-spin"
+													class="h-5 w-5 animate-spin"
 													fill="none"
 													viewBox="0 0 24 24"
 												>

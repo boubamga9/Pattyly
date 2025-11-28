@@ -281,7 +281,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		return response;
 	} catch (error) {
 		console.error('Error in handle:', error);
-		
+
 		// Return a basic error response
 		return new Response('Internal Server Error', {
 			status: 500,

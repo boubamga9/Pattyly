@@ -69,17 +69,21 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const profileIds = shopsArray.map(shop => shop.profile_id).filter(Boolean);
 	
 	// Récupérer les plans premium pour tous les profiles en une seule requête
+	// ✅ Utiliser la fonction RPC avec SECURITY DEFINER pour permettre l'accès aux utilisateurs anonymes
 	const premiumProfileIds = new Set<string>();
 	if (profileIds.length > 0) {
-		const { data: userProducts } = await locals.supabase
-			.from('user_products')
-			.select('profile_id, stripe_product_id')
-			.in('profile_id', profileIds)
-			.eq('subscription_status', 'active')
-			.eq('stripe_product_id', STRIPE_PRODUCTS.PREMIUM);
+		const { data: premiumIds, error: premiumError } = await locals.supabase.rpc(
+			'check_premium_profiles',
+			{
+				p_profile_ids: profileIds,
+				p_premium_product_id: STRIPE_PRODUCTS.PREMIUM
+			}
+		);
 		
-		if (userProducts) {
-			userProducts.forEach(up => premiumProfileIds.add(up.profile_id));
+		if (!premiumError && premiumIds && Array.isArray(premiumIds)) {
+			premiumIds.forEach((id: string) => premiumProfileIds.add(id));
+		} else if (premiumError) {
+			console.error('❌ [Directory] Error checking premium profiles:', premiumError);
 		}
 	}
 

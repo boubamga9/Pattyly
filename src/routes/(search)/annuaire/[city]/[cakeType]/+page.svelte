@@ -258,7 +258,7 @@
 						<Search class="h-4 w-4" />
 						Recherche plus précise
 					</Button>
-				</div>
+					</div>
 			</div>
 		</div>
 	</section>

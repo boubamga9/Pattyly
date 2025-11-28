@@ -168,6 +168,10 @@
 										}}
 										class="inline"
 									>
+										<!-- ✅ OPTIMISÉ : Passer shopId pour éviter getUserPermissions + requête shop -->
+										{#if $page.data.shopId}
+											<input type="hidden" name="shopId" value={$page.data.shopId} />
+										{/if}
 										<input
 											type="hidden"
 											name="unavailabilityId"

@@ -7,10 +7,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	// Charger tous les produits avec leurs shops
 	// Ne pas filtrer par ville côté serveur - le filtrage par rayon se fait côté client
+	// ✅ Filtrer uniquement les shops actifs ET visibles dans l'annuaire
 	const { data: activeShops, error: shopsError } = await locals.supabase
 		.from('shops')
 		.select('id')
-		.eq('is_active', true);
+		.eq('is_active', true)
+		.eq('directory_enabled', true);
 
 	if (shopsError) {
 		console.error('❌ [Tous les gateaux] Error loading shops:', shopsError);
@@ -87,7 +89,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	)];
 
 	// Récupérer les plans premium pour tous les profiles en une seule requête
-	// Utilise une fonction RPC SECURITY DEFINER pour contourner les RLS policies
+	// ✅ Utiliser la fonction RPC avec SECURITY DEFINER pour permettre l'accès aux utilisateurs anonymes
 	const premiumProfileIds = new Set<string>();
 	if (profileIds.length > 0) {
 		const { data: premiumIds, error: premiumError } = await locals.supabase.rpc(
@@ -134,4 +136,3 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		products: formattedProducts
 	};
 };
-

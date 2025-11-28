@@ -19,6 +19,18 @@
 	let cardContainer: HTMLElement;
 
 	onMount(async () => {
+		// ✅ Tracking: Page view côté client (login page)
+		import('$lib/utils/analytics').then(({ logPageView }) => {
+			const supabase = $page.data.supabase;
+			if (supabase) {
+				logPageView(supabase, {
+					page: '/login'
+				}).catch((err: unknown) => {
+					console.error('Error tracking page_view:', err);
+				});
+			}
+		});
+
 		supabase.auth.onAuthStateChange((event: AuthChangeEvent) => {
 			// Redirect to account after sucessful login
 			if (event == 'SIGNED_IN') {

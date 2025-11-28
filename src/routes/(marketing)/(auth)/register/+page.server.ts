@@ -55,6 +55,18 @@ export const actions: Actions = {
 			}
 		});
 
+		// ✅ Tracking: Signup event (fire-and-forget pour ne pas bloquer)
+		if (user?.id) {
+			const { logEventAsync, Events } = await import('$lib/utils/analytics');
+			logEventAsync(
+				event.locals.supabaseServiceRole,
+				Events.SIGNUP,
+				{ email },
+				user.id,
+				'/register'
+			);
+		}
+
 		if (error) {
 
 			// Check to see if sign-ups are disabled in Supabase

@@ -77,7 +77,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const profileIds = (shops || []).map(shop => shop.profile_id).filter(Boolean);
 	
 	// Récupérer les plans premium pour tous les profiles en une seule requête
-	// Utilise une fonction RPC SECURITY DEFINER pour contourner les RLS policies
+	// ✅ Utiliser la fonction RPC avec SECURITY DEFINER pour permettre l'accès aux utilisateurs anonymes
 	const premiumProfileIds = new Set<string>();
 	if (profileIds.length > 0) {
 		const { data: premiumIds, error: premiumError } = await locals.supabase.rpc(

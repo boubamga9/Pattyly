@@ -1,13 +1,14 @@
-import { error, redirect } from '@sveltejs/kit';
+import { error, redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { formSchema } from './schema';
 import { customizationSchema } from './customization-schema';
-import { directorySchema } from '$lib/validations/schemas/shop';
+import { directorySchema, toggleDirectorySchema } from '$lib/validations/schemas/shop';
 import { uploadShopLogo, uploadBackgroundImage, deleteImage, extractPublicIdFromUrl } from '$lib/cloudinary';
 import { forceRevalidateShop } from '$lib/utils/catalog';
+import { verifyShopOwnership } from '$lib/auth';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
     // ✅ OPTIMISÉ : Réutiliser les permissions et shop du layout
@@ -22,32 +23,45 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
         throw error(400, 'Boutique non trouvée');
     }
 
-    // Get shop data (including directory fields) - on récupère seulement les champs supplémentaires
-    const { data: shop, error: shopError } = await locals.supabase
-        .from('shops')
-        .select('id, name, bio, slug, logo_url, instagram, tiktok, website, directory_city, directory_actual_city, directory_postal_code, directory_cake_types, directory_enabled')
-        .eq('id', permissions.shopId)
-        .single();
+    if (!layoutShop) {
+        throw error(404, 'Boutique non trouvée');
+    }
 
-    if (shopError) {
+    // ✅ OPTIMISÉ : 2 requêtes parallèles pour récupérer directory fields + customizations
+    const [shopDataResult, customizationsResult] = await Promise.all([
+        locals.supabase
+            .from('shops')
+            .select('directory_city, directory_actual_city, directory_postal_code, directory_cake_types, directory_enabled')
+            .eq('id', permissions.shopId)
+            .single(),
+        locals.supabase
+            .from('shop_customizations')
+            .select('button_color, button_text_color, text_color, icon_color, secondary_text_color, background_color, background_image_url')
+            .eq('shop_id', permissions.shopId)
+            .single()
+    ]);
+
+    if (shopDataResult.error) {
+        console.error('🎨 [Dashboard Shop] Error fetching shop data:', shopDataResult.error);
         error(500, 'Erreur lors du chargement de la boutique');
     }
 
-    if (!shop) {
-        error(404, 'Boutique non trouvée');
-    }
+    const shopData = shopDataResult.data;
+    const customizations = customizationsResult.data;
 
-    // Get shop customizations
-    const { data: customizations, error: customizationsError } = await (locals.supabase as any)
-        .from('shop_customizations')
-        .select('button_color, button_text_color, text_color, icon_color, secondary_text_color, background_color, background_image_url')
-        .eq('shop_id', permissions.shopId)
-        .single();
+    // Debug: Vérifier ce qui est récupéré
+    console.log('🎨 [Dashboard Shop] Customizations récupérées:', customizations);
+    console.log('🎨 [Dashboard Shop] background_image_url:', customizations?.background_image_url);
 
-    if (customizationsError && customizationsError.code !== 'PGRST116') {
-        console.error('🎨 [Dashboard Shop] Customizations error:', customizationsError);
-        error(500, 'Erreur lors du chargement des personnalisations');
-    }
+    // Fusionner le shop du parent avec les données supplémentaires
+    const shop = {
+        ...layoutShop,
+        directory_city: shopData?.directory_city || null,
+        directory_actual_city: shopData?.directory_actual_city || null,
+        directory_postal_code: shopData?.directory_postal_code || null,
+        directory_cake_types: shopData?.directory_cake_types || null,
+        directory_enabled: shopData?.directory_enabled || false
+    };
 
     return {
         shop,
@@ -69,8 +83,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
                 text_color: customizations?.text_color || '#333333',
                 icon_color: customizations?.icon_color || '#6b7280',
                 secondary_text_color: customizations?.secondary_text_color || '#333333',
-                background_color: customizations?.background_color || '#ffe8d6',
-                background_image_url: customizations?.background_image_url || '',
+                background_color: customizations?.background_color || '#fafafa',
+                background_image_url: customizations?.background_image_url || null, // ✅ Utiliser null au lieu de '' pour éviter les chaînes vides
             }
         }),
         directoryForm: await superValidate(zod(directorySchema), {
@@ -81,19 +95,42 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
                 directory_cake_types: shop.directory_cake_types || [],
                 directory_enabled: shop.directory_enabled || false
             }
+        }),
+        toggleDirectoryForm: await superValidate(zod(toggleDirectorySchema), {
+            defaults: {
+                directory_enabled: shop.directory_enabled || false
+            }
         })
     };
 };
 
 export const actions: Actions = {
     updateShop: async ({ request, locals }) => {
+        // ✅ OPTIMISÉ : Lire formData AVANT superValidate (car superValidate consomme le body)
+        const formData = await request.formData();
+        const shopId = formData.get('shopId') as string;
+        const shopSlug = formData.get('shopSlug') as string;
+
+        if (!shopId || !shopSlug) {
+            return { success: false, error: 'Données de boutique manquantes' };
+        }
+
+        // ✅ OPTIMISÉ : Utiliser safeGetSession au lieu de getUser()
         const { session } = await locals.safeGetSession();
-        if (!session) {
+        const userId = session?.user.id;
+
+        if (!userId) {
             return { success: false, error: 'Non autorisé' };
         }
-        const userId = session.user.id;
 
-        const form = await superValidate(request, zod(formSchema));
+        // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite getUserPermissions + requête shop)
+        const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+        if (!isOwner) {
+            return { success: false, error: 'Accès non autorisé à cette boutique' };
+        }
+
+        // Valider avec Superforms (passer formData au lieu de request)
+        const form = await superValidate(formData, zod(formSchema));
 
         if (!form.valid) {
             return form;
@@ -103,33 +140,14 @@ export const actions: Actions = {
         const logoFile = logo;
         const currentLogoUrl = form.data.logo_url;
 
-        // ✅ OPTIMISÉ : Utiliser parent() pour récupérer shopId, puis vérifier la propriété
-        // Note: On récupère quand même logo_url et slug car nécessaires pour la logique
-        const { permissions } = await parent();
-        const shopId = permissions?.shopId;
-
-        if (!shopId) {
-            return { success: false, error: 'Boutique non trouvée' };
-        }
-
-        // Vérifier la propriété avec le RPC optimisé
-        const { data: isOwner, error: verifyError } = await (locals.supabase as any).rpc('verify_shop_ownership', {
-            p_profile_id: userId,
-            p_shop_id: shopId
-        });
-
-        if (verifyError || !isOwner) {
-            return { success: false, error: 'Boutique non trouvée ou non autorisée' };
-        }
-
-        // Récupérer seulement les champs nécessaires
-        const { data: shop } = await locals.supabase
+        // ✅ OPTIMISÉ : Récupérer uniquement logo_url et slug actuels (pour comparaison)
+        const { data: shop, error: shopError } = await locals.supabase
             .from('shops')
             .select('id, logo_url, slug')
             .eq('id', shopId)
             .single();
 
-        if (!shop) {
+        if (shopError || !shop) {
             return { success: false, error: 'Boutique non trouvée' };
         }
 
@@ -202,7 +220,7 @@ export const actions: Actions = {
                 website: website || null,
                 logo_url: logoUrl || null
             })
-            .eq('id', shop.id);
+            .eq('id', shopId);
 
         if (updateError) {
             return { success: false, error: 'Erreur lors de la mise à jour' };
@@ -246,31 +264,51 @@ export const actions: Actions = {
     },
 
     updateCustomizationForm: async ({ request, locals }) => {
-        const { session } = await locals.safeGetSession();
-        if (!session) {
-            return { form: await superValidate(zod(customizationSchema)) };
+        // ✅ OPTIMISÉ : Lire formData AVANT superValidate (car superValidate consomme le body)
+        const formData = await request.formData();
+        const shopId = formData.get('shopId') as string;
+        const shopSlug = formData.get('shopSlug') as string;
+
+        // ✅ CRÉER LE FORM DÈS LE DÉBUT (obligatoire pour Superforms)
+        const form = await superValidate(formData, zod(customizationSchema));
+
+        // Debug: Log les erreurs de validation
+        if (!form.valid) {
+            console.error('🎨 [Customization Form] Validation errors:', form.errors);
+            console.error('🎨 [Customization Form] Form data:', form.data);
+            console.error('🎨 [Customization Form] FormData entries:', Array.from(formData.entries()));
         }
 
-        const userId = session.user.id;
-        const form = await superValidate(request, zod(customizationSchema));
+        if (!shopId || !shopSlug) {
+            form.message = 'Données de boutique manquantes';
+            return { form };
+        }
+
+        // ✅ OPTIMISÉ : Utiliser safeGetSession au lieu de getUser()
+        const { session } = await locals.safeGetSession();
+        const userId = session?.user.id;
+
+        if (!userId) {
+            form.message = 'Non autorisé';
+            return { form };
+        }
+
+        // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite requête shop)
+        const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+        if (!isOwner) {
+            form.message = 'Accès non autorisé à cette boutique';
+            return { form };
+        }
 
         if (!form.valid) {
-            return { form };
-        }
-
-        const { data: shop } = await locals.supabase
-            .from('shops')
-            .select('id, slug')
-            .eq('profile_id', userId)
-            .single();
-
-        if (!shop) {
-            form.message = 'Boutique non trouvée';
-            return { form };
+            console.error('🎨 [Customization Form] Form is invalid after security checks, returning errors');
+            return fail(400, { form });
         }
 
         // Handle background image upload
-        const { background_image, background_image_url } = form.data;
+        // ✅ Filtrer les chaînes vides pour background_image (quand aucun fichier n'est sélectionné)
+        const background_image = form.data.background_image instanceof File ? form.data.background_image : undefined;
+        const { background_image_url } = form.data;
         let finalBackgroundImageUrl = background_image_url;
 
         if (background_image && background_image.size > 0) {
@@ -288,7 +326,7 @@ export const actions: Actions = {
 
             try {
                 // Upload vers Cloudinary (compression et optimisation automatiques)
-                const uploadResult = await uploadBackgroundImage(background_image, shop.id);
+                const uploadResult = await uploadBackgroundImage(background_image, shopId);
                 finalBackgroundImageUrl = uploadResult.secure_url;
 
                 // Supprimer l'ancienne image de fond Cloudinary si elle existe
@@ -318,7 +356,7 @@ export const actions: Actions = {
                 background_color: form.data.background_color,
                 background_image_url: finalBackgroundImageUrl
             })
-            .eq('shop_id', shop.id);
+            .eq('shop_id', shopId);
 
         if (updateError) {
             console.error('🎨 [Dashboard Shop] Upsert error:', updateError);
@@ -340,41 +378,52 @@ export const actions: Actions = {
             }
         });
 
-        // Revalidate shop cache to update the slug page
+        // Revalidate shop cache to update the slug page (utiliser shopSlug depuis formData)
         try {
-            await forceRevalidateShop(shop.slug);
+            await forceRevalidateShop(shopSlug);
         } catch (error) {
             console.error('🎨 [Customization] Cache revalidation failed:', error);
         }
 
         updatedForm.message = 'Personnalisation sauvegardée avec succès !';
+        // ✅ IMPORTANT : Ne pas retourner le File dans le formulaire (non sérialisable)
+        // Le formulaire mis à jour ne contient que les données sérialisables
         return { form: updatedForm };
     },
 
-    removeBackgroundImage: async ({ locals }) => {
+    removeBackgroundImage: async ({ request, locals }) => {
+        // ✅ OPTIMISÉ : Récupérer shopId et shopSlug depuis formData
+        if (!request) {
+            return { success: false, error: 'Requête invalide' };
+        }
+
+        const formData = await request.formData();
+        const shopId = formData.get('shopId') as string;
+        const shopSlug = formData.get('shopSlug') as string;
+
+        if (!shopId || !shopSlug) {
+            return { success: false, error: 'Données de boutique manquantes' };
+        }
+
+        // ✅ OPTIMISÉ : Utiliser safeGetSession au lieu de getUser()
         const { session } = await locals.safeGetSession();
-        if (!session) {
+        const userId = session?.user.id;
+
+        if (!userId) {
             return { success: false, error: 'Non autorisé' };
         }
 
-        const userId = session.user.id;
-
-        // Récupérer la boutique et l'URL actuelle de l'image
-        const { data: shop } = await locals.supabase
-            .from('shops')
-            .select('id, slug')
-            .eq('profile_id', userId)
-            .single();
-
-        if (!shop) {
-            return { success: false, error: 'Boutique non trouvée' };
+        // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite requête shop)
+        const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+        if (!isOwner) {
+            return { success: false, error: 'Accès non autorisé à cette boutique' };
         }
 
-        // Récupérer l'URL actuelle de l'image de fond
+        // Récupérer l'URL actuelle de l'image de fond (utiliser shopId directement)
         const { data: customizations } = await locals.supabase
             .from('shop_customizations')
             .select('background_image_url')
-            .eq('shop_id', shop.id)
+            .eq('shop_id', shopId)
             .single();
 
         if (customizations?.background_image_url) {
@@ -390,23 +439,23 @@ export const actions: Actions = {
             }
         }
 
-        // Mettre à jour la base de données pour supprimer l'URL
+        // Mettre à jour la base de données pour supprimer l'URL (utiliser shopId directement)
         const { error: updateError } = await locals.supabase
             .from('shop_customizations')
             .update({
                 background_image_url: null,
                 updated_at: new Date().toISOString()
             })
-            .eq('shop_id', shop.id);
+            .eq('shop_id', shopId);
 
         if (updateError) {
             console.error('🎨 [Dashboard Shop] Error updating customizations:', updateError);
             return { success: false, error: 'Erreur lors de la suppression' };
         }
 
-        // Revalidate shop cache
+        // Revalidate shop cache (utiliser shopSlug depuis formData)
         try {
-            await forceRevalidateShop(shop.slug);
+            await forceRevalidateShop(shopSlug);
         } catch (error) {
             console.error('🎨 [Customization] Cache revalidation failed:', error);
         }
@@ -415,40 +464,49 @@ export const actions: Actions = {
     },
 
     updateDirectory: async ({ request, locals }) => {
-        const { session } = await locals.safeGetSession();
-        if (!session) {
-            return { form: await superValidate(zod(directorySchema)) };
+        // ✅ OPTIMISÉ : Lire formData AVANT superValidate (car superValidate consomme le body)
+        const formData = await request.formData();
+        const shopId = formData.get('shopId') as string;
+        const shopSlug = formData.get('shopSlug') as string;
+
+        // ✅ CRÉER LE FORM DÈS LE DÉBUT (obligatoire pour Superforms)
+        const form = await superValidate(formData, zod(directorySchema));
+
+        if (!shopId || !shopSlug) {
+            form.message = 'Données de boutique manquantes';
+            return { form };
         }
 
-        const userId = session.user.id;
-        const form = await superValidate(request, zod(directorySchema));
+        // ✅ OPTIMISÉ : Utiliser safeGetSession au lieu de getUser()
+        const { session } = await locals.safeGetSession();
+        const userId = session?.user.id;
+
+        if (!userId) {
+            form.message = 'Non autorisé';
+            return { form };
+        }
+
+        // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite requête shop)
+        const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+        if (!isOwner) {
+            form.message = 'Accès non autorisé à cette boutique';
+            return { form };
+        }
 
         if (!form.valid) {
             return { form };
         }
 
-        const { data: shop } = await locals.supabase
-            .from('shops')
-            .select('id, slug')
-            .eq('profile_id', userId)
-            .single();
-
-        if (!shop) {
-            form.message = 'Boutique non trouvée';
-            return { form };
-        }
-
-        // Mettre à jour les champs annuaire
+        // Mettre à jour les champs annuaire (sans directory_enabled qui a son propre formulaire)
         const { error: updateError } = await locals.supabase
             .from('shops')
             .update({
                 directory_city: form.data.directory_city,
                 directory_actual_city: form.data.directory_actual_city,
                 directory_postal_code: form.data.directory_postal_code,
-                directory_cake_types: form.data.directory_cake_types,
-                directory_enabled: form.data.directory_enabled
+                directory_cake_types: form.data.directory_cake_types
             })
-            .eq('id', shop.id);
+            .eq('id', shopId);
 
         if (updateError) {
             console.error('📋 [Directory] Update error:', updateError);
@@ -456,9 +514,9 @@ export const actions: Actions = {
             return { form };
         }
 
-        // Revalidate shop cache
+        // Revalidate shop cache (utiliser shopSlug depuis formData)
         try {
-            await forceRevalidateShop(shop.slug);
+            await forceRevalidateShop(shopSlug);
         } catch (error) {
             console.error('📋 [Directory] Cache revalidation failed:', error);
         }
@@ -476,6 +534,77 @@ export const actions: Actions = {
 
         updatedForm.message = 'Informations annuaire sauvegardées avec succès !';
         return { form: updatedForm };
+    },
+
+    toggleDirectory: async ({ request, locals }) => {
+        // ✅ OPTIMISÉ : Lire formData AVANT superValidate (car superValidate consomme le body)
+        const formData = await request.formData();
+        const shopId = formData.get('shopId') as string;
+        const shopSlug = formData.get('shopSlug') as string;
+
+        if (!shopId || !shopSlug) {
+            const toggleForm = await superValidate(zod(toggleDirectorySchema));
+            toggleForm.message = 'Données de boutique manquantes';
+            return fail(400, { toggleForm });
+        }
+
+        // ✅ OPTIMISÉ : Utiliser safeGetSession au lieu de getUser()
+        const { session } = await locals.safeGetSession();
+        const userId = session?.user.id;
+
+        if (!userId) {
+            throw error(401, 'Non autorisé');
+        }
+
+        // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite requête shop)
+        const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+        if (!isOwner) {
+            throw error(403, 'Accès non autorisé à cette boutique');
+        }
+
+        const toggleForm = await superValidate(formData, zod(toggleDirectorySchema));
+
+        if (!toggleForm.valid) {
+            return fail(400, { toggleForm });
+        }
+
+        const directoryEnabled = toggleForm.data.directory_enabled;
+
+        try {
+            const { error: updateError } = await locals.supabase
+                .from('shops')
+                .update({ directory_enabled: directoryEnabled })
+                .eq('id', shopId);
+
+            if (updateError) {
+                console.error('📋 [Toggle Directory] Update error:', updateError);
+                const errorForm = await superValidate(zod(toggleDirectorySchema));
+                errorForm.message = 'Erreur lors de la mise à jour';
+                return fail(400, { toggleForm: errorForm });
+            }
+
+            // Revalidate shop cache
+            try {
+                await forceRevalidateShop(shopSlug);
+            } catch (error) {
+                console.error('📋 [Toggle Directory] Cache revalidation failed:', error);
+            }
+
+            // Retourner le formulaire mis à jour
+            const updatedForm = await superValidate(zod(toggleDirectorySchema), {
+                defaults: {
+                    directory_enabled: directoryEnabled
+                }
+            });
+
+            updatedForm.message = directoryEnabled
+                ? 'Annuaire activé'
+                : 'Annuaire désactivé';
+            return { toggleForm: updatedForm };
+        } catch (err) {
+            const errorForm = await superValidate(zod(toggleDirectorySchema));
+            errorForm.message = 'Erreur inattendue lors de la mise à jour';
+            return fail(500, { toggleForm: errorForm });
+        }
     }
 };
-

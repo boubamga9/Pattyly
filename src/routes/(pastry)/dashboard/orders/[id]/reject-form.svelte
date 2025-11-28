@@ -3,11 +3,12 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Label } from '$lib/components/ui/label';
-	import { X } from 'lucide-svelte';
+	import { X, LoaderCircle } from 'lucide-svelte';
 	import { superForm } from 'sveltekit-superforms/client';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import type { SuperValidated, Infer } from 'sveltekit-superforms';
-import { rejectOrderFormSchema, type RejectOrderForm } from './schema';
+	import { rejectOrderFormSchema, type RejectOrderForm } from './schema';
+	import { page } from '$app/stores';
 
 	// Props
 	export let data: SuperValidated<Infer<RejectOrderForm>>;
@@ -44,6 +45,10 @@ $: messageLength = ($formData.chef_message || '').length;
 	}}
 	class="space-y-4 rounded-lg border p-4"
 >
+	<!-- Champs cachés pour shopId et shopSlug (optimisation : éviter getUser + requête shop) -->
+	<input type="hidden" name="shopId" value={$page.data.shop.id} />
+	<input type="hidden" name="shopSlug" value={$page.data.shop.slug} />
+
 	<!-- Message -->
 	<Form.Field {form} name="chef_message">
 		<Form.Control let:attrs>
@@ -74,17 +79,20 @@ $: messageLength = ($formData.chef_message || '').length;
 		<Button
 			type="submit"
 			variant="destructive"
-			class="flex-1 gap-2"
+			class={`h-10 flex-1 text-sm font-medium text-white transition-all duration-200 disabled:cursor-not-allowed ${
+				$submitting
+					? 'bg-gray-600 hover:bg-gray-700 disabled:opacity-50'
+					: 'bg-destructive hover:bg-destructive/90 disabled:opacity-50'
+			}`}
 			disabled={$submitting}
 		>
 			{#if $submitting}
-				<div
-					class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-				/>
+				<LoaderCircle class="mr-2 h-5 w-5 animate-spin" />
+				Refus...
 			{:else}
-				<X class="mr-2 h-4 w-4" />
+				<X class="mr-2 h-5 w-5" />
+				Refuser
 			{/if}
-			Refuser
 		</Button>
 		<Button
 			type="button"

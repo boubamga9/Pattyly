@@ -78,17 +78,24 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 };
 
 export const actions: Actions = {
-    confirmPayment: async ({ params, locals }) => {
+    confirmPayment: async ({ params, request, locals }) => {
         const { slug, order_ref } = params;
 
         try {
             console.log('🚀 [Confirm Payment] Starting for order_ref:', order_ref);
 
+            const formData = await request.formData();
+
+            // ✅ OPTIMISÉ : Récupérer shopId, productId et orderRef depuis formData (passés par le frontend)
+            const shopId = formData.get('shopId') as string;
+            const productId = formData.get('productId') as string;
+            const orderRefFromForm = formData.get('orderRef') as string || order_ref; // Fallback sur order_ref
+
             // 1. Récupérer la pending_order
             const { data: pendingOrder, error: pendingOrderError } = await (locals.supabaseServiceRole as any)
                 .from('pending_orders')
                 .select('*')
-                .eq('order_ref', order_ref)
+                .eq('order_ref', orderRefFromForm)
                 .single();
 
             if (pendingOrderError || !pendingOrder) {
@@ -99,11 +106,23 @@ export const actions: Actions = {
             const orderData = pendingOrder.order_data;
             console.log('📦 [Confirm Payment] Order data:', orderData);
 
+            // Vérifier que les IDs correspondent
+            if (shopId && orderData.shop_id !== shopId) {
+                throw error(403, 'Données de boutique invalides');
+            }
+            if (productId && orderData.product_id !== productId) {
+                throw error(403, 'Données de produit invalides');
+            }
+
             // 2. Récupérer les informations du produit et de la boutique
+            // Utiliser shopId et productId depuis formData si disponibles, sinon depuis orderData
+            const finalShopId = shopId || orderData.shop_id;
+            const finalProductId = productId || orderData.product_id;
+
             const { data: product, error: productError } = await (locals.supabaseServiceRole as any)
                 .from('products')
                 .select('base_price, shops(slug, logo_url, name, profile_id, profiles(email))')
-                .eq('id', orderData.product_id)
+                .eq('id', finalProductId)
                 .single();
 
             if (productError || !product) {
@@ -152,6 +171,23 @@ export const actions: Actions = {
             }
 
             console.log('✅ [Confirm Payment] Order created with ID:', order.id);
+
+            // ✅ Tracking: Order received (fire-and-forget pour ne pas bloquer)
+            const { logEventAsync, Events } = await import('$lib/utils/analytics');
+            logEventAsync(
+                locals.supabaseServiceRole,
+                Events.ORDER_RECEIVED,
+                {
+                    order_id: order.id,
+                    order_ref,
+                    shop_id: orderData.shop_id,
+                    product_id: orderData.product_id,
+                    total_amount: totalAmount,
+                    order_type: 'product_order'
+                },
+                null, // Client orders don't have userId
+                `/${slug}/product/${id}/checkout/${order_ref}`
+            );
 
             // 5. Envoyer les emails spécifiques pour PayPal.me (en attente de vérification)
             try {

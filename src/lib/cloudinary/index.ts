@@ -178,6 +178,79 @@ export function extractPublicIdFromUrl(url: string): string | null {
 }
 
 /**
+ * Upload d'une photo d'inspiration vers Cloudinary
+ * @param file - Fichier image à uploader
+ * @param shopId - ID de la boutique
+ * @param orderId - ID de la commande (ou temp-{timestamp}-{random} pour temporaire)
+ * @param index - Index de la photo (1, 2, 3...)
+ * @returns Promise avec l'URL sécurisée de l'image et le public_id
+ */
+export async function uploadInspirationPhoto(
+	file: File,
+	shopId: string,
+	orderId: string,
+	index: number
+) {
+	try {
+		// Convertir le File en Buffer
+		const arrayBuffer = await file.arrayBuffer();
+		const buffer = Buffer.from(arrayBuffer);
+
+		// Structure: orders/{shopId}/{orderId}/inspiration-{index}
+		const folder = `orders/${shopId}/${orderId}`;
+		const publicId = `inspiration-${index}`;
+
+		// Upload vers Cloudinary avec organisation par commande
+		const result = await new Promise<cloudinary.UploadApiResponse>((resolve, reject) => {
+			cloudinary.uploader
+				.upload_stream(
+					{
+						folder: folder,
+						public_id: publicId,
+						overwrite: false, // Ne pas écraser si existe déjà
+						resource_type: 'image',
+						transformation: [
+							{ width: 1920, height: 1920, crop: 'limit', quality: 'auto', format: 'auto' }
+						]
+					},
+					(error, result) => {
+						if (error) reject(error);
+						else if (result) resolve(result);
+						else reject(new Error('Upload failed'));
+					}
+				)
+				.end(buffer);
+		});
+
+		return {
+			secure_url: result.secure_url,
+			public_id: result.public_id
+		};
+	} catch (error) {
+		console.error('❌ [Cloudinary] Error uploading inspiration photo:', error);
+		throw error;
+	}
+}
+
+/**
+ * Supprime toutes les photos d'inspiration d'une commande
+ * @param shopId - ID de la boutique
+ * @param orderId - ID de la commande
+ * @returns Promise<void>
+ */
+export async function deleteInspirationPhotos(shopId: string, orderId: string) {
+	try {
+		// Supprimer toutes les ressources avec le préfixe du dossier
+		const folder = `orders/${shopId}/${orderId}`;
+		const result = await cloudinary.api.delete_resources_by_prefix(folder);
+		console.log(`✅ [Cloudinary] Deleted inspiration photos from ${folder}:`, result);
+	} catch (error) {
+		console.error('❌ [Cloudinary] Error deleting inspiration photos:', error);
+		throw error;
+	}
+}
+
+/**
  * Upload d'une image statique marketing vers Cloudinary
  * @param filePath - Chemin du fichier à uploader
  * @param fileName - Nom du fichier (sans extension)
@@ -223,5 +296,4 @@ export async function uploadMarketingImage(filePath: string, fileName: string, f
 		throw error;
 	}
 }
-
 

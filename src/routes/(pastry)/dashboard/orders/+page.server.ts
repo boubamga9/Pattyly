@@ -1,7 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { error as svelteError } from '@sveltejs/kit';
-import { getUserPermissions } from '$lib/auth';
 
 // Types
 interface Order {
@@ -21,12 +20,10 @@ interface Order {
     chef_pickup_time: string | null;
 }
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, parent }) => {
     try {
-        // Récupérer l'utilisateur connecté
-        const {
-            data: { user },
-        } = await locals.supabase.auth.getUser();
+        // ✅ OPTIMISÉ : Utiliser user du parent (déjà chargé)
+        const { user } = await parent();
 
         if (!user) {
             throw redirect(302, '/login');

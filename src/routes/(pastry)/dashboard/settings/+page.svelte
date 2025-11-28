@@ -6,7 +6,7 @@
 	import DeleteAccountForm from './delete-account-form.svelte';
 	import ChangePasswordForm from './change-password-form.svelte';
 	import CreatePasswordForm from './create-password-form.svelte';
-	import { CheckCircle, AlertCircle, Crown } from 'lucide-svelte';
+	import { Check, AlertCircle, Crown } from 'lucide-svelte';
 	import LoaderCircle from '~icons/lucide/loader-circle';
 
 	let stripeLoading = false;
@@ -172,7 +172,7 @@
 				</div>
 				{#if data.paypalAccount?.is_active}
 					<div class="flex items-center space-x-2 text-green-600">
-						<CheckCircle class="h-4 w-4" />
+						<Check class="h-4 w-4" />
 						<span class="text-sm font-medium">Compte activé</span>
 					</div>
 				{:else if data.paypalAccount}

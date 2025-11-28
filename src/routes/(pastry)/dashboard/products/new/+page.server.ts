@@ -1,6 +1,6 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { getUserPermissions, getShopIdAndSlug } from '$lib/auth';
+import { verifyShopOwnership } from '$lib/auth';
 import { uploadProductImage } from '$lib/cloudinary';
 import { forceRevalidateShop } from '$lib/utils/catalog';
 import { superValidate } from 'sveltekit-superforms';
@@ -9,19 +9,18 @@ import { createProductFormSchema, createCategoryFormSchema } from './schema';
 import { checkProductLimit } from '$lib/utils/product-limits';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
-    const { userId, permissions } = await parent();
+    // ✅ OPTIMISÉ : Utiliser shopId et shop du parent (déjà chargé)
+    const { permissions, shop } = await parent();
 
-    // Get shop_id for this user
-    const { id: shopId } = await getShopIdAndSlug(userId, locals.supabase);
-
-    if (!shopId) {
+    if (!permissions.shopId || !shop) {
         throw error(500, 'Erreur lors du chargement de la boutique');
     }
 
+    // ✅ 1 seule requête pour les catégories
     const { data: categories, error: categoriesError } = await locals.supabase
         .from('categories')
         .select('id, name')
-        .eq('shop_id', shopId)
+        .eq('shop_id', permissions.shopId)
         .order('name');
 
 
@@ -33,12 +32,24 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
         categories: categories || [],
         userPlan: permissions.plan,
         createProductForm,
-        createCategoryForm
+        createCategoryForm,
+        shopId: permissions.shopId,
+        shopSlug: permissions.shopSlug || shop.slug
     };
 };
 
 export const actions: Actions = {
     createProduct: async ({ request, locals }) => {
+        // ✅ OPTIMISÉ : Lire formData AVANT superValidate (car superValidate consomme le body)
+        const formData = await request.formData();
+        const shopId = formData.get('shopId') as string;
+        const shopSlug = formData.get('shopSlug') as string;
+
+        if (!shopId || !shopSlug) {
+            return fail(400, { error: 'Données de boutique manquantes' });
+        }
+
+        // ✅ OPTIMISÉ : Utiliser safeGetSession au lieu de getUser()
         const { session } = await locals.safeGetSession();
         const userId = session?.user.id;
 
@@ -46,14 +57,10 @@ export const actions: Actions = {
             return fail(401, { error: 'Non autorisé' });
         }
 
-        // Récupérer les permissions
-        const permissions = await getUserPermissions(userId, locals.supabase);
-
-        // Get shop_id for this user
-        const { id: shopId, slug: shopSlug } = await getShopIdAndSlug(userId, locals.supabase);
-
-        if (!shopId || !shopSlug) {
-            return fail(500, { error: 'Boutique non trouvée' });
+        // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite getUserPermissions + getShopIdAndSlug)
+        const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+        if (!isOwner) {
+            return fail(403, { error: 'Accès non autorisé à cette boutique' });
         }
 
         // Vérifier la limite de produits
@@ -71,8 +78,7 @@ export const actions: Actions = {
             });
         }
 
-        const formData = await request.formData();
-
+        // ✅ formData a déjà été déclaré au début de l'action, pas besoin de le redéclarer
         // Valider avec Superforms
         const form = await superValidate(formData, zod(createProductFormSchema));
 
@@ -141,9 +147,11 @@ export const actions: Actions = {
             }
         }
 
+        let product: { id: string } | null = null;
+
         try {
             // Start a transaction
-            const { data: product, error: insertError } = await locals.supabase
+            const { data: productData, error: insertError } = await locals.supabase
                 .from('products')
                 .insert({
                     name,
@@ -162,10 +170,12 @@ export const actions: Actions = {
                 return fail(500, { error: 'Erreur lors de l\'ajout du produit' });
             }
 
+            product = productData;
+
             // Create form if customization fields are provided
             if (validatedCustomizationFields.length > 0) {
                 // Create the form
-                const { data: formData, error: formError } = await locals.supabase
+                const { data: newForm, error: formError } = await locals.supabase
                     .from('forms')
                     .insert({
                         shop_id: shopId,
@@ -180,7 +190,7 @@ export const actions: Actions = {
 
                 // Create form fields
                 const formFields = validatedCustomizationFields.map((field, index) => ({
-                    form_id: formData.id,
+                    form_id: newForm.id,
                     label: field.label,
                     type: field.type,
                     options: field.options && field.options.length > 0 ? field.options : null,
@@ -199,7 +209,7 @@ export const actions: Actions = {
                 // Update product with form_id
                 const { error: updateError } = await locals.supabase
                     .from('products')
-                    .update({ form_id: formData.id })
+                    .update({ form_id: newForm.id })
                     .eq('id', product.id);
 
                 if (updateError) {
@@ -217,12 +227,33 @@ export const actions: Actions = {
             // Don't fail the entire operation, just log the warning
         }
 
+        // ✅ Tracking: Product added (fire-and-forget pour ne pas bloquer)
+        if (product) {
+            const { logEventAsync, Events } = await import('$lib/utils/analytics');
+            logEventAsync(
+                locals.supabaseServiceRole,
+                Events.PRODUCT_ADDED,
+                { product_id: product.id, product_name: name, shop_id: shopId },
+                userId,
+                '/dashboard/products/new'
+            );
+        }
+
         // Retourner un succès pour Superforms
         form.message = 'Produit créé avec succès';
         return { form };
     },
 
     createCategory: async ({ request, locals }) => {
+        // ✅ OPTIMISÉ : Lire formData AVANT superValidate (car superValidate consomme le body)
+        const formData = await request.formData();
+        const shopId = formData.get('shopId') as string;
+
+        if (!shopId) {
+            return fail(400, { error: 'Données de boutique manquantes' });
+        }
+
+        // ✅ OPTIMISÉ : Utiliser safeGetSession au lieu de getUser()
         const { session } = await locals.safeGetSession();
         const userId = session?.user.id;
 
@@ -230,14 +261,11 @@ export const actions: Actions = {
             return fail(401, { error: 'Non autorisé' });
         }
 
-        // Get shop_id for this user
-        const { id: shopId } = await getShopIdAndSlug(userId, locals.supabase);
-
-        if (!shopId) {
-            return fail(500, { error: 'Boutique non trouvée' });
+        // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite getShopIdAndSlug + requête shop)
+        const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+        if (!isOwner) {
+            return fail(403, { error: 'Accès non autorisé à cette boutique' });
         }
-
-        const formData = await request.formData();
 
         // Valider avec Superforms
         const form = await superValidate(formData, zod(createCategoryFormSchema));

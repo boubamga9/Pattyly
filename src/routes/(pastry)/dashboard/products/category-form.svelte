@@ -6,6 +6,7 @@
 	import { superForm } from 'sveltekit-superforms/client';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import type { SuperValidated, Infer } from 'sveltekit-superforms';
+	import { page } from '$app/stores';
 	import {
 		createCategoryFormSchema,
 		updateCategoryFormSchema,
@@ -51,6 +52,14 @@
 	class="flex items-center gap-1"
 >
 	<Form.Errors {form} />
+
+	<!-- Champs cachés pour shopId et shopSlug (optimisation : éviter getShopIdAndSlug) -->
+	{#if $page.data.shopId}
+		<input type="hidden" name="shopId" value={$page.data.shopId} />
+	{/if}
+	{#if $page.data.shopSlug}
+		<input type="hidden" name="shopSlug" value={$page.data.shopSlug} />
+	{/if}
 
 	<!-- Champ caché pour l'ID de la catégorie en mode édition -->
 	{#if isEditing && editingCategoryId}

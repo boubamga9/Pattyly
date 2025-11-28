@@ -817,4 +817,52 @@ export class EmailService {
         }
     }
 
+    /**
+     * Envoie un code OTP pour l'authentification admin
+     */
+    static async sendAdminOTP({
+        email,
+        code,
+    }: {
+        email: string;
+        code: string;
+    }) {
+        try {
+            const { data, error } = await resend.emails.send({
+                from: 'Pattyly <noreply@pattyly.com>',
+                to: [email],
+                subject: 'Code de connexion admin - Pattyly',
+                html: `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="utf-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    </head>
+                    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+                        <div style="background-color: #f9fafb; padding: 30px; border-radius: 8px;">
+                            <h1 style="color: #1f2937; margin-top: 0;">Code de connexion admin</h1>
+                            <p>Votre code de connexion pour accéder au dashboard admin est :</p>
+                            <div style="background-color: #ffffff; border: 2px solid #e5e7eb; border-radius: 6px; padding: 20px; text-align: center; margin: 20px 0;">
+                                <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #ff6f61;">${code}</span>
+                            </div>
+                            <p style="color: #6b7280; font-size: 14px;">Ce code est valide pendant 10 minutes.</p>
+                            <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">Si vous n'avez pas demandé ce code, ignorez cet email.</p>
+                        </div>
+                    </body>
+                    </html>
+                `
+            });
+
+            if (error) {
+                console.error('Erreur envoi email OTP admin:', error);
+                throw error;
+            }
+
+            return { success: true, messageId: data?.id };
+        } catch (error) {
+            console.error('Erreur EmailService.sendAdminOTP:', error);
+            throw error;
+        }
+    }
 }

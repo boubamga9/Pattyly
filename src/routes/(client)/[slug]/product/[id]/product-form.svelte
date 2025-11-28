@@ -6,13 +6,16 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import { Separator } from '$lib/components/ui/separator';
 	import { DatePicker, OptionGroup, TimeSlotSelector } from '$lib/components';
 	import { superForm } from 'sveltekit-superforms/client';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import type { SuperValidated } from 'sveltekit-superforms';
 	import { createLocalDynamicSchema } from './schema';
-	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert';
+	import {
+		Alert,
+		AlertDescription,
+		AlertTitle,
+	} from '$lib/components/ui/alert';
 	import { AlertTriangle } from 'lucide-svelte';
 	import type { OrderLimitStats } from '$lib/utils/order-limits';
 
@@ -26,6 +29,7 @@
 		is_custom_accepted: boolean;
 		is_active: boolean;
 		is_visible: boolean;
+		profile_id?: string;
 	};
 	export let customFields: Array<{
 		id: string;
@@ -73,6 +77,8 @@
 		buttonStyle: `background-color: ${customizations?.button_color || '#ff6f61'}; color: ${customizations?.button_text_color || '#ffffff'};`,
 		textStyle: `color: ${customizations?.text_color || '#333333'};`,
 		secondaryTextStyle: `color: ${customizations?.secondary_text_color || '#333333'};`,
+		inputBackgroundStyle: `background-color: white;`,
+		separatorColor: 'rgba(0, 0, 0, 0.3)',
 	};
 
 	const form = superForm(data, {
@@ -259,6 +265,10 @@
 </script>
 
 <form method="POST" action="?/createProductOrder" use:enhance>
+	<!-- ✅ OPTIMISÉ : Passer shopId, profileId et productId via formData pour éviter requêtes redondantes -->
+	<input type="hidden" name="shopId" value={shop.id} />
+	<input type="hidden" name="profileId" value={shop.profile_id} />
+	<input type="hidden" name="productId" value={product.id} />
 	<Form.Errors {form} />
 
 	{#if isFormDisabled}
@@ -268,10 +278,17 @@
 		</Alert>
 	{/if}
 
-	<div class="space-y-8" class:opacity-50={isFormDisabled} class:pointer-events-none={isFormDisabled}>
+	<div
+		class="space-y-8"
+		class:opacity-50={isFormDisabled}
+		class:pointer-events-none={isFormDisabled}
+	>
 		{#if customFields && customFields.length > 0}
 			<div class="space-y-4">
-				<h3 class="text-lg font-semibold text-foreground">
+				<h3
+					class="text-lg font-semibold leading-[110%] tracking-tight text-neutral-900 sm:text-xl"
+					style="font-weight: 600; letter-spacing: -0.02em;"
+				>
 					Personnalisation du gâteau
 				</h3>
 
@@ -295,6 +312,7 @@
 											placeholder="Votre réponse"
 											required={field.required}
 											disabled={isFormDisabled}
+											style={customStyles.inputBackgroundStyle}
 											bind:value={$formData.customization_data[field.id]}
 										/>
 									</Form.Control>
@@ -310,6 +328,7 @@
 											required={field.required}
 											rows={3}
 											disabled={isFormDisabled}
+											style={customStyles.inputBackgroundStyle}
 											bind:value={$formData.customization_data[field.id]}
 										/>
 									</Form.Control>
@@ -326,6 +345,7 @@
 											placeholder="Votre réponse"
 											required={field.required}
 											disabled={isFormDisabled}
+											style={customStyles.inputBackgroundStyle}
 											bind:value={$formData.customization_data[field.id]}
 										/>
 									</Form.Control>
@@ -354,14 +374,19 @@
 					{/each}
 				</div>
 			</div>
-			<Separator
-				style={`background-color: ${customizations?.secondary_text_color || '#333333'};`}
-			/>
+			<!-- Separator - Dégradé avec couleur bouton et opacité -->
+			<div
+				class="h-px bg-gradient-to-r from-transparent to-transparent"
+				style={`background: linear-gradient(to right, transparent, ${customStyles.separatorColor}, transparent);`}
+			></div>
 		{/if}
 
 		<!-- Section 2: Information de récupération -->
 		<div class="space-y-4">
-			<h3 class="text-lg font-semibold text-foreground">
+			<h3
+				class="text-lg font-semibold leading-[110%] tracking-tight text-neutral-900 sm:text-xl"
+				style="font-weight: 600; letter-spacing: -0.02em;"
+			>
 				Information de récupération
 			</h3>
 			<div class="space-y-2">
@@ -418,7 +443,7 @@
 							Choisir un créneau de récupération
 						</label>
 						<div
-							class="flex items-center justify-center rounded-lg border border-gray-200 bg-gray-50 p-4"
+							class="flex items-center justify-center rounded-xl border border-gray-200 bg-gray-50 p-4"
 						>
 							<div class="flex items-center space-x-2 text-sm text-gray-500">
 								<svg
@@ -450,7 +475,7 @@
 							Choisir un créneau de récupération
 						</label>
 						<div
-							class="rounded-lg border border-orange-200 bg-orange-50 p-4 text-center"
+							class="rounded-xl border border-orange-200 bg-orange-50 p-4 text-center"
 						>
 							<p class="text-sm text-orange-700">
 								<span class="mr-2">⚠️</span>
@@ -461,13 +486,18 @@
 				{/if}
 			</div>
 		</div>
-		<Separator
-			style={`background-color: ${customizations?.secondary_text_color || '#333333'};`}
-		/>
+		<!-- Separator - Dégradé avec couleur bouton et opacité -->
+		<div
+			class="h-px bg-gradient-to-r from-transparent to-transparent"
+			style={`background: linear-gradient(to right, transparent, ${customStyles.separatorColor}, transparent);`}
+		></div>
 
 		<!-- Section 3: Information de contact -->
 		<div class="space-y-4">
-			<h3 class="text-lg font-semibold text-foreground">
+			<h3
+				class="text-lg font-semibold leading-[110%] tracking-tight text-neutral-900 sm:text-xl"
+				style="font-weight: 600; letter-spacing: -0.02em;"
+			>
 				Information de contact
 			</h3>
 			<div class="space-y-4">
@@ -481,6 +511,7 @@
 								placeholder="Votre nom complet"
 								required
 								disabled={isFormDisabled}
+								style={customStyles.inputBackgroundStyle}
 								bind:value={$formData.customer_name}
 							/>
 						</Form.Control>
@@ -499,6 +530,7 @@
 								placeholder="votre@email.com"
 								required
 								disabled={isFormDisabled}
+								style={customStyles.inputBackgroundStyle}
 								bind:value={$formData.customer_email}
 							/>
 						</Form.Control>
@@ -516,6 +548,7 @@
 								type="tel"
 								placeholder="06 12 34 56 78"
 								disabled={isFormDisabled}
+								style={customStyles.inputBackgroundStyle}
 								bind:value={$formData.customer_phone}
 							/>
 						</Form.Control>
@@ -532,6 +565,7 @@
 								id="instagram"
 								placeholder="@votre_compte"
 								disabled={isFormDisabled}
+								style={customStyles.inputBackgroundStyle}
 								bind:value={$formData.customer_instagram}
 							/>
 						</Form.Control>
@@ -549,6 +583,7 @@
 								placeholder="Informations supplémentaires..."
 								rows={3}
 								disabled={isFormDisabled}
+								style={customStyles.inputBackgroundStyle}
 								bind:value={$formData.additional_information}
 							/>
 						</Form.Control>
@@ -557,16 +592,21 @@
 				</div>
 			</div>
 		</div>
-		<Separator
-			style={`background-color: ${customizations?.secondary_text_color || '#333333'};`}
-		/>
+		<!-- Separator - Dégradé avec couleur bouton et opacité -->
+		<div
+			class="h-px bg-gradient-to-r from-transparent to-transparent"
+			style={`background: linear-gradient(to right, transparent, ${customStyles.separatorColor}, transparent);`}
+		></div>
 
 		<!-- Section 4: Récapitulatif de la demande -->
 		<div class="space-y-4">
-			<h3 class="text-lg font-semibold" style={customStyles.textStyle}>
+			<h3
+				class="text-lg font-semibold leading-[110%] tracking-tight text-neutral-900 sm:text-xl"
+				style="font-weight: 600; letter-spacing: -0.02em;"
+			>
 				Récapitulatif de la commande
 			</h3>
-			<div class="space-y-3 rounded-lg border bg-white p-4">
+			<div class="space-y-3 rounded-2xl border bg-white p-4">
 				<p class="text-sm" style={customStyles.secondaryTextStyle}>
 					Merci de bien vérifier les informations de commande car en cas
 					d'erreur votre commande pourra être retardée.
@@ -693,15 +733,26 @@
 						{/if}
 					{/each}
 
-					<Separator
-						class="my-2"
-						style={`background-color: ${customizations?.secondary_text_color || '#333333'};`}
-					/>
+					<!-- Separator - Dégradé avec couleur bouton et opacité -->
+					<div
+						class="my-2 h-px bg-gradient-to-r from-transparent to-transparent"
+						style={`background: linear-gradient(to right, transparent, ${customStyles.separatorColor}, transparent);`}
+					></div>
 					<div class="flex justify-between">
-						<span class="text-muted-foreground">Total :</span>
-						<span class="font-medium">{formatPrice(totalPrice)}</span>
+						<span class="text-sm text-neutral-600" style="font-weight: 400;">
+							Total :
+						</span>
+						<span
+							class="font-semibold text-neutral-900"
+							style="font-weight: 600;"
+						>
+							{formatPrice(totalPrice)}
+						</span>
 					</div>
-					<div class="flex justify-between font-medium text-blue-600">
+					<div
+						class="flex justify-between font-semibold"
+						style={`color: ${customizations?.button_color || '#FF6F61'}; font-weight: 600;`}
+					>
 						<span>À payer aujourd'hui :</span>
 						<span>{formatPrice(totalPrice * 0.5)}</span>
 					</div>
@@ -715,7 +766,7 @@
 				<Button
 					type="submit"
 					disabled={$submitting || isFormDisabled}
-					class="flex-1"
+					class="flex-1 rounded-xl"
 					style={customStyles.buttonStyle}
 				>
 					{#if $submitting}
@@ -725,13 +776,19 @@
 						Commander
 					{/if}
 				</Button>
-				<Button type="button" variant="outline" on:click={onCancel} disabled={isFormDisabled}>
+				<Button
+					type="button"
+					variant="outline"
+					on:click={onCancel}
+					disabled={isFormDisabled}
+					class="rounded-xl"
+				>
 					Annuler
 				</Button>
 			{:else}
 				<!-- Message en mode preview -->
 				<div
-					class="rounded-lg border border-blue-200 bg-blue-50 p-4 text-center"
+					class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-center"
 				>
 					<p class="text-sm text-blue-800">
 						🔍 Mode prévisualisation - Bouton de commande masqué

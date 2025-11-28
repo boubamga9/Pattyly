@@ -115,6 +115,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             return json({ error: 'Erreur lors de la création de la commande' }, { status: 500 });
         }
 
+        // ✅ Tracking: Order received (custom order) - fire-and-forget pour ne pas bloquer
+        const { logEventAsync, Events } = await import('$lib/utils/analytics');
+        logEventAsync(
+            locals.supabaseServiceRole,
+            Events.ORDER_RECEIVED,
+            {
+                order_id: order.id,
+                shop_id: orderData.shopId,
+                total_amount: orderData.estimatedPrice || 0,
+                order_type: 'custom_order'
+            },
+            null, // Client orders don't have userId
+            `/api/create-custom-order`
+        );
+
         return json({ success: true, orderId: order.id, redirectUrl: `/${orderData.shopSlug}/order/${order.id}` });
     } catch (error) {
         return json({ error: 'Erreur lors de la création de la commande' }, { status: 500 });

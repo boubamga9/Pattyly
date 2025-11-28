@@ -1,24 +1,21 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
-import { getUserPermissions } from '$lib/auth';
 
-export const load: LayoutServerLoad = async ({ locals }) => {
-    const { session } = await locals.safeGetSession();
-    if (!session) {
-        throw redirect(303, '/');
-    }
+export const load: LayoutServerLoad = async ({ parent, locals }) => {
+    // ✅ OPTIMISÉ : Réutiliser les données du layout parent au lieu de refaire les requêtes
+    const { permissions, user } = await parent();
 
-    const userId = session.user.id;
-
-    const permissions = await getUserPermissions(userId, locals.supabase);
-
-    // Vérifications de sécurité
+    // Vérifications de sécurité supplémentaires pour le dashboard
     if (!permissions.shopId) {
         throw redirect(303, '/onboarding');
     }
 
+    // needsSubscription = true si plan === 'basic' (limité)
+    const hasInactiveSubscription = permissions.needsSubscription;
+
     return {
         permissions,
-        userId
+        userId: user?.id,
+        hasInactiveSubscription
     };
 }; 

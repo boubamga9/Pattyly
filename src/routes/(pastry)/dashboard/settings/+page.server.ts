@@ -6,7 +6,7 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import { message, setError, superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad } from './$types';
-import { getUserPermissions } from '$lib/auth';
+// ✅ OPTIMISÉ : getUserPermissions n'est plus utilisé, supprimé
 import {
     deleteAccountFormSchema,
     infoFormSchema,
@@ -35,9 +35,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
     const userId = user.id;
 
-    // get profile info
-    let info;
-
+    // ✅ Le schéma infoFormSchema est vide, donc pas besoin de récupérer des données
+    const info = {};
 
     const { data: passwordSet } = await locals.supabase.rpc('user_password_set');
 

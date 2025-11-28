@@ -662,7 +662,7 @@
 		<div class="mb-12 flex justify-center">
 			<a href="/">
 				<img
-					src="/images/logo_text.svg"
+					src="/images/logo_icone.svg"
 					alt="Logo Pattyly"
 					class="h-16 w-28 object-contain transition-transform duration-200 hover:scale-105 lg:h-[70px] lg:w-[120px]"
 				/>

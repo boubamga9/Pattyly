@@ -3,9 +3,9 @@
 	import CustomizationForm from './customization-form.svelte';
 	import DirectoryForm from '$lib/components/directory/directory-form.svelte';
 	import type { SuperValidated, Infer } from 'sveltekit-superforms';
-	import { formSchema } from './schema';
-	import { customizationSchema } from './customization-schema';
-	import { directorySchema } from '$lib/validations/schemas/shop';
+import { formSchema } from './schema';
+import { customizationSchema } from './customization-schema';
+import { directorySchema, toggleDirectorySchema } from '$lib/validations/schemas/shop';
 	import {
 		Card,
 		CardContent,
@@ -31,6 +31,7 @@
 		form: SuperValidated<Infer<typeof formSchema>>;
 		customizationForm: SuperValidated<Infer<typeof customizationSchema>>;
 		directoryForm: SuperValidated<Infer<typeof directorySchema>>;
+		toggleDirectoryForm: SuperValidated<Infer<typeof toggleDirectorySchema>>;
 	};
 
 	let error = '';
@@ -128,7 +129,7 @@
 				</div>
 			</CardHeader>
 			<CardContent class="pt-0">
-				<DirectoryForm data={data.directoryForm} />
+				<DirectoryForm data={data.directoryForm} toggleForm={data.toggleDirectoryForm} />
 			</CardContent>
 		</Card>
 	{/if}

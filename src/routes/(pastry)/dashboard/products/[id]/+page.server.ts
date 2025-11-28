@@ -1,6 +1,6 @@
 import { error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { getShopIdAndSlug } from '$lib/auth';
+import { verifyShopOwnership } from '$lib/auth';
 import { uploadProductImage, deleteImage, extractPublicIdFromUrl } from '$lib/cloudinary';
 import { forceRevalidateShop } from '$lib/utils/catalog';
 import { superValidate } from 'sveltekit-superforms';
@@ -8,21 +8,21 @@ import { zod } from 'sveltekit-superforms/adapters';
 import { updateProductFormSchema, createCategoryFormSchema } from './schema.js';
 
 export const load: PageServerLoad = async ({ params, locals, parent }) => {
-    const { userId } = await parent();
+    // ✅ OPTIMISÉ : Utiliser shopId et shop du parent (déjà chargé)
+    const { permissions, shop } = await parent();
     const productId = params.id;
 
     if (!productId) {
         throw error(404, 'Produit non trouvé');
     }
 
-    // Get shop_id for this user
-    const { id: shopId } = await getShopIdAndSlug(userId, locals.supabase);
-
-    if (!shopId) {
+    if (!permissions.shopId || !shop) {
         throw error(500, 'Erreur lors du chargement de la boutique');
     }
 
-    // Récupérer le produit avec sa catégorie
+    const shopId = permissions.shopId;
+
+    // ✅ OPTIMISÉ : 1 requête pour récupérer le produit avec sa catégorie
     const { data: product, error: productError } = await locals.supabase
         .from('products')
         .select(`*,categories(name)`)
@@ -34,51 +34,55 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
         throw error(404, 'Produit non trouvé');
     }
 
-    // Récupérer les catégories disponibles
-    const { data: categories, error: categoriesError } = await locals.supabase
-        .from('categories')
-        .select('id, name')
-        .eq('shop_id', shopId)
-        .order('name');
+    // ✅ OPTIMISÉ : Récupérer catégories et form_fields en parallèle (2 requêtes simultanées)
+    const [categoriesResult, formFieldsResult] = await Promise.all([
+        // Récupérer les catégories disponibles (nécessaire pour le dropdown)
+        locals.supabase
+            .from('categories')
+            .select('id, name')
+            .eq('shop_id', shopId)
+            .order('name'),
+        // Récupérer le formulaire de personnalisation s'il existe
+        product.form_id
+            ? locals.supabase
+                .from('form_fields')
+                .select('*')
+                .eq('form_id', product.form_id)
+                .order('order')
+            : Promise.resolve({ data: null, error: null })
+    ]);
 
-    if (categoriesError) {
+    const categories = categoriesResult.data || [];
+    if (categoriesResult.error) {
+        console.error('Error fetching categories:', categoriesResult.error);
     }
 
-    // Récupérer le formulaire de personnalisation s'il existe
+    // Extraire et normaliser les form_fields
     let customizationFields: any[] = [];
-    if (product.form_id) {
-        const { data: formFields, error: formFieldsError } = await locals.supabase
-            .from('form_fields')
-            .select('*')
-            .eq('form_id', product.form_id)
-            .order('order');
+    if (formFieldsResult.data && Array.isArray(formFieldsResult.data)) {
+        // Normaliser les champs pour s'assurer qu'ils ont la bonne structure
+        customizationFields = formFieldsResult.data.map(field => {
+            const normalizedField: any = {
+                id: field.id,
+                label: field.label,
+                type: field.type,
+                required: field.required,
+                order: field.order
+            };
 
-        if (formFieldsError) {
-        } else {
-            // Normaliser les champs pour s'assurer qu'ils ont la bonne structure
-            customizationFields = (formFields || []).map(field => {
-                const normalizedField: any = {
-                    id: field.id,
-                    label: field.label,
-                    type: field.type,
-                    required: field.required,
-                    order: field.order
-                };
+            // Pour les champs de sélection, s'assurer qu'ils ont des options
+            if (field.type === 'single-select' || field.type === 'multi-select') {
+                normalizedField.options = (field as any).options || [
+                    { label: '', price: 0 },
+                    { label: '', price: 0 }
+                ];
+            } else {
+                // Pour les champs texte/nombre, s'assurer qu'ils ont options: []
+                normalizedField.options = [];
+            }
 
-                // Pour les champs de sélection, s'assurer qu'ils ont des options
-                if (field.type === 'single-select' || field.type === 'multi-select') {
-                    normalizedField.options = (field as any).options || [
-                        { label: '', price: 0 },
-                        { label: '', price: 0 }
-                    ];
-                } else {
-                    // Pour les champs texte/nombre, s'assurer qu'ils ont options: []
-                    normalizedField.options = [];
-                }
-
-                return normalizedField;
-            });
-        }
+            return normalizedField;
+        });
     }
 
     // Initialiser Superforms pour l'édition
@@ -105,12 +109,24 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
         categories: categories || [],
         customizationFields,
         updateProductForm,
-        createCategoryForm
+        createCategoryForm,
+        shopId: permissions.shopId,
+        shopSlug: permissions.shopSlug || shop.slug
     };
 };
 
 export const actions: Actions = {
     updateProduct: async ({ request, locals, params }) => {
+        // ✅ OPTIMISÉ : Lire formData AVANT superValidate (car superValidate consomme le body)
+        const formData = await request.formData();
+        const shopId = formData.get('shopId') as string;
+        const shopSlug = formData.get('shopSlug') as string;
+
+        if (!shopId || !shopSlug) {
+            return fail(400, { error: 'Données de boutique manquantes' });
+        }
+
+        // ✅ OPTIMISÉ : Utiliser safeGetSession au lieu de getUser()
         const { session } = await locals.safeGetSession();
         const userId = session?.user.id;
 
@@ -118,11 +134,10 @@ export const actions: Actions = {
             return fail(401, { error: 'Non autorisé' });
         }
 
-        // Get shop_id for this user
-        const { id: shopId, slug: shopSlug } = await getShopIdAndSlug(userId, locals.supabase);
-
-        if (!shopId || !shopSlug) {
-            return fail(500, { error: 'Boutique non trouvée' });
+        // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite getShopIdAndSlug + requête shop)
+        const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+        if (!isOwner) {
+            return fail(403, { error: 'Accès non autorisé à cette boutique' });
         }
 
         const productId = params.id;
@@ -132,8 +147,6 @@ export const actions: Actions = {
                 error: 'Produit non trouvé'
             });
         }
-
-        const formData = await request.formData();
 
         // Valider avec Superforms
         const form = await superValidate(formData, zod(updateProductFormSchema));
@@ -199,12 +212,12 @@ export const actions: Actions = {
             if (imageFile && imageFile.size > 0) {
                 // Validation basique : taille max 10MB
                 if (imageFile.size > 10 * 1024 * 1024) {
-                    return fail(400, { error: 'L\'image ne doit pas dépasser 10MB' });
+                    return fail(400, { form, error: 'L\'image ne doit pas dépasser 10MB' });
                 }
 
                 // Vérifier que c'est bien une image
                 if (!imageFile.type.startsWith('image/')) {
-                    return fail(400, { error: 'Le fichier doit être une image' });
+                    return fail(400, { form, error: 'Le fichier doit être une image' });
                 }
 
                 try {
@@ -221,7 +234,7 @@ export const actions: Actions = {
                     }
                 } catch (err) {
                     console.error('❌ [Product Update] Erreur Cloudinary:', err);
-                    return fail(500, { error: 'Erreur lors de l\'upload de l\'image' });
+                    return fail(500, { form, error: 'Erreur lors de l\'upload de l\'image' });
                 }
             }
 
@@ -250,6 +263,7 @@ export const actions: Actions = {
 
             if (updateError) {
                 return fail(500, {
+                    form,
                     error: 'Erreur lors de la modification du produit'
                 });
             }
@@ -285,6 +299,7 @@ export const actions: Actions = {
 
                         if (fetchError) {
                             return fail(500, {
+                                form,
                                 error: 'Erreur lors de la récupération des champs existants'
                             });
                         }
@@ -298,7 +313,7 @@ export const actions: Actions = {
                         // Identifier les champs à mettre à jour ou ajouter
                         const fieldsToUpsert = customizationFields.map((field: any, index: number) => ({
                             id: field.id || undefined, // Garder l'ID si il existe
-                            form_id: formIdToUse!,
+                            form_id: updatedProduct.form_id,
                             label: field.label,
                             type: field.type,
                             options: field.options && field.options.length > 0 ? field.options : null,
@@ -310,7 +325,7 @@ export const actions: Actions = {
                         // ✅ OPTIMISÉ : Regrouper toutes les suppressions en une seule requête
                         // Identifier tous les IDs à supprimer (champs supprimés + cas où tous les champs sont supprimés)
                         const idsToDelete: string[] = [];
-                        
+
                         if (fieldsToUpsert.length === 0 && existingFields.length > 0) {
                             // Tous les champs ont été supprimés
                             idsToDelete.push(...existingFields.map(f => f.id));
@@ -328,6 +343,7 @@ export const actions: Actions = {
 
                             if (deleteError) {
                                 return fail(500, {
+                                    form,
                                     error: 'Erreur lors de la suppression des champs'
                                 });
                             }
@@ -344,6 +360,7 @@ export const actions: Actions = {
 
                             if (upsertError) {
                                 return fail(500, {
+                                    form,
                                     error: 'Erreur lors de la mise à jour des champs de personnalisation'
                                 });
                             }
@@ -361,6 +378,7 @@ export const actions: Actions = {
 
                         if (formError) {
                             return fail(500, {
+                                form,
                                 error: 'Erreur lors de la création du formulaire'
                             });
                         }
@@ -381,6 +399,7 @@ export const actions: Actions = {
 
                         if (fieldsError) {
                             return fail(500, {
+                                form,
                                 error: 'Erreur lors de la création des champs de personnalisation'
                             });
                         }
@@ -393,12 +412,14 @@ export const actions: Actions = {
                     }
                 } catch (parseError) {
                     return fail(400, {
+                        form,
                         error: 'Erreur lors du traitement des champs de personnalisation'
                     });
                 }
             }
         } catch (err) {
             return fail(500, {
+                form,
                 error: 'Erreur inattendue lors de la modification du produit'
             });
         }
@@ -416,6 +437,15 @@ export const actions: Actions = {
     },
 
     createCategory: async ({ request, locals }) => {
+        // ✅ OPTIMISÉ : Lire formData AVANT superValidate (car superValidate consomme le body)
+        const formData = await request.formData();
+        const shopId = formData.get('shopId') as string;
+
+        if (!shopId) {
+            return fail(400, { error: 'Données de boutique manquantes' });
+        }
+
+        // ✅ OPTIMISÉ : Utiliser safeGetSession au lieu de getUser()
         const { session } = await locals.safeGetSession();
         const userId = session?.user.id;
 
@@ -423,14 +453,11 @@ export const actions: Actions = {
             return fail(401, { error: 'Non autorisé' });
         }
 
-        // Get shop_id for this user
-        const { id: shopId } = await getShopIdAndSlug(userId, locals.supabase);
-
-        if (!shopId) {
-            return fail(500, { error: 'Boutique non trouvée' });
+        // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite getShopIdAndSlug + requête shop)
+        const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+        if (!isOwner) {
+            return fail(403, { error: 'Accès non autorisé à cette boutique' });
         }
-
-        const formData = await request.formData();
 
         // Valider avec Superforms
         const form = await superValidate(formData, zod(createCategoryFormSchema));
@@ -464,4 +491,3 @@ export const actions: Actions = {
             return fail(500, { form, error: 'Erreur lors de la création de la catégorie' });
         }
     }
-}; 

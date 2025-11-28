@@ -12,10 +12,11 @@
 	} from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 
-	import { Upload, X, Copy, CheckCircle, LoaderCircle } from 'lucide-svelte';
+	import { Upload, X, Copy, Check, LoaderCircle } from 'lucide-svelte';
 	import { formSchema, type FormSchema } from './schema';
 	import { createEventDispatcher } from 'svelte';
 	import { env } from '$env/dynamic/public';
+	import { page } from '$app/stores';
 
 	export let data: SuperValidated<Infer<FormSchema>>;
 	const _dispatch = createEventDispatcher();
@@ -93,6 +94,10 @@
 	enctype="multipart/form-data"
 	class="space-y-8"
 >
+	<!-- ✅ OPTIMISÉ : Passer shopId et shopSlug pour éviter getUserPermissions + requête shop -->
+	<input type="hidden" name="shopId" value={$page.data.shop.id} />
+	<input type="hidden" name="shopSlug" value={$page.data.shop.slug} />
+
 	<Form.Errors {form} />
 
 	<!-- Section Logo -->
@@ -171,7 +176,7 @@
 						placeholder="Ma Pâtisserie"
 						required
 						bind:value={$formData.name}
-						class="h-11"
+						class="h-10"
 					/>
 				</Form.Control>
 				<Form.FieldErrors />
@@ -193,7 +198,7 @@
 								placeholder="ma-patisserie"
 								required
 								bind:value={$formData.slug}
-								class="h-11 flex-1"
+								class="h-10 flex-1"
 							/>
 							<Button
 								type="button"
@@ -201,14 +206,14 @@
 								on:click={copyShopUrl}
 								title="Copier l'URL complète"
 								disabled={!$formData.slug}
-								class={`h-11 w-full px-4 sm:w-auto ${
+								class={`h-10 w-full px-4 sm:w-auto ${
 									copySuccess
 										? 'border-green-300 bg-green-100 text-green-700 hover:border-green-400 hover:bg-green-200'
 										: 'border border-input bg-background text-black hover:bg-accent hover:text-accent-foreground'
 								}`}
 							>
 								{#if copySuccess}
-									<CheckCircle class="mr-2 h-4 w-4" />
+									<Check class="mr-2 h-4 w-4" />
 									Copiée
 								{:else}
 									<Copy class="mr-2 h-4 w-4" />
@@ -259,7 +264,7 @@
 						{...attrs}
 						placeholder="@votre_compte"
 						bind:value={$formData.instagram}
-						class="h-11"
+						class="h-10"
 					/>
 				</Form.Control>
 				<Form.FieldErrors />
@@ -272,7 +277,7 @@
 						{...attrs}
 						placeholder="@votre_compte"
 						bind:value={$formData.tiktok}
-						class="h-11"
+						class="h-10"
 					/>
 				</Form.Control>
 				<Form.FieldErrors />
@@ -286,7 +291,7 @@
 						placeholder="https://votre-site.com"
 						type="url"
 						bind:value={$formData.website}
-						class="h-11"
+						class="h-10"
 					/>
 				</Form.Control>
 				<Form.FieldErrors />
@@ -298,23 +303,57 @@
 	<div class="pt-4">
 		<Button
 			type="submit"
-			disabled={$submitting || !($formData.name && $formData.slug)}
-			class={`h-11 w-full text-sm font-medium transition-all duration-200 ${
-				$submitting
-					? 'cursor-not-allowed bg-gray-300'
-					: submitted
-						? 'bg-green-700 hover:bg-green-800'
+			disabled={$submitting || submitted || !($formData.name && $formData.slug)}
+			class={`h-10 w-full text-sm font-medium text-white transition-all duration-200 disabled:cursor-not-allowed ${
+				submitted
+					? 'bg-[#FF6F61] hover:bg-[#e85a4f] disabled:opacity-100'
+					: $submitting
+						? 'bg-gray-600 hover:bg-gray-700 disabled:opacity-50'
 						: $formData.name && $formData.slug
-							? 'bg-primary shadow-sm hover:bg-primary/90 hover:shadow-md'
-							: 'cursor-not-allowed bg-gray-500 opacity-60'
+							? 'bg-primary shadow-sm hover:bg-primary/90 hover:shadow-md disabled:opacity-50'
+							: 'bg-gray-500 disabled:opacity-50'
 			}`}
 		>
-			{#if $submitting}
-				<LoaderCircle class="mr-2 h-5 w-5 animate-spin" />
-				Mise à jour...
-			{:else if submitted}
-				<CheckCircle class="mr-2 h-5 w-5" />
-				Mis à jour
+			{#if submitted}
+				<div class="flex items-center gap-2">
+					<svg
+						class="h-5 w-5"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M5 13l4 4L19 7"
+						></path>
+					</svg>
+					<span>Mis à jour</span>
+				</div>
+			{:else if $submitting}
+				<div class="flex items-center gap-2">
+					<svg
+						class="h-5 w-5 animate-spin"
+						fill="none"
+						viewBox="0 0 24 24"
+					>
+						<circle
+							class="opacity-25"
+							cx="12"
+							cy="12"
+							r="10"
+							stroke="currentColor"
+							stroke-width="4"
+						></circle>
+						<path
+							class="opacity-75"
+							fill="currentColor"
+							d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+						></path>
+					</svg>
+					<span>Mise à jour...</span>
+				</div>
 			{:else if !($formData.name && $formData.slug)}
 				Remplissez tous les champs requis
 			{:else}

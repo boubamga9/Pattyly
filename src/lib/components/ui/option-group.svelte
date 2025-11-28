@@ -24,7 +24,7 @@
 		text_color: '#333333',
 		icon_color: '#6b7280',
 		secondary_text_color: '#333333',
-		background_color: '#ffe8d6',
+		background_color: '#fafafa',
 		background_image_url: null,
 	};
 

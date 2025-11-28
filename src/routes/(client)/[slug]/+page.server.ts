@@ -13,16 +13,23 @@ export const config = {
     }
 };
 
-export const load: PageServerLoad = async ({ params, locals, setHeaders, url, request }) => {
+export const load: PageServerLoad = async ({ params, locals, setHeaders, url, request, parent }) => {
     const { slug } = params;
 
-
     try {
-        // 1. Récupérer l'ID de la boutique depuis le slug (actives et inactives)
+        // ✅ OPTIMISÉ : Utiliser shopId depuis le parent layout
+        const { shopId } = await parent();
+
+        if (!shopId) {
+            // Pour ISR, retourner un flag au lieu de throw error
+            return { notFound: true };
+        }
+
+        // 1. Récupérer uniquement is_active (shopId déjà disponible depuis parent)
         const { data: shopInfo, error: shopError } = await locals.supabase
             .from('shops')
-            .select('id, is_active')
-            .eq('slug', slug)
+            .select('is_active')
+            .eq('id', shopId)
             .single();
 
         if (shopError || !shopInfo) {
@@ -48,7 +55,7 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders, url, re
         }
 
         // 4. Charger le catalogue (ISR gère le cache)
-        const catalogData = await loadShopCatalog(locals.supabase, shopInfo.id);
+        const catalogData = await loadShopCatalog(locals.supabase, shopId);
 
         // 6. Headers CDN pour optimiser la performance
         setHeaders({
@@ -56,6 +63,8 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders, url, re
             'X-ISR-Revalidated': isRevalidation ? 'true' : 'false'
         });
 
+
+        // ✅ Tracking: Page view déplacé côté client pour avoir un session_id persistant
 
         return {
             shop: catalogData.shop,

@@ -163,7 +163,7 @@
 			// Créer le popup
 			const specialties = shop.specialties.slice(0, 3).join(', ');
 			const verifiedBadge = shop.isPremium ? `
-				<div class="mb-2 flex items-center gap-1.5">
+				<div class="flex items-center gap-1.5">
 					<svg
 						class="h-4 w-4 shrink-0"
 						viewBox="0 0 22 22"
@@ -186,9 +186,11 @@
 				<div class="relative p-4 min-w-[200px] pr-8">
 					<div class="mb-2 flex items-center gap-2">
 						<img src="${shop.logo}" alt="${shop.name}" class="h-8 w-8 rounded-full object-cover" onerror="this.src='/images/logo_icone.svg'" />
-						<h3 class="font-semibold text-neutral-900">${shop.name}</h3>
+						<div class="flex items-center gap-2">
+							<h3 class="font-semibold text-neutral-900">${shop.name}</h3>
+							${verifiedBadge}
+						</div>
 					</div>
-					${verifiedBadge}
 					<div class="mb-2 flex items-center gap-1 text-sm text-neutral-600">
 						<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -268,10 +270,11 @@
 			const leafletModule = await import('leaflet');
 			L = leafletModule.default;
 			
-			// Importer les styles CSS (doit être fait avant l'initialisation)
-			await import('leaflet/dist/leaflet.css');
-			await import('leaflet.markercluster/dist/MarkerCluster.css');
-			await import('leaflet.markercluster/dist/MarkerCluster.Default.css');
+		// Importer les styles CSS (doit être fait avant l'initialisation)
+		await import('leaflet/dist/leaflet.css');
+		await import('leaflet.markercluster/dist/MarkerCluster.css');
+		await import('leaflet.markercluster/dist/MarkerCluster.Default.css');
+		await import('leaflet-gesture-handling/dist/leaflet-gesture-handling.css');
 		}
 
 		// Importer leaflet.markercluster
@@ -279,6 +282,9 @@
 			await import('leaflet.markercluster');
 			markerClusterLoaded = true;
 		}
+
+		// Importer leaflet-gesture-handling pour le "two-finger panning"
+		await import('leaflet-gesture-handling');
 
 		if (!L || !mapContainer) return;
 
@@ -294,12 +300,14 @@
 			initialCenter = getCityCoordinates();
 		}
 
-		// Initialiser la carte
+		// Initialiser la carte avec gestureHandling pour le "two-finger panning"
+		// 1 doigt = scroll de la page, 2 doigts = déplacer la map (comme Google Maps)
 		map = L.map(mapContainer, {
 			center: initialCenter,
 			zoom: 12,
 			zoomControl: true,
 			closePopupOnClick: false, // Empêcher la fermeture des popups au clic sur la carte
+			gestureHandling: true, // Active le mode "two-finger panning" (comme Google Maps)
 		});
 
 		// Ajouter la couche OpenStreetMap
@@ -353,7 +361,7 @@
 			// Créer le popup
 			const specialties = shop.specialties.slice(0, 3).join(', ');
 			const verifiedBadge = shop.isPremium ? `
-				<div class="mb-2 flex items-center gap-1.5">
+				<div class="flex items-center gap-1.5">
 					<svg
 						class="h-4 w-4 shrink-0"
 						viewBox="0 0 22 22"
@@ -376,9 +384,11 @@
 				<div class="relative p-4 min-w-[200px] pr-8">
 					<div class="mb-2 flex items-center gap-2">
 						<img src="${shop.logo}" alt="${shop.name}" class="h-8 w-8 rounded-full object-cover" onerror="this.src='/images/logo_icone.svg'" />
-						<h3 class="font-semibold text-neutral-900">${shop.name}</h3>
+						<div class="flex items-center gap-2">
+							<h3 class="font-semibold text-neutral-900">${shop.name}</h3>
+							${verifiedBadge}
+						</div>
 					</div>
-					${verifiedBadge}
 					<div class="mb-2 flex items-center gap-1 text-sm text-neutral-600">
 						<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -586,4 +596,3 @@
 		overflow: visible;
 	}
 </style>
-

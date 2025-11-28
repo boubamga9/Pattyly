@@ -46,6 +46,8 @@ export const load: LayoutServerLoad = async ({
 		shopSlug: permissionsData?.shopSlug || null,
 		plan: (permissionsData?.plan || 'free') as 'free' | 'basic' | 'premium' | 'exempt',
 		productCount: permissionsData?.productCount || 0,
+		productLimit: permissionsData?.productLimit || 0, // ✅ AJOUT : Limite de produits
+		canAddMoreProducts: permissionsData?.canAddMoreProducts || false, // ✅ AJOUT : Peut ajouter plus de produits
 		canHandleCustomRequests: permissionsData?.canHandleCustomRequests || false,
 		canManageCustomForms: permissionsData?.canManageCustomForms || false,
 		isExempt: permissionsData?.isExempt || false

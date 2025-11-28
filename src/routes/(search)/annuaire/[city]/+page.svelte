@@ -99,11 +99,11 @@
 					<Button
 						href="/annuaire?city={data.city}"
 						class="inline-flex items-center gap-2 rounded-full bg-[#FF6F61] px-6 py-3 text-sm font-medium text-white shadow-lg transition-all duration-300 hover:scale-105 hover:bg-[#e85a4f] hover:shadow-xl"
-					>
+								>
 						<Search class="h-4 w-4" />
 						Recherche plus précise
 					</Button>
-				</div>
+					</div>
 			</div>
 		</div>
 	</section>
@@ -113,12 +113,12 @@
 		<div class="relative mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
 			<!-- Compteur de résultats -->
 			<div class="mb-10">
-				<p class="text-base font-medium text-neutral-700">
-					{#if filteredDesigners.length === 0}
+					<p class="text-base font-medium text-neutral-700">
+						{#if filteredDesigners.length === 0}
 						Aucun résultat trouvé aux alentours de {cityName}
-					{:else if filteredDesigners.length === 1}
+						{:else if filteredDesigners.length === 1}
 						1 cake designer trouvé aux alentours de {cityName}
-					{:else}
+						{:else}
 						{filteredDesigners.length} cake designers trouvés aux alentours de {cityName}
 					{/if}
 				</p>

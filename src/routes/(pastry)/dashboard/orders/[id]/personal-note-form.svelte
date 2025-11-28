@@ -3,11 +3,12 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Label } from '$lib/components/ui/label';
-	import { Save, X } from 'lucide-svelte';
+	import { Save, X, LoaderCircle, Check } from 'lucide-svelte';
 	import { superForm } from 'sveltekit-superforms/client';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import type { SuperValidated, Infer } from 'sveltekit-superforms';
 	import { personalNoteFormSchema, type PersonalNoteForm } from './schema';
+	import { page } from '$app/stores';
 
 	// Props
 	export let data: SuperValidated<Infer<PersonalNoteForm>>;
@@ -21,9 +22,15 @@
 
 	const { form: formData, enhance, submitting, message } = form;
 
+	let submitted = false;
+
 	// Fermer automatiquement le formulaire en cas de succès
 	$: if ($message) {
-		onCancel();
+		submitted = true;
+		setTimeout(() => {
+			submitted = false;
+			onCancel();
+		}, 2000);
 	}
 </script>
 
@@ -33,6 +40,9 @@
 	use:enhance
 	class="space-y-4 rounded-lg border p-4"
 >
+	<!-- Champs cachés pour shopId (optimisation : éviter getUserPermissions + requête shop) -->
+	<input type="hidden" name="shopId" value={$page.data.shop.id} />
+
 	<!-- Note -->
 	<Form.Field {form} name="note">
 		<Form.Control let:attrs>
@@ -48,24 +58,29 @@
 		<Form.FieldErrors />
 	</Form.Field>
 
-	<!-- Messages d'erreur/succès -->
-	{#if $message}
-		<div class="rounded-md bg-green-50 p-3 text-sm text-green-800">
-			{$message}
-		</div>
-	{/if}
-
 	<!-- Boutons d'action -->
 	<div class="flex gap-2">
-		<Button type="submit" class="flex-1 gap-2" disabled={$submitting}>
+		<Button
+			type="submit"
+			class={`h-10 flex-1 text-sm font-medium text-white transition-all duration-200 disabled:cursor-not-allowed ${
+				submitted
+					? 'bg-[#FF6F61] hover:bg-[#e85a4f] disabled:opacity-100'
+					: $submitting
+						? 'bg-gray-600 hover:bg-gray-700 disabled:opacity-50'
+						: 'bg-primary hover:bg-primary/90 disabled:opacity-50'
+			}`}
+			disabled={$submitting}
+		>
 			{#if $submitting}
-				<div
-					class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-				/>
+				<LoaderCircle class="mr-2 h-5 w-5 animate-spin" />
+				Sauvegarde...
+			{:else if submitted}
+				<Check class="mr-2 h-5 w-5" />
+				Sauvegardé !
 			{:else}
-				<Save class="mr-2 h-4 w-4" />
+				<Save class="mr-2 h-5 w-5" />
+				Sauvegarder
 			{/if}
-			Sauvegarder
 		</Button>
 		<Button
 			type="button"

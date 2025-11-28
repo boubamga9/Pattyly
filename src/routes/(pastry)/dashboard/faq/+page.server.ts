@@ -1,17 +1,21 @@
-import { error as svelteError, redirect } from '@sveltejs/kit';
+import { error as svelteError, redirect, fail } from '@sveltejs/kit';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad, Actions } from './$types';
-import { getUserPermissions } from '$lib/auth';
+import { verifyShopOwnership } from '$lib/auth';
 import { formSchema } from './schema';
 import { forceRevalidateShop } from '$lib/utils/catalog';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
-    // ✅ OPTIMISÉ : Réutiliser les permissions du layout (pas besoin de vérifier user ici)
-    const { user } = await parent();
+    // ✅ OPTIMISÉ : Réutiliser les permissions et shop du layout
+    const { user, permissions, shop } = await parent();
 
     if (!user) {
         throw redirect(302, '/login');
+    }
+
+    if (!permissions.shopId || !shop) {
+        throw svelteError(400, 'Boutique non trouvée');
     }
 
     // ✅ OPTIMISÉ : Un seul appel DB pour toutes les données FAQ
@@ -28,6 +32,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
     return {
         faqs: faqs || [],
+        shopId: permissions.shopId,
+        shopSlug: permissions.shopSlug || shop.slug,
         form: await superValidate(zod(formSchema), {
             defaults: {
                 question: '',
@@ -39,39 +45,55 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
 export const actions: Actions = {
     create: async ({ request, locals }) => {
-        const { data: { user } } = await locals.supabase.auth.getUser();
-
-        if (!user) {
-            throw error(401, 'Non autorisé');
-        }
-
-        const permissions = await getUserPermissions(user.id, locals.supabase);
-
-
-        if (!permissions.shopId || !permissions.shopSlug) {
-            throw error(400, 'Boutique non trouvée');
-        }
-
+        // ✅ OPTIMISÉ : Lire formData AVANT superValidate (car superValidate consomme le body)
         const formData = await request.formData();
+        const shopId = formData.get('shopId') as string;
+        const shopSlug = formData.get('shopSlug') as string;
+
+        if (!shopId || !shopSlug) {
+            const form = await superValidate(zod(formSchema));
+            form.message = 'Données de boutique manquantes';
+            return fail(400, { form });
+        }
+
+        // ✅ OPTIMISÉ : Utiliser safeGetSession au lieu de getUser()
+        const { session } = await locals.safeGetSession();
+        const userId = session?.user.id;
+
+        if (!userId) {
+            throw svelteError(401, 'Non autorisé');
+        }
+
+        // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite getUserPermissions + requête shop)
+        const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+        if (!isOwner) {
+            throw svelteError(403, 'Accès non autorisé à cette boutique');
+        }
+
         const question = formData.get('question') as string;
         const answer = formData.get('answer') as string;
 
         if (!question || !answer) {
-            throw error(400, 'Question et réponse requises');
+            const form = await superValidate(zod(formSchema));
+            form.message = 'Question et réponse requises';
+            return fail(400, { form });
         }
 
         const { error: createError } = await locals.supabase
             .from('faq')
             .insert({
-                shop_id: permissions.shopId,
+                shop_id: shopId,
                 question,
                 answer
             });
 
         if (createError) {
-            throw error(500, 'Erreur lors de la création de la FAQ');
+            const form = await superValidate(zod(formSchema));
+            form.message = 'Erreur lors de la création de la FAQ';
+            return fail(500, { form });
         }
-        await forceRevalidateShop(permissions.shopSlug);
+
+        await forceRevalidateShop(shopSlug);
 
         // Retourner le formulaire pour Superforms
         const form = await superValidate(zod(formSchema));
@@ -80,26 +102,39 @@ export const actions: Actions = {
     },
 
     update: async ({ request, locals }) => {
-        const { data: { user } } = await locals.supabase.auth.getUser();
-
-        if (!user) {
-            throw error(401, 'Non autorisé');
-        }
-
-        const permissions = await getUserPermissions(user.id, locals.supabase);
-
-
-        if (!permissions.shopId || !permissions.shopSlug) {
-            throw error(400, 'Boutique non trouvée');
-        }
-
+        // ✅ OPTIMISÉ : Lire formData AVANT superValidate (car superValidate consomme le body)
         const formData = await request.formData();
+        const shopId = formData.get('shopId') as string;
+        const shopSlug = formData.get('shopSlug') as string;
+
+        if (!shopId || !shopSlug) {
+            const form = await superValidate(zod(formSchema));
+            form.message = 'Données de boutique manquantes';
+            return fail(400, { form });
+        }
+
+        // ✅ OPTIMISÉ : Utiliser safeGetSession au lieu de getUser()
+        const { session } = await locals.safeGetSession();
+        const userId = session?.user.id;
+
+        if (!userId) {
+            throw svelteError(401, 'Non autorisé');
+        }
+
+        // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite getUserPermissions + requête shop)
+        const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+        if (!isOwner) {
+            throw svelteError(403, 'Accès non autorisé à cette boutique');
+        }
+
         const id = formData.get('id') as string;
         const question = formData.get('question') as string;
         const answer = formData.get('answer') as string;
 
         if (!id || !question || !answer) {
-            throw error(400, 'ID, question et réponse requises');
+            const form = await superValidate(zod(formSchema));
+            form.message = 'ID, question et réponse requises';
+            return fail(400, { form });
         }
 
         const { error: updateError } = await locals.supabase
@@ -110,13 +145,15 @@ export const actions: Actions = {
                 updated_at: new Date().toISOString()
             })
             .eq('id', id)
-            .eq('shop_id', permissions.shopId);
+            .eq('shop_id', shopId);
 
         if (updateError) {
-            throw error(500, 'Erreur lors de la mise à jour de la FAQ');
+            const form = await superValidate(zod(formSchema));
+            form.message = 'Erreur lors de la mise à jour de la FAQ';
+            return fail(500, { form });
         }
 
-        await forceRevalidateShop(permissions.shopSlug);
+        await forceRevalidateShop(shopSlug);
 
         // Retourner le formulaire pour Superforms
         const form = await superValidate(zod(formSchema));
@@ -125,41 +162,56 @@ export const actions: Actions = {
     },
 
     delete: async ({ request, locals }) => {
-        const { data: { user } } = await locals.supabase.auth.getUser();
-
-        if (!user) {
-            throw error(401, 'Non autorisé');
-        }
-
-        const permissions = await getUserPermissions(user.id, locals.supabase);
-
-
-        if (!permissions.shopId || !permissions.shopSlug) {
-            throw error(400, 'Boutique non trouvée');
-        }
-
+        // ✅ OPTIMISÉ : Lire formData AVANT superValidate (car superValidate consomme le body)
         const formData = await request.formData();
+        const shopId = formData.get('shopId') as string;
+        const shopSlug = formData.get('shopSlug') as string;
+
+        if (!shopId || !shopSlug) {
+            const form = await superValidate(zod(formSchema));
+            form.message = 'Données de boutique manquantes';
+            return fail(400, { form });
+        }
+
+        // ✅ OPTIMISÉ : Utiliser safeGetSession au lieu de getUser()
+        const { session } = await locals.safeGetSession();
+        const userId = session?.user.id;
+
+        if (!userId) {
+            throw svelteError(401, 'Non autorisé');
+        }
+
+        // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite getUserPermissions + requête shop)
+        const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+        if (!isOwner) {
+            throw svelteError(403, 'Accès non autorisé à cette boutique');
+        }
+
         const id = formData.get('id') as string;
 
         if (!id) {
-            throw error(400, 'ID requis');
+            const form = await superValidate(zod(formSchema));
+            form.message = 'ID requis';
+            return fail(400, { form });
         }
 
         const { error: deleteError } = await locals.supabase
             .from('faq')
             .delete()
             .eq('id', id)
-            .eq('shop_id', permissions.shopId);
+            .eq('shop_id', shopId);
 
         if (deleteError) {
-            throw error(500, 'Erreur lors de la suppression de la FAQ');
+            const form = await superValidate(zod(formSchema));
+            form.message = 'Erreur lors de la suppression de la FAQ';
+            return fail(500, { form });
         }
 
-        await forceRevalidateShop(permissions.shopSlug);
+        await forceRevalidateShop(shopSlug);
 
         // Retourner le formulaire pour Superforms
         const form = await superValidate(zod(formSchema));
         form.message = 'FAQ supprimée avec succès !';
         return { form };
     }
-}; 
+};

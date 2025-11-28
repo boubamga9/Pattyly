@@ -51,3 +51,4 @@ COMMIT;
 -- ✅ Index idx_profiles_is_early_adopter supprimé
 -- ✅ Migration sécurisée pour la production
 
+

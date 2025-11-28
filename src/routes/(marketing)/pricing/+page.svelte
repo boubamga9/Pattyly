@@ -6,9 +6,22 @@
 	import { Star, Check } from 'lucide-svelte';
 	import { revealElement, revealStagger } from '$lib/utils/animations';
 	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
 
 	export let data;
 	const { plans } = data;
+
+	// ✅ Tracking: Page view côté client (pricing page)
+	onMount(() => {
+		import('$lib/utils/analytics').then(({ logPageView }) => {
+			const supabase = $page.data.supabase;
+			logPageView(supabase, {
+				page: '/pricing'
+			}).catch((err: unknown) => {
+				console.error('Error tracking page_view:', err);
+			});
+		});
+	});
 
 	let headerTitle: HTMLElement;
 	let headerDescription: HTMLElement;

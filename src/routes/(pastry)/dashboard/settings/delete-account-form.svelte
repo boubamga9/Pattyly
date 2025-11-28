@@ -48,19 +48,23 @@
 	<Dialog.Footer>
 		<Form.Button
 			type="submit"
-			class="border-destructive text-destructive enabled:hover:bg-destructive/10 enabled:hover:text-destructive"
+			class={`h-10 text-sm font-medium transition-all duration-200 disabled:cursor-not-allowed border-destructive text-destructive enabled:hover:bg-destructive/10 enabled:hover:text-destructive ${
+				$submitting
+					? 'bg-gray-600 hover:bg-gray-700 disabled:opacity-50'
+					: ''
+			}`}
 			variant="outline"
 			disabled={$submitting || !$tainted}
 		>
 			{#if $submitting}
-				<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+				<LoaderCircle class="mr-2 h-5 w-5 animate-spin" />
 				Suppression du compte…
 			{:else}
 				Supprimer le compte
 			{/if}
 		</Form.Button>
 		<Dialog.Close asChild let:builder>
-			<Form.Button type="reset" variant="default" builders={[builder]}>
+			<Form.Button type="reset" variant="default" builders={[builder]} class="h-10">
 				Annuler
 			</Form.Button>
 		</Dialog.Close>

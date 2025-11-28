@@ -1,6 +1,6 @@
 import { error as svelteError, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { getShopIdAndSlug, getUserPermissions } from '$lib/auth';
+import { verifyShopOwnership } from '$lib/auth';
 import { deleteImageIfUnused } from '$lib/storage';
 import { forceRevalidateShop } from '$lib/utils/catalog';
 import { superValidate } from 'sveltekit-superforms';
@@ -35,6 +35,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
         currentProductCount,
         userPlan: permissions.plan,
         permissions,
+        shopId: permissions.shopId, // ✅ AJOUT : shopId pour les formulaires
         shopSlug: shop.slug,
         createCategoryForm,
         updateCategoryForm,
@@ -51,15 +52,20 @@ export const actions: Actions = {
             return fail(401, { error: 'Non autorisé' });
         }
 
-        // Get shop_id for this user
-        const { id: shopId, slug: shopSlug } = await getShopIdAndSlug(userId, locals.supabase);
+        const formData = await request.formData();
+        const shopId = formData.get('shopId') as string;
+        const shopSlug = formData.get('shopSlug') as string;
+        const productId = formData.get('productId') as string;
 
         if (!shopId || !shopSlug) {
-            return fail(500, { error: 'Boutique non trouvée' });
+            return fail(400, { error: 'Données de boutique manquantes' });
         }
 
-        const formData = await request.formData();
-        const productId = formData.get('productId') as string;
+        // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite getShopIdAndSlug)
+        const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+        if (!isOwner) {
+            return fail(403, { error: 'Accès non autorisé à cette boutique' });
+        }
 
         if (!productId) {
             return fail(400, {
@@ -148,16 +154,22 @@ export const actions: Actions = {
             return fail(401, { error: 'Non autorisé' });
         }
 
-        // Get shop_id for this user
-        const { id: shopId, slug: shopSlug } = await getShopIdAndSlug(userId, locals.supabase);
+        const formData = await request.formData();
+        const shopId = formData.get('shopId') as string;
+        const shopSlug = formData.get('shopSlug') as string;
+        const productId = formData.get('productId') as string;
 
         if (!shopId || !shopSlug) {
-            return fail(500, { error: 'Boutique non trouvée' });
+            return fail(400, { error: 'Données de boutique manquantes' });
         }
 
-        // Récupérer les permissions
-        const permissions = await getUserPermissions(userId, locals.supabase);
+        // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite getShopIdAndSlug)
+        const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+        if (!isOwner) {
+            return fail(403, { error: 'Accès non autorisé à cette boutique' });
+        }
 
+        // ✅ OPTIMISÉ : checkProductLimit récupère déjà le plan via RPC, pas besoin de getUserPermissions
         // Vérifier la limite de produits
         console.log('🔍 [Product Duplication] Checking product limit before duplicating product...');
         const productLimitStats = await checkProductLimit(shopId, userId, locals.supabase);
@@ -172,9 +184,6 @@ export const actions: Actions = {
                 error: `Limite de gâteaux atteinte. Vous avez atteint la limite de ${productLimitStats.productLimit} gâteau${productLimitStats.productLimit > 1 ? 'x' : ''} pour votre plan ${productLimitStats.plan === 'free' ? 'gratuit' : productLimitStats.plan === 'basic' ? 'Starter' : 'Premium'}. Passez à un plan supérieur pour ajouter plus de gâteaux.`
             });
         }
-
-        const formData = await request.formData();
-        const productId = formData.get('productId') as string;
 
         if (!productId) {
             return fail(400, {
@@ -310,19 +319,28 @@ export const actions: Actions = {
         const { session } = await locals.safeGetSession();
         const userId = session?.user.id;
 
+        // ✅ Lire formData AVANT superValidate (car superValidate consomme le body)
+        const formData = await request.formData();
+        
+        // Validation avec Superforms (passer formData au lieu de request)
+        const form = await superValidate(formData, zod(createCategoryFormSchema));
+
         if (!userId) {
-            return fail(401, { error: 'Non autorisé' });
+            return fail(401, { form, error: 'Non autorisé' });
         }
 
-        // Get shop_id for this user
-        const { id: shopId, slug: shopSlug } = await getShopIdAndSlug(userId, locals.supabase);
+        const shopId = formData.get('shopId') as string;
+        const shopSlug = formData.get('shopSlug') as string;
 
         if (!shopId || !shopSlug) {
-            return fail(500, { error: 'Boutique non trouvée' });
+            return fail(400, { form, error: 'Données de boutique manquantes' });
         }
 
-        // Validation avec Superforms
-        const form = await superValidate(request, zod(createCategoryFormSchema));
+        // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite getShopIdAndSlug)
+        const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+        if (!isOwner) {
+            return fail(403, { form, error: 'Accès non autorisé à cette boutique' });
+        }
 
         if (!form.valid) {
             return fail(400, { form });
@@ -332,22 +350,39 @@ export const actions: Actions = {
         const trimmedName = categoryName.trim();
 
         try {
-            // ✅ OPTIMISÉ : Utiliser ON CONFLICT pour éviter la vérification préalable (2 requêtes → 1 requête)
-            const { data: newCategory, error: insertError } = await locals.supabase
+            // Vérifier si la catégorie existe déjà
+            const { data: existingCategory, error: checkError } = await locals.supabase
                 .from('categories')
-                .insert({
-                    name: trimmedName,
-                    shop_id: shopId
-                })
                 .select('id, name')
-                .single()
-                .onConflict('name,shop_id')
-                .merge(); // Si existe déjà, on récupère l'existant
+                .eq('name', trimmedName)
+                .eq('shop_id', shopId)
+                .single();
 
-            if (insertError) {
-                return fail(500, {
-                    error: 'Erreur lors de la création de la catégorie'
-                });
+            let newCategory;
+
+            if (existingCategory) {
+                // La catégorie existe déjà, on la réutilise
+                newCategory = existingCategory;
+            } else {
+                // Créer la nouvelle catégorie
+                const { data: insertedCategory, error: insertError } = await locals.supabase
+                    .from('categories')
+                    .insert({
+                        name: trimmedName,
+                        shop_id: shopId
+                    })
+                    .select('id, name')
+                    .single();
+
+                if (insertError) {
+                    console.error('❌ [Create Category] Insert error:', insertError);
+                    return fail(500, {
+                        form,
+                        error: `Erreur lors de la création de la catégorie: ${insertError.message || insertError.code}`
+                    });
+                }
+
+                newCategory = insertedCategory;
             }
 
             // Increment catalog version to invalidate public cache
@@ -355,14 +390,20 @@ export const actions: Actions = {
                 await forceRevalidateShop(shopSlug);
             } catch (error) {
                 // Don't fail the entire operation, just log the warning
+                console.warn('⚠️ [Create Category] Cache invalidation failed:', error);
             }
 
-            // Retourner le formulaire mis à jour pour Superforms
-            const updatedForm = await superValidate(zod(createCategoryFormSchema));
-            updatedForm.message = 'Catégorie créée avec succès';
-            return { form: updatedForm };
+            // ✅ Retourner le formulaire existant avec le message de succès
+            form.message = 'Catégorie créée avec succès';
+            // Réinitialiser le formulaire pour permettre une nouvelle création
+            form.data.name = '';
+            return { form };
         } catch (err) {
-            return fail(500, { form });
+            console.error('❌ [Create Category] Unexpected error:', err);
+            return fail(500, { 
+                form, 
+                error: `Erreur inattendue lors de la création de la catégorie: ${err instanceof Error ? err.message : 'Erreur inconnue'}` 
+            });
         }
     },
 
@@ -370,27 +411,33 @@ export const actions: Actions = {
         const { session } = await locals.safeGetSession();
         const userId = session?.user.id;
 
-        if (!userId) {
-            return fail(401, { error: 'Non autorisé' });
-        }
-
-        // Get shop_id for this user
-        const { id: shopId, slug: shopSlug } = await getShopIdAndSlug(userId, locals.supabase);
-
-        if (!shopId || !shopSlug) {
-            return fail(500, { error: 'Boutique non trouvée' });
-        }
-
-        // Récupérer categoryId AVANT superValidate (car le body ne peut être lu qu'une fois)
+        // Récupérer categoryId, shopId et shopSlug AVANT superValidate (car le body ne peut être lu qu'une fois)
         const formData = await request.formData();
-        const categoryId = formData.get('categoryId') as string;
-
-        if (!categoryId) {
-            return fail(400, { error: 'ID de la catégorie manquant' });
-        }
-
+        
         // Validation avec Superforms
         const form = await superValidate(formData, zod(updateCategoryFormSchema));
+
+        if (!userId) {
+            return fail(401, { form, error: 'Non autorisé' });
+        }
+
+        const categoryId = formData.get('categoryId') as string;
+        const shopId = formData.get('shopId') as string;
+        const shopSlug = formData.get('shopSlug') as string;
+
+        if (!categoryId) {
+            return fail(400, { form, error: 'ID de la catégorie manquant' });
+        }
+
+        if (!shopId || !shopSlug) {
+            return fail(400, { form, error: 'Données de boutique manquantes' });
+        }
+
+        // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite getShopIdAndSlug)
+        const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+        if (!isOwner) {
+            return fail(403, { form, error: 'Accès non autorisé à cette boutique' });
+        }
 
         if (!form.valid) {
             return fail(400, { form });
@@ -409,12 +456,13 @@ export const actions: Actions = {
                 .single();
 
             if (checkError || !existingCategory) {
-                return fail(404, { error: 'Catégorie non trouvée' });
+                return fail(404, { form, error: 'Catégorie non trouvée' });
             }
 
             // Si le nom n'a pas changé, pas besoin de mettre à jour
             if (existingCategory.name === trimmedName) {
-                return { message: 'Aucune modification nécessaire' };
+                form.message = 'Aucune modification nécessaire';
+                return { form };
             }
 
             // Vérifier si le nouveau nom existe déjà
@@ -427,11 +475,11 @@ export const actions: Actions = {
                 .single();
 
             if (duplicateError && duplicateError.code !== 'PGRST116') {
-                return fail(500, { error: 'Erreur lors de la vérification' });
+                return fail(500, { form, error: 'Erreur lors de la vérification' });
             }
 
             if (duplicateCategory) {
-                return fail(400, { error: 'Cette catégorie existe déjà' });
+                return fail(400, { form, error: 'Cette catégorie existe déjà' });
             }
 
             // Mettre à jour la catégorie
@@ -442,7 +490,7 @@ export const actions: Actions = {
                 .eq('shop_id', shopId);
 
             if (updateError) {
-                return fail(500, { error: 'Erreur lors de la modification de la catégorie' });
+                return fail(500, { form, error: 'Erreur lors de la modification de la catégorie' });
             }
 
             // Increment catalog version to invalidate public cache
@@ -465,22 +513,30 @@ export const actions: Actions = {
         const { session } = await locals.safeGetSession();
         const userId = session?.user.id;
 
+        // ✅ Créer le form dès le début pour pouvoir le retourner dans tous les cas
+        const form = await superValidate(zod(deleteCategoryFormSchema));
+
         if (!userId) {
-            return fail(401, { error: 'Non autorisé' });
-        }
-
-        // Get shop_id for this user
-        const { id: shopId, slug: shopSlug } = await getShopIdAndSlug(userId, locals.supabase);
-
-        if (!shopId || !shopSlug) {
-            return fail(500, { error: 'Boutique non trouvée' });
+            return fail(401, { form, error: 'Non autorisé' });
         }
 
         const formData = await request.formData();
         const categoryId = formData.get('categoryId') as string;
+        const shopId = formData.get('shopId') as string;
+        const shopSlug = formData.get('shopSlug') as string;
 
         if (!categoryId) {
-            return fail(400, { error: 'ID de la catégorie manquant' });
+            return fail(400, { form, error: 'ID de la catégorie manquant' });
+        }
+
+        if (!shopId || !shopSlug) {
+            return fail(400, { form, error: 'Données de boutique manquantes' });
+        }
+
+        // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite getShopIdAndSlug)
+        const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+        if (!isOwner) {
+            return fail(403, { form, error: 'Accès non autorisé à cette boutique' });
         }
 
         try {
@@ -493,7 +549,7 @@ export const actions: Actions = {
                 .single();
 
             if (checkError || !category) {
-                return fail(404, { error: 'Catégorie non trouvée' });
+                return fail(404, { form, error: 'Catégorie non trouvée' });
             }
 
             // Vérifier si la catégorie a des produits
@@ -504,11 +560,12 @@ export const actions: Actions = {
                 .eq('shop_id', shopId);
 
             if (productsError) {
-                return fail(500, { error: 'Erreur lors de la vérification des produits' });
+                return fail(500, { form, error: 'Erreur lors de la vérification des produits' });
             }
 
             if (products && products.length > 0) {
                 return fail(400, {
+                    form,
                     error: `Impossible de supprimer la catégorie "${category.name}" car elle contient ${products.length} gâteau${products.length > 1 ? 'x' : ''}. Veuillez d'abord déplacer ou supprimer ces gâteaux.`
                 });
             }
@@ -521,7 +578,7 @@ export const actions: Actions = {
                 .eq('shop_id', shopId);
 
             if (deleteError) {
-                return fail(500, { error: 'Erreur lors de la suppression de la catégorie' });
+                return fail(500, { form, error: 'Erreur lors de la suppression de la catégorie' });
             }
 
             // Increment catalog version to invalidate public cache
@@ -532,11 +589,10 @@ export const actions: Actions = {
             }
 
             // Retourner le formulaire mis à jour pour Superforms
-            const deleteForm = await superValidate(zod(deleteCategoryFormSchema));
-            deleteForm.message = 'Catégorie supprimée avec succès';
-            return { form: deleteForm };
+            form.message = 'Catégorie supprimée avec succès';
+            return { form };
         } catch (err) {
-            return fail(500, { error: 'Erreur inattendue lors de la suppression' });
+            return fail(500, { form, error: 'Erreur inattendue lors de la suppression' });
         }
     },
 
@@ -548,16 +604,21 @@ export const actions: Actions = {
             return fail(401, { error: 'Non autorisé' });
         }
 
-        // Get shop_id for this user
-        const { id: shopId, slug: shopSlug } = await getShopIdAndSlug(userId, locals.supabase);
-
-        if (!shopId || !shopSlug) {
-            return fail(500, { error: 'Boutique non trouvée' });
-        }
-
         const formData = await request.formData();
+        const shopId = formData.get('shopId') as string;
+        const shopSlug = formData.get('shopSlug') as string;
         const productId = formData.get('productId') as string;
         const isActive = formData.get('isActive') === 'true';
+
+        if (!shopId || !shopSlug) {
+            return fail(400, { error: 'Données de boutique manquantes' });
+        }
+
+        // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite getShopIdAndSlug)
+        const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+        if (!isOwner) {
+            return fail(403, { error: 'Accès non autorisé à cette boutique' });
+        }
 
         if (!productId) {
             return fail(400, { error: 'ID du produit manquant' });

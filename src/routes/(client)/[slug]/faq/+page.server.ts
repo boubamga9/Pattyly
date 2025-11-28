@@ -5,11 +5,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     try {
         const { slug } = params;
 
-
-        // Get shop information
+        // ✅ OPTIMISÉ : Charger shop avec relation faq en une seule requête
         const { data: shop, error: shopError } = await (locals.supabaseServiceRole as any)
             .from('shops')
-            .select('id, name, bio, slug, logo_url')
+            .select('id, name, bio, slug, logo_url, faq(*)')
             .eq('slug', slug)
             .eq('is_active', true)
             .single();
@@ -19,25 +18,21 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         }
 
         if (!shop) {
-
             throw error(404, 'Boutique non trouvée');
-        }
-
-        // Get shop FAQ
-        const { data: faqs, error: faqsError } = await (locals.supabaseServiceRole as any)
-            .from('faq')
-            .select('*')
-            .eq('shop_id', shop.id)
-            .order('created_at', { ascending: true });
-
-        if (faqsError) {
-            throw error(500, 'Erreur lors du chargement des FAQ');
         }
 
         // Les customizations sont chargées dans le layout parent
 
+        // Extraire les FAQ depuis la relation et les trier
+        const faqs = (shop.faq || []).sort((a: any, b: any) => 
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+
+        // Retourner shop sans la relation faq (déjà extraite)
+        const { faq, ...shopWithoutFaq } = shop;
+
         return {
-            shop,
+            shop: shopWithoutFaq,
             faqs: faqs || []
         };
 

@@ -14,12 +14,10 @@ const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
     apiVersion: '2024-04-10'
 });
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params, locals, parent }) => {
     try {
-        // Récupérer l'utilisateur connecté
-        const {
-            data: { user },
-        } = await locals.supabase.auth.getUser();
+        // ✅ OPTIMISÉ : Utiliser user et permissions du parent (déjà chargés)
+        const { user, permissions } = await parent();
 
         if (!user) {
             throw error(401, 'Non autorisé');
@@ -42,6 +40,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             throw error(404, 'Commande non trouvée');
         }
 
+        // ✅ AJOUTER shopId au shop (le RPC ne le retourne pas, mais on l'a depuis permissions)
+        const shopWithId = {
+            ...shop,
+            id: permissions.shopId
+        };
+
         // Récupérer le montant payé depuis la DB
         const paidAmount = order.paid_amount;
 
@@ -59,7 +63,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
         return {
             order,
-            shop,
+            shop: shopWithId,
             paidAmount,
             personalNote: personalNote || null,
             makeQuoteForm,
@@ -75,8 +79,30 @@ export const actions: Actions = {
     // Sauvegarder/modifier la note personnelle
     savePersonalNote: async ({ request, params, locals }) => {
         try {
-            // Valider avec Superforms
-            const form = await superValidate(request, zod(personalNoteFormSchema));
+            // ✅ OPTIMISÉ : Lire formData AVANT superValidate (car superValidate consomme le body)
+            const formData = await request.formData();
+            const shopId = formData.get('shopId') as string;
+
+            // ✅ CRÉER LE FORM DÈS LE DÉBUT (obligatoire pour Superforms)
+            const form = await superValidate(formData, zod(personalNoteFormSchema));
+
+            if (!shopId) {
+                return fail(400, { form, error: 'Données de boutique manquantes' });
+            }
+
+            // ✅ OPTIMISÉ : Utiliser safeGetSession au lieu de getUser()
+            const { session } = await locals.safeGetSession();
+            const userId = session?.user.id;
+
+            if (!userId) {
+                return fail(401, { form, error: 'Non autorisé' });
+            }
+
+            // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite getUserPermissions + requête shop)
+            const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+            if (!isOwner) {
+                return fail(403, { form, error: 'Accès non autorisé à cette boutique' });
+            }
 
             if (!form.valid) {
                 return fail(400, { form });
@@ -88,57 +114,58 @@ export const actions: Actions = {
                 return fail(400, { form, error: 'La note ne peut pas être vide' });
             }
 
-            // Récupérer l'utilisateur connecté
-            const {
-                data: { user },
-            } = await locals.supabase.auth.getUser();
-
-            if (!user) {
-                return fail(401, { error: 'Non autorisé' });
-            }
-
-            // ✅ OPTIMISÉ : Utiliser getUserPermissions pour récupérer shopId, puis vérifier
-            const permissions = await getUserPermissions(user.id, locals.supabase);
-            const shopId = permissions?.shopId;
-
-            if (!shopId) {
-                return fail(404, { error: 'Boutique non trouvée' });
-            }
-
-            // Vérifier la propriété avec la fonction optimisée
-            const isOwner = await verifyShopOwnership(user.id, shopId, locals.supabase);
-            if (!isOwner) {
-                return fail(404, { error: 'Boutique non trouvée ou non autorisée' });
-            }
-
-            // Insérer ou mettre à jour la note
+            // Insérer ou mettre à jour la note (utiliser shopId directement, pas besoin de requête shop)
             const { error: upsertError } = await locals.supabase
                 .from('personal_order_notes')
                 .upsert({
                     order_id: params.id,
-                    shop_id: shop.id,
+                    shop_id: shopId,
                     note: note.trim()
                 }, {
                     onConflict: 'order_id,shop_id'
                 });
 
             if (upsertError) {
-                return fail(500, { error: 'Erreur lors de la sauvegarde' });
+                return fail(500, { form, error: 'Erreur lors de la sauvegarde' });
             }
 
             // Retourner le succès avec le formulaire Superforms
             form.message = 'Note sauvegardée avec succès';
             return { form };
         } catch (err) {
-            return fail(500, { error: 'Erreur serveur' });
+            const errorForm = await superValidate(zod(personalNoteFormSchema));
+            return fail(500, { form: errorForm, error: 'Erreur serveur' });
         }
     },
 
     // Faire un devis pour une commande en attente
     makeQuote: async ({ request, params, locals }) => {
         try {
-            // Valider avec Superforms
-            const form = await superValidate(request, zod(makeQuoteFormSchema));
+            // ✅ OPTIMISÉ : Lire formData AVANT superValidate (car superValidate consomme le body)
+            const formData = await request.formData();
+            const shopId = formData.get('shopId') as string;
+            const shopSlug = formData.get('shopSlug') as string;
+
+            // ✅ CRÉER LE FORM DÈS LE DÉBUT (obligatoire pour Superforms)
+            const form = await superValidate(formData, zod(makeQuoteFormSchema));
+
+            if (!shopId || !shopSlug) {
+                return fail(400, { form, error: 'Données de boutique manquantes' });
+            }
+
+            // ✅ OPTIMISÉ : Utiliser safeGetSession au lieu de getUser()
+            const { session } = await locals.safeGetSession();
+            const userId = session?.user.id;
+
+            if (!userId) {
+                return fail(401, { form, error: 'Non autorisé' });
+            }
+
+            // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite requête shop)
+            const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+            if (!isOwner) {
+                return fail(403, { form, error: 'Accès non autorisé à cette boutique' });
+            }
 
             if (!form.valid) {
                 return fail(400, { form });
@@ -150,24 +177,15 @@ export const actions: Actions = {
                 return fail(400, { form, error: 'Le prix est requis' });
             }
 
-            // Récupérer l'utilisateur connecté
-            const {
-                data: { user },
-            } = await locals.supabase.auth.getUser();
-
-            if (!user) {
-                return fail(401, { error: 'Non autorisé' });
-            }
-
-            // Récupérer la boutique de l'utilisateur via profile_id
+            // ✅ OPTIMISÉ : Récupérer uniquement les infos shop nécessaires (name, logo_url) en une requête
             const { data: shop, error: shopError } = await locals.supabase
                 .from('shops')
-                .select('id, name, logo_url, slug')
-                .eq('profile_id', user.id)
+                .select('id, name, logo_url')
+                .eq('id', shopId)
                 .single();
 
             if (shopError || !shop) {
-                return fail(404, { error: 'Boutique non trouvée' });
+                return fail(404, { form, error: 'Boutique non trouvée' });
             }
 
             // Générer un order_ref unique pour le paiement du devis
@@ -216,7 +234,7 @@ export const actions: Actions = {
                 .single();
 
             if (updateError) {
-                return fail(500, { error: 'Erreur lors de la mise à jour de la commande' });
+                return fail(500, { form, error: 'Erreur lors de la mise à jour de la commande' });
             }
 
             try {
@@ -227,7 +245,7 @@ export const actions: Actions = {
                         shopName: shop.name,
                         shopLogo: shop.logo_url || undefined,
                         quoteId: order.id.slice(0, 8),
-                        orderUrl: `${PUBLIC_SITE_URL}/${shop.slug}/custom/checkout/${order_ref}`,
+                        orderUrl: `${PUBLIC_SITE_URL}/${shopSlug}/custom/checkout/${order_ref}`,
                         date: new Date().toLocaleDateString("fr-FR")
                     })]);
             } catch (e) { }
@@ -236,15 +254,40 @@ export const actions: Actions = {
             form.message = 'Devis envoyé avec succès';
             return { form };
         } catch (err) {
-            return fail(500, { error: 'Erreur interne' });
+            // Créer un formulaire vide pour retourner l'erreur
+            const errorForm = await superValidate(zod(makeQuoteFormSchema));
+            return fail(500, { form: errorForm, error: 'Erreur interne' });
         }
     },
 
     // Refuser une commande
     rejectOrder: async ({ request, params, locals }) => {
         try {
-            // Valider avec Superforms
-            const form = await superValidate(request, zod(rejectOrderFormSchema));
+            // ✅ OPTIMISÉ : Lire formData AVANT superValidate (car superValidate consomme le body)
+            const formData = await request.formData();
+            const shopId = formData.get('shopId') as string;
+            const shopSlug = formData.get('shopSlug') as string;
+
+            // ✅ CRÉER LE FORM DÈS LE DÉBUT (obligatoire pour Superforms)
+            const form = await superValidate(formData, zod(rejectOrderFormSchema));
+
+            if (!shopId || !shopSlug) {
+                return fail(400, { form, error: 'Données de boutique manquantes' });
+            }
+
+            // ✅ OPTIMISÉ : Utiliser safeGetSession au lieu de getUser()
+            const { session } = await locals.safeGetSession();
+            const userId = session?.user.id;
+
+            if (!userId) {
+                return fail(401, { form, error: 'Non autorisé' });
+            }
+
+            // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite requête shop)
+            const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+            if (!isOwner) {
+                return fail(403, { form, error: 'Accès non autorisé à cette boutique' });
+            }
 
             if (!form.valid) {
                 return fail(400, { form });
@@ -252,24 +295,15 @@ export const actions: Actions = {
 
             const { chef_message: chefMessage } = form.data;
 
-            // Récupérer l'utilisateur connecté
-            const {
-                data: { user },
-            } = await locals.supabase.auth.getUser();
-
-            if (!user) {
-                return fail(401, { error: 'Non autorisé' });
-            }
-
-            // Récupérer la boutique de l'utilisateur via profile_id
+            // ✅ OPTIMISÉ : Récupérer uniquement les infos shop nécessaires (name, logo_url) en une requête
             const { data: shop, error: shopError } = await locals.supabase
                 .from('shops')
-                .select('id, name, logo_url, slug')
-                .eq('profile_id', user.id)
+                .select('id, name, logo_url')
+                .eq('id', shopId)
                 .single();
 
             if (shopError || !shop) {
-                return fail(404, { error: 'Boutique non trouvée' });
+                return fail(404, { form, error: 'Boutique non trouvée' });
             }
 
             // Mettre à jour la commande
@@ -286,7 +320,7 @@ export const actions: Actions = {
                 .single();
 
             if (updateError) {
-                return fail(500, { error: 'Erreur lors de la mise à jour de la commande' });
+                return fail(500, { form, error: 'Erreur lors de la mise à jour de la commande' });
             }
 
             try {
@@ -298,7 +332,7 @@ export const actions: Actions = {
                         shopLogo: shop.logo_url || undefined,
                         reason: chefMessage,
                         requestId: order.id.slice(0, 8),
-                        catalogUrl: `${PUBLIC_SITE_URL}/${shop.slug}`,
+                        catalogUrl: `${PUBLIC_SITE_URL}/${shopSlug}`,
                         date: new Date().toLocaleDateString("fr-FR")
                     })]);
             } catch (e) { }
@@ -307,34 +341,39 @@ export const actions: Actions = {
             form.message = 'Commande refusée avec succès';
             return { form };
         } catch (err) {
-            return fail(500, { error: 'Erreur interne' });
+            // Créer un formulaire vide pour retourner l'erreur
+            const errorForm = await superValidate(zod(rejectOrderFormSchema));
+            return fail(500, { form: errorForm, error: 'Erreur interne' });
         }
     },
 
     // Confirmer la réception du paiement PayPal.me
-    confirmPayment: async ({ params, locals }) => {
+    confirmPayment: async ({ request, params, locals }) => {
         try {
-            // Récupérer l'utilisateur connecté
-            const {
-                data: { user },
-            } = await locals.supabase.auth.getUser();
+            // ✅ OPTIMISÉ : Récupérer shopId depuis formData
+            if (!request) {
+                return fail(400, { error: 'Requête invalide' });
+            }
 
-            if (!user) {
+            const formData = await request.formData();
+            const shopId = formData.get('shopId') as string;
+
+            if (!shopId) {
+                return fail(400, { error: 'Données de boutique manquantes' });
+            }
+
+            // ✅ OPTIMISÉ : Utiliser safeGetSession au lieu de getUser()
+            const { session } = await locals.safeGetSession();
+            const userId = session?.user.id;
+
+            if (!userId) {
                 return fail(401, { error: 'Non autorisé' });
             }
 
-            // ✅ OPTIMISÉ : Utiliser getUserPermissions pour récupérer shopId, puis vérifier
-            const permissions = await getUserPermissions(user.id, locals.supabase);
-            const shopId = permissions?.shopId;
-
-            if (!shopId) {
-                return fail(404, { error: 'Boutique non trouvée' });
-            }
-
-            // Vérifier la propriété avec la fonction optimisée
-            const isOwner = await verifyShopOwnership(user.id, shopId, locals.supabase);
+            // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite getUserPermissions)
+            const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
             if (!isOwner) {
-                return fail(404, { error: 'Boutique non trouvée ou non autorisée' });
+                return fail(403, { error: 'Accès non autorisé à cette boutique' });
             }
 
             // Récupérer les détails de la commande avant mise à jour
@@ -402,34 +441,40 @@ export const actions: Actions = {
     },
 
     // Marquer une commande comme prête
-    makeOrderReady: async ({ params, locals }) => {
+    makeOrderReady: async ({ request, params, locals }) => {
         try {
-            // Récupérer l'utilisateur connecté
-            const {
-                data: { user },
-            } = await locals.supabase.auth.getUser();
+            // ✅ OPTIMISÉ : Récupérer shopId depuis formData
+            if (!request) {
+                return fail(400, { error: 'Requête invalide' });
+            }
 
-            if (!user) {
+            const formData = await request.formData();
+            const shopId = formData.get('shopId') as string;
+
+            if (!shopId) {
+                return fail(400, { error: 'Données de boutique manquantes' });
+            }
+
+            // ✅ OPTIMISÉ : Utiliser safeGetSession au lieu de getUser()
+            const { session } = await locals.safeGetSession();
+            const userId = session?.user.id;
+
+            if (!userId) {
                 return fail(401, { error: 'Non autorisé' });
             }
 
-            // Récupérer la boutique de l'utilisateur via profile_id
-            const { data: shop, error: shopError } = await locals.supabase
-                .from('shops')
-                .select('id')
-                .eq('profile_id', user.id)
-                .single();
-
-            if (shopError || !shop) {
-                return fail(404, { error: 'Boutique non trouvée' });
+            // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite requête shop)
+            const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+            if (!isOwner) {
+                return fail(403, { error: 'Accès non autorisé à cette boutique' });
             }
 
-            // Mettre à jour la commande
+            // Mettre à jour la commande (utiliser shopId directement)
             const { error: updateError } = await locals.supabase
                 .from('orders')
                 .update({ status: 'ready' })
                 .eq('id', params.id)
-                .eq('shop_id', shop.id);
+                .eq('shop_id', shopId);
 
             if (updateError) {
                 return fail(500, { error: 'Erreur lors de la mise à jour de la commande' });
@@ -442,34 +487,40 @@ export const actions: Actions = {
     },
 
     // Marquer une commande comme terminée
-    makeOrderCompleted: async ({ params, locals }) => {
+    makeOrderCompleted: async ({ request, params, locals }) => {
         try {
-            // Récupérer l'utilisateur connecté
-            const {
-                data: { user },
-            } = await locals.supabase.auth.getUser();
+            // ✅ OPTIMISÉ : Récupérer shopId depuis formData
+            if (!request) {
+                return fail(400, { error: 'Requête invalide' });
+            }
 
-            if (!user) {
+            const formData = await request.formData();
+            const shopId = formData.get('shopId') as string;
+
+            if (!shopId) {
+                return fail(400, { error: 'Données de boutique manquantes' });
+            }
+
+            // ✅ OPTIMISÉ : Utiliser safeGetSession au lieu de getUser()
+            const { session } = await locals.safeGetSession();
+            const userId = session?.user.id;
+
+            if (!userId) {
                 return fail(401, { error: 'Non autorisé' });
             }
 
-            // Récupérer la boutique de l'utilisateur via profile_id
-            const { data: shop, error: shopError } = await locals.supabase
-                .from('shops')
-                .select('id')
-                .eq('profile_id', user.id)
-                .single();
-
-            if (shopError || !shop) {
-                return fail(404, { error: 'Boutique non trouvée' });
+            // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite requête shop)
+            const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+            if (!isOwner) {
+                return fail(403, { error: 'Accès non autorisé à cette boutique' });
             }
 
-            // Mettre à jour la commande
+            // Mettre à jour la commande (utiliser shopId directement)
             const { error: updateError } = await locals.supabase
                 .from('orders')
                 .update({ status: 'completed' })
                 .eq('id', params.id)
-                .eq('shop_id', shop.id);
+                .eq('shop_id', shopId);
 
             if (updateError) {
                 return fail(500, { error: 'Erreur lors de la mise à jour de la commande' });
@@ -482,22 +533,40 @@ export const actions: Actions = {
     },
 
     // Annuler une commande avec devis
-    cancelOrder: async ({ params, locals }) => {
+    cancelOrder: async ({ request, params, locals }) => {
         try {
-            // Récupérer l'utilisateur connecté
-            const {
-                data: { user },
-            } = await locals.supabase.auth.getUser();
+            // ✅ OPTIMISÉ : Récupérer shopId et shopSlug depuis formData
+            if (!request) {
+                return fail(400, { error: 'Requête invalide' });
+            }
 
-            if (!user) {
+            const formData = await request.formData();
+            const shopId = formData.get('shopId') as string;
+            const shopSlug = formData.get('shopSlug') as string;
+
+            if (!shopId || !shopSlug) {
+                return fail(400, { error: 'Données de boutique manquantes' });
+            }
+
+            // ✅ OPTIMISÉ : Utiliser safeGetSession au lieu de getUser()
+            const { session } = await locals.safeGetSession();
+            const userId = session?.user.id;
+
+            if (!userId) {
                 return fail(401, { error: 'Non autorisé' });
             }
 
-            // Récupérer la boutique de l'utilisateur via profile_id
+            // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite requête shop)
+            const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+            if (!isOwner) {
+                return fail(403, { error: 'Accès non autorisé à cette boutique' });
+            }
+
+            // ✅ OPTIMISÉ : Récupérer uniquement les infos shop nécessaires (name, logo_url) en une requête
             const { data: shop, error: shopError } = await locals.supabase
                 .from('shops')
-                .select('id, name, logo_url, slug')
-                .eq('profile_id', user.id)
+                .select('id, name, logo_url')
+                .eq('id', shopId)
                 .single();
 
             if (shopError || !shop) {
@@ -539,7 +608,7 @@ export const actions: Actions = {
                         shopName: shop.name,
                         shopLogo: shop.logo_url || undefined,
                         orderId: order.id.slice(0, 8),
-                        orderUrl: `${PUBLIC_SITE_URL}/${shop.slug}/order/${order.id}`,
+                        orderUrl: `${PUBLIC_SITE_URL}/${shopSlug}/order/${order.id}`,
                         date: new Date().toLocaleDateString("fr-FR")
                     })]);
             } catch (e) { }
@@ -551,34 +620,40 @@ export const actions: Actions = {
     },
 
     // Supprimer la note personnelle
-    deletePersonalNote: async ({ params, locals }) => {
+    deletePersonalNote: async ({ request, params, locals }) => {
         try {
-            // Récupérer l'utilisateur connecté
-            const {
-                data: { user },
-            } = await locals.supabase.auth.getUser();
+            // ✅ OPTIMISÉ : Récupérer shopId depuis formData
+            if (!request) {
+                return fail(400, { error: 'Requête invalide' });
+            }
 
-            if (!user) {
+            const formData = await request.formData();
+            const shopId = formData.get('shopId') as string;
+
+            if (!shopId) {
+                return fail(400, { error: 'Données de boutique manquantes' });
+            }
+
+            // ✅ OPTIMISÉ : Utiliser safeGetSession au lieu de getUser()
+            const { session } = await locals.safeGetSession();
+            const userId = session?.user.id;
+
+            if (!userId) {
                 return fail(401, { error: 'Non autorisé' });
             }
 
-            // Récupérer la boutique de l'utilisateur via profile_id
-            const { data: shop, error: shopError } = await locals.supabase
-                .from('shops')
-                .select('id')
-                .eq('profile_id', user.id)
-                .single();
-
-            if (shopError || !shop) {
-                return fail(404, { error: 'Boutique non trouvée' });
+            // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite requête shop)
+            const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+            if (!isOwner) {
+                return fail(403, { error: 'Accès non autorisé à cette boutique' });
             }
 
-            // Supprimer la note
+            // Supprimer la note (utiliser shopId directement)
             const { error: deleteError } = await locals.supabase
                 .from('personal_order_notes')
                 .delete()
                 .eq('order_id', params.id)
-                .eq('shop_id', shop.id);
+                .eq('shop_id', shopId);
 
             if (deleteError) {
                 return fail(500, { error: 'Erreur lors de la suppression' });

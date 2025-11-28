@@ -1,21 +1,40 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
-	import { Separator } from '$lib/components/ui/separator';
-	import { Heart, Instagram, Paperclip, Search } from 'lucide-svelte';
+	import { HelpCircle, Instagram, Paperclip, Search } from 'lucide-svelte';
 	import { ClientFooter } from '$lib/components';
 
 	// Données de la page
 	$: ({ shop, categories, products, faqs, isShopActive, notFound } =
 		$page.data);
 
+	// ✅ Tracking: Page view côté client (session_id persistant)
+	onMount(() => {
+		if (!notFound && shop?.id) {
+			import('$lib/utils/analytics').then(({ logPageView }) => {
+				const { supabase } = $page.data;
+
+				if (supabase) {
+					logPageView(supabase, {
+						page: `/${shop.slug}`,
+						shop_id: shop.id,
+					}).catch((err: unknown) => {
+						// Ne pas bloquer si le tracking échoue
+						console.error('Error tracking page_view:', err);
+					});
+				}
+			});
+		}
+	});
+
 	// Customizations depuis le layout
 	$: ({ customizations } = $page.data);
 
 	// Styles personnalisés
 	$: customStyles = {
-		background: customizations?.background_color || '#ffe8d6',
+		background: customizations?.background_color || '#fafafa',
 		backgroundImage: customizations?.background_image_url
 			? `url(${customizations.background_image_url})`
 			: 'none',
@@ -23,7 +42,8 @@
 		textStyle: `color: ${customizations?.text_color || '#333333'};`,
 		iconStyle: `color: ${customizations?.icon_color || '#6b7280'};`,
 		secondaryTextStyle: `color: ${customizations?.secondary_text_color || '#333333'};`,
-		categoryBorderStyle: `border-color: ${customizations?.secondary_text_color || '#333333'}; color: ${customizations?.secondary_text_color || '#333333'}; background-color: white;`,
+		categoryBorderStyle: `border-color: ${customizations?.secondary_text_color || '#d1d5db'}; color: ${customizations?.secondary_text_color || '#333333'}; background-color: white;`,
+		separatorColor: 'rgba(0, 0, 0, 0.3)',
 	};
 
 	// État du filtre
@@ -34,7 +54,10 @@
 	$: filteredProducts =
 		selectedCategory === null
 			? products
-			: products.filter((product) => product.category_id === selectedCategory);
+			: products.filter(
+					(product: { category_id: string | null }) =>
+						product.category_id === selectedCategory,
+				);
 
 	// Fonction pour formater le prix
 	function formatPrice(price: number): string {
@@ -62,10 +85,10 @@
 	// Variables SEO réactives
 	$: productCount = products?.length || 0;
 	$: hasCustomOrders = shop?.is_custom_accepted || false;
-	$: seoTitle = shop?.name 
+	$: seoTitle = shop?.name
 		? `${shop.name} - Cake Designer & Pâtissier | Commandez vos gâteaux personnalisés en ligne`
 		: 'Boutique de pâtisserie - Pattyly';
-	$: seoDescription = shop?.bio 
+	$: seoDescription = shop?.bio
 		? `${shop.bio} Commandez vos gâteaux personnalisés en ligne. ${productCount > 0 ? `${productCount} créations disponibles. ` : ''}${hasCustomOrders ? 'Demandes sur mesure acceptées. ' : ''}Livraison et retrait disponibles.`
 		: shop?.name
 			? `Découvrez ${shop.name}, votre cake designer et pâtissier. Commandez vos gâteaux personnalisés en ligne${productCount > 0 ? ` parmi ${productCount} créations disponibles` : ''}. ${hasCustomOrders ? 'Demandes sur mesure acceptées. ' : ''}Livraison et retrait disponibles.`
@@ -82,19 +105,10 @@
 		/>
 	{:else}
 		<title>{seoTitle}</title>
-		<meta
-			name="description"
-			content={seoDescription}
-		/>
-		<meta
-			name="keywords"
-			content={seoKeywords}
-		/>
+		<meta name="description" content={seoDescription} />
+		<meta name="keywords" content={seoKeywords} />
 		<meta property="og:title" content={seoTitle} />
-		<meta
-			property="og:description"
-			content={seoDescription}
-		/>
+		<meta property="og:description" content={seoDescription} />
 		<meta property="og:type" content="website" />
 		<meta property="og:url" content={$page.url.href} />
 		{#if shop?.logo_url}
@@ -110,25 +124,33 @@
 </svelte:head>
 
 {#if notFound}
-	<!-- Page d'erreur 404 intégrée -->
+	<!-- Page d'erreur 404 intégrée - Design moderne -->
 	<div
-		class="flex min-h-screen flex-col items-center justify-center px-4 py-12"
+		class="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-white via-[#FFE8D6]/10 to-white px-4 py-12"
 	>
 		<div class="mx-auto max-w-md text-center">
-			<!-- Icône d'erreur -->
+			<!-- Icône d'erreur - Design moderne -->
 			<div class="mb-6 flex justify-center">
-				<div class="rounded-full bg-red-100 p-4">
-					<Search class="h-12 w-12 text-red-600" />
+				<div
+					class="rounded-full bg-gradient-to-br from-neutral-100 to-white p-4 shadow-sm"
+				>
+					<Search class="h-12 w-12 text-neutral-600" />
 				</div>
 			</div>
 
-			<!-- Titre -->
-			<h1 class="mb-4 text-3xl font-bold text-gray-900">
+			<!-- Titre - Charte typographique -->
+			<h1
+				class="mb-4 text-2xl font-semibold leading-[110%] tracking-tight text-neutral-900 sm:text-3xl"
+				style="font-weight: 600; letter-spacing: -0.03em;"
+			>
 				Boutique non trouvée
 			</h1>
 
-			<!-- Message -->
-			<p class="mb-8 text-lg text-gray-600">
+			<!-- Message - Charte typographique -->
+			<p
+				class="mb-8 text-base leading-[180%] text-neutral-600 sm:text-lg"
+				style="font-weight: 300; letter-spacing: -0.01em;"
+			>
 				Cette boutique n'existe pas ou n'est plus disponible.
 			</p>
 		</div>
@@ -140,18 +162,18 @@
 	>
 		<!-- Header avec logo et informations -->
 		<header class="relative px-4 py-6 text-center sm:py-8 md:py-12">
-			<!-- Social Media Icons - Desktop/Tablet (top right) -->
-			<div class="absolute right-4 top-4 hidden items-center gap-3 md:flex">
+			<!-- Social Media Icons - Top right (all screens) - Design moderne -->
+			<div class="absolute right-4 top-4 flex items-center gap-2.5">
 				{#if shop.instagram}
 					<a
 						href="https://instagram.com/{shop.instagram.replace('@', '')}"
 						target="_blank"
 						rel="noopener noreferrer"
-						class="transition-colors hover:opacity-80"
+						class="rounded-full bg-white/80 p-2 shadow-sm backdrop-blur-sm transition-all duration-300 hover:scale-110 hover:shadow-sm"
 						style={customStyles.iconStyle}
 						title="Instagram"
 					>
-						<Instagram class="h-5 w-5" />
+						<Instagram class="h-4 w-4" />
 					</a>
 				{/if}
 				{#if shop.tiktok}
@@ -159,11 +181,11 @@
 						href="https://tiktok.com/@{shop.tiktok.replace('@', '')}"
 						target="_blank"
 						rel="noopener noreferrer"
-						class="transition-colors hover:opacity-80"
+						class="rounded-full bg-white/80 p-2 shadow-sm backdrop-blur-sm transition-all duration-300 hover:scale-110 hover:shadow-sm"
 						style={customStyles.iconStyle}
 						title="TikTok"
 					>
-						<svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+						<svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
 							<path
 								d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"
 							/>
@@ -175,28 +197,33 @@
 						href={shop.website}
 						target="_blank"
 						rel="noopener noreferrer"
-						class="transition-colors hover:opacity-80"
+						class="rounded-full bg-white/80 p-2 shadow-sm backdrop-blur-sm transition-all duration-300 hover:scale-110 hover:shadow-sm"
 						style={customStyles.iconStyle}
 						title="Site internet"
 					>
-						<Paperclip class="h-5 w-5" />
+						<Paperclip class="h-4 w-4" />
 					</a>
 				{/if}
 			</div>
-			<!-- Logo -->
+			<!-- Logo - Design moderne sans bordure -->
 			<div class="mb-4 flex justify-center">
 				{#if shop.logo_url}
-					<img
-						src={shop.logo_url}
-						alt={shop.name}
-						class="h-20 w-20 rounded-full border border-gray-300 object-cover sm:h-24 sm:w-24 md:h-28 md:w-28"
-					/>
+					<div
+						class="relative h-20 w-20 overflow-hidden rounded-full bg-white p-2.5 shadow-sm transition-transform duration-300 hover:scale-105 sm:h-24 sm:w-24 sm:p-3 md:h-28 md:w-28"
+					>
+						<img
+							src={shop.logo_url}
+							alt={shop.name}
+							class="h-full w-full object-contain"
+						/>
+					</div>
 				{:else}
 					<div
-						class="flex h-20 w-20 items-center justify-center rounded-full border border-gray-300 bg-muted sm:h-24 sm:w-24 md:h-28 md:w-28"
+						class="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-[#FFE8D6]/30 to-white shadow-sm sm:h-24 sm:w-24 md:h-28 md:w-28"
 					>
 						<span
-							class="text-2xl font-semibold text-muted-foreground sm:text-3xl md:text-4xl"
+							class="text-2xl font-semibold text-neutral-700 sm:text-3xl md:text-4xl"
+							style="font-weight: 600;"
 						>
 							{shop.name.charAt(0).toUpperCase()}
 						</span>
@@ -204,104 +231,63 @@
 				{/if}
 			</div>
 
-			<!-- Nom de la boutique -->
-			<h1 class="mb-2 text-xl font-semibold" style={customStyles.textStyle}>
+			<!-- Nom de la boutique - Charte typographique (marketing)/(search) -->
+			<h1
+				class="mb-3 text-2xl font-semibold leading-[110%] tracking-tight text-neutral-900 sm:text-3xl"
+				style="font-weight: 600; letter-spacing: -0.03em;"
+			>
 				{shop.name}
 			</h1>
 
-			<!-- Description -->
+			<!-- Description - Charte typographique (marketing)/(search) -->
 			{#if shop.bio}
 				<p
-					class="mx-auto mb-4 max-w-2xl whitespace-pre-wrap text-sm sm:text-base"
-					style={customStyles.secondaryTextStyle}
+					class="mx-auto mb-6 max-w-2xl whitespace-pre-wrap text-sm leading-[180%] text-neutral-600 sm:text-base"
+					style="font-weight: 300; letter-spacing: -0.01em;"
 				>
 					{shop.bio}
 				</p>
 			{/if}
 
-			<!-- Bouton Composer mon gâteau (si activé et boutique active) -->
+			<!-- Bouton Composer mon gâteau (si activé et boutique active) - Design moderne -->
 			{#if shop.is_custom_accepted && isShopActive}
 				<Button
 					on:click={goToCustomRequest}
-					class="mb-4 rounded-full px-6 py-2 text-sm hover:opacity-90 sm:px-8 sm:py-3 sm:text-base"
+					class="mb-4 rounded-full px-6 py-2.5 text-sm shadow-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-md sm:px-8 sm:py-3 sm:text-base"
 					style={customStyles.buttonStyle}
 				>
 					Composer mon gâteau
 				</Button>
 			{/if}
 
-			<!-- Questions fréquentes (seulement si il y a des FAQ) -->
+			<!-- Questions fréquentes (seulement si il y a des FAQ) - Design moderne -->
 			{#if faqs && faqs.length > 0}
 				<button
 					on:click={goToFAQ}
-					class="mx-auto block text-xs italic underline transition-colors hover:opacity-80 sm:text-sm"
-					style={customStyles.secondaryTextStyle}
+					class="mx-auto flex items-center gap-2 rounded-full bg-white/60 px-4 py-2 text-sm font-medium shadow-sm backdrop-blur-sm transition-all duration-300 hover:bg-white/80 hover:shadow-sm sm:text-base"
+					style={`font-weight: 500; letter-spacing: -0.01em; color: ${customizations?.secondary_text_color || '#6b7280'}; border: 1px solid ${customizations?.secondary_text_color || '#e5e7eb'}20;`}
 				>
-					FAQ ❓
+					<HelpCircle class="h-4 w-4" />
+					<span>Questions fréquentes</span>
 				</button>
 			{/if}
-
-			<!-- Social Media Icons - Mobile (under FAQ button) -->
-			<div class="mt-4 flex items-center justify-center gap-4 md:hidden">
-				{#if shop.instagram}
-					<a
-						href="https://instagram.com/{shop.instagram.replace('@', '')}"
-						target="_blank"
-						rel="noopener noreferrer"
-						class="transition-colors hover:opacity-80"
-						style={customStyles.iconStyle}
-						title="Instagram"
-					>
-						<Instagram class="h-5 w-5" />
-					</a>
-				{/if}
-				{#if shop.tiktok}
-					<a
-						href="https://tiktok.com/@{shop.tiktok.replace('@', '')}"
-						target="_blank"
-						rel="noopener noreferrer"
-						class="transition-colors hover:opacity-80"
-						style={customStyles.iconStyle}
-						title="TikTok"
-					>
-						<svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-							<path
-								d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"
-							/>
-						</svg>
-					</a>
-				{/if}
-				{#if shop.website}
-					<a
-						href={shop.website}
-						target="_blank"
-						rel="noopener noreferrer"
-						class="transition-colors hover:opacity-80"
-						style={customStyles.iconStyle}
-						title="Site internet"
-					>
-						<Paperclip class="h-5 w-5" />
-					</a>
-				{/if}
-			</div>
 		</header>
 
-		<!-- Separator -->
+		<!-- Separator - Design moderne avec couleur bouton et opacité -->
 		<div class="px-4">
-			<Separator
-				class="mb-6 sm:mb-8"
-				style={`background-color: ${customizations?.secondary_text_color || '#6b7280'};`}
-			/>
+			<div
+				class="mx-auto mb-6 h-px max-w-7xl bg-gradient-to-r from-transparent to-transparent sm:mb-8"
+				style={`background: linear-gradient(to right, transparent, ${customStyles.separatorColor}, transparent);`}
+			></div>
 		</div>
 
-		<!-- Filtres de catégories (seulement si boutique active) -->
+		<!-- Filtres de catégories (seulement si boutique active) - Couleurs custom respectées -->
 		{#if isShopActive}
-			<div class="mb-6 px-4 sm:mb-8">
-				<div class="flex gap-2 overflow-x-auto pb-2">
+			<div class="mb-6 px-4 sm:mb-8 md:px-6 lg:px-8">
+				<div class="flex flex-wrap gap-2">
 					<Button
-						variant={selectedCategory === null ? 'default' : 'outline'}
 						on:click={() => (selectedCategory = null)}
-						class="whitespace-nowrap rounded-full text-xs sm:text-sm"
+						class="whitespace-nowrap rounded-full text-xs shadow-sm transition-all duration-200 hover:shadow-sm sm:text-sm"
 						style={selectedCategory === null
 							? customStyles.buttonStyle
 							: customStyles.categoryBorderStyle}
@@ -310,9 +296,8 @@
 					</Button>
 					{#each categories as category}
 						<Button
-							variant={selectedCategory === category.id ? 'default' : 'outline'}
 							on:click={() => (selectedCategory = category.id)}
-							class="whitespace-nowrap rounded-full text-xs sm:text-sm"
+							class="whitespace-nowrap rounded-full text-xs shadow-sm transition-all duration-200 hover:shadow-sm sm:text-sm"
 							style={selectedCategory === category.id
 								? customStyles.buttonStyle
 								: customStyles.categoryBorderStyle}
@@ -325,70 +310,81 @@
 		{/if}
 
 		<!-- Liste des produits ou message boutique inactive -->
-		<div class="flex-1 px-4 pb-6 sm:pb-8">
+		<div class="flex-1 px-4 pb-6 sm:pb-8 md:px-6 lg:px-8">
 			{#if isShopActive}
+				<!-- ✅ NOUVEAU DESIGN : Grille moderne avec 2 colonnes sur mobile, sans bordures -->
 				<div
-					class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+					class="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
 				>
 					{#each filteredProducts as product}
-						<div class="flex h-[150px] w-full max-w-[380px] items-center gap-5">
-							<!-- Image du produit -->
-							<div class="flex-shrink-0">
+						<!-- ✅ Carte verticale moderne style Awwwards - Charte (marketing)/(search) -->
+						<button
+							on:click={() => viewProduct(product.id)}
+							class="group relative flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF6F61]/20"
+						>
+							<!-- Image du produit - Hauteur réduite -->
+							<div
+								class="relative h-32 w-full overflow-hidden bg-gradient-to-br from-[#FFE8D6]/20 to-white sm:h-36"
+							>
 								{#if product.image_url}
 									<img
 										src={product.image_url}
 										alt={product.name}
-										class="h-[150px] w-[150px] rounded-lg object-cover"
+										class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
 									/>
 								{:else}
 									<div
-										class="flex h-[150px] w-[150px] items-center justify-center rounded-lg bg-muted"
+										class="flex h-full items-center justify-center bg-gradient-to-br from-[#FFE8D6]/30 to-white"
 									>
-										<Heart class="h-12 w-12 text-muted-foreground" />
+										<svg
+											class="h-10 w-10 text-neutral-300"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="1.5"
+												d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+											/>
+										</svg>
 									</div>
 								{/if}
 							</div>
 
-							<!-- Informations du produit -->
-							<div class="flex min-w-0 flex-1 flex-col justify-center gap-2">
+							<!-- Informations du produit - Compact - Charte typographique -->
+							<div class="flex flex-1 flex-col p-2.5 sm:p-3">
+								<!-- Nom du produit -->
 								<h3
-									class="truncate text-sm font-medium"
-									style={customStyles.textStyle}
+									class="mb-1 line-clamp-2 text-left text-sm font-semibold leading-tight text-neutral-900"
+									style="font-weight: 600; letter-spacing: -0.02em;"
 								>
 									{product.name}
 								</h3>
-								{#if product.description}
-									<p
-										class="line-clamp-2 text-xs"
-										style={customStyles.secondaryTextStyle}
-									>
-										{product.description}
-									</p>
-								{/if}
 
-								<p class="text-sm font-medium" style={customStyles.textStyle}>
-									À partir de {formatPrice(product.base_price)}
-								</p>
-								<Button
-									on:click={() => viewProduct(product.id)}
-									class="mt-2 h-[25px] w-[100px] rounded-full text-xs hover:opacity-90"
-									style={customStyles.buttonStyle}
-								>
-									Commander
-								</Button>
+								<!-- Prix -->
+								<div class="mt-auto pt-1.5">
+									<p
+										class="text-sm font-bold sm:text-base"
+										style={`color: ${customizations?.button_color || '#FF6F61'}; font-weight: 600;`}
+									>
+										{formatPrice(product.base_price)}
+									</p>
+								</div>
 							</div>
-						</div>
+						</button>
 					{/each}
 				</div>
 
-				<!-- Message si aucun produit -->
+				<!-- Message si aucun produit - Charte typographique -->
 				{#if filteredProducts.length === 0}
 					<div
-						class="flex flex-1 items-center justify-center py-6 text-center sm:py-8"
+						class="flex flex-1 items-center justify-center py-12 text-center sm:py-16"
 					>
 						<p
-							class="text-sm sm:text-base"
-							style={customStyles.secondaryTextStyle}
+							class="text-base leading-[180%] text-neutral-600 sm:text-lg"
+							style="font-weight: 300; letter-spacing: -0.01em;"
 						>
 							{#if selectedCategory}
 								Aucun produit dans cette catégorie pour le moment.
@@ -399,15 +395,17 @@
 					</div>
 				{/if}
 			{:else}
-				<!-- Message boutique inactive -->
+				<!-- Message boutique inactive - Charte typographique - Design moderne -->
 				<div
 					class="flex flex-1 items-center justify-center py-12 text-center sm:py-16"
 				>
 					<div class="max-w-md">
-						<div class="mb-4 flex justify-center">
-							<div class="rounded-full bg-orange-100 p-3">
+						<div class="mb-6 flex justify-center">
+							<div
+								class="rounded-full bg-gradient-to-br from-neutral-100 to-white p-4 shadow-sm"
+							>
 								<svg
-									class="h-8 w-8 text-orange-600"
+									class="h-8 w-8 text-neutral-600"
 									fill="none"
 									stroke="currentColor"
 									viewBox="0 0 24 24"
@@ -421,10 +419,16 @@
 								</svg>
 							</div>
 						</div>
-						<h3 class="mb-2 text-lg font-semibold text-foreground">
+						<h3
+							class="mb-3 text-xl font-semibold leading-[110%] tracking-tight text-neutral-900 sm:text-2xl"
+							style="font-weight: 600; letter-spacing: -0.03em;"
+						>
 							Boutique temporairement fermée
 						</h3>
-						<p class="text-sm text-muted-foreground sm:text-base">
+						<p
+							class="text-base leading-[180%] text-neutral-600 sm:text-lg"
+							style="font-weight: 300; letter-spacing: -0.01em;"
+						>
 							Cette boutique n'est pas disponible pour le moment. Revenez
 							bientôt pour découvrir nos délicieuses créations !
 						</p>

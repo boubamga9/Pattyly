@@ -7,24 +7,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     const { slug, order_ref } = params;
 
     try {
-        // Récupérer la commande custom avec order_ref
-        const { data: shop, error: shopError } = await (locals.supabaseServiceRole as any)
-            .from('shops')
-            .select('id, name, slug, logo_url, profile_id')
-            .eq('slug', slug)
-            .single();
-
-        if (shopError || !shop) {
-            console.error('Error fetching shop:', shopError);
-            throw error(404, 'Boutique non trouvée');
-        }
-
-        // Récupérer l'order avec order_ref
+        // ✅ OPTIMISÉ : Charger order d'abord, puis shop et payment_links en parallèle
+        // Récupérer l'order avec order_ref et vérification du slug
         const { data: order, error: orderError } = await (locals.supabaseServiceRole as any)
             .from('orders')
-            .select('*')
+            .select('*, shops!inner(slug, id, name, logo_url, profile_id)')
             .eq('order_ref', order_ref)
-            .eq('shop_id', shop.id)
+            .eq('shops.slug', slug)
             .eq('status', 'quoted') // Seulement les devis en attente de paiement
             .single();
 
@@ -32,6 +21,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             console.error('Error fetching order:', orderError);
             throw error(404, 'Devis non trouvé');
         }
+
+        // Extraire shop depuis la relation
+        const shop = order.shops;
 
         // Récupérer le payment_link pour avoir le paypal_me
         const { data: paymentLink, error: paymentLinkError } = await (locals.supabaseServiceRole as any)
@@ -45,10 +37,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             throw error(500, 'Erreur lors du chargement des informations de paiement');
         }
 
+        // Retourner order sans la relation shops (déjà extraite)
+        const { shops, ...orderWithoutShops } = order;
+
         // Les customizations sont chargées dans le layout parent
 
         return {
-            order,
+            order: orderWithoutShops,
             paypalMe: paymentLink.paypal_me,
             shop,
         };
@@ -67,19 +62,29 @@ export const actions: Actions = {
         // Just return success, the frontend will handle the redirect
         return { success: true };
     },
-    confirmPayment: async ({ params, locals }) => {
+    confirmPayment: async ({ params, request, locals }) => {
         const { slug, order_ref } = params;
 
         try {
             console.log('🚀 [Confirm Custom Payment] Starting for order_ref:', order_ref);
 
-            // 1. Récupérer l'order
-            const { data: order, error: orderError } = await (locals.supabaseServiceRole as any)
+            // ✅ OPTIMISÉ : Récupérer orderId depuis formData si disponible, sinon utiliser order_ref
+            const formData = await request.formData();
+            const orderId = formData.get('orderId') as string;
+
+            // 1. Récupérer l'order (avec orderId si disponible, sinon avec order_ref)
+            const orderQuery = (locals.supabaseServiceRole as any)
                 .from('orders')
                 .select('*, shops(slug, logo_url, name, profile_id, profiles(email))')
-                .eq('order_ref', order_ref)
-                .eq('status', 'quoted')
-                .single();
+                .eq('status', 'quoted');
+
+            if (orderId) {
+                orderQuery.eq('id', orderId);
+            } else {
+                orderQuery.eq('order_ref', order_ref);
+            }
+
+            const { data: order, error: orderError } = await orderQuery.single();
 
             if (orderError || !order) {
                 console.error('Error fetching order:', orderError);
@@ -175,4 +180,3 @@ export const actions: Actions = {
         }
     }
 };
-

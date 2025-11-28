@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
+	import { onMount } from 'svelte';
 	import {
 		Card,
 		CardContent,
@@ -8,7 +10,7 @@
 		CardTitle,
 	} from '$lib/components/ui/card';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { CheckCircle, Store } from 'lucide-svelte';
+	import { Check, Store } from 'lucide-svelte';
 	import OnboardingForm from './onboarding-form.svelte';
 	import PayPalForm from './paypal-form.svelte';
 	import DirectoryForm from '$lib/components/directory/directory-form.svelte';
@@ -39,6 +41,21 @@
 	// Variables réactives qui se mettent à jour avec data
 	$: step = data.step;
 	$: shop = data.shop;
+
+	// ✅ Tracking: Page view côté client (onboarding page)
+	onMount(() => {
+		import('$lib/utils/analytics').then(({ logPageView }) => {
+			const supabase = $page.data.supabase;
+			if (supabase) {
+				logPageView(supabase, {
+					page: '/onboarding',
+					step: data.step
+				}).catch((err: unknown) => {
+					console.error('Error tracking page_view:', err);
+				});
+			}
+		});
+	});
 </script>
 
 <svelte:head>
@@ -63,7 +80,7 @@
 							: 'bg-muted text-muted-foreground'} border-2 border-primary/20"
 					>
 						{#if step >= 1}
-							<CheckCircle class="h-5 w-5" />
+							<Check class="h-5 w-5" />
 						{:else}
 							<span class="text-sm font-medium">1</span>
 						{/if}
@@ -84,7 +101,7 @@
 							: 'bg-muted text-muted-foreground'} border-2 border-primary/20"
 					>
 						{#if step >= 2}
-							<CheckCircle class="h-5 w-5" />
+							<Check class="h-5 w-5" />
 						{:else}
 							<span class="text-sm font-medium">2</span>
 						{/if}
@@ -105,7 +122,7 @@
 							: 'bg-muted text-muted-foreground'} border-2 border-primary/20"
 					>
 						{#if step >= 3}
-							<CheckCircle class="h-5 w-5" />
+							<Check class="h-5 w-5" />
 						{:else}
 							<span class="text-sm font-medium">3</span>
 						{/if}
@@ -211,7 +228,7 @@
 					</div>
 				</CardHeader>
 				<CardContent>
-					<DirectoryForm data={data.form} />
+					<DirectoryForm data={data.form} shop={shop} alwaysShowForm={true} />
 				</CardContent>
 			</Card>
 		{/if}

@@ -10,9 +10,19 @@
 	import ScrollToTop from './components/scroll-to-top.svelte';
 	import CakeDesignerPopup from './components/cake-designer-popup.svelte';
 	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
 
 	// Schema.org Organization et WebSite pour SEO
 	onMount(() => {
+		// ✅ Tracking: Page view côté client (home page)
+		import('$lib/utils/analytics').then(({ logPageView }) => {
+			const supabase = $page.data.supabase;
+			logPageView(supabase, {
+				page: '/'
+			}).catch((err: unknown) => {
+				console.error('Error tracking page_view:', err);
+			});
+		});
 		const organizationSchema = {
 			'@context': 'https://schema.org',
 			'@type': 'Organization',

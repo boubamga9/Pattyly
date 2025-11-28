@@ -10,7 +10,7 @@
 	} from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import LoaderCircle from '~icons/lucide/loader-circle';
-	import { CheckCircle } from 'lucide-svelte';
+	import { Check } from 'lucide-svelte';
 	import {
 		changePasswordFormSchema,
 		createPasswordFormSchema,
@@ -22,10 +22,12 @@
 
 	const changeForm = superForm(data, {
 		validators: zodClient(changePasswordFormSchema),
+		id: 'change-password-form', // ✅ ID unique pour éviter les conflits
 	});
 
 	const createForm = superForm(data, {
 		validators: zodClient(createPasswordFormSchema),
+		id: 'create-password-form', // ✅ ID unique pour éviter les conflits
 	});
 
 	$: isUpdate = 'old_password' in data.data;
@@ -133,19 +135,21 @@
 			<Form.Button
 				type="submit"
 				disabled={$submitting || !$tainted}
-				class={`w-full transition-all duration-200 ${
-					$submitting
-						? 'cursor-not-allowed bg-gray-300'
-						: submitted
-							? 'bg-green-700 hover:bg-green-800'
-							: 'bg-primary hover:bg-primary/90'
+				class={`h-10 w-full text-sm font-medium text-white transition-all duration-200 disabled:cursor-not-allowed ${
+					submitted
+						? 'bg-[#FF6F61] hover:bg-[#e85a4f] disabled:opacity-100'
+						: $submitting
+							? 'bg-gray-600 hover:bg-gray-700 disabled:opacity-50'
+							: $tainted
+								? 'bg-primary hover:bg-primary/90 disabled:opacity-50'
+								: 'bg-gray-500 disabled:opacity-50'
 				}`}
 			>
 				{#if $submitting}
-					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+					<LoaderCircle class="mr-2 h-5 w-5 animate-spin" />
 					Mise à jour du mot de passe…
 				{:else if submitted}
-					<CheckCircle class="mr-2 h-4 w-4" />
+					<Check class="mr-2 h-5 w-5" />
 					Mot de passe mis à jour
 				{:else}
 					Mettre à jour le mot de passe

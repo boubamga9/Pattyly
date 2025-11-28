@@ -1,8 +1,9 @@
 <script lang="ts">
+	import { page } from '$app/stores';
 	import * as Form from '$lib/components/ui/form';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { Plus, X } from 'lucide-svelte';
+	import { Plus, X, LoaderCircle, Check } from 'lucide-svelte';
 	import { superForm } from 'sveltekit-superforms/client';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import type { SuperValidated, Infer } from 'sveltekit-superforms';
@@ -21,8 +22,14 @@
 
 	const { form: formData, enhance, submitting, message } = form;
 
+	let submitted = false;
+
 	$: if ($message) {
-		onCancel();
+		submitted = true;
+		setTimeout(() => {
+			submitted = false;
+			onCancel();
+		}, 2000);
 	}
 
 	// Fonction pour vérifier si une date est déjà indisponible
@@ -42,6 +49,10 @@
 </script>
 
 <form method="POST" action="?/addUnavailability" use:enhance>
+	<!-- ✅ OPTIMISÉ : Passer shopId pour éviter getUserPermissions + requête shop -->
+	{#if $page.data.shopId}
+		<input type="hidden" name="shopId" value={$page.data.shopId} />
+	{/if}
 	<Form.Errors {form} />
 
 	<div class="space-y-4">
@@ -91,16 +102,32 @@
 			<Button
 				type="submit"
 				disabled={$submitting || !$formData.startDate || !$formData.endDate}
-				class="w-full sm:w-auto"
+				class={`h-10 w-full text-sm font-medium text-white transition-all duration-200 disabled:cursor-not-allowed sm:w-auto ${
+					submitted
+						? 'bg-[#FF6F61] hover:bg-[#e85a4f] disabled:opacity-100'
+						: $submitting
+							? 'bg-gray-600 hover:bg-gray-700 disabled:opacity-50'
+							: $formData.startDate && $formData.endDate
+								? 'bg-primary hover:bg-primary/90 disabled:opacity-50'
+								: 'bg-gray-500 disabled:opacity-50'
+				}`}
 			>
-				<Plus class="mr-2 h-4 w-4" />
-				Ajouter une indisponibilité
+				{#if $submitting}
+					<LoaderCircle class="mr-2 h-5 w-5 animate-spin" />
+					Ajout...
+				{:else if submitted}
+					<Check class="mr-2 h-5 w-5" />
+					Ajouté !
+				{:else}
+					<Plus class="mr-2 h-5 w-5" />
+					Ajouter une indisponibilité
+				{/if}
 			</Button>
 			<Button
 				type="button"
 				variant="outline"
 				on:click={onCancel}
-				class="w-full sm:w-auto"
+				class="h-10 w-full sm:w-auto"
 			>
 				<X class="mr-2 h-4 w-4" />
 				Annuler

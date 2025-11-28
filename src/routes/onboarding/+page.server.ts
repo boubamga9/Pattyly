@@ -192,6 +192,16 @@ export const actions: Actions = {
                 }
             }
 
+            // ✅ Tracking: Shop created (fire-and-forget pour ne pas bloquer)
+            const { logEventAsync, Events } = await import('$lib/utils/analytics');
+            logEventAsync(
+                locals.supabaseServiceRole,
+                Events.SHOP_CREATED,
+                { shop_id: shop.id, shop_name: name, shop_slug: slug },
+                userId,
+                '/onboarding'
+            );
+
             // Retour succès
             const cleanForm = await superValidate(zod(shopCreationSchema));
             cleanForm.message = 'Boutique créée avec succès !';
@@ -263,6 +273,16 @@ export const actions: Actions = {
                 .select('id, name, slug, directory_city, directory_actual_city, directory_postal_code, directory_cake_types, directory_enabled')
                 .eq('profile_id', userId)
                 .single();
+
+            // ✅ Tracking: Payment enabled (fire-and-forget pour ne pas bloquer)
+            const { logEventAsync, Events } = await import('$lib/utils/analytics');
+            logEventAsync(
+                locals.supabaseServiceRole,
+                Events.PAYMENT_ENABLED,
+                { shop_id: shopData?.id, paypal_me },
+                userId,
+                '/onboarding'
+            );
 
             const cleanForm = await superValidate(zod(paypalConfigSchema));
             cleanForm.message = 'Lien PayPal créé avec succès !';

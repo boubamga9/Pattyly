@@ -154,7 +154,7 @@
 	$: days = getDaysInMonth(currentMonth.getFullYear(), currentMonth.getMonth());
 </script>
 
-<div class="w-fit rounded-lg border bg-background p-4">
+<div class="w-fit rounded-2xl border p-4" style="background-color: white;">
 	<!-- En-tête du calendrier -->
 	<div class="mb-4 flex items-center justify-between">
 		<Button variant="ghost" size="sm" on:click={previousMonth}>

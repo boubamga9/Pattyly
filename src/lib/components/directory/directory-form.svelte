@@ -11,14 +11,27 @@
 		type SuperValidated,
 	} from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
-	import { directorySchema } from '$lib/validations/schemas/shop';
-	import { searchCities, MAJOR_CITIES, CAKE_TYPES_FOR_FORMS, type CitySuggestion } from '$lib/services/city-autocomplete';
-	import { MapPin, Search, LoaderCircle } from 'lucide-svelte';
+	import {
+		directorySchema,
+		toggleDirectorySchema,
+	} from '$lib/validations/schemas/shop';
+	import {
+		searchCities,
+		MAJOR_CITIES,
+		CAKE_TYPES_FOR_FORMS,
+		type CitySuggestion,
+	} from '$lib/services/city-autocomplete';
+	import { MapPin, LoaderCircle, Check } from 'lucide-svelte';
 	import { onMount } from 'svelte';
-	import { invalidateAll } from '$app/navigation';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 
 	export let data: SuperValidated<Infer<typeof directorySchema>>;
+	export let toggleForm:
+		| SuperValidated<Infer<typeof toggleDirectorySchema>>
+		| undefined = undefined;
+	export let shop: { id: string; slug: string } | null | undefined = undefined;
+	export let alwaysShowForm: boolean = false; // Pour l'onboarding, toujours afficher le formulaire
 
 	const form = superForm(data, {
 		validators: zodClient(directorySchema),
@@ -28,8 +41,9 @@
 			console.log('📋 [Directory Form] onUpdated called', {
 				valid: updatedForm.valid,
 				data: updatedForm.data,
-				message: updatedForm.message
+				message: updatedForm.message,
 			});
+			console.log('📋 [Directory Form] submitted in onUpdated:', submitted);
 			// Préserver les valeurs après mise à jour
 			if (updatedForm.valid && updatedForm.data) {
 				// Synchroniser cityInput avec la valeur du formulaire
@@ -40,10 +54,45 @@
 					// (optionnel, pour améliorer l'UX)
 				}
 			}
-		}
+			// ✅ NE PAS réinitialiser submitted ici, il doit rester true pendant 2 secondes
+		},
 	});
 
-	const { form: formData, enhance, submitting, errors } = form;
+	const { form: formData, enhance, submitting } = form;
+
+	// Formulaire séparé pour le toggle (optionnel - seulement si toggleForm est fourni)
+	const toggleFormStore = toggleForm
+		? superForm(toggleForm, {
+				validators: zodClient(toggleDirectorySchema),
+			})
+		: null;
+
+	const toggleFormData = toggleFormStore ? toggleFormStore.form : null;
+	const toggleEnhance = toggleFormStore ? toggleFormStore.enhance : null;
+	// Simplifier : utiliser directement la valeur du store si disponible
+	// Dans l'onboarding, toggleFormStore est null, donc on utilise false
+	let toggleSubmittingBool = false;
+
+	// État pour le feedback de succès
+	let submitted = false;
+
+	// État local pour l'optimistic update du toggle
+	// Utiliser formData comme source de vérité principale
+	let localDirectoryEnabled = $formData.directory_enabled || false;
+
+	// Synchroniser localDirectoryEnabled avec formData (source de vérité principale)
+	$: if (
+		$formData.directory_enabled !== localDirectoryEnabled &&
+		!toggleSubmittingBool
+	) {
+		localDirectoryEnabled = $formData.directory_enabled || false;
+	}
+
+	// Note: Dans l'onboarding, toggleFormStore est null, donc cette synchronisation ne s'applique pas
+	// Le toggle fonctionne directement avec formData dans l'onboarding
+
+	// Référence au bouton submit caché pour le toggle
+	let toggleSubmitButton: HTMLButtonElement;
 
 	// Autocomplétion de la ville
 	let cityInput = $formData.directory_actual_city || '';
@@ -60,7 +109,7 @@
 		$formData.directory_postal_code = ''; // Reset code postal si ville change
 
 		clearTimeout(searchTimeout);
-		
+
 		if (cityInput.length < 2) {
 			citySuggestions = [];
 			showSuggestions = false;
@@ -96,63 +145,97 @@
 	// Gestion des types de gâteaux (limite à 3 maximum)
 	function toggleCakeType(cakeType: string) {
 		const currentTypes = $formData.directory_cake_types || [];
-		
+
 		// Si on désélectionne, on peut toujours le faire
 		if (currentTypes.includes(cakeType)) {
 			const newTypes = currentTypes.filter((t) => t !== cakeType);
 			$formData.directory_cake_types = newTypes;
-			form.update({ directory_cake_types: newTypes }, { reset: false });
 			return;
 		}
-		
+
 		// Si on sélectionne et qu'on a déjà 3 types, on ne peut pas en ajouter plus
 		if (currentTypes.length >= 3) {
 			console.log('📋 [Directory Form] Maximum de 3 types atteint');
 			return;
 		}
-		
+
 		// Ajouter le nouveau type
 		const newTypes = [...currentTypes, cakeType];
-		
+
 		console.log('📋 [Directory Form] toggleCakeType:', {
 			cakeType,
 			currentTypes,
 			newTypes,
-			beforeUpdate: $formData.directory_cake_types
+			beforeUpdate: $formData.directory_cake_types,
 		});
-		
+
 		// Mettre à jour le formulaire de manière réactive
 		$formData.directory_cake_types = newTypes;
-		
-		// Forcer la mise à jour pour s'assurer que superForm détecte le changement
-		form.update({ directory_cake_types: newTypes }, { reset: false });
-		
+
 		console.log('📋 [Directory Form] After update:', {
 			directory_cake_types: $formData.directory_cake_types,
-			formDataSnapshot: JSON.parse(JSON.stringify($formData))
+			formDataSnapshot: JSON.parse(JSON.stringify($formData)),
 		});
 	}
 
 	// Synchroniser cityInput avec le formulaire (réactif) - seulement si l'input n'est pas en focus
 	let isCityInputFocused = false;
-	
+
 	$: {
 		// Ne synchroniser que si l'input n'est pas en focus (pour éviter de bloquer la saisie)
-		if (!isCityInputFocused && $formData.directory_actual_city && cityInput !== $formData.directory_actual_city) {
-			console.log('📋 [Directory Form] Syncing cityInput from', cityInput, 'to', $formData.directory_actual_city);
+		if (
+			!isCityInputFocused &&
+			$formData.directory_actual_city &&
+			cityInput !== $formData.directory_actual_city
+		) {
+			console.log(
+				'📋 [Directory Form] Syncing cityInput from',
+				cityInput,
+				'to',
+				$formData.directory_actual_city,
+			);
 			cityInput = $formData.directory_actual_city;
 		}
 	}
-	
+
 	// Logger les changements de formData seulement quand ils sont significatifs
-	$: if ($formData.directory_city || $formData.directory_actual_city || $formData.directory_postal_code) {
+	$: if (
+		$formData.directory_city ||
+		$formData.directory_actual_city ||
+		$formData.directory_postal_code
+	) {
 		console.log('📋 [Directory Form] FormData changed:', {
 			directory_city: $formData.directory_city,
 			directory_actual_city: $formData.directory_actual_city,
 			directory_postal_code: $formData.directory_postal_code,
 			directory_cake_types: $formData.directory_cake_types,
-			directory_enabled: $formData.directory_enabled
+			directory_enabled: $formData.directory_enabled,
 		});
+	}
+
+	// Handle toggle change
+	function handleDirectoryToggleChange() {
+		const newValue = !localDirectoryEnabled;
+
+		// Mettre à jour l'état local immédiatement (optimistic update)
+		localDirectoryEnabled = newValue;
+
+		// Mettre à jour le formulaire principal (toujours)
+		$formData.directory_enabled = newValue;
+
+		// Si toggleForm est fourni, mettre à jour toggleFormData et soumettre
+		if (toggleFormStore && toggleFormData) {
+			toggleFormStore.form.update((f) => {
+				f.directory_enabled = newValue;
+				return f;
+			});
+			// Déclencher la soumission du formulaire toggle
+			if (toggleSubmitButton) {
+				toggleSubmitButton.click();
+			}
+		}
+		// Sinon, dans l'onboarding, on met juste à jour le formulaire principal
+		// qui sera soumis avec le bouton "Sauvegarder"
 	}
 
 	// Initialiser avec les données existantes
@@ -162,242 +245,299 @@
 			directory_actual_city: $formData.directory_actual_city,
 			directory_postal_code: $formData.directory_postal_code,
 			directory_cake_types: $formData.directory_cake_types,
-			directory_enabled: $formData.directory_enabled
+			directory_enabled: $formData.directory_enabled,
 		});
 		if ($formData.directory_actual_city) {
 			cityInput = $formData.directory_actual_city;
 			console.log('📋 [Directory Form] Initialized cityInput to:', cityInput);
 		}
+		// Initialiser l'état local du toggle depuis formData
+		localDirectoryEnabled = $formData.directory_enabled || false;
 	});
 </script>
 
+<!-- Formulaire séparé pour le toggle directory_enabled -->
+{#if toggleFormStore && toggleEnhance}
+	<form
+		method="POST"
+		action="?/toggleDirectory"
+		use:toggleEnhance={{
+			onResult: ({ result }) => {
+				if (result.type === 'success') {
+					// Succès - synchroniser avec le formulaire principal pour l'affichage conditionnel
+					$formData.directory_enabled = localDirectoryEnabled;
+				} else {
+					// En cas d'erreur, remettre l'ancienne valeur depuis formData
+					localDirectoryEnabled = $formData.directory_enabled || false;
+				}
+			},
+		}}
+	>
+		<!-- ✅ OPTIMISÉ : Passer shopId et shopSlug pour éviter getUser + requête shop -->
+		{#if shop || $page.data.shop}
+			{@const shopData = shop || $page.data.shop}
+			<input type="hidden" name="shopId" value={shopData.id} />
+			<input type="hidden" name="shopSlug" value={shopData.slug} />
+		{/if}
+		<input
+			type="hidden"
+			name="directory_enabled"
+			value={String(!localDirectoryEnabled)}
+		/>
+		<Form.Errors form={toggleFormStore} />
+
+		<!-- Bouton submit caché pour déclencher la soumission du toggle -->
+		<button
+			type="submit"
+			bind:this={toggleSubmitButton}
+			class="hidden"
+			aria-hidden="true"
+			tabindex="-1"
+		>
+			Soumettre
+		</button>
+	</form>
+{/if}
+
+<!-- Activer l'annuaire -->
+<div class="mb-6 flex items-center justify-between">
+	<div class="space-y-0.5">
+		<Label>Apparaître dans l'annuaire des pâtissiers</Label>
+		<p class="text-sm text-muted-foreground">
+			Si activé, votre boutique sera visible dans l'annuaire et pourra être
+			trouvée par les clients
+		</p>
+	</div>
+	<Switch
+		checked={localDirectoryEnabled}
+		on:change={handleDirectoryToggleChange}
+		disabled={toggleSubmittingBool}
+	/>
+</div>
+
+<!-- Formulaire principal pour les autres champs directory -->
 <form
 	method="POST"
 	action="?/updateDirectory"
-	use:enhance={({ cancel }) => {
-		return async ({ result }) => {
-			console.log('📋 [Directory Form] enhance callback - result:', {
-				type: result.type,
-				status: result.status,
-				data: result.data
-			});
-			
-			// Logger les valeurs AVANT la soumission
-			console.log('📋 [Directory Form] FormData BEFORE submission:', {
-				directory_city: $formData.directory_city,
-				directory_actual_city: $formData.directory_actual_city,
-				directory_postal_code: $formData.directory_postal_code,
-				directory_cake_types: $formData.directory_cake_types,
-				directory_enabled: $formData.directory_enabled
-			});
-			
+	use:enhance={{
+		onResult: ({ result }) => {
+			console.log('📋 [Directory Form] enhance callback - result:', result);
+			console.log('📋 [Directory Form] submitted before:', submitted);
+
 			if (result.type === 'success') {
-				console.log('📋 [Directory Form] Success response:', {
-					success: result.data?.success,
-					formData: result.data?.form?.data,
-					message: result.data?.form?.message
-				});
-				
-				if (result.data?.success) {
-					// Si on est dans l'onboarding, rediriger directement vers le dashboard
-					const pathname = window.location.pathname;
-					console.log('📋 [Directory Form] Current pathname:', pathname);
-					
-					if (pathname.includes('/onboarding')) {
-						console.log('📋 [Directory Form] In onboarding - canceling update and redirecting');
-						// Annuler la mise à jour automatique du formulaire et rediriger
-						cancel();
-						goto('/dashboard');
-					} else {
-						console.log('📋 [Directory Form] In dashboard - invalidating all');
-						// Dans le dashboard, recharger la page pour mettre à jour les données
-						await invalidateAll();
-					}
+				// Afficher le feedback de succès
+				submitted = true;
+				console.log('📋 [Directory Form] submitted set to true');
+
+				// Si on est dans l'onboarding, rediriger directement vers le dashboard
+				const pathname = window.location.pathname;
+				console.log('📋 [Directory Form] Current pathname:', pathname);
+
+				if (pathname.includes('/onboarding')) {
+					console.log('📋 [Directory Form] In onboarding - redirecting');
+					goto('/dashboard');
+				} else {
+					console.log(
+						'📋 [Directory Form] In dashboard - success, showing feedback',
+					);
+					// Dans le dashboard, afficher le feedback pendant 2 secondes
+					setTimeout(() => {
+						console.log('📋 [Directory Form] Resetting submitted to false');
+						submitted = false;
+					}, 2000);
 				}
 			} else if (result.type === 'failure') {
-				console.error('📋 [Directory Form] Failure response:', result.status, result.data);
+				console.error(
+					'📋 [Directory Form] Failure response:',
+					result.status,
+					result.data,
+				);
+				submitted = false;
 			}
-		};
-	}}
-	on:submit={() => {
-		console.log('📋 [Directory Form] Form submitted with data:', {
-			directory_city: $formData.directory_city,
-			directory_actual_city: $formData.directory_actual_city,
-			directory_postal_code: $formData.directory_postal_code,
-			directory_cake_types: $formData.directory_cake_types,
-			directory_enabled: $formData.directory_enabled
-		});
+		},
 	}}
 	class="space-y-6"
 >
-	<Form.Errors {form} />
-
-	<!-- Activer l'annuaire -->
-	<Form.Field {form} name="directory_enabled">
-		<Form.Control>
-			<div class="flex items-center justify-between">
-				<div class="space-y-0.5">
-					<Form.Label>Apparaître dans l'annuaire des pâtissiers</Form.Label>
-					<Form.Description>
-						Si activé, votre boutique sera visible dans l'annuaire et pourra être trouvée par les clients
-					</Form.Description>
-				</div>
-				<Switch
-					checked={$formData.directory_enabled}
-					on:change={(event) => {
-						$formData.directory_enabled = event.detail;
-						console.log('📋 [Directory Form] Switch toggled:', event.detail);
-					}}
-				/>
-			</div>
-		</Form.Control>
-		<Form.FieldErrors />
-	</Form.Field>
-
-	{#if $formData.directory_enabled}
-		<!-- Grande ville la plus proche -->
-		<Form.Field {form} name="directory_city">
-		<Form.Control let:attrs>
-			<Form.Label>Grande ville la plus proche</Form.Label>
-			<select
-				{...attrs}
-				bind:value={$formData.directory_city}
-				class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-			>
-				<option value="">Sélectionnez une grande ville</option>
-				{#each MAJOR_CITIES as city}
-					<option value={city}>{city}</option>
-				{/each}
-			</select>
-		</Form.Control>
-		<Form.Description>
-			Choisissez la grande ville la plus proche de votre boutique
-		</Form.Description>
-		<Form.FieldErrors />
-	</Form.Field>
-
-	<!-- Vraie ville avec autocomplétion -->
-	<Form.Field {form} name="directory_actual_city">
-		<Form.Control let:attrs>
-			<Form.Label>Votre ville</Form.Label>
-			<div class="relative w-full">
-				<MapPin class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
-				<input
-					{...attrs}
-					bind:this={cityInputElement}
-					type="text"
-					bind:value={cityInput}
-					on:input={handleCityInput}
-					on:blur={() => {
-						isCityInputFocused = false;
-						handleCityBlur();
-					}}
-					on:focus={() => {
-						isCityInputFocused = true;
-						if (citySuggestions.length > 0) showSuggestions = true;
-					}}
-					placeholder="Commencez à taper le nom de votre ville..."
-					class="flex h-10 w-full rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-				/>
-				{#if isSearching}
-					<LoaderCircle class="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground pointer-events-none z-10" />
-				{/if}
-
-				<!-- Suggestions d'autocomplétion -->
-				{#if showSuggestions && citySuggestions.length > 0}
-					<div class="absolute left-0 right-0 top-full z-50 mt-1 w-full rounded-md border bg-popover shadow-lg">
-						<ul class="max-h-60 overflow-auto p-1">
-							{#each citySuggestions as suggestion}
-								<li>
-									<button
-										type="button"
-										on:click={() => selectCity(suggestion)}
-										class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
-									>
-										<MapPin class="h-4 w-4 shrink-0 text-muted-foreground" />
-										<span class="truncate">{suggestion.label}</span>
-									</button>
-								</li>
-							{/each}
-						</ul>
-					</div>
-				{/if}
-			</div>
-		</Form.Control>
-		<Form.Description>
-			Tapez le nom de votre ville pour voir les suggestions
-		</Form.Description>
-		<Form.FieldErrors />
-	</Form.Field>
-
-	<!-- Code postal (auto-rempli) -->
-	<Form.Field {form} name="directory_postal_code">
-		<Form.Control let:attrs>
-			<Form.Label>Code postal</Form.Label>
-			<Input
-				{...attrs}
-				type="text"
-				bind:value={$formData.directory_postal_code}
-				placeholder="75001"
-				maxlength="5"
-				readonly
-				class="bg-muted"
-			/>
-		</Form.Control>
-		<Form.Description>
-			Rempli automatiquement lors de la sélection de la ville
-		</Form.Description>
-		<Form.FieldErrors />
-	</Form.Field>
-
-	<!-- Types de gâteaux -->
-	<Form.Field {form} name="directory_cake_types">
-		<Form.Control>
-			<Form.Label>Types de gâteaux proposés</Form.Label>
-			<Form.Description>
-				Sélectionnez jusqu'à 3 types de gâteaux que vous proposez
-				{#if ($formData.directory_cake_types || []).length > 0}
-					<span class="ml-2 text-muted-foreground">
-						({($formData.directory_cake_types || []).length}/3)
-					</span>
-				{/if}
-			</Form.Description>
-			<div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
-				{#each CAKE_TYPES_FOR_FORMS as cakeType}
-					{@const isSelected = ($formData.directory_cake_types || []).includes(cakeType)}
-					{@const isMaxReached = ($formData.directory_cake_types || []).length >= 3}
-					<div class="flex items-center space-x-2">
-						<Checkbox
-							id="cake-type-{cakeType}"
-							checked={isSelected}
-							disabled={!isSelected && isMaxReached}
-							onCheckedChange={() => toggleCakeType(cakeType)}
-						/>
-						<Label
-							for="cake-type-{cakeType}"
-							class="text-sm font-normal cursor-pointer {!isSelected && isMaxReached ? 'text-muted-foreground cursor-not-allowed' : ''}"
-						>
-							{cakeType}
-						</Label>
-					</div>
-				{/each}
-			</div>
-		</Form.Control>
-		<Form.FieldErrors />
-	</Form.Field>
+	<!-- ✅ OPTIMISÉ : Passer shopId et shopSlug pour éviter getUser + requête shop -->
+	{#if shop || $page.data.shop}
+		{@const shopData = shop || $page.data.shop}
+		<input type="hidden" name="shopId" value={shopData.id} />
+		<input type="hidden" name="shopSlug" value={shopData.slug} />
 	{/if}
 
-	<!-- Bouton de soumission -->
-	<div class="flex">
-		<Button type="submit" disabled={$submitting} class="w-full">
-			{#if $submitting}
-				<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-				Sauvegarde...
-			{:else}
-				Sauvegarder
-			{/if}
-		</Button>
-	</div>
+	<Form.Errors {form} />
+
+	{#if localDirectoryEnabled || alwaysShowForm}
+		<!-- Grande ville la plus proche -->
+		<Form.Field {form} name="directory_city">
+			<Form.Control let:attrs>
+				<Form.Label>Grande ville la plus proche</Form.Label>
+				<select
+					{...attrs}
+					bind:value={$formData.directory_city}
+					class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+				>
+					<option value="">Sélectionnez une grande ville</option>
+					{#each MAJOR_CITIES as city}
+						<option value={city}>{city}</option>
+					{/each}
+				</select>
+			</Form.Control>
+			<Form.Description>
+				Choisissez la grande ville la plus proche de votre boutique
+			</Form.Description>
+			<Form.FieldErrors />
+		</Form.Field>
+
+		<!-- Vraie ville avec autocomplétion -->
+		<Form.Field {form} name="directory_actual_city">
+			<Form.Control let:attrs>
+				<Form.Label>Votre ville</Form.Label>
+				<div class="relative w-full">
+					<MapPin
+						class="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+					/>
+					<input
+						{...attrs}
+						bind:this={cityInputElement}
+						type="text"
+						bind:value={cityInput}
+						on:input={handleCityInput}
+						on:blur={() => {
+							isCityInputFocused = false;
+							handleCityBlur();
+						}}
+						on:focus={() => {
+							isCityInputFocused = true;
+							if (citySuggestions.length > 0) showSuggestions = true;
+						}}
+						placeholder="Commencez à taper le nom de votre ville..."
+						class="flex h-10 w-full rounded-md border border-input bg-background py-2 pl-10 pr-3 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+					/>
+					{#if isSearching}
+						<LoaderCircle
+							class="pointer-events-none absolute right-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground"
+						/>
+					{/if}
+
+					<!-- Suggestions d'autocomplétion -->
+					{#if showSuggestions && citySuggestions.length > 0}
+						<div
+							class="absolute left-0 right-0 top-full z-50 mt-1 w-full rounded-md border bg-popover shadow-lg"
+						>
+							<ul class="max-h-60 overflow-auto p-1">
+								{#each citySuggestions as suggestion}
+									<li>
+										<button
+											type="button"
+											on:click={() => selectCity(suggestion)}
+											class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
+										>
+											<MapPin class="h-4 w-4 shrink-0 text-muted-foreground" />
+											<span class="truncate">{suggestion.label}</span>
+										</button>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+				</div>
+			</Form.Control>
+			<Form.Description>
+				Tapez le nom de votre ville pour voir les suggestions
+			</Form.Description>
+			<Form.FieldErrors />
+		</Form.Field>
+
+		<!-- Code postal (auto-rempli) -->
+		<Form.Field {form} name="directory_postal_code">
+			<Form.Control let:attrs>
+				<Form.Label>Code postal</Form.Label>
+				<Input
+					{...attrs}
+					type="text"
+					bind:value={$formData.directory_postal_code}
+					placeholder="75001"
+					maxlength={5}
+					readonly
+					class="bg-muted"
+				/>
+			</Form.Control>
+			<Form.Description>
+				Rempli automatiquement lors de la sélection de la ville
+			</Form.Description>
+			<Form.FieldErrors />
+		</Form.Field>
+
+		<!-- Types de gâteaux -->
+		<Form.Field {form} name="directory_cake_types">
+			<Form.Control>
+				<Form.Label>Types de gâteaux proposés</Form.Label>
+				<Form.Description>
+					Sélectionnez jusqu'à 3 types de gâteaux que vous proposez
+					{#if ($formData.directory_cake_types || []).length > 0}
+						<span class="ml-2 text-muted-foreground">
+							({($formData.directory_cake_types || []).length}/3)
+						</span>
+					{/if}
+				</Form.Description>
+				<div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
+					{#each CAKE_TYPES_FOR_FORMS as cakeType}
+						{@const isSelected = (
+							$formData.directory_cake_types || []
+						).includes(cakeType)}
+						{@const isMaxReached =
+							($formData.directory_cake_types || []).length >= 3}
+						<div class="flex items-center space-x-2">
+							<Checkbox
+								id="cake-type-{cakeType}"
+								checked={isSelected}
+								disabled={!isSelected && isMaxReached}
+								onCheckedChange={() => toggleCakeType(cakeType)}
+							/>
+							<Label
+								for="cake-type-{cakeType}"
+								class="cursor-pointer text-sm font-normal {!isSelected &&
+								isMaxReached
+									? 'cursor-not-allowed text-muted-foreground'
+									: ''}"
+							>
+								{cakeType}
+							</Label>
+						</div>
+					{/each}
+				</div>
+			</Form.Control>
+			<Form.FieldErrors />
+		</Form.Field>
+	{/if}
+
+	<!-- Bouton de soumission (affiché uniquement si l'annuaire est activé) -->
+	{#if localDirectoryEnabled || alwaysShowForm}
+		<div class="flex">
+			<Button
+				type="submit"
+				disabled={$submitting || submitted}
+				class={`h-11 w-full text-sm font-medium text-white transition-all duration-200 disabled:cursor-not-allowed ${
+					submitted
+						? 'bg-[#FF6F61] hover:bg-[#e85a4f] disabled:opacity-100'
+						: $submitting
+							? 'bg-gray-600 hover:bg-gray-700 disabled:opacity-50'
+							: 'bg-primary hover:bg-primary/90 disabled:opacity-50'
+				}`}
+			>
+				{#if $submitting}
+					<LoaderCircle class="mr-2 h-5 w-5 animate-spin" />
+					Sauvegarde...
+				{:else if submitted}
+					<Check class="mr-2 h-5 w-5" />
+					Sauvegardé !
+				{:else}
+					Sauvegarder
+				{/if}
+			</Button>
+		</div>
+	{/if}
 </form>
 
 <style>
@@ -406,4 +546,3 @@
 		position: relative;
 	}
 </style>
-

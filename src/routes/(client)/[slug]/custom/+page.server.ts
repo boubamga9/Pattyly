@@ -3,7 +3,6 @@ import { message, superValidate, setError } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad, Actions } from './$types';
 import { createLocalDynamicSchema } from './schema';
-import { sanitizeFileName } from '$lib/utils/filename-sanitizer';
 import { EmailService } from '$lib/services/email-service';
 import { PUBLIC_SITE_URL } from '$env/static/public';
 import { checkOrderLimit } from '$lib/utils/order-limits';
@@ -51,19 +50,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             throw error(404, 'Demandes personnalisées non disponibles');
         }
 
-        // Récupérer le profile_id pour vérifier la limite de commandes
-        // Utiliser le service role pour avoir accès aux données
-        const { data: shopData, error: shopDataError } = await locals.supabaseServiceRole
-            .from('shops')
-            .select('profile_id')
-            .eq('id', shop.id)
-            .single();
-
+        // ✅ OPTIMISÉ : profile_id est maintenant retourné par le RPC get_order_data
         // Vérifier la limite de commandes (seulement si on a réussi à récupérer le profile_id)
         let orderLimitStats = null;
-        if (!shopDataError && shopData?.profile_id) {
+        if (shop.profile_id) {
             try {
-                orderLimitStats = await checkOrderLimit(shop.id, shopData.profile_id, locals.supabaseServiceRole);
+                orderLimitStats = await checkOrderLimit(shop.id, shop.profile_id, locals.supabaseServiceRole);
             } catch (limitError) {
                 console.error('Error checking order limit:', limitError);
                 // Ne pas bloquer la page si la vérification de limite échoue
@@ -96,11 +88,22 @@ export const actions: Actions = {
         console.log('🚀 createCustomOrder action appelée');
         try {
             const { slug } = params;
+            const formData = await request.formData();
 
+            // ✅ OPTIMISÉ : Récupérer shopId depuis formData (passé par le frontend)
+            const shopId = formData.get('shopId') as string;
+
+            if (!shopId) {
+                throw error(400, 'Données de boutique manquantes');
+            }
+
+            // Récupérer uniquement les données nécessaires pour l'action
+            // ✅ SÉCURITÉ : Vérifier que shopId correspond au slug (empêche manipulation)
             const { data: shop, error: shopError } = await locals.supabase
                 .from('shops')
                 .select('id, name, slug, logo_url, profile_id')
-                .eq('slug', slug)
+                .eq('id', shopId)
+                .eq('slug', slug) // ✅ SÉCURITÉ : Vérifier que shopId correspond au slug
                 .eq('is_active', true)
                 .single();
             if (shopError || !shop) throw error(404, 'Boutique non trouvée');
@@ -121,8 +124,6 @@ export const actions: Actions = {
                     .order('order');
                 customFields = formFields || [];
             }
-
-            const formData = await request.formData();
             const inspirationFiles = formData.getAll('inspiration_photos') as File[];
 
             console.log('🔍 [Custom Order] FormData keys:', Array.from(formData.keys()));
@@ -237,6 +238,14 @@ export const actions: Actions = {
             console.log('🔍 [Custom Order] Starting photo upload process...');
             if (inspirationFiles.length > 0) {
                 console.log(`🔍 [Custom Order] Processing ${inspirationFiles.length} inspiration files`);
+
+                // ✅ OPTIMISÉ : Utiliser Cloudinary au lieu de Supabase Storage
+                // Générer un ID temporaire pour la commande (sera remplacé par orderId final après création)
+                const tempOrderId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+                // Importer la fonction Cloudinary
+                const { uploadInspirationPhoto } = await import('$lib/cloudinary');
+
                 for (let i = 0; i < inspirationFiles.length; i++) {
                     const photoFile = inspirationFiles[i];
                     console.log(`🔍 [Custom Order] Processing file ${i}:`, {
@@ -244,41 +253,23 @@ export const actions: Actions = {
                         size: photoFile.size,
                         type: photoFile.type
                     });
+
                     if (photoFile && photoFile.size > 0) {
-                        const arrayBuffer = await photoFile.arrayBuffer();
-                        const buffer = Buffer.from(arrayBuffer);
+                        try {
+                            // Upload vers Cloudinary avec structure organisée
+                            const { secure_url } = await uploadInspirationPhoto(
+                                photoFile,
+                                shop.id,
+                                tempOrderId,
+                                i + 1
+                            );
 
-                        // Generate a temporary order ID for folder organization
-                        const tempOrderId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-                        // Sanitize the filename
-                        const sanitizedFileName = sanitizeFileName(photoFile.name);
-                        const fileName = `${tempOrderId}/inspiration-${i + 1}-${sanitizedFileName}`;
-
-                        const { error: uploadError } = await (locals.supabaseServiceRole as any).storage
-                            .from('inspiration-images')
-                            .upload(fileName, buffer, {
-                                contentType: photoFile.type,
-                                cacheControl: '3600',
-                                upsert: false
-                            });
-
-                        if (uploadError) {
-                            console.error('❌ [Custom Order] Erreur upload photo inspiration:', uploadError);
+                            uploadedInspirationPhotos.push(secure_url);
+                            console.log(`✅ [Custom Order] Photo ${i + 1} uploaded successfully to Cloudinary:`, secure_url);
+                        } catch (uploadError) {
+                            console.error(`❌ [Custom Order] Erreur upload photo inspiration ${i + 1}:`, uploadError);
+                            // Continuer avec les autres photos même si une échoue
                             continue;
-                        }
-
-                        console.log(`✅ [Custom Order] Photo ${i} uploaded successfully:`, fileName);
-
-                        const { data: urlData } = (locals.supabaseServiceRole as any).storage
-                            .from('inspiration-images')
-                            .getPublicUrl(fileName);
-
-                        if (urlData?.publicUrl) {
-                            uploadedInspirationPhotos.push(urlData.publicUrl);
-                            console.log(`✅ [Custom Order] Photo ${i} URL generated:`, urlData.publicUrl);
-                        } else {
-                            console.error(`❌ [Custom Order] Failed to get URL for photo ${i}`);
                         }
                     }
                 }

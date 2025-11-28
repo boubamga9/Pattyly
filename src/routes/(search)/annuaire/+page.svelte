@@ -11,6 +11,18 @@
 	import ShopsMap from '$lib/components/map/shops-map.svelte';
 	import { searchCities, type CitySuggestion } from '$lib/services/city-autocomplete';
 
+	// ✅ Tracking: Page view côté client (annuaire page)
+	onMount(() => {
+		import('$lib/utils/analytics').then(({ logPageView }) => {
+			const supabase = $page.data.supabase;
+			logPageView(supabase, {
+				page: '/annuaire'
+			}).catch((err: unknown) => {
+				console.error('Error tracking page_view:', err);
+			});
+		});
+	});
+
 	export let data: {
 		shops: Array<{
 			id: string;
@@ -160,7 +172,7 @@
 				// Prendre le premier résultat qui correspond le mieux
 				selectedCitySuggestion = cityResults[0];
 				handleCitySelect(cityResults[0]);
-			}
+		}
 		}
 		
 		if (urlCakeType) {
@@ -366,7 +378,7 @@
 		const queryString = params.toString();
 		const newUrl = queryString ? `/annuaire?${queryString}` : '/annuaire';
 		window.history.replaceState({}, '', newUrl);
-	}
+			}
 
 	// Mettre à jour l'URL quand les filtres changent (avec debounce pour éviter trop d'appels)
 	let urlUpdateTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -604,7 +616,7 @@
 					<Button
 							on:click={clearFilters}
 						class="rounded-xl bg-[#FF6F61] px-8 py-3 text-sm font-medium text-white shadow-lg transition-all duration-300 hover:scale-105 hover:bg-[#e85a4f] hover:shadow-xl"
-					>
+						>
 						Réinitialiser les filtres
 					</Button>
 				</div>
@@ -647,7 +659,7 @@
 								<div class="flex items-center gap-2 text-sm text-neutral-600">
 									<MapPin class="h-4 w-4" />
 										<span>{designer.actualCity || designer.city}</span>
-									</div>
+								</div>
 							</div>
 							<div class="mb-6 flex flex-wrap gap-2">
 								{#each designer.specialties.slice(0, 3) as specialty}
@@ -666,8 +678,8 @@
 							</Button>
 						</Card.Content>
 					</Card.Root>
-					{/each}
-				</div>
+				{/each}
+			</div>
 				{/if}
 			{/if}
 		</div>

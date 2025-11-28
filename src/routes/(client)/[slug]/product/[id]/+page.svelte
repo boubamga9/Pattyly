@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { Separator } from '$lib/components/ui/separator';
-	import { Heart } from 'lucide-svelte';
+	import { ArrowLeft } from 'lucide-svelte';
 	import { ClientFooter } from '$lib/components';
 	import ProductForm from './product-form.svelte';
 
@@ -29,13 +28,14 @@
 
 	// Styles personnalisés
 	$: customStyles = {
-		background: customizations?.background_color || '#ffe8d6',
+		background: customizations?.background_color || '#fafafa',
 		backgroundImage: customizations?.background_image_url
 			? `url(${customizations.background_image_url})`
 			: 'none',
 		buttonStyle: `background-color: ${customizations?.button_color || '#ff6f61'}; color: ${customizations?.button_text_color || '#ffffff'};`,
 		textStyle: `color: ${customizations?.text_color || '#333333'};`,
 		secondaryTextStyle: `color: ${customizations?.secondary_text_color || '#333333'};`,
+		separatorColor: 'rgba(0, 0, 0, 0.3)',
 	};
 
 	// Fonction pour retourner à la boutique ou au dashboard
@@ -78,22 +78,43 @@
 	class="min-h-screen"
 	style="background-color: {customStyles.background}; background-image: {customStyles.backgroundImage}; background-size: cover; background-position: center; background-repeat: no-repeat;"
 >
-	<!-- Header avec logo et informations -->
-	<header class="px-4 py-6 text-center sm:py-8 md:py-12">
-		<!-- Logo -->
+	<!-- Header avec logo et informations - Design moderne -->
+	<header class="relative px-4 py-6 text-center sm:py-8 md:py-12">
+		<!-- Bouton retour - Top left -->
+		<button
+			on:click={goBack}
+			class="absolute left-4 top-4 flex items-center gap-2 rounded-full bg-white/60 px-3 py-2 text-sm font-medium shadow-sm backdrop-blur-sm transition-all duration-300 hover:bg-white/80 hover:shadow-sm sm:left-6 sm:top-6"
+			style={`color: ${customizations?.secondary_text_color || '#6b7280'}; font-weight: 500; letter-spacing: -0.01em;`}
+		>
+			<ArrowLeft class="h-4 w-4" />
+			<span class="hidden sm:inline">
+				{#if $page.url.searchParams.get('preview') === 'true'}
+					Retour
+				{:else}
+					Retour
+				{/if}
+			</span>
+		</button>
+
+		<!-- Logo - Design moderne sans bordure -->
 		<div class="mb-4 flex justify-center">
 			{#if shop.logo_url}
-				<img
-					src={shop.logo_url}
-					alt={shop.name}
-					class="h-20 w-20 rounded-full border border-gray-300 object-cover sm:h-24 sm:w-24 md:h-28 md:w-28"
-				/>
+				<div
+					class="relative h-20 w-20 overflow-hidden rounded-full bg-white p-2.5 shadow-sm transition-transform duration-300 hover:scale-105 sm:h-24 sm:w-24 sm:p-3 md:h-28 md:w-28"
+				>
+					<img
+						src={shop.logo_url}
+						alt={shop.name}
+						class="h-full w-full object-contain"
+					/>
+				</div>
 			{:else}
 				<div
-					class="flex h-20 w-20 items-center justify-center rounded-full border border-gray-300 bg-muted sm:h-24 sm:w-24 md:h-28 md:w-28"
+					class="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-[#FFE8D6]/30 to-white shadow-sm sm:h-24 sm:w-24 md:h-28 md:w-28"
 				>
 					<span
-						class="text-2xl font-semibold text-muted-foreground sm:text-3xl md:text-4xl"
+						class="text-2xl font-semibold text-neutral-700 sm:text-3xl md:text-4xl"
+						style="font-weight: 600;"
 					>
 						{shop.name.charAt(0).toUpperCase()}
 					</span>
@@ -101,31 +122,21 @@
 			{/if}
 		</div>
 
-		<!-- Nom de la boutique -->
-		<h1 class="mb-2 text-xl font-semibold" style={customStyles.textStyle}>
+		<!-- Nom de la boutique - Charte typographique -->
+		<h1
+			class="mb-3 text-2xl font-semibold leading-[110%] tracking-tight text-neutral-900 sm:text-3xl"
+			style="font-weight: 600; letter-spacing: -0.03em;"
+		>
 			{shop.name}
 		</h1>
-
-		<!-- Bouton retour -->
-		<button
-			on:click={goBack}
-			class="text-xs italic underline transition-colors hover:opacity-80 sm:text-sm"
-			style={customStyles.secondaryTextStyle}
-		>
-			{#if $page.url.searchParams.get('preview') === 'true'}
-				← Retour au dashboard
-			{:else}
-				← Retour à la boutique
-			{/if}
-		</button>
 	</header>
 
-	<!-- Separator -->
+	<!-- Separator - Design moderne avec couleur bouton et opacité -->
 	<div class="px-4">
-		<Separator
-			class="mb-6 sm:mb-8"
-			style={`background-color: ${customizations?.secondary_text_color || '#333333'};`}
-		/>
+		<div
+			class="mx-auto mb-6 h-px max-w-7xl bg-gradient-to-r from-transparent to-transparent sm:mb-8"
+			style={`background: linear-gradient(to right, transparent, ${customStyles.separatorColor}, transparent);`}
+		></div>
 	</div>
 
 	<!-- Contenu principal -->
@@ -133,60 +144,74 @@
 		<div class="mx-auto max-w-6xl p-4 sm:p-8 lg:p-12">
 			<!-- Layout responsive : 2 colonnes sur desktop, 1 colonne sur mobile -->
 			<div class="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
-				<!-- Colonne gauche : Image (fixe sur desktop) -->
+				<!-- Colonne gauche : Image (fixe sur desktop) - Design moderne -->
 				<div class="h-fit md:sticky md:top-6">
 					<div class="flex justify-center">
 						{#if product.image_url}
 							<img
 								src={product.image_url}
 								alt={product.name}
-								class="aspect-square w-full max-w-[350px] rounded-lg object-cover lg:max-w-[450px] xl:max-w-[500px]"
+								class="aspect-square w-full max-w-[350px] rounded-2xl object-cover shadow-sm lg:max-w-[450px] xl:max-w-[500px]"
 							/>
 						{:else}
 							<div
-								class="flex aspect-square w-full max-w-[350px] items-center justify-center rounded-lg bg-muted lg:max-w-[450px] xl:max-w-[500px]"
+								class="flex aspect-square w-full max-w-[350px] items-center justify-center rounded-2xl bg-gradient-to-br from-[#FFE8D6]/30 to-white shadow-sm lg:max-w-[450px] xl:max-w-[500px]"
 							>
-								<Heart class="h-16 w-16 text-muted-foreground" />
+								<svg
+									class="h-16 w-16 text-neutral-300"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="1.5"
+										d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+									/>
+								</svg>
 							</div>
 						{/if}
 					</div>
 				</div>
 
-				<!-- Colonne droite : Contenu (scrollable) -->
+				<!-- Colonne droite : Contenu (scrollable) - Charte typographique -->
 				<div class="space-y-6">
 					<!-- Section 1 : Informations produit -->
 					<div class="space-y-4">
 						<h2
-							class="text-lg font-medium sm:text-xl md:text-2xl"
-							style={customStyles.textStyle}
+							class="text-2xl font-semibold leading-[110%] tracking-tight text-neutral-900 sm:text-3xl"
+							style="font-weight: 600; letter-spacing: -0.03em;"
 						>
 							{product.name}
 						</h2>
 						<p
-							class="text-sm font-medium sm:text-base"
-							style={customStyles.textStyle}
+							class="text-xl font-semibold sm:text-2xl"
+							style={`color: ${customizations?.button_color || '#FF6F61'}; font-weight: 600;`}
 						>
 							À partir de {formatPrice(product.base_price)}
 						</p>
 						{#if product.description}
 							<p
-								class="text-sm sm:text-base"
-								style={customStyles.secondaryTextStyle}
+								class="text-sm leading-[180%] text-neutral-600 sm:text-base"
+								style="font-weight: 300; letter-spacing: -0.01em;"
 							>
 								{product.description}
 							</p>
 						{/if}
 						<p
-							class="text-xs italic sm:text-sm"
-							style={customStyles.secondaryTextStyle}
+							class="text-xs italic leading-relaxed text-neutral-500 sm:text-sm"
+							style="font-weight: 400; letter-spacing: -0.01em;"
 						>
 							Temps de préparation minimum : {product.min_days_notice || 0} jours
 						</p>
 					</div>
 
-					<Separator
-						style={`background-color: ${customizations?.secondary_text_color || '#333333'};`}
-					/>
+					<!-- Separator - Dégradé avec couleur bouton et opacité -->
+					<div
+						class="h-px bg-gradient-to-r from-transparent to-transparent"
+						style={`background: linear-gradient(to right, transparent, ${customStyles.separatorColor}, transparent);`}
+					></div>
 
 					<ProductForm
 						data={form}

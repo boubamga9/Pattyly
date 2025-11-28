@@ -77,9 +77,19 @@
 			</Form.Field>
 		</Card.Content>
 		<Card.Footer class="flex gap-2">
-			<Form.Button type="submit" disabled={$submitting || !$tainted}>
+			<Form.Button
+				type="submit"
+				disabled={$submitting || !$tainted}
+				class={`h-10 w-full text-sm font-medium text-white transition-all duration-200 disabled:cursor-not-allowed ${
+					$submitting
+						? 'bg-gray-600 hover:bg-gray-700 disabled:opacity-50'
+						: $tainted
+							? 'bg-primary hover:bg-primary/90 disabled:opacity-50'
+							: 'bg-gray-500 disabled:opacity-50'
+				}`}
+			>
 				{#if $submitting}
-					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+					<LoaderCircle class="mr-2 h-5 w-5 animate-spin" />
 					{recoverySession
 						? 'Réinitialisation du mot de passe…'
 						: 'Création du mot de passe…'}

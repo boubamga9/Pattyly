@@ -65,6 +65,8 @@ export const load = async ({ locals, parent }) => {
         .sort((a, b) => b.totalQuantity - a.totalQuantity)
         .slice(0, 5);
 
+    // ✅ Tracking: Page view déplacé côté client pour avoir un session_id persistant
+
     return {
         user,
         shop,

@@ -54,6 +54,11 @@ export const toggleShopVisibilitySchema = z.object({
     is_active: z.boolean()
 });
 
+// Toggle pour l'annuaire
+export const toggleDirectorySchema = z.object({
+    directory_enabled: z.boolean()
+});
+
 // Configuration de l'annuaire
 export const directorySchema = z.object({
     directory_city: z.string().min(2, 'La grande ville est requise').max(100),

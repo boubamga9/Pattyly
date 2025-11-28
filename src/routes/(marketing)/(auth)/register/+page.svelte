@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
 	import * as Alert from '$lib/components/ui/alert';
 	import * as Card from '$lib/components/ui/card';
 	import { WebsiteName } from '../../../../config';
@@ -18,6 +19,16 @@
 	let cardContainer: HTMLElement;
 
 	onMount(async () => {
+		// ✅ Tracking: Page view côté client (register page)
+		import('$lib/utils/analytics').then(({ logPageView }) => {
+			const supabase = $page.data.supabase;
+			logPageView(supabase, {
+				page: '/register'
+			}).catch((err: unknown) => {
+				console.error('Error tracking page_view:', err);
+			});
+		});
+
 		if (heroTitle) await revealElement(heroTitle, { delay: 0, duration: 0.6 });
 		if (heroContent) await revealElement(heroContent, { delay: 0.1, duration: 0.6 });
 		if (cardContainer) await revealElement(cardContainer, { delay: 0.2, duration: 0.6 });

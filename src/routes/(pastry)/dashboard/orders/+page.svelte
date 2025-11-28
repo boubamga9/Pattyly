@@ -15,7 +15,7 @@
 		User,
 		Mail,
 		Clock,
-		CheckCircle,
+		Check,
 		AlertCircle,
 		XCircle,
 		Package,
@@ -84,7 +84,7 @@
 			case 'quoted':
 				return AlertCircle;
 			case 'confirmed':
-				return CheckCircle;
+				return Check;
 			case 'ready':
 				return Package;
 			case 'completed':

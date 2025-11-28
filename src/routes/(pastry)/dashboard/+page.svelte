@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
@@ -22,12 +23,31 @@
 		ArrowDownRight,
 		Minus,
 		Copy,
-		CheckCircle,
+		Check,
 	} from 'lucide-svelte';
 	import { env } from '$env/dynamic/public';
 	import TransferButton from '$lib/components/TransferButton.svelte';
 	// Données de la page
-	$: ({ shop, metrics, permissions } = $page.data);
+	$: ({ shop, metrics, permissions, user } = $page.data);
+	
+	// ✅ Tracking: Page view côté client (session_id persistant)
+	onMount(() => {
+		if (shop?.id && user?.id) {
+			import('$lib/utils/analytics').then(({ logPageView }) => {
+				const { supabase } = $page.data;
+				
+				if (supabase) {
+					logPageView(supabase, {
+						page: '/dashboard',
+						shop_id: shop.id
+					}).catch((err: unknown) => {
+						// Ne pas bloquer si le tracking échoue
+						console.error('Error tracking page_view:', err);
+					});
+				}
+			});
+		}
+	});
 
 	// Calculer si la limite est atteinte
 	$: isProductLimitReached =
@@ -177,11 +197,11 @@
 						title="Copier l'URL complète"
 						disabled={!shop?.slug}
 						class={copySuccess
-							? 'border-green-300 bg-green-100 text-green-700 hover:border-green-400 hover:bg-green-200'
+							? 'border-[#FF6F61] bg-[#FF6F61] text-white hover:border-[#e85a4f] hover:bg-[#e85a4f]'
 							: 'border border-input bg-background text-black hover:bg-accent hover:text-accent-foreground'}
 					>
 						{#if copySuccess}
-							<CheckCircle class="mr-2 h-4 w-4" />
+							<Check class="mr-2 h-4 w-4" />
 							Copiée
 						{:else}
 							<Copy class="mr-2 h-4 w-4" />

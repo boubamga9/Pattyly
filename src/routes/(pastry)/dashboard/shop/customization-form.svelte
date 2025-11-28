@@ -18,13 +18,15 @@
 		Upload,
 		X,
 		LoaderCircle,
-		CheckCircle,
+		Check,
 		Pencil,
 	} from 'lucide-svelte';
+	import { page } from '$app/stores';
 
 	export let form: SuperValidated<Infer<typeof customizationSchema>>;
 
 	console.log('🎨 [Customization Form] Form data received:', form);
+	console.log('🎨 [Customization Form] background_image_url from form:', form.data?.background_image_url);
 
 	const formStore = superForm(form, {
 		validators: zodClient(customizationSchema),
@@ -36,9 +38,15 @@
 
 	// Variables pour l'image de fond
 	let _backgroundFile: File | null = null;
-	let backgroundPreview: string | null = $formData.background_image_url || null;
 	let backgroundInputElement: HTMLInputElement;
 	let submitted = false;
+	let backgroundPreview: string | null = null;
+
+	// ✅ RÉACTIF : backgroundPreview affiche l'URL Cloudinary depuis formData (sauf si un fichier local est sélectionné)
+	// Si _backgroundFile est null, utiliser l'URL Cloudinary
+	$: if (!_backgroundFile) {
+		backgroundPreview = $formData.background_image_url || null;
+	}
 
 	// Handle background image selection (Cloudinary gère la compression automatiquement)
 	function handleBackgroundFileSelect(event: Event) {
@@ -81,6 +89,9 @@
 			// Supprimer côté serveur si une image existe
 			if ($formData.background_image_url) {
 				const formData = new FormData();
+				// ✅ OPTIMISÉ : Passer shopId et shopSlug pour éviter getUser + requête shop
+				formData.append('shopId', $page.data.shop.id);
+				formData.append('shopSlug', $page.data.shop.slug);
 
 				const response = await fetch('?/removeBackgroundImage', {
 					method: 'POST',
@@ -90,6 +101,7 @@
 				if (response.ok) {
 					// Mettre à jour l'état après suppression
 					$formData.background_image_url = '';
+					backgroundPreview = null; // La réactivité mettra à jour automatiquement
 					console.log(
 						'🎨 [Customization Form] Background image removed successfully',
 					);
@@ -97,8 +109,7 @@
 					console.error(
 						'🎨 [Customization Form] Failed to remove background image',
 					);
-					// En cas d'erreur, remettre l'aperçu
-					backgroundPreview = $formData.background_image_url;
+					// En cas d'erreur, la réactivité remettra l'aperçu depuis formData
 				}
 			}
 		} catch (error) {
@@ -106,8 +117,7 @@
 				'🎨 [Customization Form] Error removing background image:',
 				error,
 			);
-			// En cas d'erreur, remettre l'aperçu
-			backgroundPreview = $formData.background_image_url;
+			// En cas d'erreur, la réactivité remettra l'aperçu depuis formData
 		}
 	}
 
@@ -165,6 +175,10 @@
 			}}
 			class="space-y-6"
 		>
+			<!-- ✅ OPTIMISÉ : Passer shopId et shopSlug pour éviter getUser + requête shop -->
+			<input type="hidden" name="shopId" value={$page.data.shop.id} />
+			<input type="hidden" name="shopSlug" value={$page.data.shop.slug} />
+
 			<!-- Section Image de fond -->
 			<div class="space-y-6">
 				<div class="space-y-3">
@@ -358,20 +372,20 @@
 			<Button
 				type="submit"
 				disabled={$submitting}
-				class={`h-11 w-full text-sm font-medium transition-all duration-200 ${
-					$submitting
-						? 'cursor-not-allowed bg-gray-300'
-						: submitted
-							? 'bg-green-700 hover:bg-green-800'
-							: ''
+				class={`h-10 w-full text-sm font-medium text-white transition-all duration-200 disabled:cursor-not-allowed ${
+					submitted
+						? 'bg-[#FF6F61] hover:bg-[#e85a4f] disabled:opacity-100'
+						: $submitting
+							? 'bg-gray-600 hover:bg-gray-700 disabled:opacity-50'
+							: 'bg-primary hover:bg-primary/90 disabled:opacity-50'
 				}`}
 			>
 				{#if $submitting}
 					<LoaderCircle class="mr-2 h-5 w-5 animate-spin" />
 					Sauvegarde...
-				{:else if submitted}
-					<CheckCircle class="mr-2 h-5 w-5" />
-					Sauvegardé !
+			{:else if submitted}
+				<Check class="mr-2 h-5 w-5" />
+				Sauvegardé !
 				{:else}
 					Sauvegarder la personnalisation
 				{/if}

@@ -4,11 +4,12 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Label } from '$lib/components/ui/label';
-	import { Check, X } from 'lucide-svelte';
+	import { Check, X, LoaderCircle } from 'lucide-svelte';
 	import { superForm } from 'sveltekit-superforms/client';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import type { SuperValidated, Infer } from 'sveltekit-superforms';
-import { makeQuoteFormSchema, type MakeQuoteForm } from './schema';
+	import { makeQuoteFormSchema, type MakeQuoteForm } from './schema';
+	import { page } from '$app/stores';
 
 	// Props
 	export let data: SuperValidated<Infer<MakeQuoteForm>>;
@@ -23,13 +24,19 @@ const form = superForm(data, {
 	dataType: 'json',
 });
 
-const { form: formData, enhance, submitting, message } = form;
+	const { form: formData, enhance, submitting, message } = form;
+
+	let submitted = false;
 
 $: messageLength = ($formData.chef_message || '').length;
 
 	// Fermer automatiquement le formulaire en cas de succès
 	$: if ($message) {
-		onSuccess();
+		submitted = true;
+		setTimeout(() => {
+			submitted = false;
+			onSuccess();
+		}, 2000);
 	}
 </script>
 
@@ -45,6 +52,10 @@ $: messageLength = ($formData.chef_message || '').length;
 	}}
 	class="space-y-4 rounded-lg border p-4"
 >
+	<!-- Champs cachés pour shopId et shopSlug (optimisation : éviter getUser + requête shop) -->
+	<input type="hidden" name="shopId" value={$page.data.shop.id} />
+	<input type="hidden" name="shopSlug" value={$page.data.shop.slug} />
+
 	<!-- Prix -->
 	<Form.Field {form} name="price">
 		<Form.Control let:attrs>
@@ -121,15 +132,27 @@ $: messageLength = ($formData.chef_message || '').length;
 
 	<!-- Boutons d'action -->
 	<div class="flex gap-2">
-		<Button type="submit" class="flex-1 gap-2" disabled={$submitting}>
+		<Button
+			type="submit"
+			class={`h-10 flex-1 text-sm font-medium text-white transition-all duration-200 disabled:cursor-not-allowed ${
+				submitted
+					? 'bg-[#FF6F61] hover:bg-[#e85a4f] disabled:opacity-100'
+					: $submitting
+						? 'bg-gray-600 hover:bg-gray-700 disabled:opacity-50'
+						: 'bg-primary hover:bg-primary/90 disabled:opacity-50'
+			}`}
+			disabled={$submitting}
+		>
 			{#if $submitting}
-				<div
-					class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-				/>
+				<LoaderCircle class="mr-2 h-5 w-5 animate-spin" />
+				Envoi...
+			{:else if submitted}
+				<Check class="mr-2 h-5 w-5" />
+				Envoyé !
 			{:else}
-				<Check class="mr-2 h-4 w-4" />
+				<Check class="mr-2 h-5 w-5" />
+				Envoyer le devis
 			{/if}
-			Envoyer le devis
 		</Button>
 		<Button
 			type="button"
