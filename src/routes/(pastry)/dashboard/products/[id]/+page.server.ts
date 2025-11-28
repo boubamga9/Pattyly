@@ -491,3 +491,4 @@ export const actions: Actions = {
             return fail(500, { form, error: 'Erreur lors de la création de la catégorie' });
         }
     }
+};
