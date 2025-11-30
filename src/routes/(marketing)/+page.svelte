@@ -11,7 +11,69 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 
-	// Schema.org Organization et WebSite pour SEO
+	// Schema.org Organization et WebSite pour SEO (dans le HTML initial pour Google)
+	const organizationSchema = {
+		'@context': 'https://schema.org',
+		'@type': 'Organization',
+		name: 'Pattyly',
+		url: 'https://pattyly.com',
+		logo: 'https://pattyly.com/images/logo_text.svg',
+		description:
+			'Logiciel de gestion pour cake designers et pâtissiers indépendants. Créez votre boutique en ligne, gérez commandes, devis, factures et planning facilement.',
+		sameAs: [
+			'https://www.instagram.com/pattyly_com',
+			'https://www.tiktok.com/@pattyly.com',
+		],
+		contactPoint: {
+			'@type': 'ContactPoint',
+			contactType: 'Support client',
+			url: 'https://pattyly.com/contact',
+		},
+	};
+
+	const websiteSchema = {
+		'@context': 'https://schema.org',
+		'@type': 'WebSite',
+		name: 'Pattyly',
+		url: 'https://pattyly.com',
+		description:
+			'Logiciel de gestion pour cake designers et pâtissiers indépendants. Créez votre boutique en ligne, gérez commandes, devis, factures et planning facilement.',
+		publisher: {
+			'@type': 'Organization',
+			name: 'Pattyly',
+		},
+		// Sitelinks suggérés pour Google (Google décide finalement quels liens afficher)
+		mainEntity: {
+			'@type': 'ItemList',
+			itemListElement: [
+				{
+					'@type': 'ListItem',
+					position: 1,
+					name: 'FAQ',
+					url: 'https://pattyly.com/faq',
+				},
+				{
+					'@type': 'ListItem',
+					position: 2,
+					name: 'Contact',
+					url: 'https://pattyly.com/contact',
+				},
+				{
+					'@type': 'ListItem',
+					position: 3,
+					name: 'Tarifs',
+					url: 'https://pattyly.com/pricing',
+				},
+				{
+					'@type': 'ListItem',
+					position: 4,
+					name: 'Annuaire',
+					url: 'https://pattyly.com/annuaire',
+				},
+			],
+		},
+	};
+
 	onMount(() => {
 		// ✅ Tracking: Page view côté client (home page)
 		import('$lib/utils/analytics').then(({ logPageView }) => {
@@ -22,104 +84,6 @@
 				console.error('Error tracking page_view:', err);
 			});
 		});
-		const organizationSchema = {
-			'@context': 'https://schema.org',
-			'@type': 'Organization',
-			name: 'Pattyly',
-			url: 'https://pattyly.com',
-			logo: 'https://pattyly.com/images/logo_text.svg',
-			description:
-				'Logiciel de gestion pour cake designers et pâtissiers indépendants. Créez votre boutique en ligne, gérez commandes, devis, factures et planning facilement.',
-			sameAs: [
-				'https://www.instagram.com/pattyly_com',
-				'https://www.tiktok.com/@pattyly.com',
-			],
-			contactPoint: {
-				'@type': 'ContactPoint',
-				contactType: 'Support client',
-				url: 'https://pattyly.com/contact',
-			},
-		};
-
-		const websiteSchema = {
-			'@context': 'https://schema.org',
-			'@type': 'WebSite',
-			name: 'Pattyly',
-			url: 'https://pattyly.com',
-			description:
-				'Logiciel de gestion pour cake designers et pâtissiers indépendants. Créez votre boutique en ligne, gérez commandes, devis, factures et planning facilement.',
-			publisher: {
-				'@type': 'Organization',
-				name: 'Pattyly',
-			},
-			// Sitelinks suggérés pour Google (Google décide finalement quels liens afficher)
-			mainEntity: {
-				'@type': 'ItemList',
-				itemListElement: [
-					{
-						'@type': 'ListItem',
-						position: 1,
-						name: 'Tarifs',
-						url: 'https://pattyly.com/pricing',
-					},
-					{
-						'@type': 'ListItem',
-						position: 2,
-						name: 'Boutique en ligne pâtissier',
-						url: 'https://pattyly.com/boutique-en-ligne-patissier',
-					},
-					{
-						'@type': 'ListItem',
-						position: 3,
-						name: 'Logiciel gestion pâtisserie',
-						url: 'https://pattyly.com/logiciel-gestion-patisserie',
-					},
-					{
-						'@type': 'ListItem',
-						position: 4,
-						name: 'Formulaire commande gâteau',
-						url: 'https://pattyly.com/formulaire-commande-gateau',
-					},
-					{
-						'@type': 'ListItem',
-						position: 5,
-						name: 'FAQ',
-						url: 'https://pattyly.com/faq',
-					},
-					{
-						'@type': 'ListItem',
-						position: 6,
-						name: 'Contact',
-						url: 'https://pattyly.com/contact',
-					},
-				],
-			},
-		};
-
-		// Ajouter Organization schema
-		const orgScript = document.createElement('script');
-		orgScript.type = 'application/ld+json';
-		orgScript.text = JSON.stringify(organizationSchema);
-		orgScript.id = 'organization-schema';
-		document.head.appendChild(orgScript);
-
-		// Ajouter WebSite schema
-		const websiteScript = document.createElement('script');
-		websiteScript.type = 'application/ld+json';
-		websiteScript.text = JSON.stringify(websiteSchema);
-		websiteScript.id = 'website-schema';
-		document.head.appendChild(websiteScript);
-
-		return () => {
-			const existingOrgScript = document.getElementById('organization-schema');
-			if (existingOrgScript) {
-				document.head.removeChild(existingOrgScript);
-			}
-			const existingWebsiteScript = document.getElementById('website-schema');
-			if (existingWebsiteScript) {
-				document.head.removeChild(existingWebsiteScript);
-			}
-		};
 	});
 </script>
 
@@ -131,6 +95,14 @@
 		name="description"
 		content="Gagnez 2h par jour avec Pattyly ! Logiciel de gestion pour cake designers : boutique en ligne, commandes, devis, factures. Plan gratuit disponible, sans CB."
 	/>
+	<!-- Schema.org Organization -->
+	<script type="application/ld+json">
+		{JSON.stringify(organizationSchema)}
+	</script>
+	<!-- Schema.org WebSite avec sitelinks suggérés -->
+	<script type="application/ld+json">
+		{JSON.stringify(websiteSchema)}
+	</script>
 	<meta
 		name="keywords"
 		content="logiciel gestion pâtisserie, logiciel cake designer, boutique en ligne pâtissier, formulaire commande gâteau, logiciel facturation pâtissier, devis cake designer, gestion commandes pâtisserie"

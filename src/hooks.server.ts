@@ -6,6 +6,7 @@ import {
 import {
 	PUBLIC_SUPABASE_ANON_KEY,
 	PUBLIC_SUPABASE_URL,
+	PUBLIC_SITE_URL,
 } from '$env/static/public';
 import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
@@ -88,7 +89,7 @@ function applyRateLimitHeaders(request: Request, result: RateLimitResult): void 
 /**
  * Apply performance and security headers
  */
-function applyPerformanceHeaders(response: Response, pathname: string, hostname?: string): void {
+function applyPerformanceHeaders(response: Response, pathname: string): void {
 	// Security headers
 	response.headers.set('X-Content-Type-Options', 'nosniff');
 	response.headers.set('X-Frame-Options', 'SAMEORIGIN');
@@ -96,7 +97,7 @@ function applyPerformanceHeaders(response: Response, pathname: string, hostname?
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 	
 	// Block indexing for test domain
-	if (hostname && (hostname === 'test.pattyly.com' || hostname.includes('test.pattyly.com'))) {
+	if (PUBLIC_SITE_URL === 'https://test.pattyly.com') {
 		response.headers.set('X-Robots-Tag', 'noindex, nofollow');
 	}
 	
@@ -230,7 +231,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		});
 
 		// Apply performance headers
-		applyPerformanceHeaders(response, event.url.pathname, event.url.hostname);
+		applyPerformanceHeaders(response, event.url.pathname);
 
 		// Compression (only if not already compressed and not on Vercel)
 		// Vercel handles compression automatically, so we skip it in production
