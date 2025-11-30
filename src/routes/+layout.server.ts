@@ -1,13 +1,15 @@
 import type { LayoutServerLoad } from './$types';
-import { PUBLIC_SITE_URL } from '$env/static/public';
 
 export const load: LayoutServerLoad = async ({
 	locals: { safeGetSession },
+	url,
 }) => {
 	const { session, user } = await safeGetSession();
 
-	// Vérifier si on est sur le domaine test
-	const isTestDomain = PUBLIC_SITE_URL === 'https://test.pattyly.com';
+	// Détection robuste du domaine test (avec ou sans www, avec ou sans port)
+	const isTestDomain = url.hostname === 'test.pattyly.com' ||
+		url.hostname.endsWith('.test.pattyly.com') ||
+		url.hostname.includes('test.pattyly.com');
 
 	return {
 		session,

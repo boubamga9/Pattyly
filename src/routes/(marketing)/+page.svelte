@@ -74,6 +74,17 @@
 		},
 	};
 
+	// Préparer les scripts JSON-LD pour le HTML initial
+	const organizationJson = JSON.stringify(organizationSchema);
+	const websiteJson = JSON.stringify(websiteSchema);
+	
+	const quote = String.fromCharCode(34);
+	const scriptType = 'application/ld+json';
+	const scriptOpen = '<script type=' + quote + scriptType + quote + '>';
+	const scriptEnd = '</' + 'script>';
+	const organizationScript = scriptOpen + organizationJson + scriptEnd;
+	const websiteScript = scriptOpen + websiteJson + scriptEnd;
+
 	onMount(() => {
 		// ✅ Tracking: Page view côté client (home page)
 		import('$lib/utils/analytics').then(({ logPageView }) => {
@@ -96,13 +107,9 @@
 		content="Gagnez 2h par jour avec Pattyly ! Logiciel de gestion pour cake designers : boutique en ligne, commandes, devis, factures. Plan gratuit disponible, sans CB."
 	/>
 	<!-- Schema.org Organization -->
-	<script type="application/ld+json">
-		{JSON.stringify(organizationSchema)}
-	</script>
+	{@html organizationScript}
 	<!-- Schema.org WebSite avec sitelinks suggérés -->
-	<script type="application/ld+json">
-		{JSON.stringify(websiteSchema)}
-	</script>
+	{@html websiteScript}
 	<meta
 		name="keywords"
 		content="logiciel gestion pâtisserie, logiciel cake designer, boutique en ligne pâtissier, formulaire commande gâteau, logiciel facturation pâtissier, devis cake designer, gestion commandes pâtisserie"
