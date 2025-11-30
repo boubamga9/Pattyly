@@ -20,6 +20,7 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders, url })
     const userId = session.user.id;
     const userEmail = session.user.email;
     const selectedPlan = url.searchParams.get('plan'); // Récupérer le plan depuis l'URL
+    const from = url.searchParams.get('from'); // Récupérer le paramètre from depuis l'URL
 
     // Vérifier si l'utilisateur est exempté
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -85,9 +86,7 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders, url })
             features: [
                 'Tout le plan Gratuit',
                 '20 commandes/mois (au lieu de 5)',
-                '10 gâteaux maximum (au lieu de 3)',
-                'Visibilité améliorée dans l\'annuaire',
-                'Support email prioritaire'
+                '10 gâteaux maximum (au lieu de 3)'
             ],
             limitations: [],
             popular: false,
@@ -118,6 +117,7 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders, url })
         currentPlan,
         buttonType, // Type de boutons à afficher
         selectedPlan: selectedPlan || null, // Plan pré-sélectionné depuis l'URL
+        from: from || null, // Paramètre from depuis l'URL
         user: {
             id: userId,
             email: userEmail

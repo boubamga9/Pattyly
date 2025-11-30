@@ -357,14 +357,27 @@
 									{product.name}
 								</h3>
 
-								<!-- Prix -->
+								<!-- Prix avec "à partir de" -->
 								<div class="mt-auto pt-1.5">
 									<p
-										class="text-sm font-bold sm:text-base"
+										class="flex items-baseline gap-1 text-sm font-bold sm:text-base"
 										style={`color: ${customizations?.button_color || '#FF6F61'}; font-weight: 600;`}
 									>
+										<span
+											class="text-xs font-normal text-neutral-600 sm:text-sm"
+											style="font-weight: 400;"
+										>
+											À partir de
+										</span>
 										{formatPrice(product.base_price)}
 									</p>
+									<!-- Texte Commander -->
+									<div
+										class="mt-1.5 rounded-full px-2.5 py-0.5 text-center text-xs font-medium sm:text-sm"
+										style={`background-color: ${customizations?.button_color || '#ff6f61'}; color: ${customizations?.button_text_color || '#ffffff'}; font-weight: 500;`}
+									>
+										Commander
+									</div>
 								</div>
 							</div>
 						</button>

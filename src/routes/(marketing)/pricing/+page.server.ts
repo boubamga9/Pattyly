@@ -41,9 +41,7 @@ export const load: PageServerLoad = async () => {
             features: [
                 'Tout le plan Gratuit',
                 '20 commandes/mois (au lieu de 5)',
-                '10 gâteaux maximum (au lieu de 3)',
-                'Visibilité améliorée dans l\'annuaire',
-                'Support email prioritaire'
+                '10 gâteaux maximum (au lieu de 3)'
             ],
             limitations: [],
             popular: false,

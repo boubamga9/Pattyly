@@ -362,7 +362,7 @@
 			{#if currentPlan}
 				{@const currentPlanData = plans.find(p => p.id === currentPlan)}
 				{#if currentPlanData}
-					<div class="flex items-center justify-between">
+					<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 						<div class="flex items-center gap-3">
 							<Badge class="bg-[#FF6F61] text-white">
 								Plan actuel
@@ -374,20 +374,20 @@
 								</p>
 							</div>
 						</div>
-						<Button href="/subscription">
+						<Button href="/subscription" class="w-full sm:w-auto">
 							Gérer l'abonnement
 							<ArrowUpRight class="ml-2 h-4 w-4" />
 						</Button>
 					</div>
 				{/if}
 			{:else}
-				<div class="flex items-center justify-between">
+				<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 					<p class="text-muted-foreground">
 						Vous n'avez pas encore d'abonnement actif
 					</p>
 					<Button 
 						href="/subscription"
-						class="bg-[#FF6F61] text-white hover:bg-[#e85a4f]"
+						class="w-full sm:w-auto bg-[#FF6F61] text-white hover:bg-[#e85a4f]"
 					>
 						Souscrire
 						<ArrowUpRight class="ml-2 h-4 w-4" />

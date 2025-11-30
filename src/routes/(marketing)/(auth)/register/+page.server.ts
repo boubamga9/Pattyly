@@ -105,11 +105,7 @@ export const actions: Actions = {
 
 		// Si l'inscription a réussi (avec ou sans session), rediriger vers la confirmation
 		if (user && user.email) {
-			const plan = event.url.searchParams.get('plan');
-			const redirectUrl = plan 
-				? `/confirmation?email=${encodeURIComponent(user.email)}&plan=${encodeURIComponent(plan)}`
-				: `/confirmation?email=${encodeURIComponent(user.email)}`;
-			throw redirect(303, redirectUrl);
+			throw redirect(303, `/confirmation?email=${encodeURIComponent(user.email)}`);
 		}
 
 

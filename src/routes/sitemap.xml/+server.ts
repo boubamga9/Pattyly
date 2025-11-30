@@ -278,13 +278,18 @@ const pages = [
 	},
 ];
 
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async ({ url }) => {
+	// Ne pas générer de sitemap pour test.pattyly.com
+	if (url.hostname === 'test.pattyly.com') {
+		return new Response('', { status: 404 });
+	}
+
 	const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${pages
 	.map(
 		(page) => `  <url>
-    <loc>${baseUrl}${$page.url}</loc>
+    <loc>${baseUrl}${page.url}</loc>
     <changefreq>${page.changefreq}</changefreq>
     <priority>${page.priority}</priority>
   </url>`,

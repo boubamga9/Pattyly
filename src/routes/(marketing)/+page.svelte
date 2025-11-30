@@ -7,7 +7,6 @@
 	import Solutions from './components/sections/solutions.svelte';
 	import LastCta from './components/sections/last-cta.svelte';
 	import Faq from './components/sections/faq.svelte';
-	import ScrollToTop from './components/scroll-to-top.svelte';
 	import CakeDesignerPopup from './components/cake-designer-popup.svelte';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
@@ -174,7 +173,4 @@
 
 	<!-- Last CTA - Appel à l'action final -->
 	<LastCta />
-
-	<!-- Scroll to top button -->
-	<ScrollToTop />
 </div>

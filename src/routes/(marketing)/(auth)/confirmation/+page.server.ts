@@ -85,16 +85,12 @@ export const actions: Actions = {
 
                     if (transferError) {
                         console.error('Transfer RPC error:', transferError);
-                        const plan = url.searchParams.get('plan');
-                        const redirectUrl = plan ? `/onboarding?plan=${encodeURIComponent(plan)}` : '/onboarding';
-                        throw redirect(303, redirectUrl);
+                        throw redirect(303, '/onboarding');
                     }
 
                     if (!transferResult?.success) {
                         // Pas de transfert trouvé ou erreur - continuer avec le flux normal
-                        const plan = url.searchParams.get('plan');
-                        const redirectUrl = plan ? `/onboarding?plan=${encodeURIComponent(plan)}` : '/onboarding';
-                        throw redirect(303, redirectUrl);
+                        throw redirect(303, '/onboarding');
                     }
 
                     // Supprimer l'ancien utilisateur Auth (après le transfert réussi)
@@ -118,10 +114,8 @@ export const actions: Actions = {
             if (type === 'recovery') {
                 throw redirect(303, '/new-password');
             } else {
-                // Pour signup, passer le plan à l'onboarding si présent
-                const plan = url.searchParams.get('plan');
-                const redirectUrl = plan ? `/onboarding?plan=${encodeURIComponent(plan)}` : '/onboarding';
-                throw redirect(303, redirectUrl);
+                // Pour signup, rediriger vers l'onboarding
+                throw redirect(303, '/onboarding');
             }
         }
 

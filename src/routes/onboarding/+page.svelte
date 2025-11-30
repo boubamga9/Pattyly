@@ -32,7 +32,6 @@
 		form: any;
 		paypalPolling?: boolean;
 		paypalStatus?: string;
-		selectedPlan?: string | null;
 	};
 
 	// Supprimer l'export form qui n'est pas utilisé
@@ -66,71 +65,114 @@
 <div class="min-h-screen bg-gradient-to-br from-secondary to-background py-12">
 	<div class="container mx-auto max-w-2xl px-4">
 		<!-- Header -->
-		<div class="mb-8 text-center">
-			<h1 class="mb-6 text-3xl font-bold text-foreground">
+		<div class="mb-8">
+			<h1 class="mb-8 text-center text-3xl font-bold text-foreground sm:mb-10 sm:text-4xl">
 				Configuration de votre boutique
 			</h1>
 
-			<!-- Steps indicator -->
-			<div class="flex items-center justify-center space-x-4">
-				<div class="flex items-center space-x-3">
+			<!-- Steps indicator - Design moderne et responsive -->
+			<div class="relative px-2 sm:px-0">
+				<!-- Progress bar -->
+				<div class="absolute left-2 right-2 top-5 h-0.5 bg-neutral-200 sm:left-6 sm:right-6 sm:top-6">
 					<div
-						class="flex h-10 w-10 items-center justify-center rounded-full {step >=
-						1
-							? 'bg-primary text-primary-foreground'
-							: 'bg-muted text-muted-foreground'} border-2 border-primary/20"
-					>
-						{#if step >= 1}
-							<Check class="h-5 w-5" />
-						{:else}
-							<span class="text-sm font-medium">1</span>
-						{/if}
-					</div>
-					<div class="text-left">
-						<p class="text-sm font-medium text-foreground">Informations</p>
-						<p class="text-xs text-muted-foreground">Nom, logo, description</p>
-					</div>
+						class="h-full bg-[#FF6F61] transition-all duration-500 ease-out"
+						style="width: {((step - 1) / 2) * 100}%"
+					></div>
 				</div>
 
-				<div class="h-px w-8 bg-border"></div>
-
-				<div class="flex items-center space-x-3">
-					<div
-						class="flex h-10 w-10 items-center justify-center rounded-full {step >=
-						2
-							? 'bg-primary text-primary-foreground'
-							: 'bg-muted text-muted-foreground'} border-2 border-primary/20"
-					>
-						{#if step >= 2}
-							<Check class="h-5 w-5" />
-						{:else}
-							<span class="text-sm font-medium">2</span>
-						{/if}
+				<!-- Steps -->
+				<div class="relative flex items-start justify-between gap-2 sm:gap-4">
+					<!-- Step 1 -->
+					<div class="flex flex-1 flex-col items-center">
+						<div
+							class="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300 sm:h-12 sm:w-12 {step >=
+							1
+								? 'border-[#FF6F61] bg-[#FF6F61] text-white shadow-lg shadow-[#FF6F61]/20'
+								: step === 1
+									? 'border-[#FF6F61] bg-white text-[#FF6F61]'
+									: 'border-neutral-300 bg-white text-neutral-400'}"
+						>
+							{#if step > 1}
+								<Check class="h-5 w-5 sm:h-6 sm:w-6" />
+							{:else}
+								<span class="text-sm font-semibold sm:text-base">1</span>
+							{/if}
+						</div>
+						<!-- Labels mobiles -->
+						<div class="mt-2 text-center sm:hidden">
+							<p class="text-xs font-medium {step >= 1 ? 'text-[#FF6F61]' : 'text-neutral-500'}">
+								Informations
+							</p>
+						</div>
+						<!-- Labels desktop -->
+						<div class="mt-3 hidden text-center sm:block">
+							<p class="text-sm font-semibold {step >= 1 ? 'text-[#FF6F61]' : 'text-neutral-600'}">
+								Informations
+							</p>
+							<p class="mt-1 text-xs text-neutral-500">Nom, logo, description</p>
+						</div>
 					</div>
-					<div class="text-left">
-						<p class="text-sm font-medium text-foreground">Paiements</p>
-						<p class="text-xs text-muted-foreground">Configuration PayPal.me</p>
-					</div>
-				</div>
 
-				<div class="h-px w-8 bg-border"></div>
-
-				<div class="flex items-center space-x-3">
-					<div
-						class="flex h-10 w-10 items-center justify-center rounded-full {step >=
-						3
-							? 'bg-primary text-primary-foreground'
-							: 'bg-muted text-muted-foreground'} border-2 border-primary/20"
-					>
-						{#if step >= 3}
-							<Check class="h-5 w-5" />
-						{:else}
-							<span class="text-sm font-medium">3</span>
-						{/if}
+					<!-- Step 2 -->
+					<div class="flex flex-1 flex-col items-center">
+						<div
+							class="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300 sm:h-12 sm:w-12 {step >=
+							2
+								? 'border-[#FF6F61] bg-[#FF6F61] text-white shadow-lg shadow-[#FF6F61]/20'
+								: step === 2
+									? 'border-[#FF6F61] bg-white text-[#FF6F61]'
+									: 'border-neutral-300 bg-white text-neutral-400'}"
+						>
+							{#if step > 2}
+								<Check class="h-5 w-5 sm:h-6 sm:w-6" />
+							{:else}
+								<span class="text-sm font-semibold sm:text-base">2</span>
+							{/if}
+						</div>
+						<!-- Labels mobiles -->
+						<div class="mt-2 text-center sm:hidden">
+							<p class="text-xs font-medium {step >= 2 ? 'text-[#FF6F61]' : 'text-neutral-500'}">
+								PayPal
+							</p>
+						</div>
+						<!-- Labels desktop -->
+						<div class="mt-3 hidden text-center sm:block">
+							<p class="text-sm font-semibold {step >= 2 ? 'text-[#FF6F61]' : 'text-neutral-600'}">
+								PayPal
+							</p>
+							<p class="mt-1 text-xs text-neutral-500">Configuration PayPal.me</p>
+						</div>
 					</div>
-					<div class="text-left">
-						<p class="text-sm font-medium text-foreground">Annuaire</p>
-						<p class="text-xs text-muted-foreground">Inscription à l'annuaire</p>
+
+					<!-- Step 3 -->
+					<div class="flex flex-1 flex-col items-center">
+						<div
+							class="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300 sm:h-12 sm:w-12 {step >=
+							3
+								? 'border-[#FF6F61] bg-[#FF6F61] text-white shadow-lg shadow-[#FF6F61]/20'
+								: step === 3
+									? 'border-[#FF6F61] bg-white text-[#FF6F61]'
+									: 'border-neutral-300 bg-white text-neutral-400'}"
+						>
+							{#if step > 3}
+								<Check class="h-5 w-5 sm:h-6 sm:w-6" />
+							{:else}
+								<span class="text-sm font-semibold sm:text-base">3</span>
+							{/if}
+						</div>
+						<!-- Labels mobiles -->
+						<div class="mt-2 text-center sm:hidden">
+							<p class="text-xs font-medium {step >= 3 ? 'text-[#FF6F61]' : 'text-neutral-500'}">
+								Annuaire
+							</p>
+						</div>
+						<!-- Labels desktop -->
+						<div class="mt-3 hidden text-center sm:block">
+							<p class="text-sm font-semibold {step >= 3 ? 'text-[#FF6F61]' : 'text-neutral-600'}">
+								Annuaire
+							</p>
+							<p class="mt-1 text-xs text-neutral-500">Inscription à l'annuaire</p>
+						</div>
 					</div>
 				</div>
 			</div>

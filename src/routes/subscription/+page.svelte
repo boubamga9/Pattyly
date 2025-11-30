@@ -10,17 +10,12 @@
 
 	export let data: PageData;
 
-	// Déterminer le plan à afficher (depuis l'URL ou localStorage)
-	$: displayPlan = data.selectedPlan || (typeof window !== 'undefined' ? localStorage.getItem('selected_plan') : null);
+	// Déterminer le plan à afficher (depuis l'URL)
+	$: displayPlan = data.selectedPlan;
 	$: shouldShowOnlySelectedPlan = displayPlan && (displayPlan === 'starter' || displayPlan === 'premium');
 
 	// Scroll automatique vers le plan pré-sélectionné si présent
 	onMount(() => {
-		// Nettoyer localStorage une fois qu'on est sur la page subscription
-		if (typeof window !== 'undefined') {
-			localStorage.removeItem('selected_plan');
-		}
-
 		if (data.selectedPlan) {
 			// Attendre que le DOM soit rendu
 			setTimeout(() => {
@@ -42,6 +37,7 @@
 		if (planId === 'starter') {
 			// Différenciateurs Starter
 			return feature.includes('20 commandes') || 
+			       feature.includes('10 gâteaux') ||
 			       feature.includes('prioritaire');
 		}
 		
@@ -70,6 +66,9 @@
 	function getButtonConfig(plan: (typeof data.plans)[0]) {
 		const isCurrentPlan = data.currentPlan === plan.id;
 		const isPopular = plan.popular;
+		// Si un plan est sélectionné, changer le texte en "Souscrire"
+		const hasSelectedPlan = data.selectedPlan && (data.selectedPlan === 'starter' || data.selectedPlan === 'premium');
+		const isSelectedPlan = hasSelectedPlan && data.selectedPlan === plan.id;
 
 		if (isCurrentPlan) {
 			return {
@@ -80,7 +79,7 @@
 			};
 		} else {
 			return {
-				text: `Choisir ${plan.name}`,
+				text: isSelectedPlan ? 'Souscrire' : `Choisir ${plan.name}`,
 				action: 'checkout',
 				class: `w-full h-12 rounded-lg text-sm font-semibold transition-all duration-300 hover:scale-[1.02] ${isPopular ? 'bg-[#FF6F61] hover:bg-[#e85a4f] text-white shadow-lg hover:shadow-xl' : 'bg-neutral-800 hover:bg-neutral-700 text-white shadow-lg hover:shadow-xl'}`,
 				href: `/checkout/${plan.stripePriceId}`,
@@ -111,13 +110,13 @@
 		</Section.Header>
 
 		<div
-			class="grid gap-12 pt-12 md:mx-auto md:max-w-4xl {shouldShowOnlySelectedPlan ? 'md:grid-cols-1 md:max-w-2xl' : 'md:grid-cols-2'} md:gap-8"
+			class="grid gap-12 pt-12 px-4 md:mx-auto md:max-w-4xl md:px-0 {shouldShowOnlySelectedPlan ? 'md:grid-cols-1 md:max-w-2xl' : 'md:grid-cols-2'} md:gap-8"
 		>
 			{#each data.plans as plan}
 				{#if !shouldShowOnlySelectedPlan || plan.id === displayPlan}
-					<div class="flex justify-center" id="plan-{plan.id}">
+					<div class="group relative flex flex-col w-full max-w-sm mx-auto" id="plan-{plan.id}">
 					<Pricing.Plan emphasized={plan.popular}>
-						<Card.Root class="relative">
+						<Card.Root class="relative h-full w-full">
 							{#if plan.popular}
 								<div
 									class="absolute -top-4 left-1/2 -translate-x-1/2 transform"
@@ -224,20 +223,39 @@
 			href="/dashboard"
 			class="mt-8 flex items-center gap-2"
 		>
-			<svg
-				class="h-4 w-4"
-				fill="none"
-				stroke="currentColor"
-				viewBox="0 0 24 24"
-			>
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M10 19l-7-7m0 0l7-7m-7 7h18"
-				/>
-			</svg>
-			Retour au dashboard
+			{#if data.from === 'onboarding'}
+				<!-- Flèche vers la droite pour "Continuer" -->
+				Continuer vers le dashboard
+				<svg
+					class="h-4 w-4"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M14 5l7 7m0 0l-7 7m7-7H3"
+					/>
+				</svg>
+			{:else}
+				<!-- Flèche vers la gauche pour "Retour" -->
+				<svg
+					class="h-4 w-4"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M10 19l-7-7m0 0l7-7m-7 7h18"
+					/>
+				</svg>
+				Retour au dashboard
+			{/if}
 		</Button>
 	</div>
 </div>

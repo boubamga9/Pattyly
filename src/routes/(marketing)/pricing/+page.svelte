@@ -32,6 +32,7 @@
 		if (planId === 'starter') {
 			// Différenciateurs Starter vs Gratuit
 			return feature.includes('20 commandes') || 
+			       feature.includes('10 gâteaux') ||
 			       feature.includes('prioritaire');
 		}
 		
@@ -77,7 +78,7 @@
 
 <div class="flex flex-col">
 	<!-- Hero Section avec style premium awwards -->
-	<section class="relative overflow-hidden bg-white pt-24 pb-12 sm:pt-32 sm:pb-16 md:pt-40 md:pb-20">
+	<section class="relative overflow-hidden bg-white pt-24 pb-4 sm:pt-32 sm:pb-6 md:pt-40 md:pb-8">
 		<div class="absolute inset-0 bg-gradient-to-b from-[#FFE8D6]/20 via-transparent to-transparent"></div>
 		
 		<div class="relative mx-auto max-w-6xl px-6 sm:px-8 lg:px-12">
@@ -111,7 +112,7 @@
 	</section>
 
 	<!-- Plans Section avec design awwards -->
-	<section class="relative overflow-hidden bg-white pt-12 pb-24 sm:pt-16 sm:pb-32 md:pt-20 md:pb-40">
+	<section class="relative overflow-hidden bg-white pt-6 pb-24 sm:pt-8 sm:pb-32 md:pt-10 md:pb-40">
 		<div class="absolute inset-0 bg-gradient-to-b from-transparent via-[#FFE8D6]/5 to-transparent"></div>
 		
 		<div class="relative mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
@@ -195,7 +196,12 @@
 										: plan.isFree
 											? 'bg-neutral-800 hover:bg-neutral-700 text-white shadow-lg hover:shadow-xl'
 											: 'bg-neutral-800 hover:bg-neutral-700 text-white shadow-lg hover:shadow-xl'}"
-									href={plan.isFree ? "/register" : `/register?plan=${plan.id}`}
+									href="/register"
+									on:click={() => {
+										if (!plan.isFree && plan.id && typeof window !== 'undefined') {
+											localStorage.setItem('selected_plan', plan.id);
+										}
+									}}
 								>
 									{plan.isFree ? 'Commencer gratuitement' : 'Choisir ce plan'}
 								</Button>

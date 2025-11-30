@@ -75,16 +75,16 @@ import { directorySchema, toggleDirectorySchema } from '$lib/validations/schemas
 	{/if}
 
 	<!-- Navigation par onglets -->
-	<nav class="mb-6 border-b">
-		<ul class="flex gap-4">
+	<nav class="mb-6 border-b -mx-3 md:mx-0">
+		<ul class="flex gap-4 overflow-x-auto scrollbar-hide px-3 md:px-0">
 			{#each tabs as tab}
 				{@const Icon = tab.icon}
-				<li>
+				<li class="flex-shrink-0">
 					<button
 						type="button"
 						on:click={() => (activeTab = tab.id)}
 						class={cn(
-							'inline-flex items-center gap-2 border-b-2 px-1 pb-4 text-sm font-medium transition-colors',
+							'inline-flex items-center gap-2 border-b-2 px-1 pb-4 text-sm font-medium transition-colors whitespace-nowrap',
 							activeTab === tab.id
 								? 'border-primary text-primary'
 								: 'border-transparent text-muted-foreground hover:border-muted-foreground hover:text-foreground'

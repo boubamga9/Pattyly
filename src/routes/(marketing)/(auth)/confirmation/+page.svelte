@@ -61,12 +61,12 @@
 </svelte:head>
 
 <!-- Hero section premium -->
-<section class="relative flex min-h-[90vh] w-full flex-col justify-center overflow-hidden bg-white pt-24 pb-24 md:min-h-screen md:pt-32 md:pb-32">
+<section class="relative flex min-h-[90vh] w-full flex-col justify-center bg-white py-16 sm:py-24 md:min-h-screen md:py-32">
 	<div class="absolute inset-0 h-full w-full bg-gradient-to-b from-[#FFE8D6]/30 via-transparent to-transparent"></div>
 	
-	<div class="relative z-10 mx-auto max-w-2xl px-6 sm:px-8 lg:px-12">
+	<div class="relative z-10 mx-auto w-full max-w-2xl px-4 sm:px-6 md:px-8 lg:px-12">
 		<!-- Header minimaliste -->
-		<div class="mb-12 text-center">
+		<div class="mb-8 text-center sm:mb-12">
 			<div
 				class="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#FF6F61]/10"
 			>
@@ -101,7 +101,7 @@
 			<Card.Root
 				class="mx-auto rounded-2xl border border-neutral-200 bg-white/80 backdrop-blur-sm shadow-xl"
 			>
-				<Card.Content class="p-8 sm:p-10">
+				<Card.Content class="p-6 sm:p-8 md:p-10">
 					<div class="space-y-6">
 						<ConfirmationForm data={data.form} email={userEmail} type={data.type} />
 						<div class="text-center text-sm text-neutral-600">

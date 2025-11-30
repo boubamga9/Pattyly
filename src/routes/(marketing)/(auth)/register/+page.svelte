@@ -19,15 +19,6 @@
 	let cardContainer: HTMLElement;
 
 	onMount(async () => {
-		// Sauvegarder le plan sélectionné dans localStorage si présent dans l'URL
-		if (typeof window !== 'undefined') {
-			const urlParams = new URLSearchParams(window.location.search);
-			const plan = urlParams.get('plan');
-			if (plan && (plan === 'starter' || plan === 'premium')) {
-				localStorage.setItem('selected_plan', plan);
-			}
-		}
-
 		// ✅ Tracking: Page view côté client (register page)
 		import('$lib/utils/analytics').then(({ logPageView }) => {
 			const supabase = $page.data.supabase;

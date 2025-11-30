@@ -5,12 +5,17 @@
 	import { onMount } from 'svelte';
 	import { expoOut } from 'svelte/easing';
 	import { slide } from 'svelte/transition';
+	import ScrollToTop from '$lib/components/scroll-to-top.svelte';
 	import '../app.css';
 
 	export let data;
 
 	let { supabase } = data;
 	$: ({ supabase } = data);
+	
+	// Vérifier si on est sur test.pattyly.com (déterminé côté serveur)
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	$: isTestDomain = (data as { isTestDomain?: boolean }).isTestDomain ?? false;
 
 	onMount(() => {
 		const { data } = supabase.auth.onAuthStateChange(
@@ -30,6 +35,12 @@
 	});
 </script>
 
+<svelte:head>
+	{#if isTestDomain}
+		<meta name="robots" content="noindex, nofollow" />
+	{/if}
+</svelte:head>
+
 {#if $navigating}
 	<!-- 
 	Loading animation for next page since svelte doesn't show any indicator. 
@@ -41,6 +52,7 @@
 	<div
 		class="fixed left-0 right-0 top-0 z-50 h-1 w-full bg-primary"
 		in:slide={{ delay: 100, duration: 12000, axis: 'x', easing: expoOut }}
-	></div>
+	>	</div>
 {/if}
 <slot />
+<ScrollToTop />

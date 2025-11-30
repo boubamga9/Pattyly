@@ -22,7 +22,7 @@
 	}
 
 	function handleScroll() {
-		showButton = window.scrollY > 300;
+		showButton = window.scrollY > 1200;
 	}
 
 	onMount(() => {

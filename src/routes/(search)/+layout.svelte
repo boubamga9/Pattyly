@@ -6,11 +6,6 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Drawer from '$lib/components/ui/drawer';
 	import { Separator } from '$lib/components/ui/separator';
-	import {
-		Collapsible,
-		CollapsibleContent,
-		CollapsibleTrigger,
-	} from '$lib/components/ui/collapsible';
 	import { cn } from '$lib/utils';
 	import MenuIcon from 'virtual:icons/lucide/menu';
 	import XIcon from 'virtual:icons/lucide/x';
@@ -371,7 +366,7 @@
 								<Button
 									href="/annuaire"
 									variant="ghost"
-									class="w-full justify-start px-4 py-4 text-base font-semibold"
+									class="w-full justify-center px-4 py-4 text-base font-semibold"
 									onclick={() => (menuOpen = false)}
 								>
 									Tous les pâtissiers
@@ -379,244 +374,11 @@
 								<Button
 									href="/tous-les-gateaux"
 									variant="ghost"
-									class="w-full justify-start px-4 py-4 text-base font-semibold"
+									class="w-full justify-center px-4 py-4 text-base font-semibold"
 									onclick={() => (menuOpen = false)}
 								>
 									Tous les gâteaux
 								</Button>
-							</div>
-							<!-- Menu Produits avec accordéons -->
-							<div class="py-2">
-								<!-- Accordéon Logiciel de gestion -->
-								<Collapsible class="border-b border-neutral-100">
-									<CollapsibleTrigger
-										class="group flex w-full items-center justify-between px-4 py-4 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50"
-									>
-										<span class="flex items-center gap-2">
-											<Settings class="h-4 w-4" />
-											Logiciel de gestion
-										</span>
-										<ChevronDown
-											class="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180"
-										/>
-									</CollapsibleTrigger>
-									<CollapsibleContent class="px-4 pb-2">
-										<div class="space-y-1">
-											<Button
-												href="/"
-												variant="ghost"
-												class="w-full justify-start py-3 pl-8 text-sm"
-												onclick={() => (menuOpen = false)}
-											>
-												<Home class="mr-2 h-4 w-4" />
-												Accueil
-											</Button>
-											<Button
-												href="/pricing"
-												variant="ghost"
-												class="w-full justify-start py-3 pl-8 text-sm"
-												onclick={() => (menuOpen = false)}
-											>
-												<DollarSign class="mr-2 h-4 w-4" />
-												Tarifs
-											</Button>
-											<Button
-												href="/faq"
-												variant="ghost"
-												class="w-full justify-start py-3 pl-8 text-sm"
-												onclick={() => (menuOpen = false)}
-											>
-												<HelpCircle class="mr-2 h-4 w-4" />
-												FAQ
-											</Button>
-											<Button
-												href="/about"
-												variant="ghost"
-												class="w-full justify-start py-3 pl-8 text-sm"
-												onclick={() => (menuOpen = false)}
-											>
-												<Info class="mr-2 h-4 w-4" />
-												À propos
-											</Button>
-											<Button
-												href="/contact"
-												variant="ghost"
-												class="w-full justify-start py-3 pl-8 text-sm"
-												onclick={() => (menuOpen = false)}
-											>
-												<Mail class="mr-2 h-4 w-4" />
-												Contact
-											</Button>
-										</div>
-										<div class="my-2 border-t border-neutral-100"></div>
-										<p
-											class="px-8 pb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500"
-										>
-											Solutions
-										</p>
-										<div class="space-y-1">
-											<Button
-												href="/boutique-en-ligne-patissier"
-												variant="ghost"
-												class="w-full justify-start py-3 pl-8 text-sm"
-												onclick={() => (menuOpen = false)}
-											>
-												<ShoppingBag class="mr-2 h-4 w-4" />
-												Boutique en ligne
-											</Button>
-											<Button
-												href="/logiciel-gestion-patisserie"
-												variant="ghost"
-												class="w-full justify-start py-3 pl-8 text-sm"
-												onclick={() => (menuOpen = false)}
-											>
-												<Settings class="mr-2 h-4 w-4" />
-												Logiciel de gestion
-											</Button>
-											<Button
-												href="/formulaire-commande-gateau"
-												variant="ghost"
-												class="w-full justify-start py-3 pl-8 text-sm"
-												onclick={() => (menuOpen = false)}
-											>
-												<ClipboardList class="mr-2 h-4 w-4" />
-												Formulaire commande
-											</Button>
-											<Button
-												href="/devis-factures-cake-designer"
-												variant="ghost"
-												class="w-full justify-start py-3 pl-8 text-sm"
-												onclick={() => (menuOpen = false)}
-											>
-												<Receipt class="mr-2 h-4 w-4" />
-												Devis et factures
-											</Button>
-										</div>
-									</CollapsibleContent>
-								</Collapsible>
-
-								<!-- Accordéon Recherche -->
-								<Collapsible class="border-b border-neutral-100">
-									<CollapsibleTrigger
-										class="group flex w-full items-center justify-between px-4 py-4 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50"
-									>
-										<span class="flex items-center gap-2">
-											<Search class="h-4 w-4" />
-											Recherche
-										</span>
-										<ChevronDown
-											class="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180"
-										/>
-									</CollapsibleTrigger>
-									<CollapsibleContent class="px-4 pb-2">
-										<div class="space-y-1">
-											<Button
-												href="/trouver-un-cake-designer"
-												variant="ghost"
-												class="w-full justify-start py-3 pl-8 text-sm"
-												onclick={() => (menuOpen = false)}
-											>
-												Trouver un cake designer
-											</Button>
-											<Button
-												href="/annuaire"
-												variant="ghost"
-												class="w-full justify-start py-3 pl-8 text-sm"
-												onclick={() => (menuOpen = false)}
-											>
-												Annuaire complet
-											</Button>
-											<Button
-												href="/tous-les-gateaux"
-												variant="ghost"
-												class="w-full justify-start py-3 pl-8 text-sm"
-												onclick={() => (menuOpen = false)}
-											>
-												Tous les gâteaux
-											</Button>
-										</div>
-										<div class="my-2 border-t border-neutral-100"></div>
-										<p
-											class="px-8 pb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500"
-										>
-											Types de gâteaux
-										</p>
-										<div class="space-y-1">
-											<Button
-												href="/gateau-anniversaire"
-												variant="ghost"
-												class="w-full justify-start py-3 pl-8 text-sm"
-												onclick={() => (menuOpen = false)}
-											>
-												Gâteau d'anniversaire
-											</Button>
-											<Button
-												href="/gateau-mariage"
-												variant="ghost"
-												class="w-full justify-start py-3 pl-8 text-sm"
-												onclick={() => (menuOpen = false)}
-											>
-												Gâteau de mariage
-											</Button>
-											<Button
-												href="/cupcakes"
-												variant="ghost"
-												class="w-full justify-start py-3 pl-8 text-sm"
-												onclick={() => (menuOpen = false)}
-											>
-												Cupcakes
-											</Button>
-											<Button
-												href="/macarons"
-												variant="ghost"
-												class="w-full justify-start py-3 pl-8 text-sm"
-												onclick={() => (menuOpen = false)}
-											>
-												Macarons
-											</Button>
-											<Button
-												href="/gateau-personnalise"
-												variant="ghost"
-												class="w-full justify-start py-3 pl-8 text-sm"
-												onclick={() => (menuOpen = false)}
-											>
-												Gâteau personnalisé
-											</Button>
-										</div>
-										<div class="my-2 border-t border-neutral-100"></div>
-										<p
-											class="px-8 pb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500"
-										>
-											Villes populaires
-										</p>
-										<div class="space-y-1">
-											<Button
-												href="/annuaire/paris"
-												variant="ghost"
-												class="w-full justify-start py-3 pl-8 text-sm"
-												onclick={() => (menuOpen = false)}
-											>
-												Paris
-											</Button>
-											<Button
-												href="/annuaire/marseille"
-												variant="ghost"
-												class="w-full justify-start py-3 pl-8 text-sm"
-												onclick={() => (menuOpen = false)}
-											>
-												Marseille
-											</Button>
-											<Button
-												href="/annuaire/lyon"
-												variant="ghost"
-												class="w-full justify-start py-3 pl-8 text-sm"
-												onclick={() => (menuOpen = false)}
-											>
-												Lyon
-											</Button>
-										</div>
-									</CollapsibleContent>
-								</Collapsible>
 							</div>
 							<Separator />
 							<!-- Actions utilisateur -->
@@ -625,7 +387,7 @@
 									<Button
 										href="/"
 										variant="ghost"
-										class="w-full justify-start px-4 py-4 text-base font-semibold"
+										class="w-full justify-center px-4 py-4 text-base font-semibold"
 										onclick={() => (menuOpen = false)}
 									>
 										Je suis pâtissier
@@ -634,7 +396,7 @@
 									<Button
 										href="/dashboard"
 										variant="ghost"
-										class="w-full justify-start px-4 py-4 text-base"
+										class="w-full justify-center px-4 py-4 text-base"
 										onclick={() => (menuOpen = false)}
 									>
 										Dashboard

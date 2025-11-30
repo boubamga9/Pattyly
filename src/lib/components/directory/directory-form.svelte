@@ -154,19 +154,6 @@
 		}, 200);
 	}
 
-	// Fonction pour obtenir le plan sélectionné depuis localStorage
-	function getSelectedPlan(): string | null {
-		if (typeof window === 'undefined') return null;
-
-		const selectedPlan = localStorage.getItem('selected_plan');
-
-		// Nettoyer localStorage après utilisation
-		if (selectedPlan) {
-			localStorage.removeItem('selected_plan');
-		}
-
-		return selectedPlan;
-	}
 
 	// Gestion des types de gâteaux (limite à 3 maximum)
 	function toggleCakeType(cakeType: string) {
@@ -372,17 +359,29 @@
 				console.log('📋 [Directory Form] Current pathname:', pathname);
 
 				if (pathname.includes('/onboarding')) {
-					console.log('📋 [Directory Form] In onboarding - redirecting');
-					// Vérifier si un plan était pré-sélectionné (depuis localStorage ou URL)
-					const selectedPlan = getSelectedPlan();
-					if (
-						selectedPlan &&
-						(selectedPlan === 'starter' || selectedPlan === 'premium')
-					) {
-						goto(`/subscription?plan=${encodeURIComponent(selectedPlan)}`);
-					} else {
-						goto('/dashboard');
-					}
+					console.log('📋 [Directory Form] In onboarding - checking plan');
+					// Vérifier le plan dans localStorage
+					const selectedPlan = typeof window !== 'undefined' 
+						? localStorage.getItem('selected_plan') 
+						: null;
+					
+					console.log('📋 [Directory Form] Selected plan from localStorage:', selectedPlan);
+					
+					// Utiliser setTimeout pour s'assurer que la redirection se fait après la mise à jour du formulaire
+					setTimeout(() => {
+						if (selectedPlan === 'starter') {
+							console.log('📋 [Directory Form] Plan starter found, redirecting to subscription');
+							localStorage.removeItem('selected_plan');
+							goto('/subscription?plan=starter&from=onboarding');
+						} else if (selectedPlan === 'premium') {
+							console.log('📋 [Directory Form] Plan premium found, redirecting to subscription');
+							localStorage.removeItem('selected_plan');
+							goto('/subscription?plan=premium&from=onboarding');
+						} else {
+							console.log('📋 [Directory Form] No plan found, redirecting to dashboard');
+							goto('/dashboard');
+						}
+					}, 100);
 				} else {
 					console.log(
 						'📋 [Directory Form] In dashboard - success, showing feedback',
@@ -589,7 +588,42 @@
 
 <!-- Bouton pour passer l'étape (visible quand toggle est off et showSkipButton est true) -->
 {#if !localDirectoryEnabled && showSkipButton}
-	<form method="POST" action="?/skipDirectory" use:formEnhance>
+	<form 
+		method="POST" 
+		action="?/skipDirectory" 
+		use:formEnhance={() => {
+			return async ({ result }) => {
+				if (result.type === 'success') {
+					const pathname = window.location.pathname;
+					if (pathname.includes('/onboarding')) {
+						console.log('📋 [Directory Form] Skip - checking plan');
+						// Vérifier le plan dans localStorage
+						const selectedPlan = typeof window !== 'undefined' 
+							? localStorage.getItem('selected_plan') 
+							: null;
+						
+						console.log('📋 [Directory Form] Skip - Selected plan from localStorage:', selectedPlan);
+						
+						// Utiliser setTimeout pour s'assurer que la redirection se fait après la réponse serveur
+						setTimeout(() => {
+							if (selectedPlan === 'starter') {
+								console.log('📋 [Directory Form] Skip - Plan starter found, redirecting to subscription');
+								localStorage.removeItem('selected_plan');
+								goto('/subscription?plan=starter&from=onboarding');
+							} else if (selectedPlan === 'premium') {
+								console.log('📋 [Directory Form] Skip - Plan premium found, redirecting to subscription');
+								localStorage.removeItem('selected_plan');
+								goto('/subscription?plan=premium&from=onboarding');
+							} else {
+								console.log('📋 [Directory Form] Skip - No plan found, redirecting to dashboard');
+								goto('/dashboard');
+							}
+						}, 100);
+					}
+				}
+			};
+		}}
+	>
 		<div class="mt-6 space-y-3">
 			<Button type="submit" variant="outline" class="w-full">
 				Je ne veux pas apparaître dans l'annuaire

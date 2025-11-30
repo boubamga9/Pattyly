@@ -27,7 +27,6 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
     }
 
     const userId = user.id;
-    const selectedPlan = url.searchParams.get('plan'); // Récupérer le plan depuis l'URL
 
     // 🧠 On récupère les données, mais sans inclure les redirections ici
     const { data: onboardingData, error: dbError } = await supabase.rpc('get_onboarding_data', {
@@ -51,7 +50,7 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
             .single();
 
         // Si l'annuaire est configuré, rediriger vers le dashboard
-        // (La redirection vers subscription se fera côté client si un plan est dans localStorage)
+        // La redirection vers subscription se fera côté client si un plan est dans localStorage
         if (shopData?.directory_city && shopData?.directory_actual_city && shopData?.directory_postal_code) {
             throw redirect(303, '/dashboard');
         }
@@ -69,7 +68,6 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
         return {
             step: 3,
             shop: shopData || shop,
-            selectedPlan: selectedPlan || null, // Passer le plan aux données
             form: await superValidate(zod(directorySchema), {
                 defaults: {
                     directory_city: shopData?.directory_city || '',
@@ -87,7 +85,6 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
         return {
             step: 2,
             shop,
-            selectedPlan: selectedPlan || null, // Passer le plan aux données
             form: await superValidate(zod(paypalConfigSchema))
         };
     }
@@ -96,7 +93,6 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
     return {
         step: 1,
         shop: null,
-        selectedPlan: selectedPlan || null, // Passer le plan aux données
         form: await superValidate(zod(shopCreationSchema))
     };
 };
@@ -443,9 +439,8 @@ export const actions: Actions = {
                 throw error(500, 'Erreur lors de la sauvegarde');
             }
 
-            // Note: Le plan sera récupéré depuis localStorage côté client dans directory-form
-            // Rediriger vers le dashboard (la redirection vers subscription se fera côté client)
-            throw redirect(303, '/dashboard');
+            // Retourner un succès - la redirection vers subscription se fera côté client si un plan est dans localStorage
+            return { success: true };
         } catch (err) {
             if (err && typeof err === 'object' && 'status' in err) {
                 throw err; // C'est une redirection ou une erreur
