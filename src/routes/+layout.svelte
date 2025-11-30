@@ -13,9 +13,18 @@
 	let { supabase } = data;
 	$: ({ supabase } = data);
 	
-	// Vérifier si on est sur test.pattyly.com (déterminé côté serveur)
+	// Vérifier si on est sur test.pattyly.com (déterminé côté serveur + vérification côté client)
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	$: isTestDomain = (data as { isTestDomain?: boolean }).isTestDomain ?? false;
+	$: isTestDomain = (data as any).isTestDomain ?? false;
+	
+	// Vérification supplémentaire côté client au cas où
+	$: clientIsTestDomain = typeof window !== 'undefined' && (
+		window.location.hostname === 'test.pattyly.com' || 
+		window.location.hostname.endsWith('.test.pattyly.com') ||
+		window.location.hostname.includes('test.pattyly.com')
+	);
+	
+	$: finalIsTestDomain = isTestDomain || clientIsTestDomain;
 
 	onMount(() => {
 		const { data } = supabase.auth.onAuthStateChange(
@@ -36,7 +45,7 @@
 </script>
 
 <svelte:head>
-	{#if isTestDomain}
+	{#if finalIsTestDomain}
 		<meta name="robots" content="noindex, nofollow" />
 	{/if}
 </svelte:head>
