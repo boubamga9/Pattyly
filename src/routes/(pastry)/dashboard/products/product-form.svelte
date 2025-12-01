@@ -93,21 +93,35 @@
 
 		if (!file) return;
 
+		// Réinitialiser les erreurs précédentes
 		$errors = {};
+		_imageFile = null;
+		imagePreview = null;
 
 		// Validate file type
 		if (!file.type.startsWith('image/')) {
-			$errors = { image: 'Veuillez sélectionner une image' };
+			$errors = { image: 'Veuillez sélectionner un fichier image valide (JPG, PNG, etc.)' };
+			// Réinitialiser l'input file
+			if (imageInputElement) {
+				imageInputElement.value = '';
+			}
 			return;
 		}
 
-		// Validate file size (max 10MB)
-		if (file.size > 10 * 1024 * 1024) {
-			$errors = { image: "L'image ne doit pas dépasser 10MB" };
+		// Validate file size (max 4MB - limite Vercel: 4.5MB)
+		if (file.size > 4 * 1024 * 1024) {
+			const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+			$errors = { 
+				image: `L'image est trop lourde (${fileSizeMB} MB). La taille maximale autorisée est de 4 MB. Veuillez compresser ou choisir une autre image.` 
+			};
+			// Réinitialiser l'input file
+			if (imageInputElement) {
+				imageInputElement.value = '';
+			}
 			return;
 		}
 
-		// Utiliser le fichier original (Cloudinary compresse automatiquement)
+		// Si tout est valide, utiliser le fichier original (Cloudinary compresse automatiquement)
 		_imageFile = file;
 
 		// Create preview
@@ -333,7 +347,9 @@
 					/>
 
 					{#if $errors?.image}
-						<p class="mt-1 text-sm text-red-600">{$errors.image}</p>
+						<div class="mt-2 rounded-md bg-red-50 p-3">
+							<p class="text-sm font-medium text-red-800">{$errors.image}</p>
+						</div>
 					{/if}
 				</div>
 

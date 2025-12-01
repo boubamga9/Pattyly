@@ -210,14 +210,18 @@ export const actions: Actions = {
             const currentFormId = currentProduct?.form_id || null;
 
             if (imageFile && imageFile.size > 0) {
-                // Validation basique : taille max 10MB
-                if (imageFile.size > 10 * 1024 * 1024) {
-                    return fail(400, { form, error: 'L\'image ne doit pas dépasser 10MB' });
-                }
-
                 // Vérifier que c'est bien une image
                 if (!imageFile.type.startsWith('image/')) {
-                    return fail(400, { form, error: 'Le fichier doit être une image' });
+                    return fail(400, { form, error: 'Le fichier doit être une image valide (JPG, PNG, etc.)' });
+                }
+
+                // Validation : taille max 4MB (limite Vercel: 4.5MB)
+                if (imageFile.size > 4 * 1024 * 1024) {
+                    const fileSizeMB = (imageFile.size / (1024 * 1024)).toFixed(2);
+                    return fail(400, { 
+                        form, 
+                        error: `L'image est trop lourde (${fileSizeMB} MB). La taille maximale autorisée est de 4 MB. Veuillez compresser ou choisir une autre image.` 
+                    });
                 }
 
                 try {
