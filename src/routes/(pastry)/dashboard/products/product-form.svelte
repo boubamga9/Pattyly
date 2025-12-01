@@ -108,20 +108,7 @@
 			return;
 		}
 
-		// Validate file size (max 4MB - limite Vercel: 4.5MB)
-		if (file.size > 4 * 1024 * 1024) {
-			const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-			$errors = { 
-				image: `L'image est trop lourde (${fileSizeMB} MB). La taille maximale autorisée est de 4 MB. Veuillez compresser ou choisir une autre image.` 
-			};
-			// Réinitialiser l'input file
-			if (imageInputElement) {
-				imageInputElement.value = '';
-			}
-			return;
-		}
-
-		// Si tout est valide, utiliser le fichier original (Cloudinary compresse automatiquement)
+		// Utiliser le fichier original (Cloudinary compresse automatiquement)
 		_imageFile = file;
 
 		// Create preview
@@ -316,9 +303,7 @@
 						<!-- File upload area -->
 						<div class="mb-4 flex justify-center">
 							<div
-								class="flex h-48 w-48 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors {$errors?.image
-									? 'border-red-300 bg-red-50 hover:border-red-400'
-									: 'border-muted-foreground/20 hover:border-primary'}"
+								class="flex h-48 w-48 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/20 transition-colors hover:border-primary"
 								on:click={() => document.getElementById('image')?.click()}
 								role="button"
 								tabindex="0"
@@ -326,9 +311,9 @@
 									e.key === 'Enter' &&
 									document.getElementById('image')?.click()}
 							>
-								<Upload class="mb-2 h-8 w-8 {$errors?.image ? 'text-red-500' : 'text-muted-foreground'}" />
-								<p class="text-center text-xs {$errors?.image ? 'text-red-600 font-medium' : 'text-muted-foreground'}">
-									{$errors?.image ? 'Image trop lourde' : 'Cliquez pour sélectionner une image'}
+								<Upload class="mb-2 h-8 w-8 text-muted-foreground" />
+								<p class="text-center text-xs text-muted-foreground">
+									Cliquez pour sélectionner une image
 								</p>
 							</div>
 						</div>
