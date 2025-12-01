@@ -3,7 +3,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { verifyShopOwnership } from '$lib/auth';
 import { uploadProductImage, deleteImage, extractPublicIdFromUrl } from '$lib/cloudinary';
 import { forceRevalidateShop } from '$lib/utils/catalog';
-import { superValidate, setError } from 'sveltekit-superforms';
+import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { updateProductFormSchema, createCategoryFormSchema } from './schema.js';
 
@@ -118,20 +118,7 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
 export const actions: Actions = {
     updateProduct: async ({ request, locals, params }) => {
         // ✅ OPTIMISÉ : Lire formData AVANT superValidate (car superValidate consomme le body)
-        let formData: FormData;
-        try {
-            formData = await request.formData();
-        } catch (err: any) {
-            // Gérer les erreurs 413 (Payload Too Large) de Vercel
-            if (err?.status === 413 || err?.message?.includes('413') || err?.message?.includes('FUNCTION_PAYLOAD_TOO_LARGE')) {
-                const form = await superValidate(zod(updateProductFormSchema));
-                setError(form, 'image', 'L\'image est trop lourde. La taille maximale autorisée est de 4 MB. Veuillez compresser ou choisir une autre image.');
-                return fail(413, { form });
-            }
-            // Pour les autres erreurs, re-lancer
-            throw err;
-        }
-
+        const formData = await request.formData();
         const shopId = formData.get('shopId') as string;
         const shopSlug = formData.get('shopSlug') as string;
 
@@ -226,15 +213,6 @@ export const actions: Actions = {
                 // Vérifier que c'est bien une image
                 if (!imageFile.type.startsWith('image/')) {
                     return fail(400, { form, error: 'Le fichier doit être une image valide (JPG, PNG, etc.)' });
-                }
-
-                // Validation : taille max 4MB (limite Vercel: 4.5MB)
-                if (imageFile.size > 4 * 1024 * 1024) {
-                    const fileSizeMB = (imageFile.size / (1024 * 1024)).toFixed(2);
-                    return fail(400, {
-                        form,
-                        error: `L'image est trop lourde (${fileSizeMB} MB). La taille maximale autorisée est de 4 MB. Veuillez compresser ou choisir une autre image.`
-                    });
                 }
 
                 try {

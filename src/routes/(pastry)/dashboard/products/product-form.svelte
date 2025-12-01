@@ -46,6 +46,7 @@
 	let _imageFile: File | null = null;
 	let imagePreview: string | null = null;
 	let imageInputElement: HTMLInputElement;
+	let imageError: string | null = null;
 
 	// Variables pour les champs de personnalisation
 	let customizationFields: CustomizationField[] = [];
@@ -94,13 +95,24 @@
 		if (!file) return;
 
 		// Réinitialiser les erreurs précédentes
-		$errors = {};
+		imageError = null;
 		_imageFile = null;
 		imagePreview = null;
 
 		// Validate file type
 		if (!file.type.startsWith('image/')) {
-			$errors = { image: 'Veuillez sélectionner un fichier image valide (JPG, PNG, etc.)' };
+			imageError = 'Veuillez sélectionner un fichier image valide (JPG, PNG, etc.)';
+			// Réinitialiser l'input file
+			if (imageInputElement) {
+				imageInputElement.value = '';
+			}
+			return;
+		}
+
+		// Validate file size (max 4MB)
+		if (file.size > 4 * 1024 * 1024) {
+			const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+			imageError = `L'image est trop lourde (${fileSizeMB} MB). La taille maximale autorisée est de 4 MB. Veuillez compresser ou choisir une autre image.`;
 			// Réinitialiser l'input file
 			if (imageInputElement) {
 				imageInputElement.value = '';
@@ -123,6 +135,7 @@
 	function removeImage() {
 		_imageFile = null;
 		imagePreview = null;
+		imageError = null;
 	}
 
 	// Gestionnaire pour les changements de champs
@@ -336,6 +349,11 @@
 						value={JSON.stringify(customizationFields)}
 					/>
 
+					{#if imageError}
+						<div class="mt-2 rounded-md bg-red-50 p-3">
+							<p class="text-sm font-medium text-red-800">{imageError}</p>
+						</div>
+					{/if}
 					{#if $errors?.image}
 						<div class="mt-2 rounded-md bg-red-50 p-3">
 							<p class="text-sm font-medium text-red-800">{$errors.image}</p>
