@@ -515,6 +515,22 @@ export const actions: Actions = {
             return { form };
         }
 
+        // ✅ Géocoder automatiquement si les informations de localisation sont disponibles
+        const { geocodeShopIfNeeded } = await import('$lib/utils/geocoding');
+        const cityName = form.data.directory_actual_city || form.data.directory_city;
+        if (cityName) {
+            // Géocoder en arrière-plan (ne pas bloquer la réponse)
+            geocodeShopIfNeeded(
+                locals.supabase,
+                shopId,
+                cityName,
+                form.data.directory_postal_code
+            ).catch((error) => {
+                console.error('❌ [Directory] Erreur lors du géocodage automatique:', error);
+                // Ne pas faire échouer la requête si le géocodage échoue
+            });
+        }
+
         // Revalidate shop cache (utiliser shopSlug depuis formData)
         try {
             await forceRevalidateShop(shopSlug);
@@ -582,6 +598,36 @@ export const actions: Actions = {
                 const errorForm = await superValidate(zod(toggleDirectorySchema));
                 errorForm.message = 'Erreur lors de la mise à jour';
                 return fail(400, { toggleForm: errorForm });
+            }
+
+            // ✅ Si l'annuaire est activé, géocoder automatiquement si les informations sont disponibles
+            if (directoryEnabled) {
+                // Récupérer les informations de localisation du shop
+                const { data: shopData, error: shopError } = await locals.supabase
+                    .from('shops')
+                    .select('directory_actual_city, directory_city, directory_postal_code, latitude, longitude')
+                    .eq('id', shopId)
+                    .single();
+
+                if (!shopError && shopData) {
+                    // Vérifier si le shop n'a pas déjà de coordonnées
+                    if (!shopData.latitude || !shopData.longitude) {
+                        const cityName = shopData.directory_actual_city || shopData.directory_city;
+                        if (cityName) {
+                            // Géocoder en arrière-plan (ne pas bloquer la réponse)
+                            const { geocodeShopIfNeeded } = await import('$lib/utils/geocoding');
+                            geocodeShopIfNeeded(
+                                locals.supabase,
+                                shopId,
+                                cityName,
+                                shopData.directory_postal_code
+                            ).catch((error) => {
+                                console.error('❌ [Toggle Directory] Erreur lors du géocodage automatique:', error);
+                                // Ne pas faire échouer la requête si le géocodage échoue
+                            });
+                        }
+                    }
+                }
             }
 
             // Revalidate shop cache

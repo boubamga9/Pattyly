@@ -35,7 +35,16 @@
 			logo: string;
 			bio?: string;
 			isPremium?: boolean;
+			distance?: number | null;
+			latitude?: number | null;
+			longitude?: number | null;
 		}>;
+		pagination?: {
+			page: number;
+			limit: number;
+			total: number;
+			hasMore: boolean;
+		};
 	};
 
 	let resultsContainer: HTMLElement;
@@ -86,8 +95,12 @@
 		'mignardise': 'mignardise',
 	};
 
-	// Utiliser les données du serveur
-	$: cakeDesigners = data.shops || [];
+	// Utiliser les données du serveur (première page)
+	let displayedShops = data.shops || [];
+	let currentPage = data.pagination?.page || 1;
+	let hasMore = data.pagination?.hasMore || false;
+	let isLoadingMore = false;
+	let sentinelElement: HTMLElement;
 
 	// Récupérer les paramètres de l'URL
 	$: urlCity = $page.url.searchParams.get('city') || '';
@@ -163,20 +176,69 @@
 		? `Cake designers à ${cityName}`
 		: 'Trouve le cake designer parfait';
 
+	// Fonction pour charger la page suivante
+	async function loadNextPage() {
+		if (isLoadingMore || !hasMore) return;
+
+		isLoadingMore = true;
+		const nextPage = currentPage + 1;
+
+		try {
+			// Construire l'URL de l'API avec les filtres actuels
+			const params = new URLSearchParams();
+			if (selectedCitySuggestion) {
+				params.set('city', selectedCitySuggestion.city.toLowerCase());
+			}
+			if (selectedCakeType) {
+				const cakeTypeSlug = cakeTypeToSlug[selectedCakeType.toLowerCase()];
+				if (cakeTypeSlug) {
+					params.set('type', cakeTypeSlug);
+				}
+			}
+			if (selectedCitySuggestion?.coordinates) {
+				params.set('lat', selectedCitySuggestion.coordinates.lat.toString());
+				params.set('lon', selectedCitySuggestion.coordinates.lon.toString());
+				params.set('radius', searchRadius.toString());
+			}
+			if (showOnlyVerified) {
+				params.set('verified', 'true');
+			}
+			params.set('page', nextPage.toString());
+
+			const response = await fetch(`/annuaire/api?${params.toString()}`);
+			if (!response.ok) throw new Error('Failed to load next page');
+
+			const result = await response.json();
+			
+			// Ajouter les nouveaux shops à la liste
+			displayedShops = [...displayedShops, ...result.shops];
+			currentPage = result.pagination.page;
+			hasMore = result.pagination.hasMore;
+
+			// Animations pour les nouveaux éléments
+			if (resultsContainer) {
+				const newElements = resultsContainer.querySelectorAll(':scope > div');
+				await revealStagger(resultsContainer, ':scope > div', { delay: 0.1, stagger: 0.05 });
+			}
+		} catch (error) {
+			console.error('Erreur lors du chargement de la page suivante:', error);
+		} finally {
+			isLoadingMore = false;
+		}
+	}
+
+	// Intersection Observer pour infinite scroll
 	onMount(async () => {
 		// Initialiser avec les paramètres de l'URL
 		if (urlCity) {
-			// Chercher la ville via l'API d'autocomplétion
 			const cityResults = await searchCities(urlCity, 5);
 			if (cityResults.length > 0) {
-				// Prendre le premier résultat qui correspond le mieux
 				selectedCitySuggestion = cityResults[0];
 				handleCitySelect(cityResults[0]);
-		}
+			}
 		}
 		
 		if (urlCakeType) {
-			// Convertir le slug en nom de type de gâteau
 			const slugToCakeType: Record<string, string> = {
 				'gateau-anniversaire': 'gâteau d\'anniversaire',
 				'gateau-mariage': 'gâteau de mariage',
@@ -197,18 +259,38 @@
 			}
 		}
 
-		// Animations
-		if (resultsContainer) await revealStagger(resultsContainer, ':scope > div', { delay: 0.1, stagger: 0.05 });
+		// Animations initiales
+		if (resultsContainer) {
+			await revealStagger(resultsContainer, ':scope > div', { delay: 0.1, stagger: 0.05 });
+		}
+
+		// Configurer l'Intersection Observer pour infinite scroll
+		if (typeof IntersectionObserver !== 'undefined' && sentinelElement) {
+			const observer = new IntersectionObserver(
+				(entries) => {
+					if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+						loadNextPage();
+					}
+				},
+				{ rootMargin: '200px' } // Charger 200px avant d'arriver en bas
+			);
+
+			observer.observe(sentinelElement);
+
+			return () => {
+				observer.disconnect();
+			};
+		}
 	});
 
 	// Cache pour les coordonnées géocodées (évite de refaire les appels API)
 	const geocodedCache = new Map<string, [number, number]>();
 
-	// Filtrer les résultats avec rayon de recherche
-	let filteredDesignersSync: typeof cakeDesigners = cakeDesigners;
+	// Filtrer les résultats avec rayon de recherche (fallback côté client si pas de coordonnées GPS)
+	let filteredDesignersSync: typeof displayedShops = displayedShops;
 	let isLoadingFilter = false;
 	let filterTimeout: ReturnType<typeof setTimeout> | null = null;
-	let isFiltering = false; // Flag pour éviter les appels multiples simultanés
+	let isFiltering = false;
 
 	async function filterDesigners() {
 		// Éviter les appels multiples simultanés
@@ -225,7 +307,7 @@
 		try {
 			isFiltering = true;
 			isLoadingFilter = true;
-			let filtered = [...cakeDesigners];
+			let filtered = [...displayedShops];
 
 		// Filtre par type de gâteau
 		if (selectedCakeType) {
@@ -329,7 +411,7 @@
 				filterTimeout = null;
 			}
 			// Trier : vérifiés en premier, puis par nom
-			const sorted = [...cakeDesigners].sort((a, b) => {
+			const sorted = [...displayedShops].sort((a, b) => {
 				if (a.isPremium && !b.isPremium) return -1;
 				if (!a.isPremium && b.isPremium) return 1;
 				return a.name.localeCompare(b.name);
@@ -565,9 +647,13 @@
 				</div>
 			</div>
 			
-			{#if filteredDesignersSync.length > 0}
+			{#if displayedShops.length > 0}
 				<p class="mb-6 text-sm text-neutral-600">
-					{filteredDesignersSync.length} {filteredDesignersSync.length === 1 ? 'pâtissier trouvé' : 'pâtissiers trouvés'}
+					{#if data.pagination}
+						{data.pagination.total} {data.pagination.total === 1 ? 'pâtissier trouvé' : 'pâtissiers trouvés'}
+					{:else}
+						{displayedShops.length} {displayedShops.length === 1 ? 'pâtissier trouvé' : 'pâtissiers trouvés'}
+					{/if}
 					{#if selectedCitySuggestion}
 						<span class="text-neutral-500"> dans un rayon de {searchRadius}km autour de {selectedCitySuggestion.city}</span>
 					{/if}
@@ -579,7 +665,7 @@
 				<!-- Vue carte -->
 				<div class="relative h-[600px] w-full rounded-xl overflow-hidden border border-neutral-200" style="z-index: 1;">
 					<ShopsMap
-						shops={filteredDesignersSync.map(designer => ({
+						shops={displayedShops.map(designer => ({
 							id: designer.id,
 							name: designer.name,
 							slug: designer.slug,
@@ -588,7 +674,9 @@
 							postalCode: designer.postalCode,
 							specialties: designer.specialties,
 							logo: designer.logo,
-							isPremium: designer.isPremium
+							isPremium: designer.isPremium,
+							latitude: designer.latitude,
+							longitude: designer.longitude
 						}))}
 						cityName={selectedCitySuggestion?.city || cityName || ''}
 					/>
@@ -600,7 +688,7 @@
 						<div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-[#FF6F61] border-t-transparent"></div>
 						<p class="mt-4 text-sm text-neutral-600">Recherche en cours...</p>
 					</div>
-				{:else if filteredDesignersSync.length === 0}
+				{:else if displayedShops.length === 0}
 				<div class="py-20 text-center">
 					<div class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-[#FFE8D6]/30">
 						<MapPin class="h-8 w-8 text-[#FF6F61]" />
@@ -622,7 +710,7 @@
 				</div>
 			{:else}
 			<div bind:this={resultsContainer} class="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-					{#each filteredDesignersSync as designer}
+					{#each displayedShops as designer}
 					<Card.Root class="group relative overflow-hidden rounded-2xl border border-neutral-200 bg-white transition-all duration-300 hover:scale-[1.02] hover:border-[#FF6F61]/50 hover:shadow-xl">
 						{#if designer.isPremium}
 							<div class="absolute right-3 top-3 z-10 flex items-center gap-1.5 rounded-full bg-white/90 px-2 py-1 shadow-md backdrop-blur-sm">
@@ -680,6 +768,24 @@
 					</Card.Root>
 				{/each}
 			</div>
+			
+			<!-- Sentinel pour infinite scroll -->
+			{#if hasMore}
+				<div bind:this={sentinelElement} class="py-8 text-center">
+					{#if isLoadingMore}
+						<div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-[#FF6F61] border-t-transparent"></div>
+						<p class="mt-4 text-sm text-neutral-600">Chargement...</p>
+					{:else}
+						<Button
+							on:click={loadNextPage}
+							variant="outline"
+							class="rounded-xl"
+						>
+							Charger plus
+						</Button>
+					{/if}
+				</div>
+			{/if}
 				{/if}
 			{/if}
 		</div>
@@ -740,5 +846,17 @@
 			</div>
 		</div>
 	</section>
+
+	<!-- Pagination cachée pour SEO -->
+	{#if data.pagination && data.pagination.hasMore}
+		<nav class="sr-only" aria-label="Pagination">
+			{#each Array(Math.min(5, Math.ceil((data.pagination.total || 0) / data.pagination.limit))) as _, i}
+				{@const pageNum = i + 1}
+				{#if pageNum > currentPage}
+					<a href="/annuaire?page={pageNum}" rel="next">Page {pageNum}</a>
+				{/if}
+			{/each}
+		</nav>
+	{/if}
 </div>
 

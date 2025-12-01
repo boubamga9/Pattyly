@@ -1,9 +1,10 @@
-import type { PageServerLoad } from './$types';
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import { STRIPE_PRODUCTS } from '$lib/config/server';
 
-const ITEMS_PER_PAGE = 12; // Nombre d'éléments par page
+const ITEMS_PER_PAGE = 12;
 
-export const load: PageServerLoad = async ({ locals, url }) => {
+export const GET: RequestHandler = async ({ locals, url }) => {
 	const cityParam = url.searchParams.get('city') || '';
 	const cakeTypeParam = url.searchParams.get('type') || '';
 	const pageParam = url.searchParams.get('page');
@@ -11,32 +12,32 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const limit = ITEMS_PER_PAGE;
 	const offset = (page - 1) * limit;
 
-	// Paramètres de filtrage géographique (optionnels)
+	// Paramètres de filtrage géographique
 	const latParam = url.searchParams.get('lat');
 	const lonParam = url.searchParams.get('lon');
-	const radiusParam = url.searchParams.get('radius'); // en km
+	const radiusParam = url.searchParams.get('radius');
 
-	// Si on a des coordonnées GPS et un rayon, utiliser la fonction RPC pour le filtrage géographique
+	// Si on a des coordonnées GPS et un rayon, utiliser la fonction RPC
 	if (latParam && lonParam && radiusParam) {
 		const latitude = parseFloat(latParam);
 		const longitude = parseFloat(lonParam);
 		const radius = parseFloat(radiusParam);
 
 		if (!isNaN(latitude) && !isNaN(longitude) && !isNaN(radius)) {
-			// Utiliser la fonction RPC pour trouver les shops dans le rayon
 			const { data: shopsInRadius, error: radiusError } = await locals.supabase.rpc(
 				'find_shops_in_radius',
 				{
 					p_latitude: latitude,
 					p_longitude: longitude,
 					p_radius_km: radius,
-					p_limit: limit * 3, // Charger plus pour pouvoir filtrer par type ensuite
+					p_limit: limit * 3,
 					p_offset: 0
 				}
 			);
 
 			if (radiusError) {
-				console.error('❌ [Annuaire] Error finding shops in radius:', radiusError);
+				console.error('❌ [Annuaire API] Error finding shops in radius:', radiusError);
+				return json({ shops: [], pagination: { page, limit, total: 0, hasMore: false } }, { status: 500 });
 			}
 
 			// Filtrer par type de gâteau si spécifié
@@ -58,7 +59,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 				const cakeTypeName = cakeTypeSlugToName[cakeTypeParam.toLowerCase()];
 				if (cakeTypeName) {
-					// Charger les shops complets pour vérifier les types
 					const shopIds = filteredShops.map((s: any) => s.shop_id);
 					if (shopIds.length > 0) {
 						const { data: shopsData, error: shopsError } = await locals.supabase
@@ -77,43 +77,65 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				}
 			}
 
+			// Filtrer par pâtissiers vérifiés si demandé
+			const verifiedParam = url.searchParams.get('verified');
+			if (verifiedParam === 'true') {
+				const shopIds = filteredShops.map((s: any) => s.shop_id);
+				if (shopIds.length > 0) {
+					const { data: shopsData, error: shopsError } = await locals.supabase
+						.from('shops')
+						.select('id, profile_id')
+						.in('id', shopIds);
+
+					if (!shopsError && shopsData) {
+						const profileIds = shopsData.map(s => s.profile_id).filter(Boolean);
+						if (profileIds.length > 0) {
+							const { data: premiumIds } = await locals.supabase.rpc(
+								'check_premium_profiles',
+								{
+									p_profile_ids: profileIds,
+									p_premium_product_id: STRIPE_PRODUCTS.PREMIUM
+								}
+							);
+							const premiumProfileIds = new Set(premiumIds || []);
+							const validIds = new Set(
+								shopsData
+									.filter(s => s.profile_id && premiumProfileIds.has(s.profile_id))
+									.map(s => s.id)
+							);
+							filteredShops = filteredShops.filter((s: any) => validIds.has(s.shop_id));
+						}
+					}
+				}
+			}
+
 			// Appliquer la pagination
 			const total = filteredShops.length;
 			const paginatedShops = filteredShops.slice(offset, offset + limit);
 
-			// Charger les données complètes des shops paginés
-			const shopIds = paginatedShops.map((s: any) => s.shop_id);
-			if (shopIds.length === 0) {
-				return {
+			if (paginatedShops.length === 0) {
+				return json({
 					shops: [],
 					pagination: {
 						page,
 						limit,
 						total,
-						hasMore: offset + limit < total
+						hasMore: false
 					}
-				};
+				});
 			}
 
+			// Charger les données complètes
+			const shopIds = paginatedShops.map((s: any) => s.shop_id);
 			const { data: shops, error: shopsError } = await locals.supabase
 				.from('shops')
 				.select('id, name, slug, logo_url, bio, directory_city, directory_actual_city, directory_postal_code, directory_cake_types, profile_id, latitude, longitude')
 				.in('id', shopIds);
 
 			if (shopsError) {
-				console.error('❌ [Directory] Error loading shops:', shopsError);
-				return {
-					shops: [],
-					pagination: {
-						page,
-						limit,
-						total: 0,
-						hasMore: false
-					}
-				};
+				return json({ shops: [], pagination: { page, limit, total: 0, hasMore: false } }, { status: 500 });
 			}
 
-			// Créer un map pour préserver l'ordre et les distances
 			const shopMap = new Map(paginatedShops.map((s: any) => [s.shop_id, s]));
 			const orderedShops = shops?.filter(s => shopMap.has(s.id)).map(shop => {
 				const radiusData = shopMap.get(shop.id);
@@ -123,24 +145,23 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				};
 			}) || [];
 
-			// Récupérer les profile_ids et vérifier les premiums
+			// Vérifier les premiums
 			const profileIds = orderedShops.map(shop => shop.profile_id).filter(Boolean);
 			const premiumProfileIds = new Set<string>();
 			if (profileIds.length > 0) {
-				const { data: premiumIds, error: premiumError } = await locals.supabase.rpc(
+				const { data: premiumIds } = await locals.supabase.rpc(
 					'check_premium_profiles',
 					{
 						p_profile_ids: profileIds,
 						p_premium_product_id: STRIPE_PRODUCTS.PREMIUM
 					}
 				);
-				
-				if (!premiumError && premiumIds && Array.isArray(premiumIds)) {
+				if (premiumIds && Array.isArray(premiumIds)) {
 					premiumIds.forEach((id: string) => premiumProfileIds.add(id));
 				}
 			}
 
-			// Marquer premium et trier
+			// Trier
 			const shopsWithPremium = orderedShops.map(shop => ({
 				...shop,
 				isPremium: shop.profile_id ? premiumProfileIds.has(shop.profile_id) : false
@@ -171,7 +192,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				longitude: shop.longitude ? parseFloat(shop.longitude.toString()) : null
 			}));
 
-			return {
+			return json({
 				shops: cakeDesigners,
 				pagination: {
 					page,
@@ -179,18 +200,17 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 					total,
 					hasMore: offset + limit < total
 				}
-			};
+			});
 		}
 	}
 
-	// Fallback : méthode classique sans filtrage géographique
+	// Fallback : méthode classique
 	let query = locals.supabase
 		.from('shops')
 		.select('id, name, slug, logo_url, bio, directory_city, directory_actual_city, directory_postal_code, directory_cake_types, profile_id, latitude, longitude', { count: 'exact' })
 		.eq('directory_enabled', true)
 		.eq('is_active', true);
 
-	// Si une ville est spécifiée, filtrer par directory_city
 	if (cityParam) {
 		const cityToSlug: Record<string, string> = {
 			'Paris': 'paris',
@@ -217,7 +237,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		}
 	}
 
-	// Si un type de gâteau est spécifié, filtrer par directory_cake_types
 	if (cakeTypeParam && cakeTypeParam.toLowerCase() !== 'gateau-evenement') {
 		const cakeTypeSlugToName: Record<string, string> = {
 			'gateau-anniversaire': 'Gâteau d\'anniversaire',
@@ -239,61 +258,57 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		}
 	}
 
-	// Appliquer pagination
+	// Filtrer par vérifiés si demandé
+	const verifiedParam = url.searchParams.get('verified');
+	if (verifiedParam === 'true') {
+		// On devra vérifier après avoir chargé les shops
+	}
+
 	query = query.order('name', { ascending: true }).range(offset, offset + limit - 1);
 
 	const { data: shops, error: shopsError, count } = await query;
 
 	if (shopsError) {
-		console.error('❌ [Directory] Error loading shops:', shopsError);
-		return {
-			shops: [],
-			pagination: {
-				page,
-				limit,
-				total: 0,
-				hasMore: false
-			}
-		};
+		return json({ shops: [], pagination: { page, limit, total: 0, hasMore: false } }, { status: 500 });
 	}
 
 	const total = count || 0;
 
-	// Récupérer les profile_ids des shops
+	// Vérifier les premiums
 	const profileIds = (shops || []).map(shop => shop.profile_id).filter(Boolean);
-	
-	// Récupérer les plans premium
 	const premiumProfileIds = new Set<string>();
 	if (profileIds.length > 0) {
-		const { data: premiumIds, error: premiumError } = await locals.supabase.rpc(
+		const { data: premiumIds } = await locals.supabase.rpc(
 			'check_premium_profiles',
 			{
 				p_profile_ids: profileIds,
 				p_premium_product_id: STRIPE_PRODUCTS.PREMIUM
 			}
 		);
-		
-		if (!premiumError && premiumIds && Array.isArray(premiumIds)) {
+		if (premiumIds && Array.isArray(premiumIds)) {
 			premiumIds.forEach((id: string) => premiumProfileIds.add(id));
-		} else if (premiumError) {
-			console.error('❌ [Annuaire] Error checking premium profiles:', premiumError);
 		}
 	}
 
-	// Marquer les shops premium et trier
-	const shopsWithPremium = (shops || []).map(shop => ({
+	// Filtrer par vérifiés si demandé
+	let filteredShops = shops || [];
+	if (verifiedParam === 'true') {
+		filteredShops = filteredShops.filter(shop => 
+			shop.profile_id && premiumProfileIds.has(shop.profile_id)
+		);
+	}
+
+	const shopsWithPremium = filteredShops.map(shop => ({
 		...shop,
 		isPremium: shop.profile_id ? premiumProfileIds.has(shop.profile_id) : false
 	}));
 
-	// Trier : premium en premier, puis par nom
 	shopsWithPremium.sort((a, b) => {
 		if (a.isPremium && !b.isPremium) return -1;
 		if (!a.isPremium && b.isPremium) return 1;
 		return a.name.localeCompare(b.name);
 	});
 
-	// Transformer les données
 	const cakeDesigners = shopsWithPremium.map((shop) => ({
 		id: shop.id,
 		name: shop.name,
@@ -309,14 +324,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		longitude: shop.longitude ? parseFloat(shop.longitude.toString()) : null
 	}));
 
-	return {
+	return json({
 		shops: cakeDesigners,
 		pagination: {
 			page,
 			limit,
-			total,
-			hasMore: offset + limit < total
+			total: filteredShops.length,
+			hasMore: offset + limit < filteredShops.length
 		}
-	};
+	});
 };
 

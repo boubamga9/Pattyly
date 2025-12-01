@@ -1,9 +1,10 @@
-import type { PageServerLoad } from './$types';
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import { STRIPE_PRODUCTS } from '$lib/config/server';
 
 const ITEMS_PER_PAGE = 12;
 
-export const load: PageServerLoad = async ({ locals, url }) => {
+export const GET: RequestHandler = async ({ locals, url }) => {
 	const cityParam = url.searchParams.get('city') || '';
 	const cakeTypeParam = url.searchParams.get('type') || '';
 	const pageParam = url.searchParams.get('page');
@@ -15,8 +16,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const latParam = url.searchParams.get('lat');
 	const lonParam = url.searchParams.get('lon');
 	const radiusParam = url.searchParams.get('radius');
+	const verifiedParam = url.searchParams.get('verified');
 
-	// ✅ Filtrer uniquement les shops actifs ET visibles dans l'annuaire
+	// Charger les shops actifs
 	const { data: activeShops, error: shopsError } = await locals.supabase
 		.from('shops')
 		.select('id, latitude, longitude, profile_id')
@@ -24,48 +26,25 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		.eq('directory_enabled', true);
 
 	if (shopsError) {
-		console.error('❌ [Tous les gateaux] Error loading shops:', shopsError);
-		return { 
-			products: [],
-			pagination: {
-				page,
-				limit,
-				total: 0,
-				hasMore: false
-			}
-		};
+		return json({ products: [], pagination: { page, limit, total: 0, hasMore: false } }, { status: 500 });
 	}
 
-	const activeShopIds = (activeShops || []).map(shop => shop.id);
+	let filteredShopIds = (activeShops || []).map(shop => shop.id);
 
-	if (activeShopIds.length === 0) {
-		return { 
-			products: [],
-			pagination: {
-				page,
-				limit,
-				total: 0,
-				hasMore: false
-			}
-		};
-	}
-
-	// Si on a des coordonnées GPS et un rayon, filtrer les shops par distance
-	let filteredShopIds = activeShopIds;
+	// Filtrer par rayon si coordonnées fournies
 	if (latParam && lonParam && radiusParam) {
 		const latitude = parseFloat(latParam);
 		const longitude = parseFloat(lonParam);
 		const radius = parseFloat(radiusParam);
 
 		if (!isNaN(latitude) && !isNaN(longitude) && !isNaN(radius)) {
-			// Utiliser la fonction RPC pour trouver les shops dans le rayon
 			const { data: shopsInRadius, error: radiusError } = await locals.supabase.rpc(
 				'find_shops_in_radius',
 				{
 					p_latitude: latitude,
 					p_longitude: longitude,
 					p_radius_km: radius,
-					p_limit: 1000, // Limite élevée pour avoir tous les shops dans le rayon
+					p_limit: 1000,
 					p_offset: 0
 				}
 			);
@@ -76,8 +55,36 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		}
 	}
 
+	// Filtrer par vérifiés si demandé
+	if (verifiedParam === 'true' && filteredShopIds.length > 0) {
+		const { data: shopsData, error: shopsError } = await locals.supabase
+			.from('shops')
+			.select('id, profile_id')
+			.in('id', filteredShopIds);
+
+		if (!shopsError && shopsData) {
+			const profileIds = shopsData.map(s => s.profile_id).filter(Boolean);
+			if (profileIds.length > 0) {
+				const { data: premiumIds } = await locals.supabase.rpc(
+					'check_premium_profiles',
+					{
+						p_profile_ids: profileIds,
+						p_premium_product_id: STRIPE_PRODUCTS.PREMIUM
+					}
+				);
+				const premiumProfileIds = new Set(premiumIds || []);
+				const validIds = new Set(
+					shopsData
+						.filter(s => s.profile_id && premiumProfileIds.has(s.profile_id))
+						.map(s => s.id)
+				);
+				filteredShopIds = filteredShopIds.filter(id => validIds.has(id));
+			}
+		}
+	}
+
 	if (filteredShopIds.length === 0) {
-		return { 
+		return json({
 			products: [],
 			pagination: {
 				page,
@@ -85,10 +92,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				total: 0,
 				hasMore: false
 			}
-		};
+		});
 	}
 
-	// Charger les produits de ces shops avec pagination
+	// Charger les produits
 	let query = locals.supabase
 		.from('products')
 		.select(`
@@ -114,7 +121,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		.eq('is_active', true)
 		.in('shop_id', filteredShopIds);
 
-	// Filtrer par type de gâteau si spécifié
 	if (cakeTypeParam) {
 		const cakeTypeSlugToName: Record<string, string> = {
 			'gateau-anniversaire': 'Gâteau d\'anniversaire',
@@ -136,70 +142,40 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		}
 	}
 
-	// Appliquer pagination
 	query = query.order('name', { ascending: true }).range(offset, offset + limit - 1);
 
 	const { data: products, error: productsError, count } = await query;
 
 	if (productsError) {
-		console.error('❌ [Tous les gateaux] Error loading products:', productsError);
-		return {
-			products: [],
-			pagination: {
-				page,
-				limit,
-				total: 0,
-				hasMore: false
-			}
-		};
+		return json({ products: [], pagination: { page, limit, total: 0, hasMore: false } }, { status: 500 });
 	}
 
 	const total = count || 0;
 
-	// Récupérer tous les profile_ids des shops
+	// Vérifier les premiums
 	const profileIds = [...new Set(
 		(products || [])
 			.map((p: any) => p.shops?.profile_id)
 			.filter(Boolean)
 	)];
 
-	// Récupérer les plans premium
 	const premiumProfileIds = new Set<string>();
 	if (profileIds.length > 0) {
-		const { data: premiumIds, error: premiumError } = await locals.supabase.rpc(
+		const { data: premiumIds } = await locals.supabase.rpc(
 			'check_premium_profiles',
 			{
 				p_profile_ids: profileIds,
 				p_premium_product_id: STRIPE_PRODUCTS.PREMIUM
 			}
 		);
-		
-		if (!premiumError && premiumIds && Array.isArray(premiumIds)) {
+		if (premiumIds && Array.isArray(premiumIds)) {
 			premiumIds.forEach((id: string) => premiumProfileIds.add(id));
-		} else if (premiumError) {
-			console.error('❌ [Tous les gateaux] Error checking premium profiles:', premiumError);
 		}
 	}
 
-	// Transformer les données
 	const formattedProducts = (products || []).map((product: any) => {
 		const shopProfileId = product.shops?.profile_id;
 		const isPremium = shopProfileId ? premiumProfileIds.has(shopProfileId) : false;
-
-		// Calculer la distance si on a les coordonnées
-		let distance: number | null = null;
-		if (latParam && lonParam && product.shops?.latitude && product.shops?.longitude) {
-			const lat = parseFloat(latParam);
-			const lon = parseFloat(lonParam);
-			const shopLat = parseFloat(product.shops.latitude);
-			const shopLon = parseFloat(product.shops.longitude);
-			
-			if (!isNaN(lat) && !isNaN(lon) && !isNaN(shopLat) && !isNaN(shopLon)) {
-				// Utiliser la fonction SQL pour calculer la distance
-				// On le fera côté serveur si nécessaire, sinon on peut le calculer côté client
-				// Pour l'instant, on laisse null et on calculera côté client si besoin
-			}
-		}
 
 		return {
 			id: product.id,
@@ -219,22 +195,17 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				isPremium,
 				latitude: product.shops.latitude,
 				longitude: product.shops.longitude
-			},
-			distance
+			}
 		};
 	});
 
-	// Trier : premium en premier, puis par nom
 	formattedProducts.sort((a, b) => {
 		if (a.shop.isPremium && !b.shop.isPremium) return -1;
 		if (!a.shop.isPremium && b.shop.isPremium) return 1;
-		if (a.distance !== null && b.distance !== null) {
-			return a.distance - b.distance;
-		}
 		return a.name.localeCompare(b.name);
 	});
 
-	return {
+	return json({
 		products: formattedProducts,
 		pagination: {
 			page,
@@ -242,5 +213,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			total,
 			hasMore: offset + limit < total
 		}
-	};
+	});
 };
+

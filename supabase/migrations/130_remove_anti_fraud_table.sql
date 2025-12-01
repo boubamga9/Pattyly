@@ -78,13 +78,18 @@ DROP FUNCTION IF EXISTS check_and_create_trial(uuid, text, text, text, text, tex
 DROP FUNCTION IF EXISTS check_and_create_trial(text, text, uuid, text, text);
 
 -- ==============================================
--- ÉTAPE 2 : Supprimer les politiques RLS
+-- ÉTAPE 2 : Supprimer les politiques RLS (seulement si la table existe)
 -- ==============================================
 
-DROP POLICY IF EXISTS "Allow read access for all" ON anti_fraud;
-DROP POLICY IF EXISTS "Allow insert for service role" ON anti_fraud;
-DROP POLICY IF EXISTS "Allow update for service role" ON anti_fraud;
-DROP POLICY IF EXISTS "Allow delete for service role" ON anti_fraud;
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'anti_fraud') THEN
+    DROP POLICY IF EXISTS "Allow read access for all" ON anti_fraud;
+    DROP POLICY IF EXISTS "Allow insert for service role" ON anti_fraud;
+    DROP POLICY IF EXISTS "Allow update for service role" ON anti_fraud;
+    DROP POLICY IF EXISTS "Allow delete for service role" ON anti_fraud;
+  END IF;
+END $$;
 
 -- ==============================================
 -- ÉTAPE 3 : Supprimer les index
@@ -102,10 +107,15 @@ DROP INDEX IF EXISTS idx_anti_fraud_tiktok;
 DROP INDEX IF EXISTS idx_anti_fraud_paypal_me;
 
 -- ==============================================
--- ÉTAPE 4 : Supprimer les contraintes
+-- ÉTAPE 4 : Supprimer les contraintes (seulement si la table existe)
 -- ==============================================
 
-ALTER TABLE anti_fraud DROP CONSTRAINT IF EXISTS unique_fingerprint_ip_email;
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'anti_fraud') THEN
+    ALTER TABLE anti_fraud DROP CONSTRAINT IF EXISTS unique_fingerprint_ip_email;
+  END IF;
+END $$;
 
 -- ==============================================
 -- ÉTAPE 5 : Supprimer la table

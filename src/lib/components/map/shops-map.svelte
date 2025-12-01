@@ -16,6 +16,8 @@
 		specialties: string[];
 		logo: string;
 		isPremium?: boolean;
+		latitude?: number | null; // Coordonnées GPS stockées en base (optionnel)
+		longitude?: number | null; // Coordonnées GPS stockées en base (optionnel)
 	}> = [];
 
 	export let cityName: string = '';
@@ -140,12 +142,18 @@
 
 		// Ajouter les nouveaux markers
 		for (const shop of shops) {
-			// Utiliser la ville précise (actualCity) pour le placement sur la carte
-			const shopCity = shop.actualCity || shop.city || cityName;
-			const coords = await geocodeCity(shopCity, shop.postalCode);
+			// ✅ Utiliser les coordonnées stockées en base si disponibles
+			let finalCoords: [number, number] | null = null;
 			
-			// Si le géocodage échoue, utiliser la grande ville comme fallback
-			const finalCoords = coords || getCityCoordinates();
+			if (shop.latitude && shop.longitude) {
+				// Utiliser les coordonnées GPS stockées en base
+				finalCoords = [shop.latitude, shop.longitude];
+			} else {
+				// Fallback : géocoder à la volée si pas de coordonnées en base
+				const shopCity = shop.actualCity || shop.city || cityName;
+				const coords = await geocodeCity(shopCity, shop.postalCode);
+				finalCoords = coords || getCityCoordinates();
+			}
 			
 			// Ajouter un petit décalage aléatoire seulement si plusieurs shops dans la même ville précise
 			const shopActualCity = shop.actualCity || shop.city;
@@ -338,12 +346,18 @@
 		const markers: any[] = [];
 		
 		for (const shop of shops) {
-			// Utiliser la ville précise (actualCity) pour le placement sur la carte
-			const shopCity = shop.actualCity || shop.city || cityName;
-			const coords = await geocodeCity(shopCity, shop.postalCode);
+			// ✅ Utiliser les coordonnées stockées en base si disponibles
+			let finalCoords: [number, number] | null = null;
 			
-			// Si le géocodage échoue, utiliser la grande ville comme fallback
-			const finalCoords = coords || getCityCoordinates();
+			if (shop.latitude && shop.longitude) {
+				// Utiliser les coordonnées GPS stockées en base
+				finalCoords = [shop.latitude, shop.longitude];
+			} else {
+				// Fallback : géocoder à la volée si pas de coordonnées en base
+				const shopCity = shop.actualCity || shop.city || cityName;
+				const coords = await geocodeCity(shopCity, shop.postalCode);
+				finalCoords = coords || getCityCoordinates();
+			}
 			
 			// Ajouter un petit décalage aléatoire seulement si plusieurs shops dans la même ville précise
 			const shopActualCity = shop.actualCity || shop.city;

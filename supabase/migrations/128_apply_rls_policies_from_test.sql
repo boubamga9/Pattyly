@@ -12,21 +12,31 @@
 --     END LOOP;
 -- END $$;
 
--- Admin OTP Codes
-DROP POLICY IF EXISTS "Allow service role to manage admin_otp_codes" ON public.admin_otp_codes;
-CREATE POLICY "Allow service role to manage admin_otp_codes" ON public.admin_otp_codes
-AS PERMISSIVE FOR ALL
-TO service_role
-USING (true)
-WITH CHECK (true);
+-- Admin OTP Codes (only if table exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'admin_otp_codes') THEN
+    DROP POLICY IF EXISTS "Allow service role to manage admin_otp_codes" ON public.admin_otp_codes;
+    CREATE POLICY "Allow service role to manage admin_otp_codes" ON public.admin_otp_codes
+    AS PERMISSIVE FOR ALL
+    TO service_role
+    USING (true)
+    WITH CHECK (true);
+  END IF;
+END $$;
 
--- Admin Sessions
-DROP POLICY IF EXISTS "Service role has full access to admin_sessions" ON public.admin_sessions;
-CREATE POLICY "Service role has full access to admin_sessions" ON public.admin_sessions
-AS PERMISSIVE FOR ALL
-TO service_role
-USING (true)
-WITH CHECK (true);
+-- Admin Sessions (only if table exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'admin_sessions') THEN
+    DROP POLICY IF EXISTS "Service role has full access to admin_sessions" ON public.admin_sessions;
+    CREATE POLICY "Service role has full access to admin_sessions" ON public.admin_sessions
+    AS PERMISSIVE FOR ALL
+    TO service_role
+    USING (true)
+    WITH CHECK (true);
+  END IF;
+END $$;
 
 -- Availabilities
 DROP POLICY IF EXISTS "Users can delete own availabilities" ON public.availabilities;
@@ -98,65 +108,75 @@ USING ((shop_id IN ( SELECT shops.id
    FROM shops
   WHERE (shops.profile_id = ( SELECT auth.uid() AS uid)))));
 
--- Events
-DROP POLICY IF EXISTS "Allow anonymous users to insert events" ON public.events;
-CREATE POLICY "Allow anonymous users to insert events" ON public.events
-AS PERMISSIVE FOR INSERT
-TO anon
-WITH CHECK ((user_id IS NULL));
+-- Events (only if table exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'events') THEN
+    DROP POLICY IF EXISTS "Allow anonymous users to insert events" ON public.events;
+    CREATE POLICY "Allow anonymous users to insert events" ON public.events
+    AS PERMISSIVE FOR INSERT
+    TO anon
+    WITH CHECK ((user_id IS NULL));
 
-DROP POLICY IF EXISTS "Allow authenticated users to insert events" ON public.events;
-CREATE POLICY "Allow authenticated users to insert events" ON public.events
-AS PERMISSIVE FOR INSERT
-TO authenticated
-WITH CHECK (((user_id = ( SELECT auth.uid() AS uid)) OR (user_id IS NULL)));
+    DROP POLICY IF EXISTS "Allow authenticated users to insert events" ON public.events;
+    CREATE POLICY "Allow authenticated users to insert events" ON public.events
+    AS PERMISSIVE FOR INSERT
+    TO authenticated
+    WITH CHECK (((user_id = ( SELECT auth.uid() AS uid)) OR (user_id IS NULL)));
 
-DROP POLICY IF EXISTS "Allow authenticated users to read events" ON public.events;
-CREATE POLICY "Allow authenticated users to read events" ON public.events
-AS PERMISSIVE FOR SELECT
-TO authenticated
-USING (true);
+    DROP POLICY IF EXISTS "Allow authenticated users to read events" ON public.events;
+    CREATE POLICY "Allow authenticated users to read events" ON public.events
+    AS PERMISSIVE FOR SELECT
+    TO authenticated
+    USING (true);
 
-DROP POLICY IF EXISTS "Allow service role to insert events" ON public.events;
-CREATE POLICY "Allow service role to insert events" ON public.events
-AS PERMISSIVE FOR INSERT
-TO service_role
-WITH CHECK (true);
+    DROP POLICY IF EXISTS "Allow service role to insert events" ON public.events;
+    CREATE POLICY "Allow service role to insert events" ON public.events
+    AS PERMISSIVE FOR INSERT
+    TO service_role
+    WITH CHECK (true);
+  END IF;
+END $$;
 
--- FAQ
-DROP POLICY IF EXISTS "Users can delete their own shop's FAQ" ON public.faq;
-CREATE POLICY "Users can delete their own shop's FAQ" ON public.faq
-AS PERMISSIVE FOR DELETE
-TO public
-USING (shop_id IN ( SELECT shops.id
-   FROM shops
-  WHERE (shops.profile_id = ( SELECT auth.uid() AS uid))));
+-- FAQ (only if table exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'faq') THEN
+    DROP POLICY IF EXISTS "Users can delete their own shop's FAQ" ON public.faq;
+    CREATE POLICY "Users can delete their own shop's FAQ" ON public.faq
+    AS PERMISSIVE FOR DELETE
+    TO public
+    USING (shop_id IN ( SELECT shops.id
+       FROM shops
+      WHERE (shops.profile_id = ( SELECT auth.uid() AS uid))));
 
-DROP POLICY IF EXISTS "Users can insert their own shop's FAQ" ON public.faq;
-CREATE POLICY "Users can insert their own shop's FAQ" ON public.faq
-AS PERMISSIVE FOR INSERT
-TO public
-WITH CHECK (shop_id IN ( SELECT shops.id
-   FROM shops
-  WHERE (shops.profile_id = ( SELECT auth.uid() AS uid))));
+    DROP POLICY IF EXISTS "Users can insert their own shop's FAQ" ON public.faq;
+    CREATE POLICY "Users can insert their own shop's FAQ" ON public.faq
+    AS PERMISSIVE FOR INSERT
+    TO public
+    WITH CHECK (shop_id IN ( SELECT shops.id
+       FROM shops
+      WHERE (shops.profile_id = ( SELECT auth.uid() AS uid))));
 
-DROP POLICY IF EXISTS "Users can update their own shop's FAQ" ON public.faq;
-CREATE POLICY "Users can update their own shop's FAQ" ON public.faq
-AS PERMISSIVE FOR UPDATE
-TO public
-USING (shop_id IN ( SELECT shops.id
-   FROM shops
-  WHERE (shops.profile_id = ( SELECT auth.uid() AS uid))));
+    DROP POLICY IF EXISTS "Users can update their own shop's FAQ" ON public.faq;
+    CREATE POLICY "Users can update their own shop's FAQ" ON public.faq
+    AS PERMISSIVE FOR UPDATE
+    TO public
+    USING (shop_id IN ( SELECT shops.id
+       FROM shops
+      WHERE (shops.profile_id = ( SELECT auth.uid() AS uid))));
 
-DROP POLICY IF EXISTS "Users can view their own shop's FAQ" ON public.faq;
-CREATE POLICY "Users can view their own shop's FAQ" ON public.faq
-AS PERMISSIVE FOR SELECT
-TO public
-USING ((shop_id IN ( SELECT shops.id
-   FROM shops
-  WHERE (shops.is_active = true))) OR (shop_id IN ( SELECT shops.id
-   FROM shops
-  WHERE (shops.profile_id = ( SELECT auth.uid() AS uid)))));
+    DROP POLICY IF EXISTS "Users can view their own shop's FAQ" ON public.faq;
+    CREATE POLICY "Users can view their own shop's FAQ" ON public.faq
+    AS PERMISSIVE FOR SELECT
+    TO public
+    USING ((shop_id IN ( SELECT shops.id
+       FROM shops
+      WHERE (shops.is_active = true))) OR (shop_id IN ( SELECT shops.id
+       FROM shops
+      WHERE (shops.profile_id = ( SELECT auth.uid() AS uid)))));
+  END IF;
+END $$;
 
 -- Form Fields
 DROP POLICY IF EXISTS "Users can delete own form fields" ON public.form_fields;
@@ -263,76 +283,91 @@ USING ((shop_id IN ( SELECT shops.id
    FROM shops
   WHERE (shops.profile_id = ( SELECT auth.uid() AS uid)))));
 
--- Payment Links
-DROP POLICY IF EXISTS "Users can create their own payment links" ON public.payment_links;
-CREATE POLICY "Users can create their own payment links" ON public.payment_links
-AS PERMISSIVE FOR INSERT
-TO public
-WITH CHECK ((( SELECT auth.uid() AS uid) = profile_id));
+-- Payment Links (only if table exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'payment_links') THEN
+    DROP POLICY IF EXISTS "Users can create their own payment links" ON public.payment_links;
+    CREATE POLICY "Users can create their own payment links" ON public.payment_links
+    AS PERMISSIVE FOR INSERT
+    TO public
+    WITH CHECK ((( SELECT auth.uid() AS uid) = profile_id));
 
-DROP POLICY IF EXISTS "Users can update their own payment links" ON public.payment_links;
-CREATE POLICY "Users can update their own payment links" ON public.payment_links
-AS PERMISSIVE FOR UPDATE
-TO public
-USING ((( SELECT auth.uid() AS uid) = profile_id));
+    DROP POLICY IF EXISTS "Users can update their own payment links" ON public.payment_links;
+    CREATE POLICY "Users can update their own payment links" ON public.payment_links
+    AS PERMISSIVE FOR UPDATE
+    TO public
+    USING ((( SELECT auth.uid() AS uid) = profile_id));
 
-DROP POLICY IF EXISTS "Users can view their own payment links" ON public.payment_links;
-CREATE POLICY "Users can view their own payment links" ON public.payment_links
-AS PERMISSIVE FOR SELECT
-TO public
-USING ((( SELECT auth.uid() AS uid) = profile_id));
+    DROP POLICY IF EXISTS "Users can view their own payment links" ON public.payment_links;
+    CREATE POLICY "Users can view their own payment links" ON public.payment_links
+    AS PERMISSIVE FOR SELECT
+    TO public
+    USING ((( SELECT auth.uid() AS uid) = profile_id));
+  END IF;
+END $$;
 
--- Pending Orders
-DROP POLICY IF EXISTS "Public can delete pending orders" ON public.pending_orders;
-CREATE POLICY "Public can delete pending orders" ON public.pending_orders
-AS PERMISSIVE FOR DELETE
-TO public
-USING (true);
+-- Pending Orders (only if table exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'pending_orders') THEN
+    DROP POLICY IF EXISTS "Public can delete pending orders" ON public.pending_orders;
+    CREATE POLICY "Public can delete pending orders" ON public.pending_orders
+    AS PERMISSIVE FOR DELETE
+    TO public
+    USING (true);
 
-DROP POLICY IF EXISTS "Public can insert pending orders" ON public.pending_orders;
-CREATE POLICY "Public can insert pending orders" ON public.pending_orders
-AS PERMISSIVE FOR INSERT
-TO public
-WITH CHECK (true);
+    DROP POLICY IF EXISTS "Public can insert pending orders" ON public.pending_orders;
+    CREATE POLICY "Public can insert pending orders" ON public.pending_orders
+    AS PERMISSIVE FOR INSERT
+    TO public
+    WITH CHECK (true);
 
-DROP POLICY IF EXISTS "Public can read pending orders" ON public.pending_orders;
-CREATE POLICY "Public can read pending orders" ON public.pending_orders
-AS PERMISSIVE FOR SELECT
-TO public
-USING (true);
+    DROP POLICY IF EXISTS "Public can read pending orders" ON public.pending_orders;
+    CREATE POLICY "Public can read pending orders" ON public.pending_orders
+    AS PERMISSIVE FOR SELECT
+    TO public
+    USING (true);
+  END IF;
+END $$;
 
--- Personal Order Notes
-DROP POLICY IF EXISTS "Users can delete personal notes for their own shop" ON public.personal_order_notes;
-CREATE POLICY "Users can delete personal notes for their own shop" ON public.personal_order_notes
-AS PERMISSIVE FOR DELETE
-TO public
-USING (shop_id IN ( SELECT shops.id
-   FROM shops
-  WHERE (shops.profile_id = ( SELECT auth.uid() AS uid))));
+-- Personal Order Notes (only if table exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'personal_order_notes') THEN
+    DROP POLICY IF EXISTS "Users can delete personal notes for their own shop" ON public.personal_order_notes;
+    CREATE POLICY "Users can delete personal notes for their own shop" ON public.personal_order_notes
+    AS PERMISSIVE FOR DELETE
+    TO public
+    USING (shop_id IN ( SELECT shops.id
+       FROM shops
+      WHERE (shops.profile_id = ( SELECT auth.uid() AS uid))));
 
-DROP POLICY IF EXISTS "Users can insert personal notes for their own shop" ON public.personal_order_notes;
-CREATE POLICY "Users can insert personal notes for their own shop" ON public.personal_order_notes
-AS PERMISSIVE FOR INSERT
-TO public
-WITH CHECK (shop_id IN ( SELECT shops.id
-   FROM shops
-  WHERE (shops.profile_id = ( SELECT auth.uid() AS uid))));
+    DROP POLICY IF EXISTS "Users can insert personal notes for their own shop" ON public.personal_order_notes;
+    CREATE POLICY "Users can insert personal notes for their own shop" ON public.personal_order_notes
+    AS PERMISSIVE FOR INSERT
+    TO public
+    WITH CHECK (shop_id IN ( SELECT shops.id
+       FROM shops
+      WHERE (shops.profile_id = ( SELECT auth.uid() AS uid))));
 
-DROP POLICY IF EXISTS "Users can update personal notes for their own shop" ON public.personal_order_notes;
-CREATE POLICY "Users can update personal notes for their own shop" ON public.personal_order_notes
-AS PERMISSIVE FOR UPDATE
-TO public
-USING (shop_id IN ( SELECT shops.id
-   FROM shops
-  WHERE (shops.profile_id = ( SELECT auth.uid() AS uid))));
+    DROP POLICY IF EXISTS "Users can update personal notes for their own shop" ON public.personal_order_notes;
+    CREATE POLICY "Users can update personal notes for their own shop" ON public.personal_order_notes
+    AS PERMISSIVE FOR UPDATE
+    TO public
+    USING (shop_id IN ( SELECT shops.id
+       FROM shops
+      WHERE (shops.profile_id = ( SELECT auth.uid() AS uid))));
 
-DROP POLICY IF EXISTS "Users can view personal notes for their own shop" ON public.personal_order_notes;
-CREATE POLICY "Users can view personal notes for their own shop" ON public.personal_order_notes
-AS PERMISSIVE FOR SELECT
-TO public
-USING (shop_id IN ( SELECT shops.id
-   FROM shops
-  WHERE (shops.profile_id = ( SELECT auth.uid() AS uid))));
+    DROP POLICY IF EXISTS "Users can view personal notes for their own shop" ON public.personal_order_notes;
+    CREATE POLICY "Users can view personal notes for their own shop" ON public.personal_order_notes
+    AS PERMISSIVE FOR SELECT
+    TO public
+    USING (shop_id IN ( SELECT shops.id
+       FROM shops
+      WHERE (shops.profile_id = ( SELECT auth.uid() AS uid))));
+  END IF;
+END $$;
 
 -- Products
 DROP POLICY IF EXISTS "Users can delete own products" ON public.products;
@@ -388,35 +423,45 @@ AS PERMISSIVE FOR SELECT
 TO public
 USING ((( SELECT auth.uid() AS uid) = id));
 
--- Shop Customizations
-DROP POLICY IF EXISTS "Users can access their own shop customizations" ON public.shop_customizations;
-CREATE POLICY "Users can access their own shop customizations" ON public.shop_customizations
-AS PERMISSIVE FOR ALL
-TO public
-USING (shop_id IN ( SELECT shops.id
-   FROM shops
-  WHERE (shops.profile_id = ( SELECT auth.uid() AS uid))));
+-- Shop Customizations (only if table exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'shop_customizations') THEN
+    DROP POLICY IF EXISTS "Users can access their own shop customizations" ON public.shop_customizations;
+    CREATE POLICY "Users can access their own shop customizations" ON public.shop_customizations
+    AS PERMISSIVE FOR ALL
+    TO public
+    USING (shop_id IN ( SELECT shops.id
+       FROM shops
+      WHERE (shops.profile_id = ( SELECT auth.uid() AS uid))));
+  END IF;
+END $$;
 
--- Shop Transfers
-DROP POLICY IF EXISTS "Authenticated users can create transfers" ON public.shop_transfers;
-CREATE POLICY "Authenticated users can create transfers" ON public.shop_transfers
-AS PERMISSIVE FOR INSERT
-TO public
-WITH CHECK ((( SELECT auth.uid() AS uid) IS NOT NULL));
+-- Shop Transfers (only if table exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'shop_transfers') THEN
+    DROP POLICY IF EXISTS "Authenticated users can create transfers" ON public.shop_transfers;
+    CREATE POLICY "Authenticated users can create transfers" ON public.shop_transfers
+    AS PERMISSIVE FOR INSERT
+    TO public
+    WITH CHECK ((( SELECT auth.uid() AS uid) IS NOT NULL));
 
-DROP POLICY IF EXISTS "Authenticated users can view transfers" ON public.shop_transfers;
-CREATE POLICY "Authenticated users can view transfers" ON public.shop_transfers
-AS PERMISSIVE FOR SELECT
-TO public
-USING ((( SELECT auth.uid() AS uid) IS NOT NULL));
+    DROP POLICY IF EXISTS "Authenticated users can view transfers" ON public.shop_transfers;
+    CREATE POLICY "Authenticated users can view transfers" ON public.shop_transfers
+    AS PERMISSIVE FOR SELECT
+    TO public
+    USING ((( SELECT auth.uid() AS uid) IS NOT NULL));
 
-DROP POLICY IF EXISTS "Users can mark transfers as used for their email" ON public.shop_transfers;
-CREATE POLICY "Users can mark transfers as used for their email" ON public.shop_transfers
-AS PERMISSIVE FOR UPDATE
-TO public
-USING (((( SELECT auth.uid() AS uid) IS NOT NULL) AND (target_email = (( SELECT users.email
-   FROM auth.users
-  WHERE (users.id = ( SELECT auth.uid() AS uid))))::text) AND (used_at IS NULL)));
+    DROP POLICY IF EXISTS "Users can mark transfers as used for their email" ON public.shop_transfers;
+    CREATE POLICY "Users can mark transfers as used for their email" ON public.shop_transfers
+    AS PERMISSIVE FOR UPDATE
+    TO public
+    USING (((( SELECT auth.uid() AS uid) IS NOT NULL) AND (target_email = (( SELECT users.email
+       FROM auth.users
+      WHERE (users.id = ( SELECT auth.uid() AS uid))))::text) AND (used_at IS NULL)));
+  END IF;
+END $$;
 
 -- Shops
 DROP POLICY IF EXISTS "Users can insert own shop" ON public.shops;

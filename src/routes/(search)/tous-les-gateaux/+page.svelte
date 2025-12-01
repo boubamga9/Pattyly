@@ -43,14 +43,27 @@
 				actualCity: string;
 				postalCode: string;
 				isPremium?: boolean;
+				latitude?: number | null;
+				longitude?: number | null;
 			};
+			distance?: number | null;
 		}>;
+		pagination?: {
+			page: number;
+			limit: number;
+			total: number;
+			hasMore: boolean;
+		};
 	};
 
 	let resultsContainer: HTMLElement;
 
-	// Utiliser les données du serveur
-	$: allProducts = data.products || [];
+	// Utiliser les données du serveur (première page)
+	let displayedProducts = data.products || [];
+	let currentPage = data.pagination?.page || 1;
+	let hasMore = data.pagination?.hasMore || false;
+	let isLoadingMore = false;
+	let sentinelElement: HTMLElement;
 
 	// Filtres
 	let selectedCitySuggestion: CitySuggestion | null = null;
@@ -196,8 +209,8 @@
 	// Cache pour les coordonnées géocodées (évite de refaire les appels API)
 	const geocodedCache = new Map<string, [number, number]>();
 
-	// Filtrer les produits avec rayon de recherche
-	let filteredProductsSync: typeof allProducts = allProducts;
+	// Filtrer les produits avec rayon de recherche (fallback côté client)
+	let filteredProductsSync: typeof displayedProducts = displayedProducts;
 	let isLoadingFilter = false;
 	let filterTimeout: ReturnType<typeof setTimeout> | null = null;
 	let isFiltering = false;
@@ -217,7 +230,7 @@
 		try {
 			isFiltering = true;
 			isLoadingFilter = true;
-			let filtered = [...allProducts];
+			let filtered = [...displayedProducts];
 
 			// Filtre par type de gâteau
 			if (selectedCakeType) {
@@ -328,7 +341,7 @@
 				filterTimeout = null;
 			}
 			// Trier : vérifiés en premier, puis par nom de produit
-			const sorted = [...allProducts].sort((a, b) => {
+			const sorted = [...displayedProducts].sort((a, b) => {
 				if (a.shop.isPremium && !b.shop.isPremium) return -1;
 				if (!a.shop.isPremium && b.shop.isPremium) return 1;
 				return a.name.localeCompare(b.name);
@@ -339,8 +352,8 @@
 		}
 	}
 
-	// Utiliser filteredProductsSync pour l'affichage
-	$: filteredProducts = filteredProductsSync || [];
+	// Utiliser filteredProductsSync pour l'affichage (fallback côté client)
+	$: filteredProducts = filteredProductsSync || displayedProducts;
 
 	function clearFilters() {
 		selectedCitySuggestion = null;
@@ -383,6 +396,56 @@
 		window.history.replaceState({}, '', newUrl);
 	}
 
+	// Fonction pour charger la page suivante
+	async function loadNextPage() {
+		if (isLoadingMore || !hasMore) return;
+
+		isLoadingMore = true;
+		const nextPage = currentPage + 1;
+
+		try {
+			// Construire l'URL de l'API avec les filtres actuels
+			const params = new URLSearchParams();
+			if (selectedCitySuggestion) {
+				params.set('city', selectedCitySuggestion.city.toLowerCase());
+			}
+			if (selectedCakeType) {
+				const cakeTypeSlug = cakeTypeToSlug[selectedCakeType.toLowerCase()];
+				if (cakeTypeSlug) {
+					params.set('type', cakeTypeSlug);
+				}
+			}
+			if (selectedCitySuggestion?.coordinates) {
+				params.set('lat', selectedCitySuggestion.coordinates.lat.toString());
+				params.set('lon', selectedCitySuggestion.coordinates.lon.toString());
+				params.set('radius', searchRadius.toString());
+			}
+			if (showOnlyVerified) {
+				params.set('verified', 'true');
+			}
+			params.set('page', nextPage.toString());
+
+			const response = await fetch(`/tous-les-gateaux/api?${params.toString()}`);
+			if (!response.ok) throw new Error('Failed to load next page');
+
+			const result = await response.json();
+			
+			// Ajouter les nouveaux produits à la liste
+			displayedProducts = [...displayedProducts, ...result.products];
+			currentPage = result.pagination.page;
+			hasMore = result.pagination.hasMore;
+
+			// Animations pour les nouveaux éléments
+			if (resultsContainer) {
+				await revealStagger(resultsContainer, ':scope > div', { delay: 0.1, stagger: 0.05 });
+			}
+		} catch (error) {
+			console.error('Erreur lors du chargement de la page suivante:', error);
+		} finally {
+			isLoadingMore = false;
+		}
+	}
+
 	onMount(async () => {
 		// Initialiser avec les paramètres de l'URL
 		await initializeFiltersFromUrl();
@@ -392,12 +455,31 @@
 			handleCitySelect(selectedCitySuggestion);
 		}
 
-		// Animations
-		if (resultsContainer)
+		// Animations initiales
+		if (resultsContainer) {
 			await revealStagger(resultsContainer, ':scope > div', {
 				delay: 0.1,
 				stagger: 0.05,
 			});
+		}
+
+		// Configurer l'Intersection Observer pour infinite scroll
+		if (typeof IntersectionObserver !== 'undefined' && sentinelElement) {
+			const observer = new IntersectionObserver(
+				(entries) => {
+					if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+						loadNextPage();
+					}
+				},
+				{ rootMargin: '200px' }
+			);
+
+			observer.observe(sentinelElement);
+
+			return () => {
+				observer.disconnect();
+			};
+		}
 	});
 
 	// Réagir aux changements de navigation (pour gérer le bouton retour du navigateur)
@@ -592,23 +674,28 @@
 					</p>
 				{:else}
 					<p class="text-base font-medium text-neutral-700">
-						{#if filteredProducts.length === 0}
+						{#if displayedProducts.length === 0}
 							{#if selectedCitySuggestion}
 								Aucun gâteau trouvé dans un rayon de {searchRadius}km autour de {selectedCitySuggestion.city}
 							{:else}
 								Aucun gâteau trouvé
 							{/if}
-						{:else if filteredProducts.length === 1}
+						{:else if data.pagination}
+							{data.pagination.total} {data.pagination.total === 1 ? 'gâteau trouvé' : 'gâteaux trouvés'}
+							{#if selectedCitySuggestion}
+								<span class="text-neutral-500"> dans un rayon de {searchRadius}km autour de {selectedCitySuggestion.city}</span>
+							{/if}
+						{:else if displayedProducts.length === 1}
 							{#if selectedCitySuggestion}
 								1 gâteau trouvé dans un rayon de {searchRadius}km autour de {selectedCitySuggestion.city}
 							{:else}
 								1 gâteau trouvé
 							{/if}
 						{:else if selectedCitySuggestion}
-							{filteredProducts.length} gâteaux trouvés dans un rayon de {searchRadius}km
+							{displayedProducts.length} gâteaux trouvés dans un rayon de {searchRadius}km
 							autour de {selectedCitySuggestion.city}
 						{:else}
-							{filteredProducts.length} gâteaux trouvés
+							{displayedProducts.length} gâteaux trouvés
 						{/if}
 					</p>
 				{/if}
@@ -619,7 +706,7 @@
 				bind:this={resultsContainer}
 				class="grid gap-8 sm:grid-cols-2 lg:grid-cols-3"
 			>
-				{#each filteredProducts as product}
+				{#each displayedProducts as product}
 					<Card.Root
 						class="group relative overflow-hidden rounded-2xl border border-neutral-200 bg-white transition-all duration-300 hover:scale-[1.02] hover:border-[#FF6F61]/50 hover:shadow-xl"
 					>
@@ -735,8 +822,26 @@
 				{/each}
 			</div>
 
+			<!-- Sentinel pour infinite scroll -->
+			{#if hasMore}
+				<div bind:this={sentinelElement} class="py-8 text-center">
+					{#if isLoadingMore}
+						<div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-[#FF6F61] border-t-transparent"></div>
+						<p class="mt-4 text-sm text-neutral-600">Chargement...</p>
+					{:else}
+						<Button
+							on:click={loadNextPage}
+							variant="outline"
+							class="rounded-xl"
+						>
+							Charger plus
+						</Button>
+					{/if}
+				</div>
+			{/if}
+
 			<!-- Message si aucun résultat -->
-			{#if filteredProducts.length === 0}
+			{#if displayedProducts.length === 0}
 				<div class="py-12 text-center">
 					<Cake class="mx-auto mb-4 h-16 w-16 text-neutral-300" />
 					<p class="mb-2 text-lg font-medium text-neutral-700">
@@ -752,4 +857,16 @@
 			{/if}
 		</div>
 	</section>
+
+	<!-- Pagination cachée pour SEO -->
+	{#if data.pagination && data.pagination.hasMore}
+		<nav class="sr-only" aria-label="Pagination">
+			{#each Array(Math.min(5, Math.ceil((data.pagination.total || 0) / data.pagination.limit))) as _, i}
+				{@const pageNum = i + 1}
+				{#if pageNum > currentPage}
+					<a href="/tous-les-gateaux?page={pageNum}" rel="next">Page {pageNum}</a>
+				{/if}
+			{/each}
+		</nav>
+	{/if}
 </div>
