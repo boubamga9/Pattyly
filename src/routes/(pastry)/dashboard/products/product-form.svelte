@@ -290,6 +290,9 @@
 					<label class="mb-2 block text-sm font-medium">
 						Image du gâteau
 					</label>
+					<p class="mb-3 text-xs text-muted-foreground">
+						Taille maximale : 4 MB (JPG, PNG, etc.)
+					</p>
 
 					{#if imagePreview}
 						<!-- Image preview -->
@@ -313,7 +316,9 @@
 						<!-- File upload area -->
 						<div class="mb-4 flex justify-center">
 							<div
-								class="flex h-48 w-48 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/20 transition-colors hover:border-primary"
+								class="flex h-48 w-48 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors {$errors?.image
+									? 'border-red-300 bg-red-50 hover:border-red-400'
+									: 'border-muted-foreground/20 hover:border-primary'}"
 								on:click={() => document.getElementById('image')?.click()}
 								role="button"
 								tabindex="0"
@@ -321,9 +326,9 @@
 									e.key === 'Enter' &&
 									document.getElementById('image')?.click()}
 							>
-								<Upload class="mb-2 h-8 w-8 text-muted-foreground" />
-								<p class="text-center text-xs text-muted-foreground">
-									Cliquez pour sélectionner une image
+								<Upload class="mb-2 h-8 w-8 {$errors?.image ? 'text-red-500' : 'text-muted-foreground'}" />
+								<p class="text-center text-xs {$errors?.image ? 'text-red-600 font-medium' : 'text-muted-foreground'}">
+									{$errors?.image ? 'Image trop lourde' : 'Cliquez pour sélectionner une image'}
 								</p>
 							</div>
 						</div>
