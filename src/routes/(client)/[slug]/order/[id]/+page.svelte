@@ -137,10 +137,6 @@
 			return;
 		}
 
-		console.log(
-			'🚀 acceptQuote called, redirecting to checkout with order_ref:',
-			order.order_ref,
-		);
 
 		// Rediriger vers la page de checkout pour commande personnalisée
 		goto(`/${order.shops.slug}/custom/checkout/${order.order_ref}`);

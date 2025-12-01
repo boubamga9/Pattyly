@@ -84,20 +84,20 @@
 				<div class="relative flex items-start justify-between gap-2 sm:gap-4">
 					<!-- Step 1 -->
 					<div class="flex flex-1 flex-col items-center">
-						<div
+					<div
 							class="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300 sm:h-12 sm:w-12 {step >=
-							1
+						1
 								? 'border-[#FF6F61] bg-[#FF6F61] text-white shadow-lg shadow-[#FF6F61]/20'
 								: step === 1
 									? 'border-[#FF6F61] bg-white text-[#FF6F61]'
 									: 'border-neutral-300 bg-white text-neutral-400'}"
-						>
+					>
 							{#if step > 1}
 								<Check class="h-5 w-5 sm:h-6 sm:w-6" />
-							{:else}
+						{:else}
 								<span class="text-sm font-semibold sm:text-base">1</span>
-							{/if}
-						</div>
+						{/if}
+					</div>
 						<!-- Labels mobiles -->
 						<div class="mt-2 text-center sm:hidden">
 							<p class="text-xs font-medium {step >= 1 ? 'text-[#FF6F61]' : 'text-neutral-500'}">
@@ -110,25 +110,25 @@
 								Informations
 							</p>
 							<p class="mt-1 text-xs text-neutral-500">Nom, logo, description</p>
-						</div>
 					</div>
+				</div>
 
 					<!-- Step 2 -->
 					<div class="flex flex-1 flex-col items-center">
-						<div
+					<div
 							class="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300 sm:h-12 sm:w-12 {step >=
-							2
+						2
 								? 'border-[#FF6F61] bg-[#FF6F61] text-white shadow-lg shadow-[#FF6F61]/20'
 								: step === 2
 									? 'border-[#FF6F61] bg-white text-[#FF6F61]'
 									: 'border-neutral-300 bg-white text-neutral-400'}"
-						>
+					>
 							{#if step > 2}
 								<Check class="h-5 w-5 sm:h-6 sm:w-6" />
-							{:else}
+						{:else}
 								<span class="text-sm font-semibold sm:text-base">2</span>
-							{/if}
-						</div>
+						{/if}
+					</div>
 						<!-- Labels mobiles -->
 						<div class="mt-2 text-center sm:hidden">
 							<p class="text-xs font-medium {step >= 2 ? 'text-[#FF6F61]' : 'text-neutral-500'}">
@@ -141,25 +141,25 @@
 								PayPal
 							</p>
 							<p class="mt-1 text-xs text-neutral-500">Configuration PayPal.me</p>
-						</div>
 					</div>
+				</div>
 
 					<!-- Step 3 -->
 					<div class="flex flex-1 flex-col items-center">
-						<div
+					<div
 							class="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300 sm:h-12 sm:w-12 {step >=
-							3
+						3
 								? 'border-[#FF6F61] bg-[#FF6F61] text-white shadow-lg shadow-[#FF6F61]/20'
 								: step === 3
 									? 'border-[#FF6F61] bg-white text-[#FF6F61]'
 									: 'border-neutral-300 bg-white text-neutral-400'}"
-						>
+					>
 							{#if step > 3}
 								<Check class="h-5 w-5 sm:h-6 sm:w-6" />
-							{:else}
+						{:else}
 								<span class="text-sm font-semibold sm:text-base">3</span>
-							{/if}
-						</div>
+						{/if}
+					</div>
 						<!-- Labels mobiles -->
 						<div class="mt-2 text-center sm:hidden">
 							<p class="text-xs font-medium {step >= 3 ? 'text-[#FF6F61]' : 'text-neutral-500'}">

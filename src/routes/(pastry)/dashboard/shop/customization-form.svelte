@@ -12,21 +12,16 @@
 		CardTitle,
 	} from '$lib/components/ui/card';
 	import { Label } from '$lib/components/ui/label';
-	import { Input } from '$lib/components/ui/input';
 	import {
 		Palette,
 		Upload,
 		X,
 		LoaderCircle,
 		Check,
-		Pencil,
 	} from 'lucide-svelte';
 	import { page } from '$app/stores';
 
 	export let form: SuperValidated<Infer<typeof customizationSchema>>;
-
-	console.log('🎨 [Customization Form] Form data received:', form);
-	console.log('🎨 [Customization Form] background_image_url from form:', form.data?.background_image_url);
 
 	const formStore = superForm(form, {
 		validators: zodClient(customizationSchema),
@@ -69,7 +64,10 @@
 
 		// Utiliser le fichier original (Cloudinary compresse automatiquement)
 		_backgroundFile = file;
-		$formData.background_image = file;
+		formData.update((data) => {
+			data.background_image = file;
+			return data;
+		});
 
 		// Create preview
 		const reader = new FileReader();
@@ -84,27 +82,31 @@
 			// Supprimer côté client immédiatement pour l'UX
 			_backgroundFile = null;
 			backgroundPreview = null;
-			$formData.background_image = undefined;
+			formData.update((data) => {
+				data.background_image = undefined;
+				return data;
+			});
 
 			// Supprimer côté serveur si une image existe
-			if ($formData.background_image_url) {
-				const formData = new FormData();
+			const currentImageUrl = $formData.background_image_url;
+			if (currentImageUrl) {
+				const requestFormData = new FormData();
 				// ✅ OPTIMISÉ : Passer shopId et shopSlug pour éviter getUser + requête shop
-				formData.append('shopId', $page.data.shop.id);
-				formData.append('shopSlug', $page.data.shop.slug);
+				requestFormData.append('shopId', $page.data.shop.id);
+				requestFormData.append('shopSlug', $page.data.shop.slug);
 
 				const response = await fetch('?/removeBackgroundImage', {
 					method: 'POST',
-					body: formData,
+					body: requestFormData,
 				});
 
 				if (response.ok) {
 					// Mettre à jour l'état après suppression
-					$formData.background_image_url = '';
+					formData.update((data) => {
+						data.background_image_url = '';
+						return data;
+					});
 					backgroundPreview = null; // La réactivité mettra à jour automatiquement
-					console.log(
-						'🎨 [Customization Form] Background image removed successfully',
-					);
 				} else {
 					console.error(
 						'🎨 [Customization Form] Failed to remove background image',
@@ -120,15 +122,6 @@
 			// En cas d'erreur, la réactivité remettra l'aperçu depuis formData
 		}
 	}
-
-	// Preview des couleurs (utilisé dans le template)
-	$: previewStyles = {
-		buttonStyle: `background-color: ${$formData.button_color}; color: ${$formData.button_text_color};`,
-		textStyle: `color: ${$formData.text_color};`,
-		iconStyle: `color: ${$formData.icon_color};`,
-		secondaryTextStyle: `color: ${$formData.secondary_text_color};`,
-		backgroundColor: $formData.background_color,
-	};
 </script>
 
 <Card>
@@ -161,10 +154,6 @@
 			enctype="multipart/form-data"
 			use:enhance={{
 				onResult: ({ result }) => {
-					console.log(
-						'🎨 [Customization Form] Form submission result:',
-						result,
-					);
 					if (result.type === 'success') {
 						submitted = true;
 						setTimeout(() => {

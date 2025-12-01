@@ -50,17 +50,10 @@
 		resetForm: false, // Ne pas réinitialiser le formulaire après soumission
 		dataType: 'json', // Utiliser JSON pour gérer les arrays correctement
 		onUpdated: ({ form: updatedForm }) => {
-			console.log('📋 [Directory Form] onUpdated called', {
-				valid: updatedForm.valid,
-				data: updatedForm.data,
-				message: updatedForm.message,
-			});
-			console.log('📋 [Directory Form] submitted in onUpdated:', submitted);
 			// Préserver les valeurs après mise à jour
 			if (updatedForm.valid && updatedForm.data) {
 				// Synchroniser cityInput avec la valeur du formulaire
 				cityInput = updatedForm.data.directory_actual_city || '';
-				console.log('📋 [Directory Form] cityInput updated to:', cityInput);
 				if (updatedForm.data.directory_postal_code && !selectedCity) {
 					// Si on a un code postal mais pas de ville sélectionnée, essayer de trouver la ville
 					// (optionnel, pour améliorer l'UX)
@@ -168,27 +161,14 @@
 
 		// Si on sélectionne et qu'on a déjà 3 types, on ne peut pas en ajouter plus
 		if (currentTypes.length >= 3) {
-			console.log('📋 [Directory Form] Maximum de 3 types atteint');
 			return;
 		}
 
 		// Ajouter le nouveau type
 		const newTypes = [...currentTypes, cakeType];
 
-		console.log('📋 [Directory Form] toggleCakeType:', {
-			cakeType,
-			currentTypes,
-			newTypes,
-			beforeUpdate: $formData.directory_cake_types,
-		});
-
 		// Mettre à jour le formulaire de manière réactive
 		$formData.directory_cake_types = newTypes;
-
-		console.log('📋 [Directory Form] After update:', {
-			directory_cake_types: $formData.directory_cake_types,
-			formDataSnapshot: JSON.parse(JSON.stringify($formData)),
-		});
 	}
 
 	// Synchroniser cityInput avec le formulaire (réactif) - seulement si l'input n'est pas en focus
@@ -201,29 +181,8 @@
 			$formData.directory_actual_city &&
 			cityInput !== $formData.directory_actual_city
 		) {
-			console.log(
-				'📋 [Directory Form] Syncing cityInput from',
-				cityInput,
-				'to',
-				$formData.directory_actual_city,
-			);
 			cityInput = $formData.directory_actual_city;
 		}
-	}
-
-	// Logger les changements de formData seulement quand ils sont significatifs
-	$: if (
-		$formData.directory_city ||
-		$formData.directory_actual_city ||
-		$formData.directory_postal_code
-	) {
-		console.log('📋 [Directory Form] FormData changed:', {
-			directory_city: $formData.directory_city,
-			directory_actual_city: $formData.directory_actual_city,
-			directory_postal_code: $formData.directory_postal_code,
-			directory_cake_types: $formData.directory_cake_types,
-			directory_enabled: $formData.directory_enabled,
-		});
 	}
 
 	// Handle toggle change
@@ -253,16 +212,8 @@
 
 	// Initialiser avec les données existantes
 	onMount(() => {
-		console.log('📋 [Directory Form] onMount - initial data:', {
-			directory_city: $formData.directory_city,
-			directory_actual_city: $formData.directory_actual_city,
-			directory_postal_code: $formData.directory_postal_code,
-			directory_cake_types: $formData.directory_cake_types,
-			directory_enabled: $formData.directory_enabled,
-		});
 		if ($formData.directory_actual_city) {
 			cityInput = $formData.directory_actual_city;
-			console.log('📋 [Directory Form] Initialized cityInput to:', cityInput);
 		}
 		// Initialiser l'état local du toggle depuis formData
 		localDirectoryEnabled = $formData.directory_enabled || false;
@@ -346,49 +297,34 @@
 	action="?/updateDirectory"
 	use:enhance={{
 		onResult: ({ result }) => {
-			console.log('📋 [Directory Form] enhance callback - result:', result);
-			console.log('📋 [Directory Form] submitted before:', submitted);
-
 			if (result.type === 'success') {
 				// Afficher le feedback de succès
 				submitted = true;
-				console.log('📋 [Directory Form] submitted set to true');
 
 				// Si on est dans l'onboarding, rediriger directement vers le dashboard
 				const pathname = window.location.pathname;
-				console.log('📋 [Directory Form] Current pathname:', pathname);
 
 				if (pathname.includes('/onboarding')) {
-					console.log('📋 [Directory Form] In onboarding - checking plan');
 					// Vérifier le plan dans localStorage
 					const selectedPlan = typeof window !== 'undefined' 
 						? localStorage.getItem('selected_plan') 
 						: null;
 					
-					console.log('📋 [Directory Form] Selected plan from localStorage:', selectedPlan);
-					
 					// Utiliser setTimeout pour s'assurer que la redirection se fait après la mise à jour du formulaire
 					setTimeout(() => {
 						if (selectedPlan === 'starter') {
-							console.log('📋 [Directory Form] Plan starter found, redirecting to subscription');
 							localStorage.removeItem('selected_plan');
 							goto('/subscription?plan=starter&from=onboarding');
 						} else if (selectedPlan === 'premium') {
-							console.log('📋 [Directory Form] Plan premium found, redirecting to subscription');
 							localStorage.removeItem('selected_plan');
 							goto('/subscription?plan=premium&from=onboarding');
 						} else {
-							console.log('📋 [Directory Form] No plan found, redirecting to dashboard');
 							goto('/dashboard');
 						}
 					}, 100);
 				} else {
-					console.log(
-						'📋 [Directory Form] In dashboard - success, showing feedback',
-					);
 					// Dans le dashboard, afficher le feedback pendant 2 secondes
 					setTimeout(() => {
-						console.log('📋 [Directory Form] Resetting submitted to false');
 						submitted = false;
 					}, 2000);
 				}
@@ -596,26 +532,20 @@
 				if (result.type === 'success') {
 					const pathname = window.location.pathname;
 					if (pathname.includes('/onboarding')) {
-						console.log('📋 [Directory Form] Skip - checking plan');
 						// Vérifier le plan dans localStorage
 						const selectedPlan = typeof window !== 'undefined' 
 							? localStorage.getItem('selected_plan') 
 							: null;
 						
-						console.log('📋 [Directory Form] Skip - Selected plan from localStorage:', selectedPlan);
-						
 						// Utiliser setTimeout pour s'assurer que la redirection se fait après la réponse serveur
 						setTimeout(() => {
 							if (selectedPlan === 'starter') {
-								console.log('📋 [Directory Form] Skip - Plan starter found, redirecting to subscription');
 								localStorage.removeItem('selected_plan');
 								goto('/subscription?plan=starter&from=onboarding');
 							} else if (selectedPlan === 'premium') {
-								console.log('📋 [Directory Form] Skip - Plan premium found, redirecting to subscription');
 								localStorage.removeItem('selected_plan');
 								goto('/subscription?plan=premium&from=onboarding');
 							} else {
-								console.log('📋 [Directory Form] Skip - No plan found, redirecting to dashboard');
 								goto('/dashboard');
 							}
 						}, 100);

@@ -85,47 +85,15 @@
 		validators: zodClient(dynamicSchema),
 		dataType: 'json',
 		onSubmit: () => {
-			console.log('🔍 [Product Form Front] Submitting form data...');
-			console.log(
-				'🔍 [Product Form Front] pickup_date value:',
-				$formData.pickup_date,
-			);
-			console.log(
-				'🔍 [Product Form Front] pickup_date type:',
-				typeof $formData.pickup_date,
-			);
-			console.log(
-				'🔍 [Product Form Front] pickup_date isDate:',
-				$formData.pickup_date instanceof Date,
-			);
-			console.log(
-				'🔍 [Product Form Front] pickup_time value:',
-				$formData.pickup_time,
-			);
-			console.log(
-				'🔍 [Product Form Front] pickup_time type:',
-				typeof $formData.pickup_time,
-			);
-			if ($formData.pickup_date instanceof Date) {
-				console.log(
-					'🔍 [Product Form Front] pickup_date ISO:',
-					$formData.pickup_date.toISOString(),
-				);
-				console.log(
-					'🔍 [Product Form Front] pickup_date UTC:',
-					$formData.pickup_date.toUTCString(),
-				);
-			}
+			// Form submission handled by superForm
 		},
 		onUpdated: ({ form }) => {
-			console.log('🔍 [Product Form Front] Form updated:', form);
 			if (
 				form.message &&
 				typeof form.message === 'object' &&
 				'redirectTo' in form.message
 			) {
 				const redirectTo = (form.message as any).redirectTo;
-				console.log('🔍 [Product Form Front] Redirecting to:', redirectTo);
 				goto(redirectTo);
 			}
 		},
@@ -423,14 +391,6 @@
 									on:change={(event) => {
 										selectedTimeSlot = event.detail.value;
 										$formData.pickup_time = event.detail.value;
-										console.log(
-											'🕐 [Product Form] Time slot selected:',
-											event.detail.value,
-										);
-										console.log(
-											'🕐 [Product Form] formData.pickup_time:',
-											$formData.pickup_time,
-										);
 									}}
 								/>
 							</Form.Control>

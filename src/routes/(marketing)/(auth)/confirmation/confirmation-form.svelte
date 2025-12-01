@@ -41,7 +41,6 @@
 		//otpValue = event.detail.value;
 		//$formData.code = otpValue;
 		$formData.code = event.detail.value;
-		console.log('form', $formData);
 	}
 
 	// Fonction pour renvoyer le code OTP

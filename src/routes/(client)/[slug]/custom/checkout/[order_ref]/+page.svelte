@@ -29,7 +29,6 @@
 		window.open(paypalLink, '_blank');
 
 		// Soumettre directement le formulaire de confirmation
-		console.log('🔄 Submitting payment confirmation form...');
 		confirmationForm?.requestSubmit();
 	}
 

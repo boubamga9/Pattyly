@@ -12,67 +12,67 @@
 	import { page } from '$app/stores';
 
 	// Schema.org Organization et WebSite pour SEO (dans le HTML initial pour Google)
-	const organizationSchema = {
-		'@context': 'https://schema.org',
-		'@type': 'Organization',
-		name: 'Pattyly',
-		url: 'https://pattyly.com',
-		logo: 'https://pattyly.com/images/logo_text.svg',
-		description:
-			'Logiciel de gestion pour cake designers et pâtissiers indépendants. Créez votre boutique en ligne, gérez commandes, devis, factures et planning facilement.',
-		sameAs: [
-			'https://www.instagram.com/pattyly_com',
-			'https://www.tiktok.com/@pattyly.com',
-		],
-		contactPoint: {
-			'@type': 'ContactPoint',
-			contactType: 'Support client',
-			url: 'https://pattyly.com/contact',
-		},
-	};
-
-	const websiteSchema = {
-		'@context': 'https://schema.org',
-		'@type': 'WebSite',
-		name: 'Pattyly',
-		url: 'https://pattyly.com',
-		description:
-			'Logiciel de gestion pour cake designers et pâtissiers indépendants. Créez votre boutique en ligne, gérez commandes, devis, factures et planning facilement.',
-		publisher: {
+		const organizationSchema = {
+			'@context': 'https://schema.org',
 			'@type': 'Organization',
 			name: 'Pattyly',
-		},
-		// Sitelinks suggérés pour Google (Google décide finalement quels liens afficher)
-		mainEntity: {
-			'@type': 'ItemList',
-			itemListElement: [
-				{
-					'@type': 'ListItem',
-					position: 1,
+			url: 'https://pattyly.com',
+			logo: 'https://pattyly.com/images/logo_text.svg',
+			description:
+				'Logiciel de gestion pour cake designers et pâtissiers indépendants. Créez votre boutique en ligne, gérez commandes, devis, factures et planning facilement.',
+			sameAs: [
+				'https://www.instagram.com/pattyly_com',
+				'https://www.tiktok.com/@pattyly.com',
+			],
+			contactPoint: {
+				'@type': 'ContactPoint',
+				contactType: 'Support client',
+				url: 'https://pattyly.com/contact',
+			},
+		};
+
+		const websiteSchema = {
+			'@context': 'https://schema.org',
+			'@type': 'WebSite',
+			name: 'Pattyly',
+			url: 'https://pattyly.com',
+			description:
+				'Logiciel de gestion pour cake designers et pâtissiers indépendants. Créez votre boutique en ligne, gérez commandes, devis, factures et planning facilement.',
+			publisher: {
+				'@type': 'Organization',
+				name: 'Pattyly',
+			},
+			// Sitelinks suggérés pour Google (Google décide finalement quels liens afficher)
+			mainEntity: {
+				'@type': 'ItemList',
+				itemListElement: [
+					{
+						'@type': 'ListItem',
+						position: 1,
 					name: 'FAQ',
 					url: 'https://pattyly.com/faq',
-				},
-				{
-					'@type': 'ListItem',
-					position: 2,
+					},
+					{
+						'@type': 'ListItem',
+						position: 2,
 					name: 'Contact',
 					url: 'https://pattyly.com/contact',
-				},
-				{
-					'@type': 'ListItem',
-					position: 3,
+					},
+					{
+						'@type': 'ListItem',
+						position: 3,
 					name: 'Tarifs',
 					url: 'https://pattyly.com/pricing',
-				},
-				{
-					'@type': 'ListItem',
-					position: 4,
+					},
+					{
+						'@type': 'ListItem',
+						position: 4,
 					name: 'Annuaire',
 					url: 'https://pattyly.com/annuaire',
-				},
-			],
-		},
-	};
+					},
+				],
+			},
+		};
 
 	// Préparer les scripts JSON-LD pour le HTML initial
 	const organizationJson = JSON.stringify(organizationSchema);
