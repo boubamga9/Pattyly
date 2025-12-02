@@ -150,8 +150,8 @@
 				finalCoords = [shop.latitude, shop.longitude];
 			} else {
 				// Fallback : géocoder à la volée si pas de coordonnées en base
-				const shopCity = shop.actualCity || shop.city || cityName;
-				const coords = await geocodeCity(shopCity, shop.postalCode);
+			const shopCity = shop.actualCity || shop.city || cityName;
+			const coords = await geocodeCity(shopCity, shop.postalCode);
 				finalCoords = coords || getCityCoordinates();
 			}
 			
@@ -354,8 +354,8 @@
 				finalCoords = [shop.latitude, shop.longitude];
 			} else {
 				// Fallback : géocoder à la volée si pas de coordonnées en base
-				const shopCity = shop.actualCity || shop.city || cityName;
-				const coords = await geocodeCity(shopCity, shop.postalCode);
+			const shopCity = shop.actualCity || shop.city || cityName;
+			const coords = await geocodeCity(shopCity, shop.postalCode);
 				finalCoords = coords || getCityCoordinates();
 			}
 			

@@ -17,110 +17,10 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	const lonParam = url.searchParams.get('lon');
 	const radiusParam = url.searchParams.get('radius');
 	const verifiedParam = url.searchParams.get('verified');
+	const verifiedOnly = verifiedParam === 'true';
 
-	// Charger les shops actifs
-	const { data: activeShops, error: shopsError } = await locals.supabase
-		.from('shops')
-		.select('id, latitude, longitude, profile_id')
-		.eq('is_active', true)
-		.eq('directory_enabled', true);
-
-	if (shopsError) {
-		return json({ products: [], pagination: { page, limit, total: 0, hasMore: false } }, { status: 500 });
-	}
-
-	let filteredShopIds = (activeShops || []).map(shop => shop.id);
-
-	// Filtrer par rayon si coordonnées fournies
-	if (latParam && lonParam && radiusParam) {
-		const latitude = parseFloat(latParam);
-		const longitude = parseFloat(lonParam);
-		const radius = parseFloat(radiusParam);
-
-		if (!isNaN(latitude) && !isNaN(longitude) && !isNaN(radius)) {
-			const { data: shopsInRadius, error: radiusError } = await locals.supabase.rpc(
-				'find_shops_in_radius',
-				{
-					p_latitude: latitude,
-					p_longitude: longitude,
-					p_radius_km: radius,
-					p_limit: 1000,
-					p_offset: 0
-				}
-			);
-
-			if (!radiusError && shopsInRadius) {
-				filteredShopIds = shopsInRadius.map((s: any) => s.shop_id);
-			}
-		}
-	}
-
-	// Filtrer par vérifiés si demandé
-	if (verifiedParam === 'true' && filteredShopIds.length > 0) {
-		const { data: shopsData, error: shopsError } = await locals.supabase
-			.from('shops')
-			.select('id, profile_id')
-			.in('id', filteredShopIds);
-
-		if (!shopsError && shopsData) {
-			const profileIds = shopsData.map(s => s.profile_id).filter(Boolean);
-			if (profileIds.length > 0) {
-				const { data: premiumIds } = await locals.supabase.rpc(
-					'check_premium_profiles',
-					{
-						p_profile_ids: profileIds,
-						p_premium_product_id: STRIPE_PRODUCTS.PREMIUM
-					}
-				);
-				const premiumProfileIds = new Set(premiumIds || []);
-				const validIds = new Set(
-					shopsData
-						.filter(s => s.profile_id && premiumProfileIds.has(s.profile_id))
-						.map(s => s.id)
-				);
-				filteredShopIds = filteredShopIds.filter(id => validIds.has(id));
-			}
-		}
-	}
-
-	if (filteredShopIds.length === 0) {
-		return json({
-			products: [],
-			pagination: {
-				page,
-				limit,
-				total: 0,
-				hasMore: false
-			}
-		});
-	}
-
-	// Charger les produits
-	let query = locals.supabase
-		.from('products')
-		.select(`
-			id,
-			name,
-			description,
-			image_url,
-			base_price,
-			cake_type,
-			shops!inner(
-				id,
-				name,
-				slug,
-				logo_url,
-				directory_city,
-				directory_actual_city,
-				directory_postal_code,
-				profile_id,
-				latitude,
-				longitude
-			)
-		`, { count: 'exact' })
-		.eq('is_active', true)
-		.in('shop_id', filteredShopIds);
-
+	// Filtrer par type de gâteau si spécifié
+	let cakeTypeName: string | null = null;
 	if (cakeTypeParam) {
 		const cakeTypeSlugToName: Record<string, string> = {
 			'gateau-anniversaire': 'Gâteau d\'anniversaire',
@@ -136,46 +36,212 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			'mignardise': 'Mignardise',
 		};
 
-		const cakeTypeName = cakeTypeSlugToName[cakeTypeParam.toLowerCase()];
-		if (cakeTypeName) {
-			query = query.eq('cake_type', cakeTypeName);
-		}
+		cakeTypeName = cakeTypeSlugToName[cakeTypeParam.toLowerCase()] || null;
 	}
 
-	query = query.order('name', { ascending: true }).range(offset, offset + limit - 1);
+	let filteredShopIds: string[] = [];
 
-	const { data: products, error: productsError, count } = await query;
+	// ✅ PRIORITÉ 1 : Filtrage par rayon géographique (si coordonnées disponibles)
+	if (latParam && lonParam && radiusParam) {
+		const latitude = parseFloat(latParam);
+		const longitude = parseFloat(lonParam);
+		const radius = parseFloat(radiusParam);
+
+		if (!isNaN(latitude) && !isNaN(longitude) && !isNaN(radius)) {
+			console.log('🔍 [Tous les gateaux API] Filtering by radius:', {
+				latitude,
+				longitude,
+				radius,
+				verifiedOnly
+			});
+
+			const { data: shopsInRadius, error: radiusError } = await locals.supabase.rpc(
+				'find_shops_in_radius',
+				{
+					p_latitude: latitude,
+					p_longitude: longitude,
+					p_radius_km: radius,
+					p_limit: 1000,
+					p_offset: 0,
+					p_premium_product_id: STRIPE_PRODUCTS.PREMIUM,
+					p_verified_only: verifiedOnly
+				}
+			);
+
+			if (radiusError) {
+				console.error('❌ [Tous les gateaux API] Error finding shops in radius:', radiusError);
+				return json({
+					products: [],
+					pagination: { page, limit, total: 0, hasMore: false }
+				}, { status: 500 });
+			}
+
+			if (shopsInRadius && Array.isArray(shopsInRadius) && shopsInRadius.length > 0) {
+				filteredShopIds = shopsInRadius.map((s: any) => s.shop_id);
+				console.log('✅ [Tous les gateaux API] Found shops in radius:', filteredShopIds.length);
+			} else {
+				console.log('⚠️ [Tous les gateaux API] No shops found in radius');
+				// Aucun shop dans le rayon = retourner vide
+				return json({
+					products: [],
+					pagination: { page, limit, total: 0, hasMore: false }
+				});
+			}
+		}
+	}
+	// ✅ PRIORITÉ 2 : Filtrage par nom de ville (si pas de coordonnées mais nom de ville fourni)
+	else if (cityParam) {
+		console.log('🔍 [Tous les gateaux API] Filtering by city name:', cityParam);
+		
+		const cityName = cityParam.charAt(0).toUpperCase() + cityParam.slice(1).toLowerCase();
+		const { data: shopsByCity, error: cityError } = await locals.supabase
+			.from('shops')
+			.select('id')
+			.eq('is_active', true)
+			.eq('directory_enabled', true)
+			.or(`directory_city.ilike.%${cityName}%,directory_actual_city.ilike.%${cityName}%`);
+
+		if (cityError) {
+			console.error('❌ [Tous les gateaux API] Error finding shops by city:', cityError);
+			return json({
+				products: [],
+				pagination: { page, limit, total: 0, hasMore: false }
+			}, { status: 500 });
+		}
+
+		if (shopsByCity && shopsByCity.length > 0) {
+			filteredShopIds = shopsByCity.map(s => s.id);
+			console.log('✅ [Tous les gateaux API] Found shops by city name:', filteredShopIds.length);
+		} else {
+			console.log('⚠️ [Tous les gateaux API] No shops found by city name');
+			// Aucun shop dans cette ville = retourner vide
+			return json({
+				products: [],
+				pagination: { page, limit, total: 0, hasMore: false }
+			});
+		}
+	}
+	// ✅ PRIORITÉ 3 : Pas de filtre géographique, récupérer tous les shops actifs
+	else {
+		console.log('🔍 [Tous les gateaux API] No geographic filter, loading all active shops');
+		
+		const { data: allShops, error: shopsError } = await locals.supabase
+			.from('shops')
+			.select('id')
+			.eq('is_active', true)
+			.eq('directory_enabled', true);
+
+		if (shopsError) {
+			console.error('❌ [Tous les gateaux API] Error loading shops:', shopsError);
+			return json({
+				products: [],
+				pagination: { page, limit, total: 0, hasMore: false }
+			}, { status: 500 });
+		}
+
+		filteredShopIds = (allShops || []).map(s => s.id);
+		console.log('✅ [Tous les gateaux API] Loaded all active shops:', filteredShopIds.length);
+	}
+
+	// Si aucun shop trouvé, retourner vide
+	if (filteredShopIds.length === 0) {
+		return json({
+			products: [],
+			pagination: { page, limit, total: 0, hasMore: false }
+		});
+	}
+
+	// ✅ Utiliser la fonction SQL qui trie directement par shop premium
+	const { data: productsData, error: productsError } = await locals.supabase.rpc(
+		'get_products_sorted_by_shop_premium' as any,
+		{
+			p_premium_product_id: STRIPE_PRODUCTS.PREMIUM,
+			p_limit: limit,
+			p_offset: offset,
+			p_cake_type: cakeTypeName,
+			p_shop_ids: filteredShopIds.length > 0 ? filteredShopIds : null,
+			p_verified_only: verifiedOnly
+		}
+	);
 
 	if (productsError) {
+		console.error('❌ [Tous les gateaux API] Error loading products:', productsError);
 		return json({ products: [], pagination: { page, limit, total: 0, hasMore: false } }, { status: 500 });
 	}
 
-	const total = count || 0;
+	// Compter le total pour la pagination (avec les mêmes filtres)
+	// Si verified_only est activé, filtrer les shops premium avant de compter
+	let shopIdsForCount = filteredShopIds;
+	if (verifiedOnly && filteredShopIds.length > 0) {
+		// Récupérer les profile_ids des shops premium
+		const { data: premiumProfiles, error: premiumError } = await locals.supabase
+			.from('user_products')
+			.select('profile_id')
+			.eq('stripe_product_id', STRIPE_PRODUCTS.PREMIUM)
+			.eq('subscription_status', 'active');
 
-	// Vérifier les premiums
-	const profileIds = [...new Set(
-		(products || [])
-			.map((p: any) => p.shops?.profile_id)
-			.filter(Boolean)
-	)];
+		if (!premiumError && premiumProfiles && premiumProfiles.length > 0) {
+			const premiumProfileIds = premiumProfiles.map(p => p.profile_id);
+			
+			// Récupérer les shops qui ont ces profile_ids
+			const { data: premiumShops, error: shopsError } = await locals.supabase
+				.from('shops')
+				.select('id')
+				.in('id', filteredShopIds)
+				.in('profile_id', premiumProfileIds);
 
-	const premiumProfileIds = new Set<string>();
-	if (profileIds.length > 0) {
-		const { data: premiumIds } = await locals.supabase.rpc(
-			'check_premium_profiles',
-			{
-				p_profile_ids: profileIds,
-				p_premium_product_id: STRIPE_PRODUCTS.PREMIUM
+			if (!shopsError && premiumShops) {
+				shopIdsForCount = premiumShops.map(s => s.id);
+			} else {
+				// En cas d'erreur, total = 0
+				shopIdsForCount = [];
 			}
-		);
-		if (premiumIds && Array.isArray(premiumIds)) {
-			premiumIds.forEach((id: string) => premiumProfileIds.add(id));
+		} else {
+			// Aucun shop premium trouvé = total = 0
+			shopIdsForCount = [];
 		}
 	}
 
-	const formattedProducts = (products || []).map((product: any) => {
-		const shopProfileId = product.shops?.profile_id;
-		const isPremium = shopProfileId ? premiumProfileIds.has(shopProfileId) : false;
+	let countQuery = locals.supabase
+		.from('products')
+		.select('*', { count: 'exact', head: true })
+		.eq('is_active', true);
+
+	// Ne faire le filtre par shop_id que si on a des shops
+	if (shopIdsForCount.length > 0) {
+		countQuery = countQuery.in('shop_id', shopIdsForCount);
+	} else {
+		// Aucun shop = aucun produit
+		const total = 0;
+		return json({
+			products: [],
+			pagination: { page, limit, total: 0, hasMore: false }
+		});
+	}
+
+	if (cakeTypeName) {
+		countQuery = countQuery.eq('cake_type', cakeTypeName);
+	}
+
+	const { count } = await countQuery;
+	const total = count || 0;
+	const products = productsData || [];
+
+	// Transformer les données (is_shop_premium est déjà inclus depuis la fonction SQL)
+	const formattedProducts = products.map((product: any) => {
+		// Calculer la distance si on a les coordonnées
+		let distance: number | null = null;
+		if (latParam && lonParam && product.shop_latitude && product.shop_longitude) {
+			const lat = parseFloat(latParam);
+			const lon = parseFloat(lonParam);
+			const shopLat = parseFloat(product.shop_latitude.toString());
+			const shopLon = parseFloat(product.shop_longitude.toString());
+			
+			if (!isNaN(lat) && !isNaN(lon) && !isNaN(shopLat) && !isNaN(shopLon)) {
+				// Utiliser la fonction SQL pour calculer la distance
+				// (on pourrait aussi le faire côté client si nécessaire)
+			}
+		}
 
 		return {
 			id: product.id,
@@ -185,25 +251,22 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			base_price: product.base_price,
 			cake_type: product.cake_type,
 			shop: {
-				id: product.shops.id,
-				name: product.shops.name,
-				slug: product.shops.slug,
-				logo_url: product.shops.logo_url,
-				city: product.shops.directory_city || '',
-				actualCity: product.shops.directory_actual_city || product.shops.directory_city || '',
-				postalCode: product.shops.directory_postal_code || '',
-				isPremium,
-				latitude: product.shops.latitude,
-				longitude: product.shops.longitude
-			}
+				id: product.shop_id,
+				name: product.shop_name,
+				slug: product.shop_slug,
+				logo_url: product.shop_logo_url,
+				city: product.shop_city || '',
+				actualCity: product.shop_actual_city || product.shop_city || '',
+				postalCode: product.shop_postal_code || '',
+				isPremium: product.is_shop_premium || false,
+				latitude: product.shop_latitude,
+				longitude: product.shop_longitude
+			},
+			distance
 		};
 	});
 
-	formattedProducts.sort((a, b) => {
-		if (a.shop.isPremium && !b.shop.isPremium) return -1;
-		if (!a.shop.isPremium && b.shop.isPremium) return 1;
-		return a.name.localeCompare(b.name);
-	});
+	// ✅ Le tri est déjà fait dans la fonction SQL (premium shop products en premier, puis hash, puis nom)
 
 	return json({
 		products: formattedProducts,

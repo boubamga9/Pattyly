@@ -243,7 +243,7 @@
 			if (cityResults.length > 0) {
 				selectedCitySuggestion = cityResults[0];
 				handleCitySelect(cityResults[0]);
-			}
+		}
 		}
 		
 		if (urlCakeType) {
@@ -440,28 +440,28 @@
 		
 		// Ne pas déclencher si on est en train de filtrer
 		if (!isFiltering) {
-			if (hasFilters) {
-				// Debounce plus long pour le slider (300ms) pour éviter trop d'appels pendant le glissement
-				if (filterTimeout) {
-					clearTimeout(filterTimeout);
-				}
-				filterTimeout = setTimeout(() => {
-					filterDesigners();
-				}, 300);
-			} else {
-				if (filterTimeout) {
-					clearTimeout(filterTimeout);
-					filterTimeout = null;
-				}
-				// Trier : vérifiés en premier, puis par nom
+		if (hasFilters) {
+			// Debounce plus long pour le slider (300ms) pour éviter trop d'appels pendant le glissement
+			if (filterTimeout) {
+				clearTimeout(filterTimeout);
+			}
+			filterTimeout = setTimeout(() => {
+				filterDesigners();
+			}, 300);
+		} else {
+			if (filterTimeout) {
+				clearTimeout(filterTimeout);
+				filterTimeout = null;
+			}
+			// Trier : vérifiés en premier, puis par nom
 				const sorted = [...displayedShops].sort((a, b) => {
-					if (a.isPremium && !b.isPremium) return -1;
-					if (!a.isPremium && b.isPremium) return 1;
-					return a.name.localeCompare(b.name);
-				});
-				filteredDesignersSync = sorted;
-				isLoadingFilter = false;
-				isFiltering = false;
+				if (a.isPremium && !b.isPremium) return -1;
+				if (!a.isPremium && b.isPremium) return 1;
+				return a.name.localeCompare(b.name);
+			});
+			filteredDesignersSync = sorted;
+			isLoadingFilter = false;
+			isFiltering = false;
 			}
 		}
 	}

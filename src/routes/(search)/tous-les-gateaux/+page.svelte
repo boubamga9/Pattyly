@@ -62,6 +62,7 @@
 	let displayedProducts = data.products || [];
 	let currentPage = data.pagination?.page || 1;
 	let hasMore = data.pagination?.hasMore || false;
+	let totalProducts = data.pagination?.total || 0; // Total de produits pour l'affichage
 	let isLoadingMore = false;
 	let sentinelElement: HTMLElement;
 
@@ -115,12 +116,15 @@
 	async function initializeFiltersFromUrl() {
 		const currentUrlCity = $page.url.searchParams.get('city') || '';
 		const currentUrlCakeType = $page.url.searchParams.get('type') || '';
+		const currentUrlVerified = $page.url.searchParams.get('verified');
 
 		// Réinitialiser la ville si présente dans l'URL
 		if (currentUrlCity) {
 			const cityResults = await searchCities(currentUrlCity, 5);
 			if (cityResults.length > 0) {
 				selectedCitySuggestion = cityResults[0];
+			} else {
+				selectedCitySuggestion = null;
 			}
 		} else {
 			selectedCitySuggestion = null;
@@ -149,6 +153,9 @@
 		} else {
 			selectedCakeType = '';
 		}
+
+		// Réinitialiser le filtre verified si présent dans l'URL
+		showOnlyVerified = currentUrlVerified === 'true';
 	}
 
 	/**
@@ -210,7 +217,7 @@
 	const geocodedCache = new Map<string, [number, number]>();
 
 	// Filtrer les produits avec rayon de recherche (fallback côté client)
-	let filteredProductsSync: typeof displayedProducts = displayedProducts;
+	// filteredProductsSync n'est plus utilisé, on utilise directement displayedProducts
 	let isLoadingFilter = false;
 	let filterTimeout: ReturnType<typeof setTimeout> | null = null;
 	let isFiltering = false;
@@ -218,6 +225,7 @@
 	async function filterProducts() {
 		// Éviter les appels multiples simultanés
 		if (isFiltering) {
+			console.log('⏸️ [Tous les gateaux] filterProducts already in progress, skipping');
 			return;
 		}
 
@@ -230,6 +238,46 @@
 		try {
 			isFiltering = true;
 			isLoadingFilter = true;
+			
+			// ✅ Si le filtre "verified" change, recharger depuis le serveur
+			// On recharge toujours depuis le serveur pour éviter les incohérences
+			const params = new URLSearchParams();
+			params.set('page', '1');
+			
+			if (showOnlyVerified) {
+				params.set('verified', 'true');
+			}
+			
+			if (selectedCitySuggestion) {
+				params.set('city', selectedCitySuggestion.city.toLowerCase());
+				// Toujours envoyer les coordonnées si disponibles pour le filtrage géographique
+				if (selectedCitySuggestion.coordinates) {
+					params.set('lat', selectedCitySuggestion.coordinates.lat.toString());
+					params.set('lon', selectedCitySuggestion.coordinates.lon.toString());
+					params.set('radius', searchRadius.toString());
+				}
+			}
+			if (selectedCakeType) {
+				const cakeTypeSlug = cakeTypeToSlug[selectedCakeType.toLowerCase()];
+				if (cakeTypeSlug) {
+					params.set('type', cakeTypeSlug);
+				}
+			}
+
+			const response = await fetch(`/tous-les-gateaux/api?${params.toString()}`);
+			if (response.ok) {
+				const result = await response.json();
+				displayedProducts = result.products || [];
+				currentPage = 1;
+				hasMore = result.pagination?.hasMore || false;
+				totalProducts = result.pagination?.total || 0; // Mettre à jour le total
+				isLoadingFilter = false;
+				isFiltering = false;
+				return;
+			} else {
+				console.error('❌ [Tous les gateaux] Error loading products:', response.statusText);
+			}
+			
 			let filtered = [...displayedProducts];
 
 			// Filtre par type de gâteau
@@ -237,13 +285,6 @@
 				filtered = filtered.filter(
 					(product) =>
 						product.cake_type?.toLowerCase() === selectedCakeType.toLowerCase(),
-				);
-			}
-
-			// Filtre par pâtissiers vérifiés
-			if (showOnlyVerified) {
-				filtered = filtered.filter(
-					(product) => product.shop.isPremium === true,
 				);
 			}
 
@@ -306,66 +347,49 @@
 				return a.name.localeCompare(b.name);
 			});
 
-			// S'assurer que filtered est toujours un tableau
-			filteredProductsSync = Array.isArray(filtered) ? filtered : [];
+			// Mettre à jour displayedProducts avec les résultats filtrés
+			displayedProducts = Array.isArray(filtered) ? filtered : [];
+			totalProducts = displayedProducts.length; // Mettre à jour le total avec le nombre de produits filtrés
 			isLoadingFilter = false;
 			isFiltering = false;
 		} catch (error) {
 			console.error('Erreur lors du filtrage:', error);
-			// En cas d'erreur, afficher tous les résultats ou un tableau vide
-			filteredProductsSync = [];
+			// En cas d'erreur, afficher un tableau vide
+			displayedProducts = [];
+			totalProducts = 0; // Mettre à jour le total à 0 en cas d'erreur
 			isLoadingFilter = false;
 			isFiltering = false;
 		}
 	}
 
-	// Réactif aux changements de filtres (inclut searchRadius et showOnlyVerified pour déclencher le filtrage)
-	$: {
-		const hasFilters =
-			selectedCitySuggestion || selectedCakeType || showOnlyVerified;
-		// Inclure searchRadius et showOnlyVerified dans les dépendances pour déclencher le filtrage
-		const _currentRadius = searchRadius;
-		const _currentVerified = showOnlyVerified;
+	// Le changement de rayon est géré directement dans le handler du slider
+	// Pas de déclaration réactive pour éviter les boucles infinies
 
-		if (hasFilters) {
-			// Debounce plus long pour le slider (300ms) pour éviter trop d'appels pendant le glissement
-			if (filterTimeout) {
-				clearTimeout(filterTimeout);
-			}
-			filterTimeout = setTimeout(() => {
-				filterProducts();
-			}, 300);
-		} else {
-			if (filterTimeout) {
-				clearTimeout(filterTimeout);
-				filterTimeout = null;
-			}
-			// Trier : vérifiés en premier, puis par nom de produit
-			const sorted = [...displayedProducts].sort((a, b) => {
-				if (a.shop.isPremium && !b.shop.isPremium) return -1;
-				if (!a.shop.isPremium && b.shop.isPremium) return 1;
-				return a.name.localeCompare(b.name);
-			});
-			filteredProductsSync = sorted;
-			isLoadingFilter = false;
-			isFiltering = false;
-		}
-	}
+	// filteredProductsSync est utilisé pour le fallback côté client si nécessaire
+	// Le template utilise directement displayedProducts
 
-	// Utiliser filteredProductsSync pour l'affichage (fallback côté client)
-	$: filteredProducts = filteredProductsSync || displayedProducts;
-
-	function clearFilters() {
+	async function clearFilters() {
 		selectedCitySuggestion = null;
 		selectedCakeType = '';
 		searchRadius = 30;
 		showOnlyVerified = false;
 		updateUrl();
+		// Recharger les produits sans filtres
+		await filterProducts();
 	}
 
-	function handleCitySelect(city: CitySuggestion | null) {
+	async function handleCitySelect(city: CitySuggestion | null) {
 		selectedCitySuggestion = city;
 		updateUrl();
+		// Gérer le filtrage directement
+		await filterProducts();
+	}
+
+	async function handleCakeTypeSelect(cakeType: string) {
+		selectedCakeType = selectedCakeType === cakeType ? '' : cakeType;
+		updateUrl();
+		// Gérer le filtrage directement
+		await filterProducts();
 	}
 
 	// Mettre à jour l'URL avec les filtres actuels (pour partager)
@@ -386,6 +410,11 @@
 			if (cakeTypeSlug) {
 				params.set('type', cakeTypeSlug);
 			}
+		}
+
+		// Ajouter le filtre verified si activé
+		if (showOnlyVerified) {
+			params.set('verified', 'true');
 		}
 
 		// Mettre à jour l'URL sans recharger la page
@@ -434,6 +463,10 @@
 			displayedProducts = [...displayedProducts, ...result.products];
 			currentPage = result.pagination.page;
 			hasMore = result.pagination.hasMore;
+			// Le total ne change pas quand on charge plus de pages, mais on le met à jour au cas où
+			if (result.pagination?.total !== undefined) {
+				totalProducts = result.pagination.total;
+			}
 
 			// Animations pour les nouveaux éléments
 			if (resultsContainer) {
@@ -550,8 +583,16 @@
 									min={1}
 									max={50}
 									step={1}
-									onChange={(val) => {
+									onChange={async (val) => {
 										searchRadius = val;
+										updateUrl();
+										// Debounce pour éviter trop d'appels pendant le glissement
+										if (filterTimeout) {
+											clearTimeout(filterTimeout);
+										}
+										filterTimeout = setTimeout(async () => {
+											await filterProducts();
+										}, 300);
 									}}
 								/>
 							</div>
@@ -559,8 +600,11 @@
 
 						<!-- Filtre "Notre sélection" (pâtissiers vérifiés) -->
 						<button
-							on:click={() => {
+							on:click={async () => {
 								showOnlyVerified = !showOnlyVerified;
+								updateUrl();
+								// Gérer le filtre verified directement
+								await filterProducts();
 							}}
 							class="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-all hover:border-[#FF6F61] hover:bg-[#FFE8D6]/20 {showOnlyVerified
 								? 'border-[#FF6F61] bg-[#FFE8D6]/30'
@@ -605,8 +649,7 @@
 										: 'outline'}
 									size="sm"
 									on:click={() => {
-										selectedCakeType =
-											selectedCakeType === cakeType ? '' : cakeType;
+										handleCakeTypeSelect(cakeType);
 									}}
 									class="rounded-full"
 								>
@@ -674,28 +717,22 @@
 					</p>
 				{:else}
 					<p class="text-base font-medium text-neutral-700">
-						{#if displayedProducts.length === 0}
+						{#if totalProducts === 0}
 							{#if selectedCitySuggestion}
 								Aucun gâteau trouvé dans un rayon de {searchRadius}km autour de {selectedCitySuggestion.city}
 							{:else}
 								Aucun gâteau trouvé
 							{/if}
-						{:else if data.pagination}
-							{data.pagination.total} {data.pagination.total === 1 ? 'gâteau trouvé' : 'gâteaux trouvés'}
-							{#if selectedCitySuggestion}
-								<span class="text-neutral-500"> dans un rayon de {searchRadius}km autour de {selectedCitySuggestion.city}</span>
-							{/if}
-						{:else if displayedProducts.length === 1}
+						{:else if totalProducts === 1}
 							{#if selectedCitySuggestion}
 								1 gâteau trouvé dans un rayon de {searchRadius}km autour de {selectedCitySuggestion.city}
 							{:else}
 								1 gâteau trouvé
 							{/if}
 						{:else if selectedCitySuggestion}
-							{displayedProducts.length} gâteaux trouvés dans un rayon de {searchRadius}km
-							autour de {selectedCitySuggestion.city}
+							{totalProducts} gâteaux trouvés dans un rayon de {searchRadius}km autour de {selectedCitySuggestion.city}
 						{:else}
-							{displayedProducts.length} gâteaux trouvés
+							{totalProducts} gâteaux trouvés
 						{/if}
 					</p>
 				{/if}
