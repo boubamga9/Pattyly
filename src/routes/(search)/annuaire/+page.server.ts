@@ -25,13 +25,15 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		if (!isNaN(latitude) && !isNaN(longitude) && !isNaN(radius)) {
 			// Utiliser la fonction RPC pour trouver les shops dans le rayon
 			const { data: shopsInRadius, error: radiusError } = await locals.supabase.rpc(
-				'find_shops_in_radius',
+				'find_shops_in_radius' as any,
 				{
 					p_latitude: latitude,
 					p_longitude: longitude,
 					p_radius_km: radius,
 					p_limit: limit * 3, // Charger plus pour pouvoir filtrer par type ensuite
-					p_offset: 0
+					p_offset: 0,
+					p_premium_product_id: STRIPE_PRODUCTS.PREMIUM,
+					p_verified_only: false
 				}
 			);
 
@@ -40,7 +42,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			}
 
 			// Filtrer par type de gâteau si spécifié
-			let filteredShops = shopsInRadius || [];
+			let filteredShops: any[] = Array.isArray(shopsInRadius) ? shopsInRadius : [];
 			if (cakeTypeParam && cakeTypeParam.toLowerCase() !== 'gateau-evenement') {
 				const cakeTypeSlugToName: Record<string, string> = {
 					'gateau-anniversaire': 'Gâteau d\'anniversaire',
@@ -66,11 +68,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 							.select('id, directory_cake_types')
 							.in('id', shopIds);
 
-						if (!shopsError && shopsData) {
-							const shopsWithType = shopsData.filter(shop =>
+						if (!shopsError && shopsData && Array.isArray(shopsData)) {
+							const shopsWithType = shopsData.filter((shop: any) =>
 								(shop.directory_cake_types || []).includes(cakeTypeName)
 							);
-							const validIds = new Set(shopsWithType.map(s => s.id));
+							const validIds = new Set(shopsWithType.map((s: any) => s.id));
 							filteredShops = filteredShops.filter((s: any) => validIds.has(s.shop_id));
 						}
 					}
@@ -100,7 +102,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				.select('id, name, slug, logo_url, bio, directory_city, directory_actual_city, directory_postal_code, directory_cake_types, profile_id, latitude, longitude')
 				.in('id', shopIds);
 
-			if (shopsError) {
+			if (shopsError || !shops) {
 				console.error('❌ [Directory] Error loading shops:', shopsError);
 				return {
 					shops: [],
@@ -115,45 +117,44 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 			// Créer un map pour préserver l'ordre et les distances
 			const shopMap = new Map(paginatedShops.map((s: any) => [s.shop_id, s]));
-			const orderedShops = shops?.filter(s => shopMap.has(s.id)).map(shop => {
-				const radiusData = shopMap.get(shop.id);
+			const orderedShops = (shops || []).filter((s: any) => shopMap.has(s.id)).map((shop: any) => {
+				const radiusData = shopMap.get(shop.id) as any;
 				return {
 					...shop,
-					distance: radiusData?.distance_km || null
+					distance: radiusData?.distance_km || null,
+					is_premium: radiusData?.is_premium || false
 				};
-			}) || [];
+			});
 
-			// Récupérer les profile_ids et vérifier les premiums
+			// Récupérer les profile_ids et vérifier les premiums (fallback si is_premium n'est pas dans les données)
 			const profileIds = orderedShops.map(shop => shop.profile_id).filter(Boolean);
 			const premiumProfileIds = new Set<string>();
 			if (profileIds.length > 0) {
 				const { data: premiumIds, error: premiumError } = await locals.supabase.rpc(
-					'check_premium_profiles',
+					'check_premium_profiles' as any,
 					{
 						p_profile_ids: profileIds,
 						p_premium_product_id: STRIPE_PRODUCTS.PREMIUM
 					}
 				);
-				
+
 				if (!premiumError && premiumIds && Array.isArray(premiumIds)) {
-					premiumIds.forEach((id: string) => premiumProfileIds.add(id));
+					premiumIds.forEach((id: any) => {
+						if (typeof id === 'string') premiumProfileIds.add(id);
+					});
 				}
 			}
 
-			// Marquer premium et trier
+			// Marquer premium (is_premium est déjà calculé dans la fonction SQL)
 			const shopsWithPremium = orderedShops.map(shop => ({
 				...shop,
-				isPremium: shop.profile_id ? premiumProfileIds.has(shop.profile_id) : false
+				isPremium: (shop as any).is_premium !== undefined
+					? (shop as any).is_premium
+					: (shop.profile_id ? premiumProfileIds.has(shop.profile_id) : false)
 			}));
 
-			shopsWithPremium.sort((a, b) => {
-				if (a.isPremium && !b.isPremium) return -1;
-				if (!a.isPremium && b.isPremium) return 1;
-				if (a.distance !== null && b.distance !== null) {
-					return a.distance - b.distance;
-				}
-				return a.name.localeCompare(b.name);
-			});
+			// ✅ Le tri est déjà fait dans la fonction SQL (premium en premier, puis distance, puis nom)
+			// On garde juste l'ordre retourné par la fonction
 
 			const cakeDesigners = shopsWithPremium.map((shop) => ({
 				id: shop.id,
@@ -217,7 +218,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		}
 	}
 
+	// Paramètre pour filtrer uniquement les vérifiés
+	const verifiedParam = url.searchParams.get('verified');
+	const verifiedOnly = verifiedParam === 'true';
+
 	// Si un type de gâteau est spécifié, filtrer par directory_cake_types
+	let cakeTypeName: string | null = null;
 	if (cakeTypeParam && cakeTypeParam.toLowerCase() !== 'gateau-evenement') {
 		const cakeTypeSlugToName: Record<string, string> = {
 			'gateau-anniversaire': 'Gâteau d\'anniversaire',
@@ -233,16 +239,21 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			'mignardise': 'Mignardise',
 		};
 
-		const cakeTypeName = cakeTypeSlugToName[cakeTypeParam.toLowerCase()];
-		if (cakeTypeName) {
-			query = query.contains('directory_cake_types', [cakeTypeName]);
-		}
+		cakeTypeName = cakeTypeSlugToName[cakeTypeParam.toLowerCase()] || null;
 	}
 
-	// Appliquer pagination
-	query = query.order('name', { ascending: true }).range(offset, offset + limit - 1);
-
-	const { data: shops, error: shopsError, count } = await query;
+	// ✅ Utiliser la fonction SQL qui trie directement par premium
+	const { data: shopsData, error: shopsError } = await locals.supabase.rpc(
+		'get_shops_sorted_by_premium' as any,
+		{
+			p_premium_product_id: STRIPE_PRODUCTS.PREMIUM,
+			p_limit: limit,
+			p_offset: offset,
+			p_city: cityParam || null,
+			p_cake_type: cakeTypeName,
+			p_verified_only: verifiedOnly
+		}
+	);
 
 	if (shopsError) {
 		console.error('❌ [Directory] Error loading shops:', shopsError);
@@ -257,44 +268,44 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		};
 	}
 
-	const total = count || 0;
+	// Compter le total pour la pagination (avec les mêmes filtres)
+	let countQuery = locals.supabase
+		.from('shops')
+		.select('*', { count: 'exact', head: true })
+		.eq('directory_enabled', true)
+		.eq('is_active', true);
 
-	// Récupérer les profile_ids des shops
-	const profileIds = (shops || []).map(shop => shop.profile_id).filter(Boolean);
-	
-	// Récupérer les plans premium
-	const premiumProfileIds = new Set<string>();
-	if (profileIds.length > 0) {
-		const { data: premiumIds, error: premiumError } = await locals.supabase.rpc(
-			'check_premium_profiles',
-			{
-				p_profile_ids: profileIds,
-				p_premium_product_id: STRIPE_PRODUCTS.PREMIUM
-			}
-		);
-		
-		if (!premiumError && premiumIds && Array.isArray(premiumIds)) {
-			premiumIds.forEach((id: string) => premiumProfileIds.add(id));
-		} else if (premiumError) {
-			console.error('❌ [Annuaire] Error checking premium profiles:', premiumError);
+	if (cityParam) {
+		const cityToSlug: Record<string, string> = {
+			'paris': 'Paris',
+			'lyon': 'Lyon',
+			'marseille': 'Marseille',
+			'toulouse': 'Toulouse',
+			'nice': 'Nice',
+			'nantes': 'Nantes',
+			'strasbourg': 'Strasbourg',
+			'montpellier': 'Montpellier',
+			'bordeaux': 'Bordeaux',
+			'lille': 'Lille',
+			'rennes': 'Rennes',
+			'reims': 'Reims',
+		};
+		const cityName = cityToSlug[cityParam.toLowerCase()];
+		if (cityName) {
+			countQuery = countQuery.eq('directory_city', cityName);
 		}
 	}
 
-	// Marquer les shops premium et trier
-	const shopsWithPremium = (shops || []).map(shop => ({
-		...shop,
-		isPremium: shop.profile_id ? premiumProfileIds.has(shop.profile_id) : false
-	}));
+	if (cakeTypeName) {
+		countQuery = countQuery.contains('directory_cake_types', [cakeTypeName]);
+	}
 
-	// Trier : premium en premier, puis par nom
-	shopsWithPremium.sort((a, b) => {
-		if (a.isPremium && !b.isPremium) return -1;
-		if (!a.isPremium && b.isPremium) return 1;
-		return a.name.localeCompare(b.name);
-	});
+	const { count } = await countQuery;
+	const total = count || 0;
+	const shops = shopsData || [];
 
-	// Transformer les données
-	const cakeDesigners = shopsWithPremium.map((shop) => ({
+	// Transformer les données (is_premium est déjà inclus depuis la fonction SQL)
+	const cakeDesigners = shops.map((shop: any) => ({
 		id: shop.id,
 		name: shop.name,
 		slug: shop.slug,
@@ -304,7 +315,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		specialties: (shop.directory_cake_types || []) as string[],
 		logo: shop.logo_url || '/images/logo_icone.svg',
 		bio: shop.bio || '',
-		isPremium: shop.isPremium,
+		isPremium: shop.is_premium || false,
 		latitude: shop.latitude ? parseFloat(shop.latitude.toString()) : null,
 		longitude: shop.longitude ? parseFloat(shop.longitude.toString()) : null
 	}));

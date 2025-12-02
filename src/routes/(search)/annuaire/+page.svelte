@@ -212,6 +212,14 @@
 			
 			// Ajouter les nouveaux shops à la liste
 			displayedShops = [...displayedShops, ...result.shops];
+			
+			// ✅ Re-trier pour que les premium restent en tête
+			displayedShops.sort((a, b) => {
+				if (a.isPremium && !b.isPremium) return -1;
+				if (!a.isPremium && b.isPremium) return 1;
+				return a.name.localeCompare(b.name);
+			});
+			
 			currentPage = result.pagination.page;
 			hasMore = result.pagination.hasMore;
 
@@ -307,6 +315,45 @@
 		try {
 			isFiltering = true;
 			isLoadingFilter = true;
+			
+			// ✅ Si le filtre "verified" change, recharger depuis le serveur
+			// On recharge toujours depuis le serveur pour éviter les incohérences
+			const params = new URLSearchParams();
+			params.set('page', '1');
+			
+			if (showOnlyVerified) {
+				params.set('verified', 'true');
+			}
+			
+			if (selectedCitySuggestion) {
+				params.set('city', selectedCitySuggestion.city.toLowerCase());
+			}
+			if (selectedCakeType) {
+				const cakeTypeSlug = cakeTypeToSlug[selectedCakeType.toLowerCase()];
+				if (cakeTypeSlug) {
+					params.set('type', cakeTypeSlug);
+				}
+			}
+			if (selectedCitySuggestion?.coordinates) {
+				params.set('lat', selectedCitySuggestion.coordinates.lat.toString());
+				params.set('lon', selectedCitySuggestion.coordinates.lon.toString());
+				params.set('radius', searchRadius.toString());
+			}
+
+			const response = await fetch(`/annuaire/api?${params.toString()}`);
+			if (response.ok) {
+				const result = await response.json();
+				displayedShops = result.shops || [];
+				currentPage = 1;
+				hasMore = result.pagination?.hasMore || false;
+				filteredDesignersSync = displayedShops;
+				isLoadingFilter = false;
+				isFiltering = false;
+				return;
+			} else {
+				console.error('❌ [Annuaire] Error loading shops:', response.statusText);
+			}
+			
 			let filtered = [...displayedShops];
 
 		// Filtre par type de gâteau
@@ -314,11 +361,6 @@
 			filtered = filtered.filter((designer) =>
 				designer.specialties.some((s) => s.toLowerCase().includes(selectedCakeType.toLowerCase()))
 			);
-		}
-
-		// Filtre par pâtissiers vérifiés
-		if (showOnlyVerified) {
-			filtered = filtered.filter((designer) => designer.isPremium === true);
 		}
 
 		// Filtre par rayon si une ville est sélectionnée
@@ -390,35 +432,37 @@
 		}
 	}
 
-	// Réactif aux changements de filtres (inclut searchRadius et showOnlyVerified pour déclencher le filtrage)
+	// Réactif aux changements de filtres (sauf showOnlyVerified qui est géré manuellement)
 	$: {
-		const hasFilters = selectedCitySuggestion || selectedCakeType || showOnlyVerified;
-		// Inclure searchRadius et showOnlyVerified dans les dépendances pour déclencher le filtrage
+		const hasFilters = selectedCitySuggestion || selectedCakeType;
+		// Inclure searchRadius dans les dépendances pour déclencher le filtrage
 		const currentRadius = searchRadius;
-		const currentVerified = showOnlyVerified;
 		
-		if (hasFilters) {
-			// Debounce plus long pour le slider (300ms) pour éviter trop d'appels pendant le glissement
-			if (filterTimeout) {
-				clearTimeout(filterTimeout);
+		// Ne pas déclencher si on est en train de filtrer
+		if (!isFiltering) {
+			if (hasFilters) {
+				// Debounce plus long pour le slider (300ms) pour éviter trop d'appels pendant le glissement
+				if (filterTimeout) {
+					clearTimeout(filterTimeout);
+				}
+				filterTimeout = setTimeout(() => {
+					filterDesigners();
+				}, 300);
+			} else {
+				if (filterTimeout) {
+					clearTimeout(filterTimeout);
+					filterTimeout = null;
+				}
+				// Trier : vérifiés en premier, puis par nom
+				const sorted = [...displayedShops].sort((a, b) => {
+					if (a.isPremium && !b.isPremium) return -1;
+					if (!a.isPremium && b.isPremium) return 1;
+					return a.name.localeCompare(b.name);
+				});
+				filteredDesignersSync = sorted;
+				isLoadingFilter = false;
+				isFiltering = false;
 			}
-			filterTimeout = setTimeout(() => {
-				filterDesigners();
-			}, 300);
-		} else {
-			if (filterTimeout) {
-				clearTimeout(filterTimeout);
-				filterTimeout = null;
-			}
-			// Trier : vérifiés en premier, puis par nom
-			const sorted = [...displayedShops].sort((a, b) => {
-				if (a.isPremium && !b.isPremium) return -1;
-				if (!a.isPremium && b.isPremium) return 1;
-				return a.name.localeCompare(b.name);
-			});
-			filteredDesignersSync = sorted;
-			isLoadingFilter = false;
-			isFiltering = false;
 		}
 	}
 
@@ -536,9 +580,11 @@
 
 						<!-- Filtre "Notre sélection" (pâtissiers vérifiés) -->
 						<button
-							on:click={() => {
+							on:click={async () => {
 								showOnlyVerified = !showOnlyVerified;
 								updateUrl();
+								// Gérer le filtre verified directement sans passer par la déclaration réactive
+								await filterDesigners();
 							}}
 							class="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-all hover:border-[#FF6F61] hover:bg-[#FFE8D6]/20 {showOnlyVerified 
 								? 'border-[#FF6F61] bg-[#FFE8D6]/30' 

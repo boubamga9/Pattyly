@@ -51,13 +51,15 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Function to find shops within a radius (in km) of a point
--- Returns shop IDs and distances
+-- Returns shop IDs and distances, sorted by premium status then distance
 CREATE OR REPLACE FUNCTION find_shops_in_radius(
     p_latitude NUMERIC,
     p_longitude NUMERIC,
     p_radius_km NUMERIC,
     p_limit INTEGER DEFAULT 100,
-    p_offset INTEGER DEFAULT 0
+    p_offset INTEGER DEFAULT 0,
+    p_premium_product_id TEXT DEFAULT 'prod_Selcz36pAfV3vV',
+    p_verified_only BOOLEAN DEFAULT FALSE
 ) RETURNS TABLE (
     shop_id UUID,
     distance_km NUMERIC,
@@ -71,25 +73,49 @@ CREATE OR REPLACE FUNCTION find_shops_in_radius(
 ) AS $$
 BEGIN
     RETURN QUERY
+    WITH shops_with_premium AS (
+        SELECT 
+            s.id AS shop_id,
+            calculate_distance_km(p_latitude, p_longitude, s.latitude, s.longitude) AS distance_km,
+            s.name,
+            s.slug,
+            s.directory_city AS city,
+            s.directory_actual_city AS actual_city,
+            s.directory_postal_code AS postal_code,
+            s.logo_url,
+            COALESCE(
+                EXISTS(
+                    SELECT 1 
+                    FROM user_products up
+                    WHERE up.profile_id = s.profile_id
+                    AND up.stripe_product_id = p_premium_product_id
+                    AND up.subscription_status = 'active'
+                ),
+                FALSE
+            ) AS is_premium
+        FROM shops s
+        WHERE s.directory_enabled = TRUE
+            AND s.is_active = TRUE
+            AND s.latitude IS NOT NULL
+            AND s.longitude IS NOT NULL
+            AND calculate_distance_km(p_latitude, p_longitude, s.latitude, s.longitude) <= p_radius_km
+    )
     SELECT 
-        s.id AS shop_id,
-        calculate_distance_km(p_latitude, p_longitude, s.latitude, s.longitude) AS distance_km,
-        s.name,
-        s.slug,
-        s.directory_city AS city,
-        s.directory_actual_city AS actual_city,
-        s.directory_postal_code AS postal_code,
-        s.logo_url,
-        FALSE AS is_premium -- Will be calculated in application code
-    FROM shops s
-    WHERE s.directory_enabled = TRUE
-        AND s.is_active = TRUE
-        AND s.latitude IS NOT NULL
-        AND s.longitude IS NOT NULL
-        AND calculate_distance_km(p_latitude, p_longitude, s.latitude, s.longitude) <= p_radius_km
+        swp.shop_id,
+        swp.distance_km,
+        swp.name,
+        swp.slug,
+        swp.city,
+        swp.actual_city,
+        swp.postal_code,
+        swp.logo_url,
+        swp.is_premium
+    FROM shops_with_premium swp
+    WHERE (NOT p_verified_only OR swp.is_premium = TRUE)
     ORDER BY 
-        distance_km ASC,
-        s.name ASC
+        swp.is_premium DESC,  -- Premium en premier
+        swp.distance_km ASC,  -- Puis par distance
+        swp.name ASC          -- Puis par nom
     LIMIT p_limit
     OFFSET p_offset;
 END;

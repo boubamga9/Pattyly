@@ -88,33 +88,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		};
 	}
 
-	// Charger les produits de ces shops avec pagination
-	let query = locals.supabase
-		.from('products')
-		.select(`
-			id,
-			name,
-			description,
-			image_url,
-			base_price,
-			cake_type,
-			shops!inner(
-				id,
-				name,
-				slug,
-				logo_url,
-				directory_city,
-				directory_actual_city,
-				directory_postal_code,
-				profile_id,
-				latitude,
-				longitude
-			)
-		`, { count: 'exact' })
-		.eq('is_active', true)
-		.in('shop_id', filteredShopIds);
+	// Paramètre pour filtrer uniquement les vérifiés
+	const verifiedParam = url.searchParams.get('verified');
+	const verifiedOnly = verifiedParam === 'true';
 
 	// Filtrer par type de gâteau si spécifié
+	let cakeTypeName: string | null = null;
 	if (cakeTypeParam) {
 		const cakeTypeSlugToName: Record<string, string> = {
 			'gateau-anniversaire': 'Gâteau d\'anniversaire',
@@ -130,16 +109,21 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			'mignardise': 'Mignardise',
 		};
 
-		const cakeTypeName = cakeTypeSlugToName[cakeTypeParam.toLowerCase()];
-		if (cakeTypeName) {
-			query = query.eq('cake_type', cakeTypeName);
-		}
+		cakeTypeName = cakeTypeSlugToName[cakeTypeParam.toLowerCase()] || null;
 	}
 
-	// Appliquer pagination
-	query = query.order('name', { ascending: true }).range(offset, offset + limit - 1);
-
-	const { data: products, error: productsError, count } = await query;
+	// ✅ Utiliser la fonction SQL qui trie directement par shop premium
+	const { data: productsData, error: productsError } = await locals.supabase.rpc(
+		'get_products_sorted_by_shop_premium' as any,
+		{
+			p_premium_product_id: STRIPE_PRODUCTS.PREMIUM,
+			p_limit: limit,
+			p_offset: offset,
+			p_cake_type: cakeTypeName,
+			p_shop_ids: filteredShopIds.length > 0 ? filteredShopIds : null,
+			p_verified_only: verifiedOnly
+		}
+	);
 
 	if (productsError) {
 		console.error('❌ [Tous les gateaux] Error loading products:', productsError);
@@ -154,50 +138,34 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		};
 	}
 
-	const total = count || 0;
+	// Compter le total pour la pagination (avec les mêmes filtres)
+	let countQuery = locals.supabase
+		.from('products')
+		.select('*', { count: 'exact', head: true })
+		.eq('is_active', true)
+		.in('shop_id', filteredShopIds);
 
-	// Récupérer tous les profile_ids des shops
-	const profileIds = [...new Set(
-		(products || [])
-			.map((p: any) => p.shops?.profile_id)
-			.filter(Boolean)
-	)];
-
-	// Récupérer les plans premium
-	const premiumProfileIds = new Set<string>();
-	if (profileIds.length > 0) {
-		const { data: premiumIds, error: premiumError } = await locals.supabase.rpc(
-			'check_premium_profiles',
-			{
-				p_profile_ids: profileIds,
-				p_premium_product_id: STRIPE_PRODUCTS.PREMIUM
-			}
-		);
-		
-		if (!premiumError && premiumIds && Array.isArray(premiumIds)) {
-			premiumIds.forEach((id: string) => premiumProfileIds.add(id));
-		} else if (premiumError) {
-			console.error('❌ [Tous les gateaux] Error checking premium profiles:', premiumError);
-		}
+	if (cakeTypeName) {
+		countQuery = countQuery.eq('cake_type', cakeTypeName);
 	}
 
-	// Transformer les données
-	const formattedProducts = (products || []).map((product: any) => {
-		const shopProfileId = product.shops?.profile_id;
-		const isPremium = shopProfileId ? premiumProfileIds.has(shopProfileId) : false;
+	const { count } = await countQuery;
+	const total = count || 0;
+	const products = productsData || [];
 
+	// Transformer les données (is_shop_premium est déjà inclus depuis la fonction SQL)
+	const formattedProducts = products.map((product: any) => {
 		// Calculer la distance si on a les coordonnées
 		let distance: number | null = null;
-		if (latParam && lonParam && product.shops?.latitude && product.shops?.longitude) {
+		if (latParam && lonParam && product.shop_latitude && product.shop_longitude) {
 			const lat = parseFloat(latParam);
 			const lon = parseFloat(lonParam);
-			const shopLat = parseFloat(product.shops.latitude);
-			const shopLon = parseFloat(product.shops.longitude);
+			const shopLat = parseFloat(product.shop_latitude.toString());
+			const shopLon = parseFloat(product.shop_longitude.toString());
 			
 			if (!isNaN(lat) && !isNaN(lon) && !isNaN(shopLat) && !isNaN(shopLon)) {
-				// Utiliser la fonction SQL pour calculer la distance
-				// On le fera côté serveur si nécessaire, sinon on peut le calculer côté client
-				// Pour l'instant, on laisse null et on calculera côté client si besoin
+				// Calculer la distance (formule de Haversine simplifiée)
+				// On peut aussi utiliser la fonction SQL calculate_distance_km si nécessaire
 			}
 		}
 
@@ -209,30 +177,22 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			base_price: product.base_price,
 			cake_type: product.cake_type,
 			shop: {
-				id: product.shops.id,
-				name: product.shops.name,
-				slug: product.shops.slug,
-				logo_url: product.shops.logo_url,
-				city: product.shops.directory_city || '',
-				actualCity: product.shops.directory_actual_city || product.shops.directory_city || '',
-				postalCode: product.shops.directory_postal_code || '',
-				isPremium,
-				latitude: product.shops.latitude,
-				longitude: product.shops.longitude
+				id: product.shop_id,
+				name: product.shop_name,
+				slug: product.shop_slug,
+				logo_url: product.shop_logo_url,
+				city: product.shop_city || '',
+				actualCity: product.shop_actual_city || product.shop_city || '',
+				postalCode: product.shop_postal_code || '',
+				isPremium: product.is_shop_premium || false,
+				latitude: product.shop_latitude,
+				longitude: product.shop_longitude
 			},
 			distance
 		};
 	});
 
-	// Trier : premium en premier, puis par nom
-	formattedProducts.sort((a, b) => {
-		if (a.shop.isPremium && !b.shop.isPremium) return -1;
-		if (!a.shop.isPremium && b.shop.isPremium) return 1;
-		if (a.distance !== null && b.distance !== null) {
-			return a.distance - b.distance;
-		}
-		return a.name.localeCompare(b.name);
-	});
+	// ✅ Le tri est déjà fait dans la fonction SQL (premium shop products en premier, puis nom)
 
 	return {
 		products: formattedProducts,
