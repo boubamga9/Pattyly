@@ -92,7 +92,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	// ✅ PRIORITÉ 2 : Filtrage par nom de ville (si pas de coordonnées mais nom de ville fourni)
 	else if (cityParam) {
 		console.log('🔍 [Tous les gateaux API] Filtering by city name:', cityParam);
-		
+
 		const cityName = cityParam.charAt(0).toUpperCase() + cityParam.slice(1).toLowerCase();
 		const { data: shopsByCity, error: cityError } = await locals.supabase
 			.from('shops')
@@ -124,7 +124,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	// ✅ PRIORITÉ 3 : Pas de filtre géographique, récupérer tous les shops actifs
 	else {
 		console.log('🔍 [Tous les gateaux API] No geographic filter, loading all active shops');
-		
+
 		const { data: allShops, error: shopsError } = await locals.supabase
 			.from('shops')
 			.select('id')
@@ -181,7 +181,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		if (!shopsError && shopsData && shopsData.length > 0) {
 			const profileIds = shopsData.map(s => s.profile_id).filter(Boolean) as string[];
-			
+
 			if (profileIds.length > 0) {
 				// Utiliser la fonction SQL avec SECURITY DEFINER pour vérifier les profiles premium
 				const { data: premiumProfileIds, error: premiumError } = await locals.supabase.rpc(
@@ -246,7 +246,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			const lon = parseFloat(lonParam);
 			const shopLat = parseFloat(product.shop_latitude.toString());
 			const shopLon = parseFloat(product.shop_longitude.toString());
-			
+
 			if (!isNaN(lat) && !isNaN(lon) && !isNaN(shopLat) && !isNaN(shopLon)) {
 				// Utiliser la fonction SQL pour calculer la distance
 				// (on pourrait aussi le faire côté client si nécessaire)
