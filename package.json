@@ -16,7 +16,9 @@
 		"geocode:shops": "tsx scripts/geocode-shops.ts",
 		"geocode:shops:prod": "NODE_ENV=production tsx scripts/geocode-shops.ts",
 		"create:test-shops": "tsx scripts/create-test-shops.ts",
-		"create:test-shops:prod": "NODE_ENV=production tsx scripts/create-test-shops.ts"
+		"create:test-shops:prod": "NODE_ENV=production tsx scripts/create-test-shops.ts",
+		"migrate:shop-logos": "tsx scripts/migrate-shop-logos-to-cloudinary.ts",
+		"migrate:shop-logos:prod": "NODE_ENV=production tsx scripts/migrate-shop-logos-to-cloudinary.ts"
 	},
 	"devDependencies": {
 		"@iconify-json/bi": "^1.1.23",

@@ -225,10 +225,14 @@
 			hasMore = result.pagination.hasMore;
 			totalShops = result.pagination.total; // Mettre à jour le total
 
-			// Animations pour les nouveaux éléments
+			// Animations pour les nouveaux éléments (infinite scroll - animation rapide)
 			if (resultsContainer) {
-				const newElements = resultsContainer.querySelectorAll(':scope > div');
-				await revealStagger(resultsContainer, ':scope > div', { delay: 0.1, stagger: 0.05 });
+				await revealStagger(resultsContainer, ':scope > div', { 
+					delay: 0, 
+					stagger: 0.01, 
+					translateY: 5, 
+					duration: 0.2 
+				});
 			}
 		} catch (error) {
 			console.error('Erreur lors du chargement de la page suivante:', error);
@@ -271,7 +275,7 @@
 				selectedCitySuggestion = cityResults[0];
 				// Ne pas appeler handleCitySelect ici pour éviter un double filtrage
 				// Le filtrage sera fait par le serveur lors du chargement initial
-			}
+		}
 		}
 		
 		if (urlCakeType) {
@@ -295,9 +299,12 @@
 			}
 		}
 
-		// Animations initiales
+		// Animations initiales (chargement initial - animation normale)
 		if (resultsContainer) {
-			await revealStagger(resultsContainer, ':scope > div', { delay: 0.1, stagger: 0.05 });
+			await revealStagger(resultsContainer, ':scope > div', { 
+				delay: 0.1, 
+				stagger: 0.05 
+			});
 		}
 
 		// Configurer l'Intersection Observer pour infinite scroll
@@ -492,15 +499,15 @@
 	// Mettre à jour l'URL avec les filtres actuels (pour partager)
 	function updateUrl() {
 		if (typeof window === 'undefined') return;
-
+		
 		const params = new URLSearchParams();
-
+		
 		// Ajouter la ville si sélectionnée
 		if (selectedCitySuggestion) {
 			// Utiliser le nom de la ville en minuscules comme slug
 			params.set('city', selectedCitySuggestion.city.toLowerCase());
 		}
-
+		
 		// Ajouter le type de gâteau si sélectionné
 		if (selectedCakeType) {
 			const cakeTypeSlug = cakeTypeToSlug[selectedCakeType.toLowerCase()];
@@ -513,7 +520,7 @@
 		if (showOnlyVerified) {
 			params.set('verified', 'true');
 		}
-
+		
 		// Mettre à jour l'URL sans recharger la page
 		const queryString = params.toString();
 		const newUrl = queryString ? `/annuaire?${queryString}` : '/annuaire';
