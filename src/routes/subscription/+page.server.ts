@@ -81,6 +81,7 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders, url })
             id: 'starter',
             name: 'Starter',
             price: 14.99,
+            originalPrice: 19.99, // Prix barré pour montrer le prix de lancement
             currency: 'EUR',
             stripePriceId: STRIPE_PRICES.BASIC, // Utilise BASIC pour Starter
             features: [
@@ -96,6 +97,7 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders, url })
             id: 'premium',
             name: 'Premium',
             price: 19.99,
+            originalPrice: 29.99, // Prix barré pour montrer le prix de lancement
             currency: 'EUR',
             stripePriceId: STRIPE_PRICES.PREMIUM,
             features: [

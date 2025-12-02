@@ -142,11 +142,23 @@
 									<div class="text-center">
 										<span class="text-xs font-semibold text-green-600">7 jours gratuits</span>
 									</div>
-									<div class="flex items-baseline justify-center gap-1">
-										<span class="text-5xl font-bold tracking-tight">
-											{plan.price}€
-										</span>
-										<span class="text-muted-foreground">/mois</span>
+									<div class="flex flex-col items-center gap-1">
+										{#if plan.originalPrice}
+											<div class="flex flex-col items-center gap-1">
+												<span class="text-xs font-semibold text-[#FF6F61] sm:text-sm">Prix de lancement</span>
+												<div class="flex items-baseline justify-center gap-2">
+													<span class="text-2xl font-semibold tracking-tight text-neutral-400 line-through sm:text-3xl" style="font-weight: 500; letter-spacing: -0.02em;">
+														{plan.originalPrice}€
+													</span>
+												</div>
+											</div>
+										{/if}
+										<div class="flex items-baseline justify-center gap-1">
+											<span class="text-5xl font-bold tracking-tight">
+												{plan.price}€
+											</span>
+											<span class="text-muted-foreground">/mois</span>
+										</div>
 									</div>
 									<div class="mt-2 text-center">
 										<span class="text-xs text-muted-foreground">

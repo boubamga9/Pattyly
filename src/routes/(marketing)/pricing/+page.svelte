@@ -175,11 +175,23 @@
 										<div class="text-center">
 											<span class="text-xs font-semibold text-green-600 sm:text-sm">7 jours gratuits</span>
 										</div>
-										<div class="flex items-baseline justify-center gap-2">
-											<span class="text-5xl font-bold tracking-tight text-neutral-900 sm:text-6xl" style="font-weight: 700; letter-spacing: -0.04em;">
-												{plan.price}€
-											</span>
-											<span class="text-base text-neutral-600 sm:text-lg" style="font-weight: 300;">/mois</span>
+										<div class="flex flex-col items-center gap-1">
+											{#if plan.originalPrice}
+												<div class="flex flex-col items-center gap-1">
+													<span class="text-xs font-semibold text-[#FF6F61] sm:text-sm">Prix de lancement</span>
+													<div class="flex items-baseline justify-center gap-2">
+														<span class="text-2xl font-semibold tracking-tight text-neutral-400 line-through sm:text-3xl" style="font-weight: 500; letter-spacing: -0.02em;">
+															{plan.originalPrice}€
+														</span>
+													</div>
+												</div>
+											{/if}
+											<div class="flex items-baseline justify-center gap-2">
+												<span class="text-5xl font-bold tracking-tight text-neutral-900 sm:text-6xl" style="font-weight: 700; letter-spacing: -0.04em;">
+													{plan.price}€
+												</span>
+												<span class="text-base text-neutral-600 sm:text-lg" style="font-weight: 300;">/mois</span>
+											</div>
 										</div>
 										<div class="mt-2 text-center">
 											<span class="text-xs text-neutral-600 sm:text-sm" style="font-weight: 400;">
@@ -213,14 +225,12 @@
 									{#each plan.features as feature}
 										{@const isDiff = isDifferentiator(plan.id, feature)}
 										{@const diffColor = getDifferentiatorColor(plan.id)}
-										{@const isLimitedVisibility = plan.isFree && feature.includes('Visibilité limitée')}
+										
 										<div class="flex items-start gap-2.5 sm:gap-3 {isDiff ? 'rounded-lg px-2 py-1.5 -mx-2 sm:px-3 sm:py-2 sm:-mx-3' : ''}" style={isDiff ? `background-color: ${diffColor}15;` : ''}>
 											<div class="mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center sm:h-5 sm:w-5">
-												{#if isLimitedVisibility}
-													<X class="h-3.5 w-3.5 sm:h-4 sm:w-4 text-neutral-400" />
-												{:else}
+												
 													<Check class="h-3.5 w-3.5 sm:h-4 sm:w-4" style={isDiff ? `color: ${diffColor};` : plan.popular ? 'color: #FF6F61;' : 'color: #525252;'} />
-												{/if}
+												
 											</div>
 											<p 
 												class="text-sm leading-relaxed sm:text-base"

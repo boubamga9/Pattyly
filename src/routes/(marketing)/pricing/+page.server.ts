@@ -4,6 +4,7 @@ type Plan = {
     id: string;
     name: string;
     price: number | 'gratuit';
+    originalPrice?: number; // Prix barré pour montrer le prix de lancement
     currency: string;
     features: string[];
     limitations: string[];
@@ -26,7 +27,7 @@ export const load: PageServerLoad = async () => {
                 'Gestion des commandes',
                 'Calendrier de disponibilités',
                 'Paiements sécurisés',
-                'Visibilité limitée dans l\'annuaire',
+                'Visibilité dans l\'annuaire',
                 'Support email'
             ],
             limitations: [],
@@ -37,6 +38,7 @@ export const load: PageServerLoad = async () => {
             id: 'starter',
             name: 'Starter',
             price: 14.99,
+            originalPrice: 19.99, // Prix barré pour montrer le prix de lancement
             currency: 'EUR',
             features: [
                 'Tout le plan Gratuit',
@@ -51,6 +53,7 @@ export const load: PageServerLoad = async () => {
             id: 'premium',
             name: 'Premium',
             price: 19.99,
+            originalPrice: 29.99, // Prix barré pour montrer le prix de lancement
             currency: 'EUR',
             features: [
                 'Tout le plan Starter',
