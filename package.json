@@ -14,7 +14,9 @@
 		"format": "prettier --write . --ignore-path .gitignore",
 		"format:check": "prettier --check . --ignore-path .gitignore",
 		"geocode:shops": "tsx scripts/geocode-shops.ts",
-		"geocode:shops:prod": "NODE_ENV=production tsx scripts/geocode-shops.ts"
+		"geocode:shops:prod": "NODE_ENV=production tsx scripts/geocode-shops.ts",
+		"create:test-shops": "tsx scripts/create-test-shops.ts",
+		"create:test-shops:prod": "NODE_ENV=production tsx scripts/create-test-shops.ts"
 	},
 	"devDependencies": {
 		"@iconify-json/bi": "^1.1.23",

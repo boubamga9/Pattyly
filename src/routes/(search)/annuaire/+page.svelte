@@ -99,6 +99,7 @@
 	let displayedShops = data.shops || [];
 	let currentPage = data.pagination?.page || 1;
 	let hasMore = data.pagination?.hasMore || false;
+	let totalShops = data.pagination?.total || 0; // Total de pâtissiers pour l'affichage
 	let isLoadingMore = false;
 	let sentinelElement: HTMLElement;
 
@@ -222,6 +223,7 @@
 			
 			currentPage = result.pagination.page;
 			hasMore = result.pagination.hasMore;
+			totalShops = result.pagination.total; // Mettre à jour le total
 
 			// Animations pour les nouveaux éléments
 			if (resultsContainer) {
@@ -235,6 +237,31 @@
 		}
 	}
 
+	// Fonction pour configurer/réinitialiser l'infinite scroll
+	let infiniteScrollObserver: IntersectionObserver | null = null;
+	
+	function setupInfiniteScroll() {
+		// Déconnecter l'observer existant s'il existe
+		if (infiniteScrollObserver) {
+			infiniteScrollObserver.disconnect();
+			infiniteScrollObserver = null;
+		}
+
+		// Créer un nouvel observer
+		if (typeof IntersectionObserver !== 'undefined' && sentinelElement) {
+			infiniteScrollObserver = new IntersectionObserver(
+				(entries) => {
+					if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+						loadNextPage();
+					}
+				},
+				{ rootMargin: '200px' } // Charger 200px avant d'arriver en bas
+			);
+
+			infiniteScrollObserver.observe(sentinelElement);
+		}
+	}
+
 	// Intersection Observer pour infinite scroll
 	onMount(async () => {
 		// Initialiser avec les paramètres de l'URL
@@ -242,8 +269,9 @@
 			const cityResults = await searchCities(urlCity, 5);
 			if (cityResults.length > 0) {
 				selectedCitySuggestion = cityResults[0];
-				handleCitySelect(cityResults[0]);
-		}
+				// Ne pas appeler handleCitySelect ici pour éviter un double filtrage
+				// Le filtrage sera fait par le serveur lors du chargement initial
+			}
 		}
 		
 		if (urlCakeType) {
@@ -273,22 +301,13 @@
 		}
 
 		// Configurer l'Intersection Observer pour infinite scroll
-		if (typeof IntersectionObserver !== 'undefined' && sentinelElement) {
-			const observer = new IntersectionObserver(
-				(entries) => {
-					if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
-						loadNextPage();
-					}
-				},
-				{ rootMargin: '200px' } // Charger 200px avant d'arriver en bas
-			);
+		setupInfiniteScroll();
 
-			observer.observe(sentinelElement);
-
-			return () => {
-				observer.disconnect();
-			};
-		}
+		return () => {
+			if (infiniteScrollObserver) {
+				infiniteScrollObserver.disconnect();
+			}
+		};
 	});
 
 	// Cache pour les coordonnées géocodées (évite de refaire les appels API)
@@ -327,17 +346,18 @@
 			
 			if (selectedCitySuggestion) {
 				params.set('city', selectedCitySuggestion.city.toLowerCase());
+				// Toujours envoyer les coordonnées si disponibles pour le filtrage géographique
+				if (selectedCitySuggestion.coordinates) {
+					params.set('lat', selectedCitySuggestion.coordinates.lat.toString());
+					params.set('lon', selectedCitySuggestion.coordinates.lon.toString());
+					params.set('radius', searchRadius.toString());
+				}
 			}
 			if (selectedCakeType) {
 				const cakeTypeSlug = cakeTypeToSlug[selectedCakeType.toLowerCase()];
 				if (cakeTypeSlug) {
 					params.set('type', cakeTypeSlug);
 				}
-			}
-			if (selectedCitySuggestion?.coordinates) {
-				params.set('lat', selectedCitySuggestion.coordinates.lat.toString());
-				params.set('lon', selectedCitySuggestion.coordinates.lon.toString());
-				params.set('radius', searchRadius.toString());
 			}
 
 			const response = await fetch(`/annuaire/api?${params.toString()}`);
@@ -346,9 +366,14 @@
 				displayedShops = result.shops || [];
 				currentPage = 1;
 				hasMore = result.pagination?.hasMore || false;
+				totalShops = result.pagination?.total || 0; // Mettre à jour le total
 				filteredDesignersSync = displayedShops;
 				isLoadingFilter = false;
 				isFiltering = false;
+				// Réinitialiser l'infinite scroll après le filtrage
+				setTimeout(() => {
+					setupInfiniteScroll();
+				}, 100);
 				return;
 			} else {
 				console.error('❌ [Annuaire] Error loading shops:', response.statusText);
@@ -421,77 +446,61 @@
 
 		// S'assurer que filtered est toujours un tableau
 		filteredDesignersSync = Array.isArray(filtered) ? filtered : [];
+		totalShops = filteredDesignersSync.length; // Mettre à jour le total avec le nombre de pâtissiers filtrés
 		isLoadingFilter = false;
 		isFiltering = false;
 		} catch (error) {
 			console.error('Erreur lors du filtrage:', error);
-			// En cas d'erreur, afficher tous les résultats ou un tableau vide
+			// En cas d'erreur, afficher un tableau vide
 			filteredDesignersSync = [];
+			totalShops = 0; // Mettre à jour le total à 0 en cas d'erreur
 			isLoadingFilter = false;
 			isFiltering = false;
 		}
 	}
 
-	// Réactif aux changements de filtres (sauf showOnlyVerified qui est géré manuellement)
-	$: {
-		const hasFilters = selectedCitySuggestion || selectedCakeType;
-		// Inclure searchRadius dans les dépendances pour déclencher le filtrage
-		const currentRadius = searchRadius;
-		
-		// Ne pas déclencher si on est en train de filtrer
-		if (!isFiltering) {
-		if (hasFilters) {
-			// Debounce plus long pour le slider (300ms) pour éviter trop d'appels pendant le glissement
-			if (filterTimeout) {
-				clearTimeout(filterTimeout);
-			}
-			filterTimeout = setTimeout(() => {
-				filterDesigners();
-			}, 300);
-		} else {
-			if (filterTimeout) {
-				clearTimeout(filterTimeout);
-				filterTimeout = null;
-			}
-			// Trier : vérifiés en premier, puis par nom
-				const sorted = [...displayedShops].sort((a, b) => {
-				if (a.isPremium && !b.isPremium) return -1;
-				if (!a.isPremium && b.isPremium) return 1;
-				return a.name.localeCompare(b.name);
-			});
-			filteredDesignersSync = sorted;
-			isLoadingFilter = false;
-			isFiltering = false;
-			}
-		}
-	}
+	// Le changement de rayon est géré directement dans le handler du slider
+	// Pas de déclaration réactive pour éviter les boucles infinies
 
+	// filteredDesignersSync est utilisé pour le fallback côté client si nécessaire
+	// Le template utilise directement displayedShops
 
-	function clearFilters() {
+	async function clearFilters() {
 		selectedCitySuggestion = null;
 		selectedCakeType = '';
 		searchRadius = 30;
 		showOnlyVerified = false;
 		updateUrl();
+		// Recharger les shops sans filtres
+		await filterDesigners();
 	}
 
-	function handleCitySelect(city: CitySuggestion | null) {
+	async function handleCitySelect(city: CitySuggestion | null) {
 		selectedCitySuggestion = city;
 		updateUrl();
+		// Gérer le filtrage directement
+		await filterDesigners();
+	}
+
+	async function handleCakeTypeSelect(cakeType: string) {
+		selectedCakeType = selectedCakeType === cakeType ? '' : cakeType;
+		updateUrl();
+		// Gérer le filtrage directement
+		await filterDesigners();
 	}
 
 	// Mettre à jour l'URL avec les filtres actuels (pour partager)
 	function updateUrl() {
 		if (typeof window === 'undefined') return;
-		
+
 		const params = new URLSearchParams();
-		
+
 		// Ajouter la ville si sélectionnée
 		if (selectedCitySuggestion) {
 			// Utiliser le nom de la ville en minuscules comme slug
 			params.set('city', selectedCitySuggestion.city.toLowerCase());
 		}
-		
+
 		// Ajouter le type de gâteau si sélectionné
 		if (selectedCakeType) {
 			const cakeTypeSlug = cakeTypeToSlug[selectedCakeType.toLowerCase()];
@@ -499,22 +508,16 @@
 				params.set('type', cakeTypeSlug);
 			}
 		}
-		
+
+		// Ajouter le filtre verified si activé
+		if (showOnlyVerified) {
+			params.set('verified', 'true');
+		}
+
 		// Mettre à jour l'URL sans recharger la page
 		const queryString = params.toString();
 		const newUrl = queryString ? `/annuaire?${queryString}` : '/annuaire';
 		window.history.replaceState({}, '', newUrl);
-			}
-
-	// Mettre à jour l'URL quand les filtres changent (avec debounce pour éviter trop d'appels)
-	let urlUpdateTimeout: ReturnType<typeof setTimeout> | null = null;
-	$: if (selectedCitySuggestion || selectedCakeType) {
-		if (urlUpdateTimeout) {
-			clearTimeout(urlUpdateTimeout);
-		}
-		urlUpdateTimeout = setTimeout(() => {
-		updateUrl();
-		}, 500);
 	}
 
 </script>
@@ -569,10 +572,16 @@
 									min={1}
 									max={50}
 									step={1}
-									onChange={(val) => {
-										// Mettre à jour la valeur
+									onChange={async (val) => {
 										searchRadius = val;
-										// Le filtrage sera déclenché automatiquement par le bloc réactif avec debounce
+										updateUrl();
+										// Debounce pour éviter trop d'appels pendant le glissement
+										if (filterTimeout) {
+											clearTimeout(filterTimeout);
+										}
+										filterTimeout = setTimeout(async () => {
+											await filterDesigners();
+										}, 300);
 									}}
 								/>
 							</div>
@@ -613,8 +622,7 @@
 							{#each ['Gâteau d\'anniversaire', 'Gâteau de mariage', 'Cupcakes', 'Macarons', 'Gâteau personnalisé'] as type}
 								<button
 									on:click={() => {
-										selectedCakeType = selectedCakeType === type.toLowerCase() ? '' : type.toLowerCase();
-										updateUrl();
+										handleCakeTypeSelect(type.toLowerCase());
 									}}
 									class="rounded-full border px-4 py-2 text-sm font-medium transition-all {selectedCakeType === type.toLowerCase() 
 										? 'border-[#FF6F61] bg-[#FF6F61] text-white' 
@@ -695,13 +703,22 @@
 			
 			{#if displayedShops.length > 0}
 				<p class="mb-6 text-sm text-neutral-600">
-					{#if data.pagination}
-						{data.pagination.total} {data.pagination.total === 1 ? 'pâtissier trouvé' : 'pâtissiers trouvés'}
+					{#if selectedCitySuggestion && searchRadius}
+						{#if totalShops === 0}
+							Aucun pâtissier trouvé
+						{:else if totalShops === 1}
+							1 pâtissier trouvé dans un rayon de {searchRadius}km autour de {selectedCitySuggestion.city}
+						{:else}
+							{totalShops} pâtissiers trouvés dans un rayon de {searchRadius}km autour de {selectedCitySuggestion.city}
+						{/if}
 					{:else}
-						{displayedShops.length} {displayedShops.length === 1 ? 'pâtissier trouvé' : 'pâtissiers trouvés'}
-					{/if}
-					{#if selectedCitySuggestion}
-						<span class="text-neutral-500"> dans un rayon de {searchRadius}km autour de {selectedCitySuggestion.city}</span>
+						{#if totalShops === 0}
+							Aucun pâtissier trouvé
+						{:else if totalShops === 1}
+							1 pâtissier trouvé
+						{:else}
+							{totalShops} pâtissiers trouvés
+						{/if}
 					{/if}
 				</p>
 			{/if}

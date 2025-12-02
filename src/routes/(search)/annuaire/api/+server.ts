@@ -262,22 +262,74 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	}
 
 	// Compter le total pour la pagination (avec les mêmes filtres)
-	let countQuery = locals.supabase
-		.from('shops')
-		.select('*', { count: 'exact', head: true })
-		.eq('directory_enabled', true)
-		.eq('is_active', true);
+	// Si verified_only est activé, filtrer les shops premium avant de compter
+	let total = 0;
+	if (verifiedOnly) {
+		// Construire la requête de base pour les shops
+		let baseQuery = locals.supabase
+			.from('shops')
+			.select('id, profile_id')
+			.eq('directory_enabled', true)
+			.eq('is_active', true);
 
-	if (cityName) {
-		countQuery = countQuery.eq('directory_city', cityName);
+		if (cityName) {
+			baseQuery = baseQuery.eq('directory_city', cityName);
+		}
+
+		if (cakeTypeName) {
+			baseQuery = baseQuery.contains('directory_cake_types', [cakeTypeName]);
+		}
+
+		const { data: shopsData, error: shopsError } = await baseQuery;
+
+		if (!shopsError && shopsData && shopsData.length > 0) {
+			const profileIds = shopsData.map(s => s.profile_id).filter(Boolean) as string[];
+
+			if (profileIds.length > 0) {
+				// Utiliser la fonction SQL avec SECURITY DEFINER pour vérifier les profiles premium
+				const { data: premiumProfileIds, error: premiumError } = await locals.supabase.rpc(
+					'check_premium_profiles',
+					{
+						p_profile_ids: profileIds,
+						p_premium_product_id: STRIPE_PRODUCTS.PREMIUM
+					}
+				);
+
+				if (!premiumError && premiumProfileIds && Array.isArray(premiumProfileIds) && premiumProfileIds.length > 0) {
+					const premiumProfileIdsSet = new Set(premiumProfileIds);
+					// Compter les shops qui ont ces profile_ids premium
+					total = shopsData.filter(s => s.profile_id && premiumProfileIdsSet.has(s.profile_id)).length;
+				} else {
+					// Aucun shop premium trouvé = total = 0
+					total = 0;
+				}
+			} else {
+				// Aucun profile_id valide = total = 0
+				total = 0;
+			}
+		} else {
+			// En cas d'erreur ou aucun shop, total = 0
+			total = 0;
+		}
+	} else {
+		// Si verified_only n'est pas activé, compter normalement
+		let countQuery = locals.supabase
+			.from('shops')
+			.select('*', { count: 'exact', head: true })
+			.eq('directory_enabled', true)
+			.eq('is_active', true);
+
+		if (cityName) {
+			countQuery = countQuery.eq('directory_city', cityName);
+		}
+
+		if (cakeTypeName) {
+			countQuery = countQuery.contains('directory_cake_types', [cakeTypeName]);
+		}
+
+		const { count } = await countQuery;
+		total = count || 0;
 	}
-
-	if (cakeTypeName) {
-		countQuery = countQuery.contains('directory_cake_types', [cakeTypeName]);
-	}
-
-	const { count } = await countQuery;
-	const total = count || 0;
 	const shops = shopsData || [];
 
 	const shopsWithPremium = shops.map((shop: any) => ({
