@@ -173,31 +173,41 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	// Si verified_only est activé, filtrer les shops premium avant de compter
 	let shopIdsForCount = filteredShopIds;
 	if (verifiedOnly && filteredShopIds.length > 0) {
-		// Récupérer les profile_ids des shops premium
-		const { data: premiumProfiles, error: premiumError } = await locals.supabase
-			.from('user_products')
-			.select('profile_id')
-			.eq('stripe_product_id', STRIPE_PRODUCTS.PREMIUM)
-			.eq('subscription_status', 'active');
+		// Récupérer les profile_ids des shops concernés
+		const { data: shopsData, error: shopsError } = await locals.supabase
+			.from('shops')
+			.select('id, profile_id')
+			.in('id', filteredShopIds);
 
-		if (!premiumError && premiumProfiles && premiumProfiles.length > 0) {
-			const premiumProfileIds = premiumProfiles.map(p => p.profile_id);
+		if (!shopsError && shopsData && shopsData.length > 0) {
+			const profileIds = shopsData.map(s => s.profile_id).filter(Boolean) as string[];
 			
-			// Récupérer les shops qui ont ces profile_ids
-			const { data: premiumShops, error: shopsError } = await locals.supabase
-				.from('shops')
-				.select('id')
-				.in('id', filteredShopIds)
-				.in('profile_id', premiumProfileIds);
+			if (profileIds.length > 0) {
+				// Utiliser la fonction SQL avec SECURITY DEFINER pour vérifier les profiles premium
+				const { data: premiumProfileIds, error: premiumError } = await locals.supabase.rpc(
+					'check_premium_profiles',
+					{
+						p_profile_ids: profileIds,
+						p_premium_product_id: STRIPE_PRODUCTS.PREMIUM
+					}
+				);
 
-			if (!shopsError && premiumShops) {
-				shopIdsForCount = premiumShops.map(s => s.id);
+				if (!premiumError && premiumProfileIds && Array.isArray(premiumProfileIds) && premiumProfileIds.length > 0) {
+					const premiumProfileIdsSet = new Set(premiumProfileIds);
+					// Filtrer les shops qui ont ces profile_ids premium
+					shopIdsForCount = shopsData
+						.filter(s => s.profile_id && premiumProfileIdsSet.has(s.profile_id))
+						.map(s => s.id);
+				} else {
+					// Aucun shop premium trouvé = total = 0
+					shopIdsForCount = [];
+				}
 			} else {
-				// En cas d'erreur, total = 0
+				// Aucun profile_id valide = total = 0
 				shopIdsForCount = [];
 			}
 		} else {
-			// Aucun shop premium trouvé = total = 0
+			// En cas d'erreur, total = 0
 			shopIdsForCount = [];
 		}
 	}
