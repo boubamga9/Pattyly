@@ -73,6 +73,7 @@ export async function revealStagger(
 		delay?: number;
 		stagger?: number;
 		translateY?: number;
+		duration?: number;
 	} = {}
 ) {
 	if (typeof window === 'undefined') return;
@@ -84,7 +85,7 @@ export async function revealStagger(
 		return;
 	}
 
-	const { delay = 0, stagger = 0.08, translateY = 15 } = options;
+	const { delay = 0, stagger = 0.08, translateY = 15, duration = 0.6 } = options;
 
 	const elements = container.querySelectorAll(selector);
 	
@@ -102,7 +103,7 @@ export async function revealStagger(
 		{
 			opacity: 1,
 			y: 0,
-			duration: 0.6,
+			duration,
 			delay,
 			stagger,
 			ease: 'power2.out',

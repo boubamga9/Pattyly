@@ -65,6 +65,7 @@
 	let totalProducts = data.pagination?.total || 0; // Total de produits pour l'affichage
 	let isLoadingMore = false;
 	let sentinelElement: HTMLElement;
+	let scrollObserver: IntersectionObserver | null = null;
 
 	// Filtres
 	let selectedCitySuggestion: CitySuggestion | null = null;
@@ -273,6 +274,10 @@
 				totalProducts = result.pagination?.total || 0; // Mettre à jour le total
 				isLoadingFilter = false;
 				isFiltering = false;
+				// Réinitialiser l'infinite scroll après le filtrage
+				setTimeout(() => {
+					setupInfiniteScroll();
+				}, 100);
 				return;
 			} else {
 				console.error('❌ [Tous les gateaux] Error loading products:', response.statusText);
@@ -468,9 +473,9 @@
 				totalProducts = result.pagination.total;
 			}
 
-			// Animations pour les nouveaux éléments
+			// Animations pour les nouveaux éléments (infinite scroll - très rapide)
 			if (resultsContainer) {
-				await revealStagger(resultsContainer, ':scope > div', { delay: 0.1, stagger: 0.05 });
+				await revealStagger(resultsContainer, ':scope > div', { delay: 0, stagger: 0.01, translateY: 5, duration: 0.2 });
 			}
 		} catch (error) {
 			console.error('Erreur lors du chargement de la page suivante:', error);
@@ -497,8 +502,27 @@
 		}
 
 		// Configurer l'Intersection Observer pour infinite scroll
+		setupInfiniteScroll();
+
+		return () => {
+			if (scrollObserver) {
+				scrollObserver.disconnect();
+				scrollObserver = null;
+			}
+		};
+	});
+
+	// Fonction pour configurer/réinitialiser l'infinite scroll
+	function setupInfiniteScroll() {
+		// Nettoyer l'observer existant
+		if (scrollObserver) {
+			scrollObserver.disconnect();
+			scrollObserver = null;
+		}
+
+		// Créer un nouvel observer si le sentinel existe
 		if (typeof IntersectionObserver !== 'undefined' && sentinelElement) {
-			const observer = new IntersectionObserver(
+			scrollObserver = new IntersectionObserver(
 				(entries) => {
 					if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
 						loadNextPage();
@@ -507,13 +531,14 @@
 				{ rootMargin: '200px' }
 			);
 
-			observer.observe(sentinelElement);
-
-			return () => {
-				observer.disconnect();
-			};
+			scrollObserver.observe(sentinelElement);
 		}
-	});
+	}
+
+	// Réinitialiser l'observer quand le sentinel change
+	$: if (sentinelElement && hasMore) {
+		setupInfiniteScroll();
+	}
 
 	// Réagir aux changements de navigation (pour gérer le bouton retour du navigateur)
 	afterNavigate(async () => {
