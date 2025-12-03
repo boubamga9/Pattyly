@@ -38,10 +38,10 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
         throw error(500, 'Erreur lors du chargement des données');
     }
 
-    const { shop, payment_link } = onboardingData as any;
+    const { shop, paypal_account } = onboardingData as any;
 
-    // 🟢 Redirection 2 — compte déjà actif (avec payment_link et annuaire configuré)
-    if (shop && payment_link) {
+    // 🟢 Redirection 2 — compte déjà actif (avec paypal_account et annuaire configuré)
+    if (shop && paypal_account) {
         // Vérifier si l'annuaire est déjà configuré
         const { data: shopData } = await supabase
             .from('shops')
@@ -57,7 +57,7 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
     }
 
     // 🧩 Cas 1 : boutique + PayPal mais pas annuaire → étape 3
-    if (shop && payment_link) {
+    if (shop && paypal_account) {
         // Récupérer les données complètes de la boutique avec les champs directory
         const { data: shopData } = await supabase
             .from('shops')
