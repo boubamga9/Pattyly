@@ -73,15 +73,15 @@
 	// Fonction pour afficher les options de personnalisation
 	function displayCustomizationOption(
 		fieldLabel: string,
-		fieldData: any,
+		fieldData: Record<string, unknown>,
 	): string | string[] {
 		if (!fieldData) return '';
 
 		// Pour les multi-select
 		if (fieldData.type === 'multi-select' && Array.isArray(fieldData.values)) {
-			return fieldData.values.map((item: any) => {
-				const itemLabel = item.label || 'Option';
-				const itemPrice = item.price || 0;
+			return (fieldData.values as Array<Record<string, unknown>>).map((item) => {
+				const itemLabel = (item.label as string) || 'Option';
+				const itemPrice = (item.price as number) || 0;
 				return itemPrice === 0
 					? itemLabel
 					: `${itemLabel} (+${formatPrice(itemPrice)})`;
@@ -90,9 +90,9 @@
 
 		// Pour les single-select
 		if (fieldData.type === 'single-select' && fieldData.value) {
-			const price = fieldData.price || 0;
+			const price = (fieldData.price as number) || 0;
 			return price === 0
-				? fieldData.value
+				? (fieldData.value as string)
 				: `${fieldData.value} (+${formatPrice(price)})`;
 		}
 
@@ -199,62 +199,38 @@
 						Vos informations
 					</h2>
 				<div class="space-y-3">
-					<div class="flex items-start justify-between gap-2">
-						<span
-							class="text-sm text-neutral-600"
-							style="font-weight: 400;"
-						>
+					<div class="flex items-center justify-between gap-2">
+						<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 							Nom :
 						</span>
-						<span
-							class="text-sm text-neutral-900"
-							style="font-weight: 400;"
-						>
+						<span class="text-sm text-neutral-900 text-right sm:ml-auto" style="font-weight: 400;">
 							{data.orderData.customer_name}
 						</span>
 					</div>
-					<div class="flex items-start justify-between gap-2">
-						<span
-							class="text-sm text-neutral-600"
-							style="font-weight: 400;"
-						>
+					<div class="flex items-center justify-between gap-2">
+						<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 							Email :
 						</span>
-						<span
-							class="break-all text-right text-sm text-neutral-900"
-							style="font-weight: 400;"
-						>
+						<span class="break-words break-all text-right text-sm text-neutral-900 sm:ml-auto" style="font-weight: 400;">
 							{data.orderData.customer_email}
 						</span>
 					</div>
 					{#if data.orderData.customer_phone}
-						<div class="flex items-start justify-between gap-2">
-							<span
-								class="text-sm text-neutral-600"
-								style="font-weight: 400;"
-							>
+						<div class="flex items-center justify-between gap-2">
+							<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 								Téléphone :
 							</span>
-							<span
-								class="text-sm text-neutral-900"
-								style="font-weight: 400;"
-							>
+							<span class="text-sm text-neutral-900 text-right sm:ml-auto" style="font-weight: 400;">
 								{data.orderData.customer_phone}
 							</span>
 						</div>
 					{/if}
 					{#if data.orderData.customer_instagram}
-						<div class="flex items-start justify-between gap-2">
-							<span
-								class="text-sm text-neutral-600"
-								style="font-weight: 400;"
-							>
+						<div class="flex items-center justify-between gap-2">
+							<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 								Instagram :
 							</span>
-							<span
-								class="text-sm text-neutral-900"
-								style="font-weight: 400;"
-							>
+							<span class="text-sm text-neutral-900 text-right sm:ml-auto" style="font-weight: 400;">
 								@{data.orderData.customer_instagram}
 							</span>
 						</div>
@@ -277,56 +253,36 @@
 					Récapitulatif de la commande
 				</h2>
 
-				<div class="space-y-4">
+				<div class="space-y-3">
 					<!-- Gâteau -->
-					<div class="flex items-center justify-between">
-						<span
-							class="text-sm text-neutral-600"
-							style="font-weight: 400;"
-						>
+					<div class="flex items-center justify-between gap-2">
+						<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 							Gâteau :
 						</span>
-						<span
-							class="text-sm text-neutral-900"
-							style="font-weight: 400;"
-						>
+						<span class="text-sm text-neutral-900 text-right sm:ml-auto" style="font-weight: 400;">
 							{data.product.name}
 						</span>
 					</div>
 
 					<!-- Prix de base -->
-					<div class="flex items-center justify-between">
-						<span
-							class="text-sm text-neutral-600"
-							style="font-weight: 400;"
-						>
+					<div class="flex items-center justify-between gap-2">
+						<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 							Prix de base :
 						</span>
-						<span
-							class="text-sm text-neutral-900"
-							style="font-weight: 400;"
-						>
+						<span class="text-sm text-neutral-900 whitespace-nowrap" style="font-weight: 400;">
 							{formatPrice(data.product.base_price)}
 						</span>
 					</div>
 
 					<!-- Date de récupération -->
-					<div class="flex items-center justify-between">
-						<span
-							class="text-sm text-neutral-600"
-							style="font-weight: 400;"
-						>
+					<div class="flex items-center justify-between gap-2">
+						<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 							Date de récupération :
 						</span>
-						<span
-							class="text-sm text-neutral-900"
-							style="font-weight: 400;"
-						>
+						<span class="text-sm text-neutral-900 text-right sm:ml-auto whitespace-nowrap" style="font-weight: 400;">
 							{formatDate(data.orderData.pickup_date)}
 							{#if data.orderData.pickup_time}
-								<span class="ml-1"
-									>{data.orderData.pickup_time.substring(0, 5)}</span
-								>
+								<span class="ml-1">{data.orderData.pickup_time.substring(0, 5)}</span>
 							{/if}
 						</span>
 					</div>
@@ -339,48 +295,36 @@
 								fieldData,
 							)}
 							{#if Array.isArray(displayData)}
-								<!-- Multi-select options: display line by line -->
-								<div class="space-y-1">
-									{#each displayData as option, index}
-										{#if index === 0}
-											<div class="flex items-center justify-between">
-												<span
-													class="text-sm text-neutral-600"
-													style="font-weight: 400;"
-												>
-													{fieldLabel} :
-												</span>
-												<span
-													class="text-sm text-neutral-900"
-													style="font-weight: 400;"
-												>
+								<!-- Multi-select: Structure avec badges -->
+								<div class="rounded-lg bg-neutral-50 p-3">
+									<div class="mb-2">
+										<span class="break-words text-xs font-semibold uppercase tracking-wide text-neutral-500" style="font-weight: 600;">
+											{fieldLabel}
+										</span>
+									</div>
+									<div class="flex flex-wrap gap-2">
+										{#each displayData as option}
+											<span class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-sm shadow-sm">
+												<span class="break-words text-neutral-900" style={customStyles.textStyle}>
 													{option}
 												</span>
-											</div>
-										{:else}
-											<div
-												class="text-right text-sm text-neutral-900"
-												style="font-weight: 400;"
-											>
-												{option}
-											</div>
-										{/if}
-									{/each}
+											</span>
+										{/each}
+									</div>
 								</div>
 							{:else if displayData}
-								<div class="flex items-center justify-between">
-									<span
-										class="text-sm text-neutral-600"
-										style="font-weight: 400;"
-									>
-										{fieldLabel} :
-									</span>
-									<span
-										class="text-sm text-neutral-900"
-										style="font-weight: 400;"
-									>
-										{displayData}
-									</span>
+								<!-- Single-select ou texte: Structure avec fond -->
+								<div class="rounded-lg bg-neutral-50 p-3">
+									<div class="mb-1">
+										<span class="break-words text-xs font-semibold uppercase tracking-wide text-neutral-500" style="font-weight: 600;">
+											{fieldLabel}
+										</span>
+									</div>
+									<div class="flex items-start justify-between gap-2">
+										<span class="min-w-0 flex-1 break-words text-sm text-neutral-900" style={customStyles.textStyle}>
+											{displayData}
+										</span>
+									</div>
 								</div>
 							{/if}
 						{/each}
@@ -388,17 +332,13 @@
 
 					<!-- Message supplémentaire -->
 					{#if data.orderData.additional_information}
-						<div>
-							<span
-								class="text-sm text-neutral-600"
-								style="font-weight: 400;"
-							>
-								Message :
-							</span>
-							<p
-								class="mt-1 text-sm italic text-neutral-600"
-								style="font-weight: 300;"
-							>
+						<div class="rounded-lg bg-neutral-50 p-3">
+							<div class="mb-1">
+								<span class="break-words text-xs font-semibold uppercase tracking-wide text-neutral-500" style="font-weight: 600;">
+									Message
+								</span>
+							</div>
+							<p class="text-sm italic text-neutral-600" style="font-weight: 300;">
 								"{data.orderData.additional_information}"
 							</p>
 						</div>
@@ -410,28 +350,22 @@
 						style={`border-color: ${customStyles.separatorColor};`}
 					>
 						<!-- Montant total -->
-						<div class="mb-2 flex items-center justify-between">
-							<span
-								class="text-sm text-neutral-600"
-								style="font-weight: 400;"
-							>
+						<div class="mb-2 flex items-center justify-between gap-2">
+							<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 								Total :
 							</span>
-							<span
-								class="font-semibold text-neutral-900"
-								style="font-weight: 600;"
-							>
+							<span class="font-semibold text-neutral-900 whitespace-nowrap" style="font-weight: 600;">
 								{formatPrice(data.orderData.total_amount)}
 							</span>
 						</div>
 
 						<!-- Acompte à payer -->
 						<div
-							class="flex items-center justify-between font-semibold"
+							class="flex items-center justify-between gap-2 font-semibold"
 							style={`color: ${data.customizations?.button_color || '#FF6F61'}; font-weight: 600;`}
 						>
 							<span>À payer aujourd'hui :</span>
-							<span>{formatPrice(depositAmount)}</span>
+							<span class="whitespace-nowrap">{formatPrice(depositAmount)}</span>
 						</div>
 					</div>
 				</div>

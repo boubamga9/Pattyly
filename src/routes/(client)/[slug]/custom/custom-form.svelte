@@ -221,6 +221,14 @@
 		inspirationFiles.forEach((file) => dataTransfer.items.add(file));
 		inspirationInputElement.files = dataTransfer.files;
 	}
+
+	// Fonction pour formater le prix
+	function formatPrice(price: number): string {
+		return new Intl.NumberFormat('fr-FR', {
+			style: 'currency',
+			currency: 'EUR',
+		}).format(price);
+	}
 </script>
 
 <form
@@ -608,129 +616,141 @@
 			<h3 class="text-lg font-semibold" style={customStyles.textStyle}>
 				Récapitulatif de la demande
 			</h3>
-			<div class="space-y-3 rounded-lg border bg-white p-4">
+			<div class="space-y-3 rounded-2xl border bg-white p-4">
 				<p class="text-sm" style={customStyles.secondaryTextStyle}>
 					Merci de bien vérifier les informations de votre demande car en cas
 					d'erreur votre commande pourra être retardée.
 				</p>
-				<div class="space-y-2 text-sm">
+				<div class="space-y-3 text-sm">
 					{#if $formData.pickup_date}
-						<div class="flex justify-between">
-							<span style={customStyles.secondaryTextStyle}
-								>Date de récupération :</span
-							>
-							<span class="font-medium" style={customStyles.textStyle}
-								>{new Date(
-									$formData.pickup_date + 'T12:00:00Z',
-								).toLocaleDateString('fr-FR')}</span
-							>
+						<div class="flex items-center justify-between gap-2">
+							<span class="font-semibold text-neutral-700" style="font-weight: 600;">
+								Date de récupération :
+							</span>
+							<span class="text-right text-neutral-900 whitespace-nowrap" style={customStyles.textStyle}>
+								{new Date($formData.pickup_date + 'T12:00:00Z').toLocaleDateString('fr-FR')}
+							</span>
 						</div>
 					{/if}
 					{#if $formData.pickup_time}
-						<div class="flex justify-between">
-							<span style={customStyles.secondaryTextStyle}
-								>Créneau horaire :</span
-							>
-							<span class="font-medium" style={customStyles.textStyle}
-								>{$formData.pickup_time.substring(0, 5)}</span
-							>
+						<div class="flex items-center justify-between gap-2">
+							<span class="font-semibold text-neutral-700" style="font-weight: 600;">
+								Créneau horaire :
+							</span>
+							<span class="text-right text-neutral-900 whitespace-nowrap" style={customStyles.textStyle}>
+								{$formData.pickup_time.substring(0, 5)}
+							</span>
 						</div>
 					{/if}
 					{#if $formData.customer_name}
-						<div class="flex justify-between">
-							<span style={customStyles.secondaryTextStyle}>Nom :</span>
-							<span class="font-medium" style={customStyles.textStyle}
-								>{$formData.customer_name}</span
-							>
+						<div class="flex items-center justify-between gap-2">
+							<span class="font-semibold text-neutral-700" style="font-weight: 600;">Nom :</span>
+							<span class="text-right text-neutral-900 sm:ml-auto" style={customStyles.textStyle}>
+								{$formData.customer_name}
+							</span>
 						</div>
 					{/if}
 					{#if $formData.customer_email}
-						<div class="flex justify-between">
-							<span style={customStyles.secondaryTextStyle}>Email :</span>
-							<span class="font-medium" style={customStyles.textStyle}
-								>{$formData.customer_email}</span
-							>
+						<div class="flex items-center justify-between gap-2">
+							<span class="font-semibold text-neutral-700" style="font-weight: 600;">Email :</span>
+							<span class="break-words break-all text-right text-neutral-900 sm:ml-auto" style={customStyles.textStyle}>
+								{$formData.customer_email}
+							</span>
 						</div>
 					{/if}
 					{#if $formData.customer_phone}
-						<div class="flex justify-between">
-							<span style={customStyles.secondaryTextStyle}>Téléphone :</span>
-							<span class="font-medium" style={customStyles.textStyle}
-								>{$formData.customer_phone}</span
-							>
+						<div class="flex items-center justify-between gap-2">
+							<span class="font-semibold text-neutral-700" style="font-weight: 600;">Téléphone :</span>
+							<span class="text-right text-neutral-900 sm:ml-auto" style={customStyles.textStyle}>
+								{$formData.customer_phone}
+							</span>
 						</div>
 					{/if}
 					{#if $formData.customer_instagram}
-						<div class="flex justify-between">
-							<span style={customStyles.secondaryTextStyle}>Instagram :</span>
-							<span class="font-medium" style={customStyles.textStyle}
-								>{$formData.customer_instagram}</span
-							>
+						<div class="flex items-center justify-between gap-2">
+							<span class="font-semibold text-neutral-700" style="font-weight: 600;">Instagram :</span>
+							<span class="text-right text-neutral-900 sm:ml-auto" style={customStyles.textStyle}>
+								{$formData.customer_instagram}
+							</span>
 						</div>
 					{/if}
 					{#if $formData.customization_data && Object.keys($formData.customization_data).length > 0}
-						<div class="pt-2">
-							<span style={customStyles.secondaryTextStyle}
-								>Options sélectionnées :</span
-							>
-							<ul class="mt-1 space-y-1">
-								{#each Object.entries($formData.customization_data) as [fieldId, value]}
-									{#if value && (typeof value === 'string' ? value.length > 0 : Array.isArray(value) && value.length > 0)}
-										{@const field = customFields.find((f) => f.id === fieldId)}
-										{#if field}
-											{#if Array.isArray(value)}
-												<!-- Multi-select options: display line by line -->
-												<li class="space-y-1">
-													{#each value as option, index}
-														{#if index === 0}
-															<!-- Première option : label + option sur la même ligne -->
-															<div
-																class="flex items-start justify-between gap-2"
-															>
-																<span
-																	class="min-w-0 flex-shrink-0 font-medium text-foreground"
-																	>{field.label} :</span
-																>
-																<span
-																	class="flex-shrink-0 text-right text-muted-foreground"
-																	>{option}</span
-																>
-															</div>
-														{:else}
-															<!-- Autres options : alignées à droite -->
-															<div
-																class="text-right text-sm text-muted-foreground"
-															>
-																{option}
-															</div>
+						{#each Object.entries($formData.customization_data) as [fieldId, value]}
+							{#if value && (typeof value === 'string' ? value.length > 0 : Array.isArray(value) && value.length > 0)}
+								{@const field = customFields.find((f) => f.id === fieldId)}
+								{#if field}
+									{#if Array.isArray(value)}
+										{@const selectedOptions = value.map((option) => {
+											const selectedOption = field.options?.find(
+												(opt) => opt.label === option,
+											);
+											return {
+												label: option,
+												price: selectedOption?.price || 0
+											};
+										})}
+										<!-- Multi-select: Structure avec badges -->
+										<div class="rounded-lg bg-neutral-50 p-3">
+											<div class="mb-2">
+												<span class="break-words text-xs font-semibold uppercase tracking-wide text-neutral-500" style="font-weight: 600;">
+													{field.label}
+												</span>
+											</div>
+											<div class="flex flex-wrap gap-2">
+												{#each selectedOptions as selectedOption}
+													<span class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-sm shadow-sm">
+														<span class="break-words text-neutral-900" style={customStyles.textStyle}>
+															{selectedOption.label}
+														</span>
+														{#if selectedOption.price > 0}
+															<span class="shrink-0 text-xs font-medium text-neutral-600">
+																+{formatPrice(selectedOption.price)}
+															</span>
 														{/if}
-													{/each}
-												</li>
-											{:else}
-												<!-- Single value: display normally -->
-												<li class="flex items-start justify-between gap-2">
-													<span
-														class="min-w-0 flex-shrink-0 font-medium text-foreground"
-														>{field.label} :</span
-													>
-													<span
-														class="flex-shrink-0 text-right text-muted-foreground"
-														>{value}</span
-													>
-												</li>
-											{/if}
+													</span>
+												{/each}
+											</div>
+										</div>
+									{:else}
+										{@const selectedOption = field.options?.find(
+											(opt) => opt.label === value,
+										)}
+										{@const isTextField = !field.options || field.options.length === 0}
+										{#if selectedOption || isTextField}
+											<!-- Single-select ou texte: Structure avec fond -->
+											<div class="rounded-lg bg-neutral-50 p-3">
+												<div class="mb-1">
+													<span class="break-words text-xs font-semibold uppercase tracking-wide text-neutral-500" style="font-weight: 600;">
+														{field.label}
+													</span>
+												</div>
+												<div class="flex items-start justify-between gap-2">
+													<span class="min-w-0 flex-1 break-words text-sm text-neutral-900" style={customStyles.textStyle}>
+														{value}
+													</span>
+													{#if selectedOption && selectedOption.price > 0}
+														<span class="shrink-0 text-sm font-medium text-neutral-600">
+															+{formatPrice(selectedOption.price)}
+														</span>
+													{/if}
+												</div>
+											</div>
 										{/if}
 									{/if}
-								{/each}
-							</ul>
-						</div>
+								{/if}
+							{/if}
+						{/each}
 					{/if}
 
 					<!-- Photos d'inspiration -->
 					{#if inspirationPhotos && inspirationPhotos.length > 0}
-						<div class="pt-2">
-							<span class="text-muted-foreground">Photos d'inspiration :</span>
-							<div class="mt-2 grid grid-cols-3 gap-2">
+						<div class="rounded-lg bg-neutral-50 p-3">
+							<div class="mb-2">
+								<span class="break-words text-xs font-semibold uppercase tracking-wide text-neutral-500" style="font-weight: 600;">
+									Photos d'inspiration
+								</span>
+							</div>
+							<div class="grid grid-cols-3 gap-2">
 								{#each inspirationPhotos as photo, index}
 									<img
 										src={photo}

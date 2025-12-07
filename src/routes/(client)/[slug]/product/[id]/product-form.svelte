@@ -571,65 +571,63 @@
 					Merci de bien vérifier les informations de commande car en cas
 					d'erreur votre commande pourra être retardée.
 				</p>
-				<div class="space-y-2 text-sm">
+				<div class="space-y-3 text-sm">
 					{#if $formData.pickup_date}
-						<div class="flex justify-between">
-							<span style={customStyles.secondaryTextStyle}
-								>Date de récupération :</span
-							>
-							<span class="font-medium" style={customStyles.textStyle}
-								>{new Date(
-									$formData.pickup_date + 'T12:00:00Z',
-								).toLocaleDateString('fr-FR')}</span
-							>
+						<div class="flex items-center justify-between gap-2">
+							<span class="font-semibold text-neutral-700" style="font-weight: 600;">
+								Date de récupération :
+							</span>
+							<span class="text-right text-neutral-900 whitespace-nowrap" style={customStyles.textStyle}>
+								{new Date($formData.pickup_date + 'T12:00:00Z').toLocaleDateString('fr-FR')}
+							</span>
 						</div>
 					{/if}
 					{#if $formData.pickup_time}
-						<div class="flex justify-between">
-							<span style={customStyles.secondaryTextStyle}
-								>Créneau horaire :</span
-							>
-							<span class="font-medium" style={customStyles.textStyle}
-								>{$formData.pickup_time.substring(0, 5)}</span
-							>
+						<div class="flex items-center justify-between gap-2">
+							<span class="font-semibold text-neutral-700" style="font-weight: 600;">
+								Créneau horaire :
+							</span>
+							<span class="text-right text-neutral-900 whitespace-nowrap" style={customStyles.textStyle}>
+								{$formData.pickup_time.substring(0, 5)}
+							</span>
 						</div>
 					{/if}
-					<div class="flex justify-between">
-						<span style={customStyles.secondaryTextStyle}>Gâteau :</span>
-						<span class="font-medium" style={customStyles.textStyle}
-							>{formatPrice(product.base_price)}</span
-						>
+					<div class="flex items-center justify-between gap-2">
+						<span class="font-semibold text-neutral-700" style="font-weight: 600;">Gâteau :</span>
+						<span class="text-right text-neutral-900 whitespace-nowrap" style={customStyles.textStyle}>
+							{formatPrice(product.base_price)}
+						</span>
 					</div>
 					{#if $formData.customer_name}
-						<div class="flex justify-between">
-							<span style={customStyles.secondaryTextStyle}>Nom :</span>
-							<span class="font-medium" style={customStyles.textStyle}
-								>{$formData.customer_name}</span
-							>
+						<div class="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+							<span class="break-words font-semibold text-neutral-700" style="font-weight: 600;">Nom :</span>
+							<span class="break-words text-right text-neutral-900 sm:ml-auto" style={customStyles.textStyle}>
+								{$formData.customer_name}
+							</span>
 						</div>
 					{/if}
 					{#if $formData.customer_email}
-						<div class="flex justify-between">
-							<span style={customStyles.secondaryTextStyle}>Email :</span>
-							<span class="font-medium" style={customStyles.textStyle}
-								>{$formData.customer_email}</span
-							>
+						<div class="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+							<span class="break-words font-semibold text-neutral-700" style="font-weight: 600;">Email :</span>
+							<span class="break-words break-all text-right text-neutral-900 sm:ml-auto" style={customStyles.textStyle}>
+								{$formData.customer_email}
+							</span>
 						</div>
 					{/if}
 					{#if $formData.customer_phone}
-						<div class="flex justify-between">
-							<span style={customStyles.secondaryTextStyle}>Téléphone :</span>
-							<span class="font-medium" style={customStyles.textStyle}
-								>{$formData.customer_phone}</span
-							>
+						<div class="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+							<span class="break-words font-semibold text-neutral-700" style="font-weight: 600;">Téléphone :</span>
+							<span class="break-words text-right text-neutral-900 sm:ml-auto" style={customStyles.textStyle}>
+								{$formData.customer_phone}
+							</span>
 						</div>
 					{/if}
 					{#if $formData.customer_instagram}
-						<div class="flex justify-between">
-							<span style={customStyles.secondaryTextStyle}>Instagram :</span>
-							<span class="font-medium" style={customStyles.textStyle}
-								>{$formData.customer_instagram}</span
-							>
+						<div class="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+							<span class="break-words font-semibold text-neutral-700" style="font-weight: 600;">Instagram :</span>
+							<span class="break-words text-right text-neutral-900 sm:ml-auto" style={customStyles.textStyle}>
+								{$formData.customer_instagram}
+							</span>
 						</div>
 					{/if}
 					{#each customFields as field}
@@ -640,53 +638,56 @@
 									const selectedOption = field.options?.find(
 										(opt) => opt.label === option,
 									);
-									return selectedOption
-										? `${option} (+${formatPrice(selectedOption.price || 0)})`
-										: option;
+									return {
+										label: option,
+										price: selectedOption?.price || 0
+									};
 								})}
-								<div class="space-y-1">
-									{#each selectedOptions as option, index}
-										{#if index === 0}
-											<div class="flex items-start justify-between gap-2">
-												<!-- Question : prend toute la largeur disponible -->
-												<span
-													class="min-w-0 flex-shrink-0 font-medium text-foreground"
-													>{field.label} :</span
-												>
-												<!-- Réponse : alignée à droite -->
-												<span
-													class="flex-shrink-0 text-right text-muted-foreground"
-													>{option}</span
-												>
-											</div>
-										{:else}
-											<!-- Autres options : alignées à droite -->
-											<div class="text-right text-sm text-muted-foreground">
-												{option}
-											</div>
-										{/if}
-									{/each}
+								<!-- Multi-select: Structure avec badges -->
+								<div class="rounded-lg bg-neutral-50 p-3">
+									<div class="mb-2">
+										<span class="break-words text-xs font-semibold uppercase tracking-wide text-neutral-500" style="font-weight: 600;">
+											{field.label}
+										</span>
+									</div>
+									<div class="flex flex-wrap gap-2">
+										{#each selectedOptions as selectedOption}
+											<span class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-sm shadow-sm">
+												<span class="break-words text-neutral-900" style={customStyles.textStyle}>
+													{selectedOption.label}
+												</span>
+												{#if selectedOption.price > 0}
+													<span class="shrink-0 text-xs font-medium text-neutral-600">
+														+{formatPrice(selectedOption.price)}
+													</span>
+												{/if}
+											</span>
+										{/each}
+									</div>
 								</div>
 							{:else}
 								{@const selectedOption = field.options?.find(
 									(opt) => opt.label === $formData.customization_data[field.id],
 								)}
-								{#if selectedOption}
-									<div class="flex items-start justify-between gap-2">
-										<!-- Question : prend toute la largeur disponible -->
-										<span
-											class="min-w-0 flex-shrink-0 font-medium text-foreground"
-											>{field.label} :</span
-										>
-										<!-- Réponse : alignée à droite -->
-										<span
-											class="flex-shrink-0 text-right text-muted-foreground"
-										>
-											{$formData.customization_data[field.id]}
-											<span class="text-sm">
-												(+{formatPrice(selectedOption.price || 0)})
+								{@const isTextField = !field.options || field.options.length === 0}
+								{#if selectedOption || isTextField}
+									<!-- Single-select ou texte: Structure avec fond -->
+									<div class="rounded-lg bg-neutral-50 p-3">
+										<div class="mb-1">
+											<span class="break-words text-xs font-semibold uppercase tracking-wide text-neutral-500" style="font-weight: 600;">
+												{field.label}
 											</span>
-										</span>
+										</div>
+										<div class="flex items-start justify-between gap-2">
+											<span class="min-w-0 flex-1 break-words text-sm text-neutral-900" style={customStyles.textStyle}>
+												{$formData.customization_data[field.id]}
+											</span>
+											{#if selectedOption && selectedOption.price > 0}
+												<span class="shrink-0 text-sm font-medium text-neutral-600">
+													+{formatPrice(selectedOption.price)}
+												</span>
+											{/if}
+										</div>
 									</div>
 								{/if}
 							{/if}
@@ -698,23 +699,23 @@
 						class="my-2 h-px bg-gradient-to-r from-transparent to-transparent"
 						style={`background: linear-gradient(to right, transparent, ${customStyles.separatorColor}, transparent);`}
 					></div>
-					<div class="flex justify-between">
-						<span class="text-sm text-neutral-600" style="font-weight: 400;">
+					<div class="flex items-center justify-between gap-2">
+						<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 							Total :
 						</span>
 						<span
-							class="font-semibold text-neutral-900"
+							class="font-semibold text-right text-neutral-900 whitespace-nowrap"
 							style="font-weight: 600;"
 						>
 							{formatPrice(totalPrice)}
 						</span>
 					</div>
 					<div
-						class="flex justify-between font-semibold"
+						class="flex items-center justify-between gap-2 font-semibold"
 						style={`color: ${customizations?.button_color || '#FF6F61'}; font-weight: 600;`}
 					>
 						<span>À payer aujourd'hui :</span>
-						<span>{formatPrice(totalPrice * 0.5)}</span>
+						<span class="text-right whitespace-nowrap">{formatPrice(totalPrice * 0.5)}</span>
 					</div>
 				</div>
 			</div>

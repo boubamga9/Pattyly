@@ -157,62 +157,38 @@
 						Vos informations
 					</h2>
 					<div class="space-y-3">
-						<div class="flex items-start justify-between gap-2">
-							<span
-								class="text-sm text-neutral-600"
-								style="font-weight: 400;"
-							>
+						<div class="flex items-center justify-between gap-2">
+							<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 								Nom :
 							</span>
-							<span
-								class="text-sm text-neutral-900"
-								style="font-weight: 400;"
-							>
+							<span class="text-sm text-neutral-900 text-right sm:ml-auto" style="font-weight: 400;">
 								{data.order.customer_name}
 							</span>
 						</div>
-						<div class="flex items-start justify-between gap-2">
-							<span
-								class="text-sm text-neutral-600"
-								style="font-weight: 400;"
-							>
+						<div class="flex items-center justify-between gap-2">
+							<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 								Email :
 							</span>
-							<span
-								class="break-all text-right text-sm text-neutral-900"
-								style="font-weight: 400;"
-							>
+							<span class="break-words break-all text-right text-sm text-neutral-900 sm:ml-auto" style="font-weight: 400;">
 								{data.order.customer_email}
 							</span>
 						</div>
 						{#if data.order.customer_phone}
-							<div class="flex items-start justify-between gap-2">
-								<span
-									class="text-sm text-neutral-600"
-									style="font-weight: 400;"
-								>
+							<div class="flex items-center justify-between gap-2">
+								<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 									Téléphone :
 								</span>
-								<span
-									class="text-sm text-neutral-900"
-									style="font-weight: 400;"
-								>
+								<span class="text-sm text-neutral-900 text-right sm:ml-auto" style="font-weight: 400;">
 									{data.order.customer_phone}
 								</span>
 							</div>
 						{/if}
 						{#if data.order.customer_instagram}
-							<div class="flex items-start justify-between gap-2">
-								<span
-									class="text-sm text-neutral-600"
-									style="font-weight: 400;"
-								>
+							<div class="flex items-center justify-between gap-2">
+								<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 									Instagram :
 								</span>
-								<span
-									class="text-sm text-neutral-900"
-									style="font-weight: 400;"
-								>
+								<span class="text-sm text-neutral-900 text-right sm:ml-auto" style="font-weight: 400;">
 									@{data.order.customer_instagram}
 								</span>
 							</div>
@@ -235,80 +211,53 @@
 						Récapitulatif du devis
 					</h2>
 
-				<div class="space-y-4">
+				<div class="space-y-3">
 					<!-- Type de commande -->
-					<div class="flex items-center justify-between">
-						<span
-							class="text-sm text-neutral-600"
-							style="font-weight: 400;"
-						>
+					<div class="flex items-center justify-between gap-2">
+						<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 							Type :
 						</span>
-						<span
-							class="text-sm text-neutral-900"
-							style="font-weight: 400;"
-						>
+						<span class="text-sm text-neutral-900 text-right sm:ml-auto" style="font-weight: 400;">
 							Commande personnalisée
 						</span>
 					</div>
 
 					<!-- Date de récupération -->
 					{#if data.order.chef_pickup_date}
-						<div class="flex items-center justify-between">
-							<span
-								class="text-sm text-neutral-600"
-								style="font-weight: 400;"
-							>
+						<div class="flex items-center justify-between gap-2">
+							<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 								Date de récupération souhaitée :
 							</span>
-							<span
-								class="text-sm text-neutral-900"
-								style="font-weight: 400;"
-							>
+							<span class="text-sm text-neutral-900 text-right sm:ml-auto whitespace-nowrap" style="font-weight: 400;">
 								{formatDate(data.order.pickup_date)}
 								{#if data.order.pickup_time}
-									<span class="ml-1"
-										>{data.order.pickup_time.substring(0, 5)}</span
-									>
+									<span class="ml-1">{data.order.pickup_time.substring(0, 5)}</span>
 								{/if}
 							</span>
 						</div>
-						<div class="flex items-center justify-between">
-							<span
-								class="text-sm text-neutral-600"
-								style="font-weight: 400;"
-							>
+						<div class="flex items-center justify-between gap-2">
+							<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 								Date proposée par le pâtissier :
 							</span>
 							<span
-								class="text-sm"
+								class="text-sm text-right sm:ml-auto whitespace-nowrap"
 								style={`color: ${data.customizations?.button_color || '#FF6F61'}; font-weight: 400;`}
 							>
 								{formatDate(data.order.chef_pickup_date)}
 								{#if data.order.chef_pickup_time}
-									<span class="ml-1"
-										>{data.order.chef_pickup_time.substring(0, 5)}</span
-									>
+									<span class="ml-1">{data.order.chef_pickup_time.substring(0, 5)}</span>
 								{/if}
 							</span>
 						</div>
 					{:else}
-						<div class="flex items-center justify-between">
-							<span
-								class="text-sm text-neutral-600"
-								style="font-weight: 400;"
-							>
+						<div class="flex items-center justify-between gap-2">
+							<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 								Date de récupération :
 							</span>
-							<span
-								class="text-sm text-neutral-900"
-								style="font-weight: 400;"
-							>
+							<span class="text-sm text-neutral-900 text-right sm:ml-auto whitespace-nowrap" style="font-weight: 400;">
 								{formatDate(data.order.pickup_date)}
 								{#if data.order.pickup_time}
-									<span class="ml-1"
-										>{data.order.pickup_time.substring(0, 5)}</span
-									>
+									<span class="ml-1">{data.order.pickup_time.substring(0, 5)}</span>
 								{/if}
 							</span>
 						</div>
@@ -316,17 +265,13 @@
 
 					<!-- Message du pâtissier -->
 					{#if data.order.chef_message}
-						<div class="rounded-xl border bg-white p-4 shadow-sm">
-							<span
-								class="text-sm font-medium text-neutral-700"
-								style="font-weight: 500;"
-							>
-								Message du pâtissier :
-							</span>
-							<p
-								class="mt-2 text-sm text-neutral-600"
-								style="font-weight: 400;"
-							>
+						<div class="rounded-lg bg-neutral-50 p-3">
+							<div class="mb-1">
+								<span class="break-words text-xs font-semibold uppercase tracking-wide text-neutral-500" style="font-weight: 600;">
+									Message du pâtissier
+								</span>
+							</div>
+							<p class="text-sm text-neutral-600" style="font-weight: 400;">
 								{data.order.chef_message}
 							</p>
 						</div>
@@ -334,17 +279,13 @@
 
 					<!-- Message du client -->
 					{#if data.order.additional_information}
-						<div>
-							<span
-								class="text-sm text-neutral-600"
-								style="font-weight: 400;"
-							>
-								Votre message :
-							</span>
-							<p
-								class="mt-1 text-sm italic text-neutral-600"
-								style="font-weight: 300;"
-							>
+						<div class="rounded-lg bg-neutral-50 p-3">
+							<div class="mb-1">
+								<span class="break-words text-xs font-semibold uppercase tracking-wide text-neutral-500" style="font-weight: 600;">
+									Votre message
+								</span>
+							</div>
+							<p class="text-sm italic text-neutral-600" style="font-weight: 300;">
 								"{data.order.additional_information}"
 							</p>
 						</div>
@@ -352,19 +293,18 @@
 
 					<!-- Photos d'inspiration -->
 					{#if data.order.inspiration_photos && data.order.inspiration_photos.length > 0}
-						<div class="space-y-2">
-							<span
-								class="text-sm text-neutral-600"
-								style="font-weight: 400;"
-							>
-								Photos d'inspiration :
-							</span>
-							<div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+						<div class="rounded-lg bg-neutral-50 p-3">
+							<div class="mb-2">
+								<span class="break-words text-xs font-semibold uppercase tracking-wide text-neutral-500" style="font-weight: 600;">
+									Photos d'inspiration
+								</span>
+							</div>
+							<div class="grid grid-cols-3 gap-2">
 								{#each data.order.inspiration_photos as photo, index}
 									<img
 										src={photo}
 										alt="Photo d'inspiration {index + 1}"
-										class="aspect-square w-full rounded-xl border border-neutral-200 object-cover shadow-sm"
+										class="aspect-square w-full rounded-lg border border-border object-cover"
 									/>
 								{/each}
 							</div>
@@ -377,28 +317,22 @@
 						style={`border-color: ${customStyles.separatorColor};`}
 					>
 						<!-- Montant total -->
-						<div class="mb-2 flex items-center justify-between">
-							<span
-								class="text-sm text-neutral-600"
-								style="font-weight: 400;"
-							>
+						<div class="mb-2 flex items-center justify-between gap-2">
+							<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 								Total :
 							</span>
-							<span
-								class="font-semibold text-neutral-900"
-								style="font-weight: 600;"
-							>
+							<span class="font-semibold text-neutral-900 whitespace-nowrap" style="font-weight: 600;">
 								{formatPrice(data.order.total_amount)}
 							</span>
 						</div>
 
 						<!-- Acompte à payer -->
 						<div
-							class="flex items-center justify-between font-semibold"
+							class="flex items-center justify-between gap-2 font-semibold"
 							style={`color: ${data.customizations?.button_color || '#FF6F61'}; font-weight: 600;`}
 						>
 							<span>À payer aujourd'hui :</span>
-							<span>{formatPrice(depositAmount)}</span>
+							<span class="whitespace-nowrap">{formatPrice(depositAmount)}</span>
 						</div>
 					</div>
 				</div>

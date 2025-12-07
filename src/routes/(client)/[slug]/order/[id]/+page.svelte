@@ -297,54 +297,34 @@
 						Récapitulatif de la commande
 					</h2>
 
-				<div class="space-y-4">
+				<div class="space-y-3">
 					<!-- Numéro de commande -->
-					<div class="flex items-center justify-between">
-						<span
-							class="text-sm text-neutral-600"
-							style="font-weight: 400;"
-						>
+					<div class="flex items-center justify-between gap-2">
+						<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 							Numéro de commande :
 						</span>
-						<span
-							class="text-sm text-neutral-900"
-							style="font-weight: 400;"
-						>
+						<span class="text-sm text-neutral-900 whitespace-nowrap" style="font-weight: 400;">
 							{order?.id?.slice(0, 8) || ''}
 						</span>
 					</div>
 
 					<!-- Gâteau -->
 					{#if orderType === 'product_order'}
-						<div class="flex items-center justify-between">
-							<span
-								class="text-sm text-neutral-600"
-								style="font-weight: 400;"
-							>
+						<div class="flex items-center justify-between gap-2">
+							<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 								Gâteau :
 							</span>
-							<span
-								class="text-sm text-neutral-900"
-								style="font-weight: 400;"
-							>
+							<span class="text-sm text-neutral-900 text-right sm:ml-auto" style="font-weight: 400;">
 								{productName || 'Gâteau personnalisé'}
 							</span>
 						</div>
 						<!-- Prix de base du gâteau -->
-						<div class="flex items-center justify-between">
-							<span
-								class="text-sm text-neutral-600"
-								style="font-weight: 400;"
-							>
+						<div class="flex items-center justify-between gap-2">
+							<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 								Prix de base :
 							</span>
-							<span
-								class="text-sm text-neutral-900"
-								style="font-weight: 400;"
-							>
-								{productBasePrice
-									? formatPrice(productBasePrice)
-									: '0,00€'}
+							<span class="text-sm text-neutral-900 whitespace-nowrap" style="font-weight: 400;">
+								{productBasePrice ? formatPrice(productBasePrice) : '0,00€'}
 							</span>
 						</div>
 					{/if}
@@ -352,65 +332,44 @@
 					<!-- Date de récupération -->
 					{#if hasChefDate}
 						<!-- Date souhaitée par le client -->
-						<div class="flex items-center justify-between">
-							<span
-								class="text-sm text-neutral-600"
-								style="font-weight: 400;"
-							>
+						<div class="flex items-center justify-between gap-2">
+							<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 								Date de récupération souhaitée :
 							</span>
-							<span
-								class="text-sm text-neutral-900"
-								style="font-weight: 400;"
-							>
+							<span class="text-sm text-neutral-900 text-right sm:ml-auto whitespace-nowrap" style="font-weight: 400;">
 								{order?.pickup_date ? formatDate(order.pickup_date) : ''}
 								{#if order?.pickup_time}
-									<span class="ml-1"
-										>{order.pickup_time.substring(0, 5)}</span
-									>
+									<span class="ml-1">{order.pickup_time.substring(0, 5)}</span>
 								{/if}
 							</span>
 						</div>
 						<!-- Date proposée par le pâtissier -->
-						<div class="flex items-center justify-between">
-							<span
-								class="text-sm text-neutral-600"
-								style="font-weight: 400;"
-							>
+						<div class="flex items-center justify-between gap-2">
+							<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 								{order?.status === 'quoted'
 									? 'Date de livraison possible :'
 									: 'Date de récupération finale :'}
 							</span>
 							<span
-								class="text-sm"
+								class="text-sm text-right sm:ml-auto whitespace-nowrap"
 								style={`color: ${data.customizations?.button_color || '#FF6F61'}; font-weight: 400;`}
 							>
 								{chefPickupDate ? formatDate(chefPickupDate) : ''}
 								{#if order?.chef_pickup_time}
-									<span class="ml-1"
-										>{order.chef_pickup_time.substring(0, 5)}</span
-									>
+									<span class="ml-1">{order.chef_pickup_time.substring(0, 5)}</span>
 								{/if}
 							</span>
 						</div>
 					{:else}
 						<!-- Date de récupération (normale) -->
-						<div class="flex items-center justify-between">
-							<span
-								class="text-sm text-neutral-600"
-								style="font-weight: 400;"
-							>
+						<div class="flex items-center justify-between gap-2">
+							<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 								Date de récupération :
 							</span>
-							<span
-								class="text-sm text-neutral-900"
-								style="font-weight: 400;"
-							>
+							<span class="text-sm text-neutral-900 text-right sm:ml-auto whitespace-nowrap" style="font-weight: 400;">
 								{order?.pickup_date ? formatDate(order.pickup_date) : ''}
 								{#if order?.pickup_time}
-									<span class="ml-1"
-										>{order.pickup_time.substring(0, 5)}</span
-									>
+									<span class="ml-1">{order.pickup_time.substring(0, 5)}</span>
 								{/if}
 							</span>
 						</div>
@@ -421,51 +380,36 @@
 						{#each Object.entries(order.customization_data) as [label, data]}
 							{@const displayData = displayCustomizationOption(label, data)}
 							{#if Array.isArray(displayData)}
-								<!-- Multi-select options: display line by line -->
-								<div class="space-y-1">
-									{#each displayData as option, index}
-										{#if index === 0}
-											<!-- First option: label and option on same line -->
-											<div class="flex items-center justify-between">
-												<span
-													class="text-sm text-neutral-600"
-													style="font-weight: 400;"
-												>
-													{label} :
-												</span>
-												<span
-													class="text-sm text-neutral-900"
-													style="font-weight: 400;"
-												>
+								<!-- Multi-select: Structure avec badges -->
+								<div class="rounded-lg bg-neutral-50 p-3">
+									<div class="mb-2">
+										<span class="break-words text-xs font-semibold uppercase tracking-wide text-neutral-500" style="font-weight: 600;">
+											{label}
+										</span>
+									</div>
+									<div class="flex flex-wrap gap-2">
+										{#each displayData as option}
+											<span class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-sm shadow-sm">
+												<span class="break-words text-neutral-900" style={customStyles.textStyle}>
 													{option}
 												</span>
-											</div>
-										{:else}
-											<!-- Other options: only option aligned to the right -->
-											<div
-												class="text-right text-sm text-neutral-900"
-												style="font-weight: 400;"
-											>
-												{option}
-											</div>
-										{/if}
-									{/each}
+											</span>
+										{/each}
+									</div>
 								</div>
 							{:else}
-								<!-- Single value: display normally -->
-								<div class="flex items-center justify-between">
-									<span
-										class="text-sm text-neutral-600"
-										style="font-weight: 400;"
-									>
-										{label} :
-									</span>
-									<span
-										class="text-sm text-neutral-900"
-										style="font-weight: 400;"
-									>
-										{displayData}
-									</span>
+								<!-- Single-select ou texte: Structure avec fond -->
+								<div class="rounded-lg bg-neutral-50 p-3">
+									<div class="mb-1">
+										<span class="break-words text-xs font-semibold uppercase tracking-wide text-neutral-500" style="font-weight: 600;">
+											{label}
+										</span>
+									</div>
+									<div class="flex items-start justify-between gap-2">
+										<span class="min-w-0 flex-1 break-words text-sm text-neutral-900" style={customStyles.textStyle}>
+											{displayData}
+										</span>
+									</div>
 								</div>
 							{/if}
 						{/each}
@@ -473,19 +417,18 @@
 
 					<!-- Photos d'inspiration -->
 					{#if order?.inspiration_photos && order.inspiration_photos.length > 0}
-						<div class="space-y-2">
-							<span
-								class="text-sm text-neutral-600"
-								style="font-weight: 400;"
-							>
-								Photos d'inspiration :
-							</span>
-							<div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+						<div class="rounded-lg bg-neutral-50 p-3">
+							<div class="mb-2">
+								<span class="break-words text-xs font-semibold uppercase tracking-wide text-neutral-500" style="font-weight: 600;">
+									Photos d'inspiration
+								</span>
+							</div>
+							<div class="grid grid-cols-3 gap-2">
 								{#each order.inspiration_photos as photo, index}
 									<img
 										src={photo}
 										alt="Photo d'inspiration {index + 1}"
-										class="aspect-square w-full rounded-xl border border-neutral-200 object-cover shadow-sm"
+										class="aspect-square w-full rounded-lg border border-border object-cover"
 									/>
 								{/each}
 							</div>
@@ -494,17 +437,13 @@
 
 					<!-- Message supplémentaire -->
 					{#if additionalInfo}
-						<div>
-							<span
-								class="text-sm text-neutral-600"
-								style="font-weight: 400;"
-							>
-								Message :
-							</span>
-							<p
-								class="mt-1 text-sm italic text-neutral-600"
-								style="font-weight: 300;"
-							>
+						<div class="rounded-lg bg-neutral-50 p-3">
+							<div class="mb-1">
+								<span class="break-words text-xs font-semibold uppercase tracking-wide text-neutral-500" style="font-weight: 600;">
+									Message
+								</span>
+							</div>
+							<p class="text-sm italic text-neutral-600" style="font-weight: 300;">
 								"{additionalInfo}"
 							</p>
 						</div>
@@ -512,17 +451,13 @@
 
 					<!-- Message du pâtissier -->
 					{#if chefMessage}
-						<div class="rounded-xl border bg-white p-4 shadow-sm">
-							<span
-								class="text-sm font-medium text-neutral-700"
-								style="font-weight: 500;"
-							>
-								Message du pâtissier :
-							</span>
-							<p
-								class="mt-2 text-sm text-neutral-600"
-								style="font-weight: 400;"
-							>
+						<div class="rounded-lg bg-neutral-50 p-3">
+							<div class="mb-1">
+								<span class="break-words text-xs font-semibold uppercase tracking-wide text-neutral-500" style="font-weight: 600;">
+									Message du pâtissier
+								</span>
+							</div>
+							<p class="text-sm text-neutral-600" style="font-weight: 400;">
 								{chefMessage}
 							</p>
 						</div>
@@ -535,87 +470,74 @@
 					>
 						{#if orderType === 'product_order'}
 							<!-- Montant total -->
-							<div class="mb-2 flex items-center justify-between">
-								<span
-									class="text-sm text-neutral-600"
-									style="font-weight: 400;"
-								>
+							<div class="mb-2 flex items-center justify-between gap-2">
+								<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 									Total :
 								</span>
-								<span
-									class="font-semibold text-neutral-900"
-									style="font-weight: 600;"
-								>
+								<span class="font-semibold text-neutral-900 whitespace-nowrap" style="font-weight: 600;">
 									{formatPrice(totalAmount)}
 								</span>
 							</div>
 
 							<!-- Acompte payé -->
 							<div
-								class="flex items-center justify-between font-semibold"
+								class="flex items-center justify-between gap-2 font-semibold"
 								style={`color: ${data.customizations?.button_color || '#FF6F61'}; font-weight: 600;`}
 							>
 								<span>Payé aujourd'hui :</span>
-								<span
-									>{totalAmount
-										? formatPrice(totalAmount * 0.5)
-										: '0,00€'}</span
-								>
+								<span class="whitespace-nowrap">{totalAmount ? formatPrice(totalAmount * 0.5) : '0,00€'}</span>
 							</div>
 						{:else}
 							<!-- Pour les demandes custom -->
-							<div class="mb-2 flex items-center justify-between">
-								<span
-									class="text-sm text-neutral-600"
-									style="font-weight: 400;"
-								>
+							<div class="mb-2 flex items-center justify-between gap-2">
+								<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 									Statut :
 								</span>
 								{#if order?.status === 'to_verify'}
 									<span
-										class="text-sm font-normal"
+										class="text-sm font-normal text-right sm:ml-auto"
 										style={`color: ${data.customizations?.button_color || '#FF6F61'}; font-weight: 400;`}
 									>
 										Paiement en cours de vérification
 									</span>
 								{:else if order?.status === 'quoted'}
 									<span
-										class="text-sm font-normal text-neutral-900"
+										class="text-sm font-normal text-right text-neutral-900 sm:ml-auto"
 										style="font-weight: 400;"
 									>
 										Devis envoyé
 									</span>
 								{:else if order?.status === 'confirmed'}
 									<span
-										class="text-sm font-normal"
+										class="text-sm font-normal text-right sm:ml-auto"
 										style="color: #10b981; font-weight: 400;"
 									>
 										Confirmée
 									</span>
 								{:else if order?.status === 'ready'}
 									<span
-										class="text-sm font-normal"
+										class="text-sm font-normal text-right sm:ml-auto"
 										style="color: #8b5cf6; font-weight: 400;"
 									>
 										Prêt
 									</span>
 								{:else if order?.status === 'completed'}
 									<span
-										class="text-sm font-normal text-neutral-600"
+										class="text-sm font-normal text-right text-neutral-600 sm:ml-auto"
 										style="font-weight: 400;"
 									>
 										Terminée
 									</span>
 								{:else if order?.status === 'refused'}
 									<span
-										class="text-sm font-normal"
+										class="text-sm font-normal text-right sm:ml-auto"
 										style="color: #ef4444; font-weight: 400;"
 									>
 										Refusée
 									</span>
 								{:else}
 									<span
-										class="text-sm font-normal"
+										class="text-sm font-normal text-right sm:ml-auto"
 										style={`color: ${data.customizations?.button_color || '#FF6F61'}; font-weight: 400;`}
 									>
 										En attente de devis
@@ -626,17 +548,11 @@
 							<!-- Prix pour les commandes custom -->
 							{#if totalAmount}
 								<!-- Montant total -->
-								<div class="mb-2 flex items-center justify-between">
-									<span
-										class="text-sm text-neutral-600"
-										style="font-weight: 400;"
-									>
+								<div class="mb-2 flex items-center justify-between gap-2">
+									<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 										Total :
 									</span>
-									<span
-										class="font-semibold text-neutral-900"
-										style="font-weight: 600;"
-									>
+									<span class="font-semibold text-neutral-900 whitespace-nowrap" style="font-weight: 600;">
 										{formatPrice(totalAmount)}
 									</span>
 								</div>
@@ -644,29 +560,29 @@
 								{#if order?.status === 'quoted'}
 									<!-- Acompte à payer pour les devis -->
 									<div
-										class="flex items-center justify-between font-semibold"
+										class="flex items-center justify-between gap-2 font-semibold"
 										style={`color: ${data.customizations?.button_color || '#FF6F61'}; font-weight: 600;`}
 									>
 										<span>À payer aujourd'hui :</span>
-										<span>{formatPrice(totalAmount * 0.5)}</span>
+										<span class="whitespace-nowrap">{formatPrice(totalAmount * 0.5)}</span>
 									</div>
 								{:else if order?.status === 'to_verify' || order?.status === 'confirmed' || order?.status === 'ready' || order?.status === 'completed'}
 									<!-- Acompte -->
 									<div
-										class="flex items-center justify-between font-semibold"
+										class="flex items-center justify-between gap-2 font-semibold"
 										style={`color: ${order?.status === 'to_verify' ? (data.customizations?.button_color || '#FF6F61') : '#10b981'}; font-weight: 600;`}
 									>
 										<span>Acompte :</span>
-										<span>{formatPrice(totalAmount * 0.5)}</span>
+										<span class="whitespace-nowrap">{formatPrice(totalAmount * 0.5)}</span>
 									</div>
 								{:else}
 									<!-- Prix total pour les autres statuts -->
 									<div
-										class="flex items-center justify-between font-semibold text-neutral-600"
+										class="flex items-center justify-between gap-2 font-semibold text-neutral-600"
 										style="font-weight: 600;"
 									>
 										<span>Prix total :</span>
-										<span>{formatPrice(totalAmount)}</span>
+										<span class="whitespace-nowrap">{formatPrice(totalAmount)}</span>
 									</div>
 								{/if}
 							{/if}
