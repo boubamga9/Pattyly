@@ -61,7 +61,7 @@ export default defineConfig({
 			workbox: {
 				globPatterns: ['**/*.{js,css,svg,png,ico,woff,woff2}'],
 				globIgnores: ['**/index.html', '**/sw.js', '**/workbox-*.js'],
-				navigateFallback: null,
+				navigateFallback: '/',
 				navigationPreload: false,
 				inlineWorkboxRuntime: true,
 				skipWaiting: true,
@@ -80,10 +80,10 @@ export default defineConfig({
 								return false;
 							}
 							// Ne gérer que les assets statiques (images, fonts, etc.)
-							return request.destination === 'image' || 
-							       request.destination === 'font' || 
-							       request.destination === 'style' ||
-							       request.destination === 'script';
+							return request.destination === 'image' ||
+								request.destination === 'font' ||
+								request.destination === 'style' ||
+								request.destination === 'script';
 						},
 						handler: 'CacheFirst',
 						options: {
