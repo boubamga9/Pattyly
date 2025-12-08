@@ -7,15 +7,15 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     const { slug, order_ref } = params;
 
     try {
-        // ✅ OPTIMISÉ : Charger order d'abord, puis shop et payment_links en parallèle
-        // Récupérer l'order avec order_ref et vérification du slug
-        const { data: order, error: orderError } = await (locals.supabaseServiceRole as any)
-            .from('orders')
-            .select('*, shops!inner(slug, id, name, logo_url, profile_id)')
-            .eq('order_ref', order_ref)
-            .eq('shops.slug', slug)
-            .eq('status', 'quoted') // Seulement les devis en attente de paiement
-            .single();
+		// ✅ OPTIMISÉ : Charger order d'abord, puis shop et payment_links en parallèle
+		// Récupérer l'order avec order_ref et vérification du slug
+		const { data: order, error: orderError } = await (locals.supabaseServiceRole as any)
+			.from('orders')
+			.select('*, shops!inner(slug, id, name, logo_url, profile_id, instagram, tiktok, website)')
+			.eq('order_ref', order_ref)
+			.eq('shops.slug', slug)
+			.eq('status', 'quoted') // Seulement les devis en attente de paiement
+			.single();
 
         if (orderError || !order) {
             console.error('Error fetching order:', orderError);

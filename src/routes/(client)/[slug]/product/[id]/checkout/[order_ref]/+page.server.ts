@@ -21,13 +21,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
         const orderData = pendingOrder.order_data as any;
 
-        // Récupérer les informations de la boutique
-        const { data: shop, error: shopError } = await (locals.supabaseServiceRole as any)
-            .from('shops')
-            .select('id, name, slug, logo_url, profile_id')
-            .eq('id', orderData.shop_id)
-            .eq('slug', slug)
-            .single();
+		// Récupérer les informations de la boutique
+		const { data: shop, error: shopError } = await (locals.supabaseServiceRole as any)
+			.from('shops')
+			.select('id, name, slug, logo_url, profile_id, instagram, tiktok, website')
+			.eq('id', orderData.shop_id)
+			.eq('slug', slug)
+			.single();
 
         if (shopError || !shop) {
             console.error('Error fetching shop:', shopError);
