@@ -61,7 +61,8 @@ export default defineConfig({
 			workbox: {
 				globPatterns: ['**/*.{js,css,svg,png,ico,woff,woff2}'],
 				globIgnores: ['**/index.html', '**/sw.js', '**/workbox-*.js'],
-				navigateFallback: '/',
+				navigateFallback: null,
+				navigateFallbackDenylist: [/^\/_/, /^\/api/, /^\/test/],
 				navigationPreload: false,
 				inlineWorkboxRuntime: true,
 				skipWaiting: true,
@@ -71,7 +72,7 @@ export default defineConfig({
 				runtimeCaching: [
 					{
 						urlPattern: ({ request, url }) => {
-							// Exclure toutes les navigations et les routes SvelteKit
+							// Exclure TOUTES les navigations - ne jamais les intercepter
 							if (request.mode === 'navigate' || request.destination === 'document') {
 								return false;
 							}
