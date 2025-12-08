@@ -6,6 +6,7 @@
 	import { expoOut } from 'svelte/easing';
 	import { slide } from 'svelte/transition';
 	import ScrollToTop from '$lib/components/scroll-to-top.svelte';
+	import PWAUpdatePrompt from '$lib/components/pwa-update-prompt.svelte';
 	import '../app.css';
 
 	export let data;
@@ -65,3 +66,4 @@
 {/if}
 <slot />
 <ScrollToTop />
+<PWAUpdatePrompt />

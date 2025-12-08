@@ -1,6 +1,7 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import Icons from 'unplugin-icons/vite';
 import { defineConfig } from 'vitest/config';
+import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
 export default defineConfig({
@@ -16,6 +17,71 @@ export default defineConfig({
 					props.height = '1.5rem';
 				}
 			},
+		}),
+		VitePWA({
+			registerType: 'autoUpdate',
+			includeAssets: ['favicon.ico', 'images/logo_icone.png'],
+			manifest: {
+				name: 'Pattyly - Plateforme pour pâtissiers',
+				short_name: 'Pattyly',
+				description: 'Plateforme de gestion et de vente en ligne pour pâtissiers indépendants',
+				theme_color: '#ffffff',
+				background_color: '#ffffff',
+				display: 'standalone',
+				orientation: 'portrait',
+				scope: '/',
+				start_url: '/',
+				icons: [
+					{
+						src: '/images/logo_icone.png',
+						sizes: '192x192',
+						type: 'image/png',
+						purpose: 'any maskable'
+					},
+					{
+						src: '/images/logo_icone.png',
+						sizes: '512x512',
+						type: 'image/png',
+						purpose: 'any maskable'
+					}
+				]
+			},
+			workbox: {
+				globPatterns: ['**/*.{js,css,svg,png,ico,woff,woff2}'],
+				globIgnores: ['**/index.html', '**/sw.js', '**/workbox-*.js'],
+				navigateFallback: null,
+				inlineWorkboxRuntime: true,
+				runtimeCaching: [
+					{
+						urlPattern: /^https:\/\/api\.supabase\.co\/.*/i,
+						handler: 'NetworkFirst',
+						options: {
+							cacheName: 'supabase-api-cache',
+							expiration: {
+								maxEntries: 10,
+								maxAgeSeconds: 60 * 60 * 24 // 24 heures
+							},
+							cacheableResponse: {
+								statuses: [0, 200]
+							}
+						}
+					},
+					{
+						urlPattern: /^https:\/\/.*\.cloudinary\.com\/.*/i,
+						handler: 'CacheFirst',
+						options: {
+							cacheName: 'cloudinary-images-cache',
+							expiration: {
+								maxEntries: 50,
+								maxAgeSeconds: 60 * 60 * 24 * 30 // 30 jours
+							}
+						}
+					}
+				]
+			},
+			devOptions: {
+				enabled: false
+			}
 		}),
 	],
 	resolve: {
