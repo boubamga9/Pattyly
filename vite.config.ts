@@ -62,8 +62,19 @@ export default defineConfig({
 				globPatterns: ['**/*.{js,css,svg,png,ico,woff,woff2}'],
 				globIgnores: ['**/index.html', '**/sw.js', '**/workbox-*.js'],
 				navigateFallback: null,
+				navigationPreload: false,
 				inlineWorkboxRuntime: true,
 				runtimeCaching: [
+					{
+						urlPattern: ({ request, url }) => {
+							// Laisser SvelteKit gérer toutes les navigations
+							return request.mode === 'navigate';
+						},
+						handler: 'NetworkOnly',
+						options: {
+							cacheName: 'navigations'
+						}
+					},
 					{
 						urlPattern: /^https:\/\/api\.supabase\.co\/.*/i,
 						handler: 'NetworkFirst',
