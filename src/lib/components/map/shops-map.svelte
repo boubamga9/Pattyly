@@ -207,7 +207,7 @@
 						<span>${shop.actualCity || shop.city}</span>
 					</div>
 					${specialties ? `<p class="mb-2 text-xs text-neutral-500">${specialties}</p>` : ''}
-					<a href="/${shop.slug}?from=app" target="_blank" rel="noopener noreferrer" class="mt-2 inline-block rounded-lg bg-[#FF6F61] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#e85a4f]">
+					<a href="/${shop.slug}?from=app" class="mt-2 inline-block rounded-lg bg-[#FF6F61] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#e85a4f]">
 						Voir la boutique
 					</a>
 				</div>
@@ -411,7 +411,7 @@
 						<span>${shop.actualCity || shop.city}</span>
 					</div>
 					${specialties ? `<p class="mb-2 text-xs text-neutral-500">${specialties}</p>` : ''}
-					<a href="/${shop.slug}?from=app" target="_blank" rel="noopener noreferrer" class="mt-2 inline-block rounded-lg bg-[#FF6F61] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#e85a4f]">
+					<a href="/${shop.slug}?from=app" class="mt-2 inline-block rounded-lg bg-[#FF6F61] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#e85a4f]">
 						Voir la boutique
 					</a>
 				</div>
