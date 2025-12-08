@@ -145,7 +145,14 @@
 	$: if ($message?.redirectTo) {
 		const url = $message.redirectTo;
 		message.set(null); // reset pour éviter une boucle
-		window.location.href = url;
+		// Utiliser goto() pour la navigation PWA cross-platform
+		if (url.startsWith('http://') || url.startsWith('https://')) {
+			// URL externe (ex: Stripe) - utiliser window.location
+			window.location.href = url;
+		} else {
+			// URL interne - utiliser goto() pour rester dans la PWA
+			goto(url);
+		}
 	}
 
 	// Fonction pour charger les créneaux horaires disponibles

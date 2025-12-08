@@ -20,107 +20,31 @@ export default defineConfig({
 		}),
 		VitePWA({
 			registerType: 'autoUpdate',
-			includeAssets: ['favicon.ico', 'icons/pattyly_logo.png', 'icons/icon-192x192.png', 'icons/icon-512x512.png'],
 			manifest: {
-				name: 'Pattyly - Plateforme pour pâtissiers',
+				name: 'Pattyly',
 				short_name: 'Pattyly',
-				description: 'Plateforme de gestion et de vente en ligne pour pâtissiers indépendants',
-				theme_color: '#ffffff',
-				background_color: '#ffffff',
-				display: 'standalone',
-				orientation: 'portrait',
-				scope: '/',
 				start_url: '/',
+				scope: '/',
+				display: 'standalone',
+				background_color: '#ffffff',
+				theme_color: '#ffffff',
 				icons: [
 					{
 						src: '/icons/icon-192x192.png',
 						sizes: '192x192',
-						type: 'image/png',
-						purpose: 'any'
+						type: 'image/png'
 					},
 					{
 						src: '/icons/icon-512x512.png',
 						sizes: '512x512',
-						type: 'image/png',
-						purpose: 'any'
-					},
-					{
-						src: '/icons/icon-192x192.png',
-						sizes: '192x192',
-						type: 'image/png',
-						purpose: 'maskable'
-					},
-					{
-						src: '/icons/icon-512x512.png',
-						sizes: '512x512',
-						type: 'image/png',
-						purpose: 'maskable'
+						type: 'image/png'
 					}
 				]
 			},
 			workbox: {
-				globPatterns: ['**/*.{js,css,svg,png,ico,woff,woff2}'],
-				globIgnores: ['**/index.html', '**/sw.js', '**/workbox-*.js'],
-				navigateFallback: null,
-				navigateFallbackDenylist: [/^\/_/, /^\/api/, /^\/test/],
-				navigationPreload: false,
-				inlineWorkboxRuntime: true,
+				navigateFallback: '/',
 				skipWaiting: true,
-				clientsClaim: true,
-				// Ne pas intercepter les navigations - laisser SvelteKit gérer
-				// Le service worker ne gère que les assets statiques
-				runtimeCaching: [
-					{
-						urlPattern: ({ request, url }) => {
-							// Exclure TOUTES les navigations - ne jamais les intercepter
-							if (request.mode === 'navigate' || request.destination === 'document') {
-								return false;
-							}
-							// Exclure les routes internes SvelteKit
-							if (url.pathname.startsWith('/_app/') || url.pathname.startsWith('/api/')) {
-								return false;
-							}
-							// Ne gérer que les assets statiques (images, fonts, etc.)
-							return request.destination === 'image' ||
-								request.destination === 'font' ||
-								request.destination === 'style' ||
-								request.destination === 'script';
-						},
-						handler: 'CacheFirst',
-						options: {
-							cacheName: 'static-assets',
-							expiration: {
-								maxEntries: 100,
-								maxAgeSeconds: 60 * 60 * 24 * 30 // 30 jours
-							}
-						}
-					},
-					{
-						urlPattern: /^https:\/\/api\.supabase\.co\/.*/i,
-						handler: 'NetworkFirst',
-						options: {
-							cacheName: 'supabase-api-cache',
-							expiration: {
-								maxEntries: 10,
-								maxAgeSeconds: 60 * 60 * 24 // 24 heures
-							},
-							cacheableResponse: {
-								statuses: [0, 200]
-							}
-						}
-					},
-					{
-						urlPattern: /^https:\/\/.*\.cloudinary\.com\/.*/i,
-						handler: 'CacheFirst',
-						options: {
-							cacheName: 'cloudinary-images-cache',
-							expiration: {
-								maxEntries: 50,
-								maxAgeSeconds: 60 * 60 * 24 * 30 // 30 jours
-							}
-						}
-					}
-				]
+				clientsClaim: true
 			},
 			devOptions: {
 				enabled: false
