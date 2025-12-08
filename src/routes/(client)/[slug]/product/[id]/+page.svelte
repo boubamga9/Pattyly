@@ -44,12 +44,11 @@
 		if ($page.url.searchParams.get('preview') === 'true') {
 			goto('/dashboard/products');
 		} else {
-			// Si on vient de l'app (paramètre from=app), retourner à la liste avec le paramètre
-			const fromApp = $page.url.searchParams.get('from') === 'app';
-			if (fromApp) {
-				goto(`/${shop.slug}?from=app`);
+			// Sinon, utiliser l'historique pour retourner en arrière
+			if (typeof window !== 'undefined' && window.history.length > 1) {
+				window.history.back();
 			} else {
-				// Sinon, retourner à la boutique normalement
+				// Sinon, retourner à la boutique
 				goto(`/${shop.slug}`);
 			}
 		}

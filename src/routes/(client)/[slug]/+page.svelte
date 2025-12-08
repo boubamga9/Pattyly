@@ -62,7 +62,7 @@
 
 	// Fonction pour retourner à la page précédente ou à l'accueil
 	function goBack() {
-		// Si on a un historique, retourner en arrière
+		// Utiliser l'historique pour retourner en arrière
 		if (typeof window !== 'undefined' && window.history.length > 1) {
 			window.history.back();
 		} else {
