@@ -28,23 +28,28 @@ export default defineConfig({
 				display: 'standalone',
 				background_color: '#ffffff',
 				theme_color: '#ffffff',
+				orientation: 'any',
 				icons: [
 					{
 						src: '/icons/icon-192x192.png',
 						sizes: '192x192',
-						type: 'image/png'
+						type: 'image/png',
+						purpose: 'any'
 					},
 					{
 						src: '/icons/icon-512x512.png',
 						sizes: '512x512',
-						type: 'image/png'
+						type: 'image/png',
+						purpose: 'any'
 					}
 				]
 			},
 			workbox: {
 				navigateFallback: '/',
+				navigateFallbackDenylist: [/^\/_/, /^\/api/],
 				skipWaiting: true,
-				clientsClaim: true
+				clientsClaim: true,
+				cleanupOutdatedCaches: true
 			},
 			devOptions: {
 				enabled: false
