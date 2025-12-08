@@ -26,3 +26,4 @@ CREATE POLICY "Service role can manage all stripe customers" ON public.stripe_cu
 -- Ces opérations doivent être faites via le serveur (service_role) pour des raisons de sécurité
 -- et pour s'assurer que les données Stripe restent synchronisées correctement
 
+

@@ -12,3 +12,4 @@ CREATE INDEX IF NOT EXISTS idx_admin_otp_codes_used ON admin_otp_codes(used) WHE
 COMMENT ON COLUMN admin_otp_codes.used IS 'Whether this OTP code has been used for authentication';
 
 
+

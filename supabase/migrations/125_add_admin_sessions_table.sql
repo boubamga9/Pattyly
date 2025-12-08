@@ -41,3 +41,4 @@ $$;
 COMMENT ON FUNCTION cleanup_expired_admin_sessions() IS 'Deletes expired admin sessions';
 
 
+

@@ -44,3 +44,4 @@ WHERE
 COMMENT ON COLUMN shop_customizations.background_color IS 'Background color for shop pages - default is #fafafa';
 
 
+

@@ -34,3 +34,4 @@ GRANT EXECUTE ON FUNCTION get_order_data(UUID) TO authenticated;
 COMMENT ON FUNCTION get_order_data(UUID) IS 'Get order data by shop_id - overload that calls the main function with slug';
 
 
+

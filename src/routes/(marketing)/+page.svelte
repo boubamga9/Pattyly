@@ -10,7 +10,6 @@
 	import CakeDesignerPopup from './components/cake-designer-popup.svelte';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
-	import { goto } from '$app/navigation';
 
 	// Schema.org Organization et WebSite pour SEO (dans le HTML initial pour Google)
 		const organizationSchema = {
@@ -132,13 +131,6 @@
 <div class="flex flex-col">
 	<!-- Popup de redirection vers l'annuaire -->
 	<CakeDesignerPopup />
-
-	<!-- TEST TEMPORAIRE PWA -->
-	<div style="position: fixed; top: 10px; right: 10px; z-index: 9999; background: red; color: white; padding: 10px; border-radius: 5px;">
-		<button on:click={() => goto('/test')} style="background: white; color: black; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
-			TEST NAVIGATION
-		</button>
-	</div>
 
 	<!-- Hero section - Premier impact -->
 	<HeroSection />
