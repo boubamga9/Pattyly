@@ -64,8 +64,6 @@
 		in:slide={{ delay: 100, duration: 12000, axis: 'x', easing: expoOut }}
 	>	</div>
 {/if}
-<div class="app">
-	<slot />
-</div>
+<slot />
 <ScrollToTop />
 <PWAUpdatePrompt />
