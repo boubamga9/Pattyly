@@ -4,6 +4,7 @@
 	import { ArrowLeft, Cake } from 'lucide-svelte';
 	import { ClientFooter } from '$lib/components';
 	import ProductForm from './product-form.svelte';
+	import SocialMediaIcons from '$lib/components/client/social-media-icons.svelte';
 
 	// Fonction pour formater le prix
 	function formatPrice(price: number): string {
@@ -34,6 +35,7 @@
 			: 'none',
 		buttonStyle: `background-color: ${customizations?.button_color || '#ff6f61'}; color: ${customizations?.button_text_color || '#ffffff'};`,
 		textStyle: `color: ${customizations?.text_color || '#333333'};`,
+		iconStyle: `color: ${customizations?.icon_color || '#6b7280'};`,
 		secondaryTextStyle: `color: ${customizations?.secondary_text_color || '#333333'};`,
 		separatorColor: 'rgba(0, 0, 0, 0.3)',
 	};
@@ -85,6 +87,10 @@
 >
 	<!-- Header avec logo et informations - Design moderne -->
 	<header class="relative px-4 py-6 text-center sm:py-8 md:py-12">
+		<!-- Réseaux sociaux - Top right -->
+		{#if shop && (shop.instagram || shop.tiktok || shop.website)}
+			<SocialMediaIcons {shop} iconStyle={customStyles.iconStyle} />
+		{/if}
 		<!-- Bouton retour - Top left -->
 		<button
 			on:click={goBack}

@@ -10,6 +10,7 @@
 		ArrowLeft,
 	} from 'lucide-svelte';
 	import { ClientFooter } from '$lib/components';
+	import SocialMediaIcons from '$lib/components/client/social-media-icons.svelte';
 
 	// Données de la page
 	$: ({ shop, categories, products, faqs, isShopActive, notFound } =
@@ -187,6 +188,10 @@
 	>
 		<!-- Header avec logo et informations -->
 		<header class="relative px-4 py-6 text-center sm:py-8 md:py-12">
+			<!-- Réseaux sociaux - Top right -->
+			{#if shop && (shop.instagram || shop.tiktok || shop.website)}
+				<SocialMediaIcons {shop} iconStyle={customStyles.iconStyle} />
+			{/if}
 			<!-- Bouton retour (si on vient de l'app) - Top left -->
 			{#if showBackButton}
 				<button

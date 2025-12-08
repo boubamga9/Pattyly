@@ -45,12 +45,23 @@ export async function handleProductOrderPayment(session: Stripe.Checkout.Session
 
         const { data: product, error: productError } = await locals.supabaseServiceRole
             .from('products')
-            .select('base_price, shops(slug, logo_url, name, profiles(email))')
+            .select('base_price, shops(slug, logo_url, name, profile_id)')
             .eq('id', orderData.productId)
             .single();
 
         if (productError || !product) {
             throw error(500, 'Failed to get product');
+        }
+
+        // Récupérer l'email du profile séparément
+        let pastryEmail: string | null = null;
+        if (product.shops?.profile_id) {
+            const { data: profile } = await locals.supabaseServiceRole
+                .from('profiles')
+                .select('email')
+                .eq('id', product.shops.profile_id)
+                .single();
+            pastryEmail = profile?.email || null;
         }
 
         const totalAmount = orderData.serverCalculatedPrice || orderData.totalPrice;
@@ -100,21 +111,23 @@ export async function handleProductOrderPayment(session: Stripe.Checkout.Session
                 date: new Date().toLocaleDateString("fr-FR"),
             });
 
-            await EmailService.sendOrderNotification({
-                pastryEmail: product.shops.profiles.email,
-                customerName: orderData.customerName,
-                customerEmail: orderData.customerEmail,
-                customerInstagram: orderData.customerInstagram,
-                productName: orderData.cakeName,
-                pickupDate: orderData.selectedDate,
-                pickupTime: orderData.pickupTime,
-                totalAmount: totalAmount,
-                paidAmount: paidAmount / 100,
-                remainingAmount: totalAmount - (paidAmount / 100),
-                orderId: order.id,
-                dashboardUrl: `${PUBLIC_SITE_URL}/${product.shops.slug}/orders/${order.id}`,
-                date: new Date().toLocaleDateString("fr-FR"),
-            });
+            if (pastryEmail) {
+                await EmailService.sendOrderNotification({
+                    pastryEmail: pastryEmail,
+                    customerName: orderData.customerName,
+                    customerEmail: orderData.customerEmail,
+                    customerInstagram: orderData.customerInstagram,
+                    productName: orderData.cakeName,
+                    pickupDate: orderData.selectedDate,
+                    pickupTime: orderData.pickupTime,
+                    totalAmount: totalAmount,
+                    paidAmount: paidAmount / 100,
+                    remainingAmount: totalAmount - (paidAmount / 100),
+                    orderId: order.id,
+                    dashboardUrl: `${PUBLIC_SITE_URL}/${product.shops.slug}/orders/${order.id}`,
+                    date: new Date().toLocaleDateString("fr-FR"),
+                });
+            }
         } catch (err) {
             console.error('Email sending failed:', err);
             throw error(500, 'Failed to send order emails: ' + err);
@@ -153,11 +166,22 @@ export async function handleCustomOrderDeposit(session: Stripe.Checkout.Session,
                 stripe_session_id: session.id
             })
             .eq('id', orderId)
-            .select('customer_email, customer_name, shops(name, slug, logo_url, profiles(email)), pickup_date')
+            .select('customer_email, customer_name, shops(name, slug, logo_url, profile_id), pickup_date')
             .single();
 
         if (orderError || !order) {
             throw error(500, 'Failed to update custom order');
+        }
+
+        // Récupérer l'email du profile séparément
+        let pastryEmail: string | null = null;
+        if (order.shops?.profile_id) {
+            const { data: profile } = await locals.supabaseServiceRole
+                .from('profiles')
+                .select('email')
+                .eq('id', order.shops.profile_id)
+                .single();
+            pastryEmail = profile?.email || null;
         }
 
         try {
@@ -176,19 +200,21 @@ export async function handleCustomOrderDeposit(session: Stripe.Checkout.Session,
                 date: new Date().toLocaleDateString("fr-FR"),
             });
 
-            await EmailService.sendQuotePayment({
-                pastryEmail: order.shops.profiles.email,
-                customerName: order.customer_name,
-                customerEmail: order.customer_email,
-                pickupDate: order.pickup_date,
-                pickupTime: order.pickup_time,
-                totalPrice: totalPrice,
-                depositAmount: depositAmount / 100,
-                remainingAmount: totalPrice - (depositAmount / 100),
-                orderId: orderId,
-                dashboardUrl: `${PUBLIC_SITE_URL}/dashboard/orders/${orderId}`,
-                date: new Date().toLocaleDateString("fr-FR"),
-            });
+            if (pastryEmail) {
+                await EmailService.sendQuotePayment({
+                    pastryEmail: pastryEmail,
+                    customerName: order.customer_name,
+                    customerEmail: order.customer_email,
+                    pickupDate: order.pickup_date,
+                    pickupTime: order.pickup_time,
+                    totalPrice: totalPrice,
+                    depositAmount: depositAmount / 100,
+                    remainingAmount: totalPrice - (depositAmount / 100),
+                    orderId: orderId,
+                    dashboardUrl: `${PUBLIC_SITE_URL}/dashboard/orders/${orderId}`,
+                    date: new Date().toLocaleDateString("fr-FR"),
+                });
+            }
         } catch (err) {
             console.error('Email sending for deposit failed:', err);
             throw error(500, 'Failed to send deposit emails: ' + err);

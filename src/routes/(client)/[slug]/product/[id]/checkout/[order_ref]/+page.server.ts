@@ -12,22 +12,35 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             .from('pending_orders')
             .select('*')
             .eq('order_ref', order_ref)
-            .single();
+            .maybeSingle();
 
+        // Si la pending_order n'existe pas, vérifier si une order existe déjà (paiement déjà confirmé)
         if (pendingOrderError || !pendingOrder) {
+            // Vérifier si une order existe déjà avec cet order_ref
+            const { data: existingOrder } = await (locals.supabaseServiceRole as any)
+                .from('orders')
+                .select('id, shops!inner(slug)')
+                .eq('order_ref', order_ref)
+                .maybeSingle();
+
+            if (existingOrder) {
+                // Rediriger vers la page de l'order si elle existe déjà
+                throw redirect(303, `/${existingOrder.shops.slug}/order/${existingOrder.id}`);
+            }
+
             console.error('Error fetching pending order:', pendingOrderError);
             throw error(404, 'Commande non trouvée');
         }
 
         const orderData = pendingOrder.order_data as any;
 
-		// Récupérer les informations de la boutique
-		const { data: shop, error: shopError } = await (locals.supabaseServiceRole as any)
-			.from('shops')
-			.select('id, name, slug, logo_url, profile_id, instagram, tiktok, website')
-			.eq('id', orderData.shop_id)
-			.eq('slug', slug)
-			.single();
+        // Récupérer les informations de la boutique
+        const { data: shop, error: shopError } = await (locals.supabaseServiceRole as any)
+            .from('shops')
+            .select('id, name, slug, logo_url, profile_id, instagram, tiktok, website')
+            .eq('id', orderData.shop_id)
+            .eq('slug', slug)
+            .single();
 
         if (shopError || !shop) {
             console.error('Error fetching shop:', shopError);
@@ -121,13 +134,24 @@ export const actions: Actions = {
 
             const { data: product, error: productError } = await (locals.supabaseServiceRole as any)
                 .from('products')
-                .select('base_price, shops(slug, logo_url, name, profile_id, profiles(email))')
+                .select('base_price, shops(slug, logo_url, name, profile_id)')
                 .eq('id', finalProductId)
                 .single();
 
             if (productError || !product) {
                 console.error('Error fetching product:', productError);
                 throw error(500, 'Produit non trouvé');
+            }
+
+            // Récupérer l'email du profile séparément
+            let pastryEmail: string | null = null;
+            if (product.shops?.profile_id) {
+                const { data: profile } = await (locals.supabaseServiceRole as any)
+                    .from('profiles')
+                    .select('email')
+                    .eq('id', product.shops.profile_id)
+                    .single();
+                pastryEmail = profile?.email || null;
             }
 
             // 3. Calculer les montants
@@ -212,22 +236,24 @@ export const actions: Actions = {
                 });
 
                 // Email au pâtissier (vérification requise)
-                await EmailService.sendOrderPendingVerificationPastry({
-                    pastryEmail: product.shops.profiles.email,
-                    customerName: orderData.customer_name,
-                    customerEmail: orderData.customer_email,
-                    customerInstagram: orderData.customer_instagram,
-                    productName: orderData.product_name,
-                    pickupDate: orderData.pickup_date,
-                    pickupTime: orderData.pickup_time,
-                    totalAmount: totalAmount,
-                    paidAmount: paidAmount,
-                    remainingAmount: remainingAmount,
-                    orderId: order.id,
-                    orderRef: order_ref,
-                    dashboardUrl: `${PUBLIC_SITE_URL}/dashboard/orders/${order.id}`,
-                    date: new Date().toLocaleDateString('fr-FR')
-                });
+                if (pastryEmail) {
+                    await EmailService.sendOrderPendingVerificationPastry({
+                        pastryEmail: pastryEmail,
+                        customerName: orderData.customer_name,
+                        customerEmail: orderData.customer_email,
+                        customerInstagram: orderData.customer_instagram,
+                        productName: orderData.product_name,
+                        pickupDate: orderData.pickup_date,
+                        pickupTime: orderData.pickup_time,
+                        totalAmount: totalAmount,
+                        paidAmount: paidAmount,
+                        remainingAmount: remainingAmount,
+                        orderId: order.id,
+                        orderRef: order_ref,
+                        dashboardUrl: `${PUBLIC_SITE_URL}/dashboard/orders/${order.id}`,
+                        date: new Date().toLocaleDateString('fr-FR')
+                    });
+                }
 
                 console.log('✅ [Confirm Payment] Emails sent successfully');
             } catch (emailError) {

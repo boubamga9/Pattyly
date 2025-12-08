@@ -75,7 +75,7 @@ export const actions: Actions = {
             // 1. Récupérer l'order (avec orderId si disponible, sinon avec order_ref)
             const orderQuery = (locals.supabaseServiceRole as any)
                 .from('orders')
-                .select('*, shops(slug, logo_url, name, profile_id, profiles(email))')
+                .select('*, shops(slug, logo_url, name, profile_id)')
                 .eq('status', 'quoted');
 
             if (orderId) {
@@ -89,6 +89,17 @@ export const actions: Actions = {
             if (orderError || !order) {
                 console.error('Error fetching order:', orderError);
                 throw error(404, 'Devis non trouvé');
+            }
+
+            // Récupérer l'email du profile séparément
+            let pastryEmail: string | null = null;
+            if (order.shops?.profile_id) {
+                const { data: profile } = await (locals.supabaseServiceRole as any)
+                    .from('profiles')
+                    .select('email')
+                    .eq('id', order.shops.profile_id)
+                    .single();
+                pastryEmail = profile?.email || null;
             }
 
             // 2. Calculer les montants
@@ -143,8 +154,9 @@ export const actions: Actions = {
                 });
 
                 // Email au pâtissier (vérification requise)
-                await EmailService.sendOrderPendingVerificationPastry({
-                    pastryEmail: order.shops.profiles.email,
+                if (pastryEmail) {
+                    await EmailService.sendOrderPendingVerificationPastry({
+                        pastryEmail: pastryEmail,
                     customerName: order.customer_name,
                     customerEmail: order.customer_email,
                     customerInstagram: order.customer_instagram,
@@ -158,7 +170,8 @@ export const actions: Actions = {
                     orderRef: order_ref,
                     dashboardUrl: `${PUBLIC_SITE_URL}/dashboard/orders/${order.id}`,
                     date: new Date().toLocaleDateString('fr-FR')
-                });
+                    });
+                }
 
                 console.log('✅ [Confirm Custom Payment] Emails sent successfully');
             } catch (emailError) {

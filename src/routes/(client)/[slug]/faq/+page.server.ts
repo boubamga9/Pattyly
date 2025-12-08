@@ -5,13 +5,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     try {
         const { slug } = params;
 
-        // ✅ OPTIMISÉ : Charger shop avec relation faq en une seule requête
-        const { data: shop, error: shopError } = await (locals.supabaseServiceRole as any)
-            .from('shops')
-            .select('id, name, bio, slug, logo_url, faq(*)')
-            .eq('slug', slug)
-            .eq('is_active', true)
-            .single();
+		// ✅ OPTIMISÉ : Charger shop avec relation faq en une seule requête
+		const { data: shop, error: shopError } = await (locals.supabaseServiceRole as any)
+			.from('shops')
+			.select('id, name, bio, slug, logo_url, instagram, tiktok, website, faq(*)')
+			.eq('slug', slug)
+			.eq('is_active', true)
+			.single();
 
         if (shopError) {
             throw error(500, 'Erreur serveur lors du chargement de la boutique');

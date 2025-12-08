@@ -12,6 +12,7 @@
 		X,
 	} from 'lucide-svelte';
 	import { ClientFooter } from '$lib/components/brand';
+	import SocialMediaIcons from '$lib/components/client/social-media-icons.svelte';
 	import type { PageData } from './$types';
 
 	export let data: PageData;
@@ -23,9 +24,12 @@
 			: 'none',
 		buttonStyle: `background-color: ${data.customizations?.button_color || '#ff6f61'}; color: ${data.customizations?.button_text_color || '#ffffff'};`,
 		textStyle: `color: ${data.customizations?.text_color || '#333333'};`,
+		iconStyle: `color: ${data.customizations?.icon_color || '#6b7280'};`,
 		secondaryTextStyle: `color: ${data.customizations?.secondary_text_color || '#333333'};`,
 		separatorColor: 'rgba(0, 0, 0, 0.3)',
 	};
+
+	$: shop = data.order?.shops;
 
 	const { order, orderType } = data;
 
@@ -181,6 +185,10 @@
 >
 	<!-- Header avec logo et informations - Design moderne -->
 	<header class="relative px-4 py-6 text-center sm:py-8 md:py-12">
+		<!-- Réseaux sociaux - Top right -->
+		{#if shop && (shop.instagram || shop.tiktok || shop.website)}
+			<SocialMediaIcons {shop} iconStyle={customStyles.iconStyle} />
+		{/if}
 		<!-- Bouton retour - Top left -->
 		<button
 			on:click={() => goto(`/${order?.shops?.slug}`)}

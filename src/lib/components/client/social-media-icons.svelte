@@ -10,7 +10,7 @@
 </script>
 
 <!-- Social Media Icons - Top right (all screens) - Design moderne -->
-<div class="absolute right-4 top-4 flex items-center gap-2.5">
+<div class="absolute right-4 top-4 z-50 flex items-center gap-2.5">
 	{#if shop.instagram}
 		<a
 			href="https://instagram.com/{shop.instagram.replace('@', '')}"

@@ -14,12 +14,23 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         // Récupérer la commande
         const { data: order, error: orderError } = await locals.supabase
             .from('orders')
-            .select('id, customer_email, customer_name, product_id, status, shops(profiles(email))')
+            .select('id, customer_email, customer_name, product_id, status, shops(profile_id)')
             .eq('id', orderId)
             .single();
 
         if (orderError || !order) {
             return json({ error: 'Commande non trouvée' }, { status: 404 });
+        }
+
+        // Récupérer l'email du profile séparément
+        let pastryEmail: string | null = null;
+        if (order.shops?.profile_id) {
+            const { data: profile } = await locals.supabase
+                .from('profiles')
+                .select('email')
+                .eq('id', order.shops.profile_id)
+                .single();
+            pastryEmail = profile?.email || null;
         }
 
         // Vérifier que c'est une commande custom avec statut "quoted"
@@ -40,14 +51,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             return json({ error: 'Erreur lors de la mise à jour' }, { status: 500 });
         }
 
-        await EmailService.sendQuoteRejected({
-            pastryEmail: order.shops.profiles.email,
-            customerEmail: order.customer_email,
-            customerName: order.customer_name,
-            quoteId: order.id,
-            orderUrl: `${PUBLIC_SITE_URL}/dashboard/orders/${order.id}`,
-            date: new Date().toLocaleDateString("fr-FR"),
-        });
+        if (pastryEmail) {
+            await EmailService.sendQuoteRejected({
+                pastryEmail: pastryEmail,
+                customerEmail: order.customer_email,
+                customerName: order.customer_name,
+                quoteId: order.id,
+                orderUrl: `${PUBLIC_SITE_URL}/dashboard/orders/${order.id}`,
+                date: new Date().toLocaleDateString("fr-FR"),
+            });
+        }
 
         return json({ success: true });
     } catch (error) {
