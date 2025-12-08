@@ -64,15 +64,34 @@ export default defineConfig({
 				navigateFallback: null,
 				navigationPreload: false,
 				inlineWorkboxRuntime: true,
+				skipWaiting: true,
+				clientsClaim: true,
+				// Ne pas intercepter les navigations - laisser SvelteKit gérer
+				// Le service worker ne gère que les assets statiques
 				runtimeCaching: [
 					{
 						urlPattern: ({ request, url }) => {
-							// Laisser SvelteKit gérer toutes les navigations
-							return request.mode === 'navigate';
+							// Exclure toutes les navigations et les routes SvelteKit
+							if (request.mode === 'navigate' || request.destination === 'document') {
+								return false;
+							}
+							// Exclure les routes internes SvelteKit
+							if (url.pathname.startsWith('/_app/') || url.pathname.startsWith('/api/')) {
+								return false;
+							}
+							// Ne gérer que les assets statiques (images, fonts, etc.)
+							return request.destination === 'image' || 
+							       request.destination === 'font' || 
+							       request.destination === 'style' ||
+							       request.destination === 'script';
 						},
-						handler: 'NetworkOnly',
+						handler: 'CacheFirst',
 						options: {
-							cacheName: 'navigations'
+							cacheName: 'static-assets',
+							expiration: {
+								maxEntries: 100,
+								maxAgeSeconds: 60 * 60 * 24 * 30 // 30 jours
+							}
 						}
 					},
 					{
