@@ -20,7 +20,7 @@ export default defineConfig({
 		}),
 		VitePWA({
 			registerType: 'autoUpdate',
-			includeAssets: ['favicon.ico', 'images/logo_icone.png', 'icons/icon-192x192.png', 'icons/icon-512x512.png'],
+			includeAssets: ['favicon.ico', 'icons/pattyly_logo.png', 'icons/icon-192x192.png', 'icons/icon-512x512.png'],
 			manifest: {
 				name: 'Pattyly - Plateforme pour pâtissiers',
 				short_name: 'Pattyly',
