@@ -873,7 +873,7 @@
 									<p class="text-xs text-neutral-500">Prix de base</p>
 								</div>
 								<Button
-									href="/{product.shop.slug}/product/{product.id}"
+									href="/{product.shop.slug}/product/{product.id}?from=app"
 									class="rounded-full bg-[#FF6F61] px-4 py-2 text-sm font-medium text-white transition-all duration-300 hover:bg-[#e85a4f]"
 								>
 									Voir le gâteau

@@ -829,7 +829,7 @@
 								{/each}
 							</div>
 							<Button
-								href="/{designer.slug}"
+								href="/{designer.slug}?from=app"
 								class="w-full rounded-xl bg-[#FF6F61] px-6 py-3 text-sm font-medium text-white shadow-lg transition-all duration-300 hover:scale-105 hover:bg-[#e85a4f] hover:shadow-xl"
 							>
 								Voir la boutique

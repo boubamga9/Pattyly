@@ -9,6 +9,7 @@
 		Paperclip,
 		Search,
 		Cake,
+		ArrowLeft,
 	} from 'lucide-svelte';
 	import { ClientFooter } from '$lib/components';
 
@@ -55,6 +56,20 @@
 	// État du filtre
 	let selectedCategory: string | null = null;
 	let filteredProducts = products;
+
+	// Afficher le bouton retour si on vient de l'app (paramètre ?from=app)
+	$: showBackButton = $page.url.searchParams.get('from') === 'app';
+
+	// Fonction pour retourner à la page précédente ou à l'accueil
+	function goBack() {
+		// Si on a un historique, retourner en arrière
+		if (typeof window !== 'undefined' && window.history.length > 1) {
+			window.history.back();
+		} else {
+			// Sinon, aller à l'accueil
+			goto('/');
+		}
+	}
 
 	// Filtrer les produits quand la catégorie change
 	$: filteredProducts =
@@ -168,6 +183,17 @@
 	>
 		<!-- Header avec logo et informations -->
 		<header class="relative px-4 py-6 text-center sm:py-8 md:py-12">
+			<!-- Bouton retour (si on vient de l'app) - Top left -->
+			{#if showBackButton}
+				<button
+					on:click={goBack}
+					class="absolute left-4 top-4 flex items-center justify-center rounded-full bg-white/80 p-2 shadow-sm backdrop-blur-sm transition-all duration-300 hover:scale-110 hover:shadow-sm"
+					style={customStyles.iconStyle}
+					title="Retour"
+				>
+					<ArrowLeft class="h-5 w-5" />
+				</button>
+			{/if}
 			<!-- Social Media Icons - Top right (all screens) - Design moderne -->
 			<div class="absolute right-4 top-4 flex items-center gap-2.5">
 				{#if shop.instagram}
