@@ -90,7 +90,13 @@
 
 	// Fonction pour rediriger vers la page produit
 	function viewProduct(productId: string) {
-		goto(`/${shop.slug}/product/${productId}`);
+		// Si on vient de l'app (paramètre from=app), le transmettre à la page produit
+		const fromApp = $page.url.searchParams.get('from') === 'app';
+		if (fromApp) {
+			goto(`/${shop.slug}/product/${productId}?from=app`);
+		} else {
+			goto(`/${shop.slug}/product/${productId}`);
+		}
 	}
 
 	// Fonction pour rediriger vers la demande personnalisée
