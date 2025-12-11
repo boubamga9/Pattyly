@@ -45,8 +45,7 @@ export default defineConfig({
 				]
 			},
 			workbox: {
-				navigateFallback: '/',
-				navigateFallbackDenylist: [/^\/_/, /^\/api/],
+				navigateFallback: null, // Désactivé car SvelteKit gère déjà la navigation
 				skipWaiting: true,
 				clientsClaim: true,
 				cleanupOutdatedCaches: true,
