@@ -41,7 +41,48 @@
 			},
 		);
 
-		return () => data.subscription.unsubscribe();
+		// Intercepter tous les clics sur les liens internes pour la navigation PWA
+		function handleLinkClick(event: MouseEvent) {
+			const target = event.target as HTMLElement;
+			const link = target.closest('a[href]') as HTMLAnchorElement | null;
+			
+			if (!link) return;
+			
+			const href = link.getAttribute('href');
+			if (!href) return;
+			
+			// Ignorer les liens externes, avec target="_blank", ou avec modificateurs
+			if (
+				href.startsWith('http://') ||
+				href.startsWith('https://') ||
+				href.startsWith('mailto:') ||
+				href.startsWith('tel:') ||
+				link.hasAttribute('target') ||
+				link.hasAttribute('download') ||
+				event.ctrlKey ||
+				event.metaKey ||
+				event.shiftKey ||
+				event.button !== 0
+			) {
+				return;
+			}
+			
+			// Ignorer si le lien a déjà un gestionnaire onclick personnalisé
+			if (link.onclick) return;
+			
+			// Utiliser goto() pour la navigation SvelteKit
+			event.preventDefault();
+			import('$app/navigation').then(({ goto }) => {
+				goto(href);
+			});
+		}
+		
+		document.addEventListener('click', handleLinkClick, true);
+
+		return () => {
+			data.subscription.unsubscribe();
+			document.removeEventListener('click', handleLinkClick, true);
+		};
 	});
 </script>
 

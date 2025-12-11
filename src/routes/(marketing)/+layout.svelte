@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { onNavigate } from '$app/navigation';
+	import { onNavigate, goto } from '$app/navigation';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Drawer from '$lib/components/ui/drawer';
 	import { Separator } from '$lib/components/ui/separator';
@@ -13,12 +13,11 @@
 	import HelpCircle from 'virtual:icons/lucide/help-circle';
 	import Settings from 'virtual:icons/lucide/settings';
 	import ShoppingBag from 'virtual:icons/lucide/shopping-bag';
-	import FileText from 'virtual:icons/lucide/file-text';
 	import ClipboardList from 'virtual:icons/lucide/clipboard-list';
 	import Receipt from 'virtual:icons/lucide/receipt';
 	import Search from 'virtual:icons/lucide/search';
 	import MapPin from 'virtual:icons/lucide/map-pin';
-	import BadgeCheck from 'virtual:icons/lucide/badge-check';
+
 	import Info from 'virtual:icons/lucide/info';
 	import Mail from 'virtual:icons/lucide/mail';
 	import { Cake } from 'lucide-svelte';
@@ -42,6 +41,19 @@
 	onNavigate((_) => {
 		menuOpen = false;
 	});
+
+	// Fonction pour gérer la navigation avec goto() pour rester dans la PWA
+	function handleNavClick(href: string, event: MouseEvent) {
+		// Si c'est un clic avec modificateur (Ctrl, Cmd, etc.), laisser le comportement par défaut
+		if (event.ctrlKey || event.metaKey || event.shiftKey || event.button !== 0) {
+			return;
+		}
+		
+		// Empêcher le comportement par défaut et utiliser la navigation SvelteKit
+		event.preventDefault();
+		menuOpen = false;
+		goto(href);
+	}
 
 	onMount(() => {
 		// Initialize smooth scroll
@@ -388,7 +400,7 @@
 								<Button
 									href="/pricing"
 									variant="ghost"
-									class="w-full justify-center px-4 py-4 text-base font-semibold"
+									class="w-full justify-center px-4 py-4 text-base font-semibold"									
 									onclick={() => (menuOpen = false)}
 								>
 									Tarifs
@@ -405,10 +417,9 @@
 							<Separator />
 							<div class="py-2">
 								<Button
-									href="/trouver-un-cake-designer"
 									variant="ghost"
 									class="w-full justify-center px-4 py-4 text-base font-semibold"
-									onclick={() => (menuOpen = false)}
+									on:click={(e) => handleNavClick('/trouver-un-cake-designer', e)}
 								>
 									Trouver un pâtissier
 								</Button>
@@ -418,27 +429,24 @@
 							<div class="flex flex-col py-2">
 								{#if !data.user}
 									<Button
-										href="/register"
 										variant="ghost"
 										class="w-full justify-center px-4 py-4 text-base font-semibold"
-										onclick={() => (menuOpen = false)}
+										on:click={(e) => handleNavClick('/register', e)}
 									>
 										S'inscrire
 									</Button>
 									<Button
-										href="/login"
 										variant="ghost"
 										class="w-full justify-center px-4 py-4 text-base"
-										onclick={() => (menuOpen = false)}
+										on:click={(e) => handleNavClick('/login', e)}
 									>
 										Se connecter
 									</Button>
 								{:else}
 									<Button
-										href="/dashboard"
 										variant="ghost"
 										class="w-full justify-center px-4 py-4 text-base"
-										onclick={() => (menuOpen = false)}
+										on:click={(e) => handleNavClick('/dashboard', e)}
 									>
 										Dashboard
 									</Button>

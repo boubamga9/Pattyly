@@ -49,7 +49,36 @@ export default defineConfig({
 				navigateFallbackDenylist: [/^\/_/, /^\/api/],
 				skipWaiting: true,
 				clientsClaim: true,
-				cleanupOutdatedCaches: true
+				cleanupOutdatedCaches: true,
+				// Exclure Cloudinary du cache pour éviter les erreurs 404
+				runtimeCaching: [
+					{
+						urlPattern: /^https:\/\/res\.cloudinary\.com\/.*/i,
+						handler: 'NetworkOnly',
+						options: {
+							cacheName: 'cloudinary-images',
+							expiration: {
+								maxEntries: 0, // Ne pas mettre en cache
+								maxAgeSeconds: 0
+							},
+							cacheableResponse: {
+								statuses: [0, 200]
+							}
+						}
+					},
+					// Cache pour les autres ressources statiques
+					{
+						urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
+						handler: 'CacheFirst',
+						options: {
+							cacheName: 'google-fonts',
+							expiration: {
+								maxEntries: 10,
+								maxAgeSeconds: 60 * 60 * 24 * 365 // 1 an
+							}
+						}
+					}
+				]
 			},
 			devOptions: {
 				enabled: false

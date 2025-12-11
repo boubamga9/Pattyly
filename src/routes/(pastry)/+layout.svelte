@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onNavigate } from '$app/navigation';
+	import { onNavigate, goto } from '$app/navigation';
 	import Home from '~icons/lucide/home';
 	import Settings from '~icons/lucide/settings';
 	import ShoppingCart from '~icons/lucide/shopping-cart';
@@ -25,6 +25,18 @@
 	onNavigate((_) => {
 		menuOpen = false;
 	});
+
+	// Fonction pour gérer la navigation avec goto() pour rester dans la PWA
+	function handleNavClick(href: string, event: MouseEvent) {
+		// Si c'est un clic avec modificateur (Ctrl, Cmd, etc.), laisser le comportement par défaut
+		if (event.ctrlKey || event.metaKey || event.shiftKey || event.button !== 0) {
+			return;
+		}
+		
+		// Empêcher le comportement par défaut et utiliser la navigation SvelteKit
+		event.preventDefault();
+		goto(href);
+	}
 </script>
 
 <div class="flex min-h-screen w-full flex-col bg-muted/40">
@@ -219,63 +231,63 @@
 							<ul>
 								<li>
 									<Button
-										href="/dashboard"
 										variant="ghost"
 										class="w-full py-6 text-base"
+										on:click={(e) => handleNavClick('/dashboard', e)}
 									>
 										Dashboard
 									</Button>
 								</li>
 								<li>
 									<Button
-										href="/dashboard/orders"
 										variant="ghost"
 										class="w-full py-6 text-base"
+										on:click={(e) => handleNavClick('/dashboard/orders', e)}
 									>
 										Commandes
 									</Button>
 								</li>
 								<li>
 									<Button
-										href="/dashboard/products"
 										variant="ghost"
 										class="w-full py-6 text-base"
+										on:click={(e) => handleNavClick('/dashboard/products', e)}
 									>
 										Gâteaux
 									</Button>
 								</li>
 								<li>
 									<Button
-										href="/dashboard/custom-form"
 										variant="ghost"
 										class="w-full py-6 text-base"
+										on:click={(e) => handleNavClick('/dashboard/custom-form', e)}
 									>
 										Formulaire personnalisé
 									</Button>
 								</li>
 								<li>
 									<Button
-										href="/dashboard/availability"
 										variant="ghost"
 										class="w-full py-6 text-base"
+										on:click={(e) => handleNavClick('/dashboard/availability', e)}
 									>
 										Disponibilités
 									</Button>
 								</li>
 								<li>
 									<Button
-										href="/dashboard/shop"
 										variant="ghost"
 										class="w-full py-6 text-base"
+										on:click={(e) => handleNavClick('/dashboard/shop', e)}
 									>
 										Boutique
 									</Button>
 								</li>
 								<li>
 									<Button
-										href="/dashboard/faq"
 										variant="ghost"
 										class="w-full py-6 text-base"
+										on:click={(e) => handleNavClick('/dashboard/faq', e)}
 									>
 										FAQ
 									</Button>
@@ -285,9 +297,9 @@
 							<ul>
 								<li>
 									<Button
-										href="/dashboard/settings"
 										variant="ghost"
 										class="w-full py-6 text-base"
+										on:click={(e) => handleNavClick('/dashboard/settings', e)}
 									>
 										Paramètres
 									</Button>

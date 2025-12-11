@@ -2,7 +2,7 @@
 	// Le layout search réutilise le header et footer du marketing
 	// On importe les mêmes composants et logique
 	import { onMount, onDestroy } from 'svelte';
-	import { onNavigate } from '$app/navigation';
+	import { onNavigate, goto } from '$app/navigation';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Drawer from '$lib/components/ui/drawer';
 	import { Separator } from '$lib/components/ui/separator';
@@ -40,6 +40,19 @@
 	let logo: HTMLElement;
 
 	export let data;
+
+	// Fonction pour gérer la navigation avec goto() pour rester dans la PWA
+	function handleNavClick(href: string, event: MouseEvent) {
+		// Si c'est un clic avec modificateur (Ctrl, Cmd, etc.), laisser le comportement par défaut
+		if (event.ctrlKey || event.metaKey || event.shiftKey || event.button !== 0) {
+			return;
+		}
+		
+		// Empêcher le comportement par défaut et utiliser la navigation SvelteKit
+		event.preventDefault();
+		menuOpen = false;
+		goto(href);
+	}
 
 	onMount(() => {
 		initSmoothScroll();
@@ -330,12 +343,12 @@
 			<!-- Boutons desktop -->
 			<div class="hidden lg:flex lg:gap-4">
 				{#if data.user}
-					<Button href="/dashboard">Dashboard</Button>
+					<Button on:click={(e) => handleNavClick('/dashboard', e)}>Dashboard</Button>
 				{:else}
 					<Button
-						href="/"
 						class="rounded-xl bg-[#FF6F61] text-base font-medium text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-[#e85a4f]"
 						style="width: 160px; height: 48px;"
+						on:click={(e) => handleNavClick('/', e)}
 					>
 						Je suis pâtissier
 					</Button>
@@ -364,18 +377,16 @@
 							<!-- Liens principaux en haut -->
 							<div class="py-2">
 								<Button
-									href="/annuaire"
 									variant="ghost"
 									class="w-full justify-center px-4 py-4 text-base font-semibold"
-									onclick={() => (menuOpen = false)}
+									on:click={(e) => handleNavClick('/annuaire', e)}
 								>
 									Tous les pâtissiers
 								</Button>
 								<Button
-									href="/tous-les-gateaux"
 									variant="ghost"
 									class="w-full justify-center px-4 py-4 text-base font-semibold"
-									onclick={() => (menuOpen = false)}
+									on:click={(e) => handleNavClick('/tous-les-gateaux', e)}
 								>
 									Tous les gâteaux
 								</Button>
@@ -385,19 +396,17 @@
 							<div class="flex flex-col py-2">
 								{#if !data.user}
 									<Button
-										href="/"
 										variant="ghost"
 										class="w-full justify-center px-4 py-4 text-base font-semibold"
-										onclick={() => (menuOpen = false)}
+										on:click={(e) => handleNavClick('/', e)}
 									>
 										Je suis pâtissier
 									</Button>
 								{:else}
 									<Button
-										href="/dashboard"
 										variant="ghost"
 										class="w-full justify-center px-4 py-4 text-base"
-										onclick={() => (menuOpen = false)}
+										on:click={(e) => handleNavClick('/dashboard', e)}
 									>
 										Dashboard
 									</Button>

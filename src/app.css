@@ -47,7 +47,7 @@
 		font-size: 16px !important;
 	}
 
-	/* Safe areas iOS pour viewport-fit=cover et black-translucent */
+	/* Safe areas iOS pour viewport-fit=cover */
 	.app {
 		min-height: 100vh;
 		box-sizing: border-box;
