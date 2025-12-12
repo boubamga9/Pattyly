@@ -1,6 +1,7 @@
 import type { Stripe } from 'stripe';
 import { error } from '@sveltejs/kit';
 import { EmailService } from '$lib/services/email-service';
+import { sendNewOrderPushNotification } from '$lib/services/push-notification-service-server';
 import { PUBLIC_SITE_URL } from '$env/static/public';
 
 export async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, locals: any): Promise<void> {
@@ -111,7 +112,8 @@ export async function handleProductOrderPayment(session: Stripe.Checkout.Session
                 date: new Date().toLocaleDateString("fr-FR"),
             });
 
-            if (pastryEmail) {
+            if (pastryEmail && product.shops?.profile_id) {
+                // Envoyer l'email de notification
                 await EmailService.sendOrderNotification({
                     pastryEmail: pastryEmail,
                     customerName: orderData.customerName,
@@ -124,7 +126,7 @@ export async function handleProductOrderPayment(session: Stripe.Checkout.Session
                     paidAmount: paidAmount / 100,
                     remainingAmount: totalAmount - (paidAmount / 100),
                     orderId: order.id,
-                    dashboardUrl: `${PUBLIC_SITE_URL}/${product.shops.slug}/orders/${order.id}`,
+                    dashboardUrl: `${PUBLIC_SITE_URL}/dashboard/orders/${order.id}`,
                     date: new Date().toLocaleDateString("fr-FR"),
                 });
             }

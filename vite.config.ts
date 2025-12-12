@@ -20,6 +20,9 @@ export default defineConfig({
 		}),
 		VitePWA({
 			registerType: 'autoUpdate',
+			strategies: 'injectManifest',
+			srcDir: 'src',
+			filename: 'sw.ts',
 			manifest: {
 				name: 'Pattyly',
 				short_name: 'Pattyly',
@@ -44,43 +47,17 @@ export default defineConfig({
 					}
 				]
 			},
-			workbox: {
-				navigateFallback: null, // Désactivé car SvelteKit gère déjà la navigation
-				skipWaiting: true,
-				clientsClaim: true,
-				cleanupOutdatedCaches: true,
-				// Exclure Cloudinary du cache pour éviter les erreurs 404
-				runtimeCaching: [
-					{
-						urlPattern: /^https:\/\/res\.cloudinary\.com\/.*/i,
-						handler: 'NetworkOnly',
-						options: {
-							cacheName: 'cloudinary-images',
-							expiration: {
-								maxEntries: 0, // Ne pas mettre en cache
-								maxAgeSeconds: 0
-							},
-							cacheableResponse: {
-								statuses: [0, 200]
-							}
-						}
-					},
-					// Cache pour les autres ressources statiques
-					{
-						urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
-						handler: 'CacheFirst',
-						options: {
-							cacheName: 'google-fonts',
-							expiration: {
-								maxEntries: 10,
-								maxAgeSeconds: 60 * 60 * 24 * 365 // 1 an
-							}
-						}
-					}
-				]
+			injectManifest: {
+				globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+				globIgnores: ['**/node_modules/**/*', 'sw.js', 'workbox-*.js']
+			},
+			// Configuration pour forcer le service worker à la racine
+			registerOptions: {
+				scope: '/'
 			},
 			devOptions: {
-				enabled: false
+				enabled: false // Désactivé en dev pour éviter les dépendances circulaires
+				// Pour tester les notifications push, utiliser: npm run build && npm run preview
 			}
 		}),
 	],
@@ -95,7 +72,13 @@ export default defineConfig({
 			'.ngrok-free.dev',
 			'.ngrok.io',
 			'.ngrok.app'
-		]
+		],
+		host: true, // Écouter sur toutes les interfaces réseau
+		port: 5176
+	},
+	preview: {
+		host: true, // Écouter sur toutes les interfaces réseau
+		port: 4173
 	},
 	test: {
 		include: ['src/**/*.{test,spec}.{js,ts}'],

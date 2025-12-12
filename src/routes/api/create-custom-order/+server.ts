@@ -1,6 +1,8 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { checkOrderLimit } from '$lib/utils/order-limits';
+import { sendNewOrderPushNotification } from '$lib/services/push-notification-service-server';
+import { PUBLIC_SITE_URL } from '$env/static/public';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
     try {
@@ -11,10 +13,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             return json({ error: 'Données manquantes' }, { status: 400 });
         }
 
-        // Récupérer le shop pour obtenir le profile_id
+        // Récupérer le shop pour obtenir le profile_id, slug et name
         const { data: shop, error: shopError } = await locals.supabase
             .from('shops')
-            .select('id, profile_id')
+            .select('id, profile_id, slug, name')
             .eq('id', orderData.shopId)
             .single();
 
@@ -32,8 +34,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 orderLimit: orderLimitStats.orderLimit,
                 plan: orderLimitStats.plan
             });
-            return json({ 
-                error: `Limite de commandes atteinte (${orderLimitStats.orderCount}/${orderLimitStats.orderLimit} ce mois-ci). Passez au plan supérieur pour continuer.` 
+            return json({
+                error: `Limite de commandes atteinte (${orderLimitStats.orderCount}/${orderLimitStats.orderLimit} ce mois-ci). Passez au plan supérieur pour continuer.`
             }, { status: 403 });
         }
         console.log('✅ [API Custom Order] Order limit check passed, proceeding with order creation');
@@ -90,7 +92,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             }
         }
 
-
         // Créer la commande dans la base de données
         const { data: order, error: orderError } = await locals.supabase
             .from('orders')
@@ -129,6 +130,35 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             null, // Client orders don't have userId
             `/api/create-custom-order`
         );
+
+        // Envoyer la notification push au pâtissier (non bloquant)
+        const isDev = import.meta.env?.DEV;
+        if (isDev) {
+            console.log('🔔 [API Custom Order] Tentative d\'envoi de notification push');
+            console.log('   - Shop profile_id:', shop.profile_id);
+            console.log('   - Order ID:', order.id);
+        }
+
+        if (shop.profile_id) {
+            if (isDev) {
+                console.log('✅ [API Custom Order] Profile ID présent, envoi de la notification...');
+            }
+            await sendNewOrderPushNotification(
+                locals.supabaseServiceRole,
+                shop.profile_id,
+                {
+                    orderId: order.id,
+                    customerName: orderData.customerName,
+                    productName: 'Demande personnalisée',
+                    pickupDate: orderData.selectedDate,
+                    dashboardUrl: `${PUBLIC_SITE_URL}/dashboard/orders/${order.id}`,
+                }
+            ).catch((error) => {
+                console.error('❌ [API Custom Order] Erreur lors de l\'envoi de la notification push (non bloquant):', error);
+            });
+        } else {
+            console.warn('⚠️ [API Custom Order] Pas de profile_id, notification push non envoyée');
+        }
 
         return json({ success: true, orderId: order.id, redirectUrl: `/${orderData.shopSlug}/order/${order.id}` });
     } catch (error) {

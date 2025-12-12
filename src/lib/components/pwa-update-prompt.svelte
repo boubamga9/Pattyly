@@ -10,8 +10,12 @@
 				const { registerSW } = await import('virtual:pwa-register');
 				const updateSW = registerSW({
 					immediate: true,
+					// Forcer le service worker à être à la racine
+					scope: '/',
 					onRegistered(r) {
 						console.log('Service Worker registered', r);
+						console.log('Service Worker scope:', r?.scope);
+						console.log('Service Worker scriptURL:', r?.active?.scriptURL);
 					},
 					onRegisterError(error) {
 						console.error('Service Worker registration error', error);

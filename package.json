@@ -5,7 +5,11 @@
 	"scripts": {
 		"dev": "vite dev --port 5176",
 		"build": "vite build",
-		"preview": "vite preview",
+		"build:local": "dotenv -e .env.local -- vite build",
+		"preview": "vite preview --host",
+		"preview:local": "dotenv -e .env.local -- vite preview --host",
+		"preview:network": "vite preview --host --port 4173",
+		"preview:local:network": "dotenv -e .env.local -- vite preview --host --port 4173",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test:watch": "vitest",
@@ -35,6 +39,7 @@
 		"@typescript-eslint/eslint-plugin": "^8.0.0",
 		"@typescript-eslint/parser": "^8.0.0",
 		"autoprefixer": "^10.4.15",
+		"dotenv-cli": "^11.0.0",
 		"eslint": "^8.28.0",
 		"eslint-config-prettier": "^9.1.0",
 		"eslint-plugin-svelte": "^2.30.0",
@@ -84,6 +89,7 @@
 		"tailwind-merge": "^2.3.0",
 		"tailwind-variants": "^0.2.1",
 		"vaul-svelte": "^0.3.0",
+		"web-push": "^3.6.7",
 		"zod": "^3.23.8"
 	},
 	"engines": {

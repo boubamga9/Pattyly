@@ -247,8 +247,11 @@ export const actions: Actions = {
                         quoteId: order.id.slice(0, 8),
                         orderUrl: `${PUBLIC_SITE_URL}/${shopSlug}/custom/checkout/${order_ref}`,
                         date: new Date().toLocaleDateString("fr-FR")
-                    })]);
-            } catch (e) { }
+                    })
+                ]);
+            } catch (e) {
+                console.error('Error sending quote email/notification:', e);
+            }
 
             // Retourner le succès avec le formulaire Superforms
             form.message = 'Devis envoyé avec succès';
