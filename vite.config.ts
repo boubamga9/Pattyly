@@ -19,7 +19,8 @@ export default defineConfig({
 			},
 		}),
 		VitePWA({
-			registerType: 'autoUpdate',
+			injectRegister: false, // Ne pas enregistrer automatiquement - on le fait manuellement pour les pâtissiers uniquement
+			registerType: 'autoUpdate', // Mode de mise à jour (une fois enregistré)
 			strategies: 'injectManifest',
 			srcDir: 'src',
 			filename: 'sw.ts',
