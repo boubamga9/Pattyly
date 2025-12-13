@@ -73,6 +73,16 @@ export async function sendPushNotificationToPastryChef(
 		// Préparer le payload de la notification
 		const notificationPayload = JSON.stringify(payload);
 
+		// Options de notification selon les best practices Web Push
+		// TTL: 24 heures (86400 secondes) - une commande reste pertinente pendant 24h
+		// Urgency: 'high' - livraison immédiate pour les nouvelles commandes
+		// Topic: optionnel, peut être utilisé pour grouper les notifications similaires
+		const notificationOptions = {
+			TTL: 86400, // 24 heures en secondes
+			urgency: 'high' as const, // Livraison immédiate (priorité maximale)
+			// topic: payload.tag, // Utiliser le tag de la notification comme topic (optionnel)
+		};
+
 		// Envoyer les notifications à toutes les subscriptions
 		const sendPromises = subscriptions.map(async (subscription) => {
 			try {
@@ -84,16 +94,32 @@ export async function sendPushNotificationToPastryChef(
 							auth: subscription.auth,
 						},
 					},
-					notificationPayload
+					notificationPayload,
+					notificationOptions
 				);
 				logger.log(`✅ Notification envoyée avec succès à ${subscription.endpoint.substring(0, 50)}...`);
 				return { success: true, endpoint: subscription.endpoint };
 			} catch (error: any) {
-				console.error(`❌ Erreur lors de l'envoi à ${subscription.endpoint}:`, error);
+				const statusCode = error.statusCode || error.status;
+				const errorMessage = error.message || 'Erreur inconnue';
 
-				// Si la subscription est invalide (410 Gone ou 404 Not Found), la supprimer de la base
-				if (error.statusCode === 410 || error.statusCode === 404) {
-					console.log(`🗑️ Suppression de la subscription invalide: ${subscription.endpoint}`);
+				console.error(`❌ Erreur lors de l'envoi à ${subscription.endpoint}:`, {
+					statusCode,
+					message: errorMessage,
+					endpoint: subscription.endpoint.substring(0, 50) + '...',
+				});
+
+				// Gestion des erreurs selon les spécifications Web Push et APNs
+				// 410 Gone: Subscription expirée ou révoquée - supprimer de la DB
+				// 404 Not Found: Subscription introuvable - supprimer de la DB
+				// 400 Bad Request: Payload invalide - ne pas supprimer, mais logger
+				// 413 Payload Too Large: Payload trop gros - ne pas supprimer, mais logger
+				// 429 Too Many Requests: Rate limit - ne pas supprimer, mais logger
+				// 401 Unauthorized: Clé VAPID invalide - ne pas supprimer, mais logger (problème de config)
+
+				if (statusCode === 410 || statusCode === 404) {
+					// Subscription invalide - supprimer de la base de données
+					logger.log(`🗑️ Suppression de la subscription invalide (${statusCode}): ${subscription.endpoint.substring(0, 50)}...`);
 					await supabase
 						.from('push_subscriptions')
 						.delete()
@@ -101,9 +127,18 @@ export async function sendPushNotificationToPastryChef(
 						.catch((deleteError) => {
 							console.error('Erreur lors de la suppression de la subscription:', deleteError);
 						});
+				} else if (statusCode === 400 || statusCode === 413) {
+					// Erreur de payload - ne pas supprimer la subscription, mais logger l'erreur
+					console.error(`⚠️ Erreur de payload (${statusCode}): ${errorMessage}`);
+				} else if (statusCode === 429) {
+					// Rate limit - ne pas supprimer, mais logger
+					console.warn(`⚠️ Rate limit atteint (429) pour ${subscription.endpoint.substring(0, 50)}...`);
+				} else if (statusCode === 401) {
+					// Problème d'authentification VAPID - erreur de configuration
+					console.error(`🔴 Erreur d'authentification VAPID (401): ${errorMessage}`);
 				}
 
-				return { success: false, endpoint: subscription.endpoint, error: error.message };
+				return { success: false, endpoint: subscription.endpoint, error: errorMessage, statusCode };
 			}
 		});
 
