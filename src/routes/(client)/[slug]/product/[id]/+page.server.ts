@@ -9,6 +9,14 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     try {
         const { slug, id } = params;
 
+        // Validation : vérifier que id est un UUID valide
+        // Cela évite les erreurs si sw.js ou d'autres fichiers sont routés par erreur
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(id)) {
+            console.error('❌ Invalid product ID format:', id);
+            throw error(404, 'Produit non trouvé');
+        }
+
         // ✅ OPTIMISÉ : Un seul appel DB pour toutes les données
         const { data: productData, error: dbError } = await (locals.supabaseServiceRole as any).rpc('get_order_data', {
             p_slug: slug,

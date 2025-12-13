@@ -102,11 +102,18 @@ export async function sendPushNotificationToPastryChef(
 			} catch (error: any) {
 				const statusCode = error.statusCode || error.status;
 				const errorMessage = error.message || 'Erreur inconnue';
+				const isNetworkError =
+					errorMessage.includes('socket hang up') ||
+					errorMessage.includes('ECONNRESET') ||
+					errorMessage.includes('ETIMEDOUT') ||
+					errorMessage.includes('ENOTFOUND') ||
+					!statusCode; // Si pas de statusCode, c'est probablement une erreur réseau
 
 				console.error(`❌ Erreur lors de l'envoi à ${subscription.endpoint}:`, {
-					statusCode,
+					statusCode: statusCode || 'N/A (erreur réseau)',
 					message: errorMessage,
 					endpoint: subscription.endpoint.substring(0, 50) + '...',
+					isNetworkError,
 				});
 
 				// Gestion des erreurs selon les spécifications Web Push et APNs
@@ -116,6 +123,7 @@ export async function sendPushNotificationToPastryChef(
 				// 413 Payload Too Large: Payload trop gros - ne pas supprimer, mais logger
 				// 429 Too Many Requests: Rate limit - ne pas supprimer, mais logger
 				// 401 Unauthorized: Clé VAPID invalide - ne pas supprimer, mais logger (problème de config)
+				// Erreurs réseau (socket hang up, timeout, etc.) - ne pas supprimer, erreur temporaire
 
 				if (statusCode === 410 || statusCode === 404) {
 					// Subscription invalide - supprimer de la base de données
@@ -127,6 +135,11 @@ export async function sendPushNotificationToPastryChef(
 						.catch((deleteError) => {
 							console.error('Erreur lors de la suppression de la subscription:', deleteError);
 						});
+				} else if (isNetworkError) {
+					// Erreur réseau temporaire (socket hang up, timeout, etc.)
+					// Ne pas supprimer la subscription - c'est probablement temporaire
+					// La notification sera réessayée au prochain événement ou peut être perdue
+					console.warn(`⚠️ Erreur réseau temporaire (${errorMessage}) pour ${subscription.endpoint.substring(0, 50)}... - La subscription est conservée`);
 				} else if (statusCode === 400 || statusCode === 413) {
 					// Erreur de payload - ne pas supprimer la subscription, mais logger l'erreur
 					console.error(`⚠️ Erreur de payload (${statusCode}): ${errorMessage}`);
@@ -136,9 +149,12 @@ export async function sendPushNotificationToPastryChef(
 				} else if (statusCode === 401) {
 					// Problème d'authentification VAPID - erreur de configuration
 					console.error(`🔴 Erreur d'authentification VAPID (401): ${errorMessage}`);
+				} else {
+					// Autre erreur inconnue
+					console.error(`⚠️ Erreur inconnue (${statusCode || 'N/A'}): ${errorMessage}`);
 				}
 
-				return { success: false, endpoint: subscription.endpoint, error: errorMessage, statusCode };
+				return { success: false, endpoint: subscription.endpoint, error: errorMessage, statusCode: statusCode || 'NETWORK_ERROR' };
 			}
 		});
 
