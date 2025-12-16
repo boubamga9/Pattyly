@@ -2,10 +2,12 @@
 	import ShopForm from './shop-form.svelte';
 	import CustomizationForm from './customization-form.svelte';
 	import DirectoryForm from '$lib/components/directory/directory-form.svelte';
+	import PoliciesForm from './policies-form.svelte';
 	import type { SuperValidated, Infer } from 'sveltekit-superforms';
 import { formSchema } from './schema';
 import { customizationSchema } from './customization-schema';
 import { directorySchema, toggleDirectorySchema } from '$lib/validations/schemas/shop';
+import { policiesSchema } from './policies-schema';
 	import {
 		Card,
 		CardContent,
@@ -14,7 +16,7 @@ import { directorySchema, toggleDirectorySchema } from '$lib/validations/schemas
 		CardTitle,
 	} from '$lib/components/ui/card';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { Store, Palette, MapPin } from 'lucide-svelte';
+	import { Store, Palette, MapPin, FileText } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
 
 	export let data: {
@@ -32,6 +34,7 @@ import { directorySchema, toggleDirectorySchema } from '$lib/validations/schemas
 		customizationForm: SuperValidated<Infer<typeof customizationSchema>>;
 		directoryForm: SuperValidated<Infer<typeof directorySchema>>;
 		toggleDirectoryForm: SuperValidated<Infer<typeof toggleDirectorySchema>>;
+		policiesForm: SuperValidated<Infer<typeof policiesSchema>>;
 		permissions?: {
 			plan: 'free' | 'basic' | 'premium' | 'exempt';
 		};
@@ -39,12 +42,13 @@ import { directorySchema, toggleDirectorySchema } from '$lib/validations/schemas
 
 	let error = '';
 	let success = '';
-	let activeTab: 'info' | 'customization' | 'directory' = 'info';
+	let activeTab: 'info' | 'customization' | 'directory' | 'policies' = 'info';
 
 	const tabs = [
 		{ id: 'info' as const, label: 'Informations', icon: Store },
 		{ id: 'customization' as const, label: 'Personnalisation', icon: Palette },
-		{ id: 'directory' as const, label: 'Annuaire', icon: MapPin }
+		{ id: 'directory' as const, label: 'Annuaire', icon: MapPin },
+		{ id: 'policies' as const, label: 'Politiques de ventes', icon: FileText }
 	];
 </script>
 
@@ -135,5 +139,7 @@ import { directorySchema, toggleDirectorySchema } from '$lib/validations/schemas
 				<DirectoryForm data={data.directoryForm} toggleForm={data.toggleDirectoryForm} userPlan={data.permissions?.plan} />
 			</CardContent>
 		</Card>
+	{:else if activeTab === 'policies'}
+		<PoliciesForm data={data.policiesForm} />
 	{/if}
 </div>

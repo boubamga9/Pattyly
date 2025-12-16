@@ -3,10 +3,12 @@ import type { PageServerLoad, Actions } from './$types';
 import { EmailService } from '$lib/services/email-service';
 import { PUBLIC_SITE_URL } from '$env/static/public';
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params, locals, parent }) => {
     const { slug, id, order_ref } = params;
 
     try {
+        // Récupérer hasPolicies depuis le layout parent
+        const { hasPolicies } = await parent();
         // Récupérer la pending_order
         const { data: pendingOrder, error: pendingOrderError } = await (locals.supabaseServiceRole as any)
             .from('pending_orders')
@@ -80,6 +82,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             shop,
             product,
             product,
+            hasPolicies: hasPolicies || false,
         };
 
     } catch (err) {

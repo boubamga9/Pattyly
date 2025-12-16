@@ -1,9 +1,12 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params, locals, parent }) => {
     try {
         const { slug, id: orderId } = params;
+
+        // Récupérer hasPolicies depuis le layout parent
+        const { hasPolicies } = await parent();
 
         // Validation : vérifier que orderId est un UUID valide
         // Cela évite les erreurs si sw.js ou d'autres fichiers sont routés par erreur
@@ -53,6 +56,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             orderType,
             product,
             session: null, // No session for this approach
+            hasPolicies: hasPolicies || false,
         };
 
     } catch (err) {

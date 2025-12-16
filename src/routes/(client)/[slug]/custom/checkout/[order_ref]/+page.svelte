@@ -429,5 +429,5 @@
 </div>
 
 	<!-- Footer -->
-	<ClientFooter customizations={data.customizations} />
+	<ClientFooter customizations={data.customizations} shopSlug={data.shop.slug} hasPolicies={data.hasPolicies} />
 </div>

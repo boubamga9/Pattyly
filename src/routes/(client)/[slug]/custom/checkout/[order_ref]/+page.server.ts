@@ -3,19 +3,21 @@ import type { PageServerLoad, Actions } from './$types';
 import { EmailService } from '$lib/services/email-service';
 import { PUBLIC_SITE_URL } from '$env/static/public';
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params, locals, parent }) => {
     const { slug, order_ref } = params;
 
     try {
-		// ✅ OPTIMISÉ : Charger order d'abord, puis shop et payment_links en parallèle
-		// Récupérer l'order avec order_ref et vérification du slug
-		const { data: order, error: orderError } = await (locals.supabaseServiceRole as any)
-			.from('orders')
-			.select('*, shops!inner(slug, id, name, logo_url, profile_id, instagram, tiktok, website)')
-			.eq('order_ref', order_ref)
-			.eq('shops.slug', slug)
-			.eq('status', 'quoted') // Seulement les devis en attente de paiement
-			.single();
+        // Récupérer hasPolicies depuis le layout parent
+        const { hasPolicies } = await parent();
+        // ✅ OPTIMISÉ : Charger order d'abord, puis shop et payment_links en parallèle
+        // Récupérer l'order avec order_ref et vérification du slug
+        const { data: order, error: orderError } = await (locals.supabaseServiceRole as any)
+            .from('orders')
+            .select('*, shops!inner(slug, id, name, logo_url, profile_id, instagram, tiktok, website)')
+            .eq('order_ref', order_ref)
+            .eq('shops.slug', slug)
+            .eq('status', 'quoted') // Seulement les devis en attente de paiement
+            .single();
 
         if (orderError || !order) {
             console.error('Error fetching order:', orderError);
@@ -46,6 +48,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             order: orderWithoutShops,
             paypalMe: paymentLink.paypal_me,
             shop,
+            hasPolicies: hasPolicies || false,
         };
 
     } catch (err) {
@@ -157,19 +160,19 @@ export const actions: Actions = {
                 if (pastryEmail) {
                     await EmailService.sendOrderPendingVerificationPastry({
                         pastryEmail: pastryEmail,
-                    customerName: order.customer_name,
-                    customerEmail: order.customer_email,
-                    customerInstagram: order.customer_instagram,
-                    productName: 'Commande personnalisée',
-                    pickupDate: order.pickup_date,
-                    pickupTime: order.pickup_time,
-                    totalAmount: totalAmount,
-                    paidAmount: paidAmount,
-                    remainingAmount: remainingAmount,
-                    orderId: order.id,
-                    orderRef: order_ref,
-                    dashboardUrl: `${PUBLIC_SITE_URL}/dashboard/orders/${order.id}`,
-                    date: new Date().toLocaleDateString('fr-FR')
+                        customerName: order.customer_name,
+                        customerEmail: order.customer_email,
+                        customerInstagram: order.customer_instagram,
+                        productName: 'Commande personnalisée',
+                        pickupDate: order.pickup_date,
+                        pickupTime: order.pickup_time,
+                        totalAmount: totalAmount,
+                        paidAmount: paidAmount,
+                        remainingAmount: remainingAmount,
+                        orderId: order.id,
+                        orderRef: order_ref,
+                        dashboardUrl: `${PUBLIC_SITE_URL}/dashboard/orders/${order.id}`,
+                        date: new Date().toLocaleDateString('fr-FR')
                     });
                 }
 
