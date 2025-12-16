@@ -70,6 +70,22 @@ export const directorySchema = z.object({
     directory_enabled: z.boolean().default(false)
 });
 
+// Politiques de ventes
+export const salesPoliciesSchema = z.object({
+    terms_and_conditions: z.string()
+        .max(5000, 'Les conditions générales ne peuvent pas dépasser 5000 caractères')
+        .optional(),
+    return_policy: z.string()
+        .max(5000, 'La politique de retour ne peut pas dépasser 5000 caractères')
+        .optional(),
+    delivery_policy: z.string()
+        .max(5000, 'La politique de livraison ne peut pas dépasser 5000 caractères')
+        .optional(),
+    payment_terms: z.string()
+        .max(5000, 'Les conditions de paiement ne peuvent pas dépasser 5000 caractères')
+        .optional()
+});
+
 // ===== TYPES EXPORTÉS =====
 
 export type ShopBase = z.infer<typeof shopBaseSchema>;
@@ -78,3 +94,4 @@ export type UpdateShop = z.infer<typeof updateShopSchema>;
 export type ToggleCustomRequests = z.infer<typeof toggleCustomRequestsSchema>;
 export type ToggleShopVisibility = z.infer<typeof toggleShopVisibilitySchema>;
 export type Directory = z.infer<typeof directorySchema>;
+export type SalesPolicies = z.infer<typeof salesPoliciesSchema>;

@@ -6,6 +6,7 @@ import { zod } from 'sveltekit-superforms/adapters';
 import { formSchema } from './schema';
 import { customizationSchema } from './customization-schema';
 import { directorySchema, toggleDirectorySchema } from '$lib/validations/schemas/shop';
+import { policiesSchema } from './policies-schema';
 import { uploadShopLogo, uploadBackgroundImage, deleteImage, extractPublicIdFromUrl } from '$lib/cloudinary';
 import { forceRevalidateShop } from '$lib/utils/catalog';
 import { verifyShopOwnership } from '$lib/auth';
@@ -27,8 +28,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
         throw error(404, 'Boutique non trouvée');
     }
 
-    // ✅ OPTIMISÉ : 2 requêtes parallèles pour récupérer directory fields + customizations
-    const [shopDataResult, customizationsResult] = await Promise.all([
+    // ✅ OPTIMISÉ : 3 requêtes parallèles pour récupérer directory fields + customizations + policies
+    const [shopDataResult, customizationsResult, policiesResult] = await Promise.all([
         locals.supabase
             .from('shops')
             .select('directory_city, directory_actual_city, directory_postal_code, directory_cake_types, directory_enabled')
@@ -38,6 +39,11 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
             .from('shop_customizations')
             .select('button_color, button_text_color, text_color, icon_color, secondary_text_color, background_color, background_image_url')
             .eq('shop_id', permissions.shopId)
+            .single(),
+        locals.supabase
+            .from('shops')
+            .select('terms_and_conditions, return_policy, delivery_policy, payment_terms')
+            .eq('id', permissions.shopId)
             .single()
     ]);
 
@@ -48,6 +54,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
     const shopData = shopDataResult.data;
     const customizations = customizationsResult.data;
+    const policies = policiesResult.data;
 
     // Debug: Vérifier ce qui est récupéré
     console.log('🎨 [Dashboard Shop] Customizations récupérées:', customizations);
@@ -99,6 +106,14 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
         toggleDirectoryForm: await superValidate(zod(toggleDirectorySchema), {
             defaults: {
                 directory_enabled: shop.directory_enabled || false
+            }
+        }),
+        policiesForm: await superValidate(zod(policiesSchema), {
+            defaults: {
+                terms_and_conditions: policies?.terms_and_conditions || '',
+                return_policy: policies?.return_policy || '',
+                delivery_policy: policies?.delivery_policy || '',
+                payment_terms: policies?.payment_terms || ''
             }
         }),
         permissions // ✅ Ajouter permissions pour passer le plan au composant
@@ -653,5 +668,77 @@ export const actions: Actions = {
             errorForm.message = 'Erreur inattendue lors de la mise à jour';
             return fail(500, { toggleForm: errorForm });
         }
+    },
+
+    updatePolicies: async ({ request, locals }) => {
+        // ✅ OPTIMISÉ : Lire formData AVANT superValidate (car superValidate consomme le body)
+        const formData = await request.formData();
+        const shopId = formData.get('shopId') as string;
+        const shopSlug = formData.get('shopSlug') as string;
+
+        // ✅ CRÉER LE FORM DÈS LE DÉBUT (obligatoire pour Superforms)
+        const form = await superValidate(formData, zod(policiesSchema));
+
+        if (!shopId || !shopSlug) {
+            form.message = 'Données de boutique manquantes';
+            return { form };
+        }
+
+        // ✅ OPTIMISÉ : Utiliser safeGetSession au lieu de getUser()
+        const { session } = await locals.safeGetSession();
+        const userId = session?.user.id;
+
+        if (!userId) {
+            form.message = 'Non autorisé';
+            return { form };
+        }
+
+        // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership (évite requête shop)
+        const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+        if (!isOwner) {
+            form.message = 'Accès non autorisé à cette boutique';
+            return { form };
+        }
+
+        if (!form.valid) {
+            return { form };
+        }
+
+        // Mettre à jour les politiques de ventes
+        const { error: updateError } = await locals.supabase
+            .from('shops')
+            .update({
+                terms_and_conditions: form.data.terms_and_conditions || null,
+                return_policy: form.data.return_policy || null,
+                delivery_policy: form.data.delivery_policy || null,
+                payment_terms: form.data.payment_terms || null
+            })
+            .eq('id', shopId);
+
+        if (updateError) {
+            console.error('📋 [Policies] Update error:', updateError);
+            form.message = 'Erreur lors de la mise à jour des politiques';
+            return { form };
+        }
+
+        // Revalidate shop cache (utiliser shopSlug depuis formData)
+        try {
+            await forceRevalidateShop(shopSlug);
+        } catch (error) {
+            console.error('📋 [Policies] Cache revalidation failed:', error);
+        }
+
+        // Retourner le formulaire mis à jour
+        const updatedForm = await superValidate(zod(policiesSchema), {
+            defaults: {
+                terms_and_conditions: form.data.terms_and_conditions || '',
+                return_policy: form.data.return_policy || '',
+                delivery_policy: form.data.delivery_policy || '',
+                payment_terms: form.data.payment_terms || ''
+            }
+        });
+
+        updatedForm.message = 'Politiques de ventes sauvegardées avec succès !';
+        return { form: updatedForm };
     }
 };

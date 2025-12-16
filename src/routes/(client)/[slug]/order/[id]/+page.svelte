@@ -734,5 +734,5 @@
 	</div>
 
 	<!-- Footer -->
-	<ClientFooter customizations={data.customizations} />
+	<ClientFooter customizations={data.customizations} shopSlug={order?.shops?.slug} hasPolicies={data.hasPolicies ?? false} />
 </div>

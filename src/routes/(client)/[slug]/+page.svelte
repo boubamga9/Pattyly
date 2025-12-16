@@ -437,6 +437,6 @@
 		</div>
 
 		<!-- Footer -->
-		<ClientFooter {customizations} />
+		<ClientFooter {customizations} shopSlug={shop.slug} hasPolicies={$page.data.hasPolicies} />
 	</div>
 {/if}

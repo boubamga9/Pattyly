@@ -22,16 +22,35 @@ export const load: LayoutServerLoad = async ({ params, locals }) => {
                     secondary_text_color: '#333333',
                     background_color: '#fafafa',
                     background_image_url: null
-                }
+                },
+                hasPolicies: false
             };
         }
 
-        // Récupérer les customizations en parallèle (après avoir shop.id)
-        const { data: customizations, error: customizationsError } = await (locals.supabaseServiceRole as any)
-            .from('shop_customizations')
-            .select('button_color, button_text_color, text_color, icon_color, secondary_text_color, background_color, background_image_url')
-            .eq('shop_id', shop.id)
-            .single();
+        // Récupérer les customizations et vérifier les politiques en parallèle (après avoir shop.id)
+        const [customizationsResult, policiesResult] = await Promise.all([
+            (locals.supabaseServiceRole as any)
+                .from('shop_customizations')
+                .select('button_color, button_text_color, text_color, icon_color, secondary_text_color, background_color, background_image_url')
+                .eq('shop_id', shop.id)
+                .single(),
+            (locals.supabaseServiceRole as any)
+                .from('shops')
+                .select('terms_and_conditions, return_policy, delivery_policy, payment_terms')
+                .eq('id', shop.id)
+                .single()
+        ]);
+
+        const customizations = customizationsResult.data;
+        const policies = policiesResult.data;
+
+        // Vérifier si au moins une politique est définie
+        const hasPolicies = policies && (
+            policies.terms_and_conditions ||
+            policies.return_policy ||
+            policies.delivery_policy ||
+            policies.payment_terms
+        );
 
         return {
             shopId: shop.id,
@@ -43,7 +62,8 @@ export const load: LayoutServerLoad = async ({ params, locals }) => {
                 secondary_text_color: '#333333',
                 background_color: '#fafafa',
                 background_image_url: null
-            }
+            },
+            hasPolicies: Boolean(hasPolicies)
         };
     } catch (error) {
         console.error('Error loading customizations in layout:', error);
@@ -57,7 +77,8 @@ export const load: LayoutServerLoad = async ({ params, locals }) => {
                 secondary_text_color: '#333333',
                 background_color: '#fafafa',
                 background_image_url: null
-            }
+            },
+            hasPolicies: false
         };
     }
 };
