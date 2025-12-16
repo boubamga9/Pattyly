@@ -73,7 +73,7 @@ export const actions: Actions = {
                 productLimit: productLimitStats.productLimit,
                 plan: productLimitStats.plan
             });
-            return fail(403, { 
+            return fail(403, {
                 error: `Limite de gâteaux atteinte. Vous avez atteint la limite de ${productLimitStats.productLimit} gâteau${productLimitStats.productLimit > 1 ? 'x' : ''} pour votre plan ${productLimitStats.plan === 'free' ? 'gratuit' : productLimitStats.plan === 'basic' ? 'Starter' : 'Premium'}. Passez à un plan supérieur pour ajouter plus de gâteaux.`
             });
         }
@@ -88,7 +88,30 @@ export const actions: Actions = {
 
         // Extraire les données validées
         const { name, description, base_price, category_id, min_days_notice, cake_type, deposit_percentage, customizationFields } = form.data;
-        const imageFile = formData.get('image') as File;
+
+        // Récupérer toutes les images depuis formData
+        const imageFiles: File[] = [];
+        let index = 0;
+        while (formData.has(`images-${index}`)) {
+            const file = formData.get(`images-${index}`) as File;
+            if (file && file.size > 0) {
+                imageFiles.push(file);
+            }
+            index++;
+        }
+
+        // Vérifier la limite de 3 images
+        if (imageFiles.length > 3) {
+            return fail(400, { form, error: 'Vous ne pouvez pas ajouter plus de 3 images' });
+        }
+
+        // Vérifier la taille cumulée (max 12MB)
+        const MAX_TOTAL_SIZE = 12 * 1024 * 1024; // 12MB
+        const totalSize = imageFiles.reduce((sum, file) => sum + file.size, 0);
+        if (totalSize > MAX_TOTAL_SIZE) {
+            const totalSizeMB = (totalSize / (1024 * 1024)).toFixed(2);
+            return fail(400, { form, error: `La taille totale des images dépasse 12 MB. Taille actuelle: ${totalSizeMB} MB` });
+        }
 
         // Vérifier s'il y a une nouvelle catégorie à créer
         const newCategoryName = formData.get('newCategoryName') as string;
@@ -123,29 +146,10 @@ export const actions: Actions = {
         // Les champs de personnalisation sont déjà validés et parsés par Superforms
         const validatedCustomizationFields = customizationFields || [];
 
-        // Handle image upload if provided
-        let imageUrl = null;
-
-        if (imageFile && imageFile.size > 0) {
-            // Vérifier que c'est bien une image
-            if (!imageFile.type.startsWith('image/')) {
-                return fail(400, { error: 'Le fichier doit être une image valide (JPG, PNG, etc.)' });
-            }
-
-            try {
-                // Upload vers Cloudinary (compression et optimisation automatiques)
-                const uploadResult = await uploadProductImage(imageFile, shopId);
-                imageUrl = uploadResult.secure_url;
-            } catch (err) {
-                console.error('❌ [Product Upload] Erreur Cloudinary:', err);
-                return fail(500, { error: 'Erreur lors de l\'upload de l\'image' });
-            }
-        }
-
         let product: { id: string } | null = null;
 
         try {
-            // Start a transaction
+            // Créer le produit d'abord (sans image_url pour l'instant)
             const { data: productData, error: insertError } = await locals.supabase
                 .from('products')
                 .insert({
@@ -156,17 +160,62 @@ export const actions: Actions = {
                     shop_id: shopId,
                     min_days_notice,
                     cake_type: cake_type || null,
-                    deposit_percentage: deposit_percentage ?? 50,
-                    image_url: imageUrl
+                    deposit_percentage: deposit_percentage ?? 50
                 })
                 .select()
                 .single();
 
             if (insertError) {
-                return fail(500, { error: 'Erreur lors de l\'ajout du produit' });
+                return fail(500, { form, error: 'Erreur lors de l\'ajout du produit' });
             }
 
             product = productData;
+
+            // Uploader toutes les images et les insérer dans product_images
+            if (imageFiles.length > 0) {
+                const uploadedImages = [];
+                for (let i = 0; i < imageFiles.length; i++) {
+                    const file = imageFiles[i];
+
+                    // Vérifier que c'est bien une image
+                    if (!file.type.startsWith('image/')) {
+                        return fail(400, { form, error: 'Tous les fichiers doivent être des images valides (JPG, PNG, etc.)' });
+                    }
+
+                    try {
+                        // Upload vers Cloudinary
+                        const uploadResult = await uploadProductImage(file, shopId, product.id, i);
+
+                        // Insérer dans product_images
+                        const { error: imageInsertError } = await locals.supabase
+                            .from('product_images')
+                            .insert({
+                                product_id: product.id,
+                                image_url: uploadResult.secure_url,
+                                public_id: uploadResult.public_id,
+                                display_order: i
+                            });
+
+                        if (imageInsertError) {
+                            console.error('❌ [Product Images] Erreur insertion image:', imageInsertError);
+                            // Continuer avec les autres images même si une échoue
+                        } else {
+                            uploadedImages.push(uploadResult.secure_url);
+                        }
+                    } catch (err) {
+                        console.error('❌ [Product Upload] Erreur Cloudinary pour image', i, ':', err);
+                        // Continuer avec les autres images
+                    }
+                }
+
+                // Mettre à jour image_url du produit avec la première image (pour rétrocompatibilité)
+                if (uploadedImages.length > 0) {
+                    await locals.supabase
+                        .from('products')
+                        .update({ image_url: uploadedImages[0] })
+                        .eq('id', product.id);
+                }
+            }
 
             // Create form if customization fields are provided
             if (validatedCustomizationFields.length > 0) {

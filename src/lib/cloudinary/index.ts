@@ -101,16 +101,27 @@ export async function uploadBackgroundImage(file: File, shopId: string) {
  * @param file - Fichier image à uploader
  * @param shopId - ID de la boutique pour organiser les fichiers
  * @param productId - ID du produit (optionnel, pour organisation)
+ * @param imageIndex - Index de l'image (0, 1, 2) pour différencier les images multiples
  * @returns Promise avec l'URL sécurisée de l'image
  */
-export async function uploadProductImage(file: File, shopId: string, productId?: string) {
+export async function uploadProductImage(
+	file: File,
+	shopId: string,
+	productId?: string,
+	imageIndex?: number
+) {
 	try {
 		// Convertir le File en Buffer
 		const arrayBuffer = await file.arrayBuffer();
 		const buffer = Buffer.from(arrayBuffer);
 
-		// Générer un ID unique pour le produit si non fourni
-		const imageId = productId || `product-${Date.now()}`;
+		// Générer un ID unique pour l'image
+		// Format: {productId}-{imageIndex} ou product-{timestamp}-{index}
+		const timestamp = Date.now();
+		const index = imageIndex !== undefined ? imageIndex : 0;
+		const imageId = productId
+			? `${productId}-${index}`
+			: `product-${timestamp}-${index}`;
 
 		// Upload vers Cloudinary avec organisation par boutique
 		const result = await new Promise<cloudinary.UploadApiResponse>((resolve, reject) => {
@@ -261,10 +272,10 @@ export async function uploadMarketingImage(filePath: string, fileName: string, f
 	try {
 		const fs = await import('fs/promises');
 		const path = await import('path');
-		
+
 		// Lire le fichier
 		const fileBuffer = await fs.readFile(filePath);
-		
+
 		// Upload vers Cloudinary
 		const result = await new Promise<cloudinary.UploadApiResponse>((resolve, reject) => {
 			cloudinary.uploader

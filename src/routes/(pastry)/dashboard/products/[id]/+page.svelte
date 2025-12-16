@@ -8,6 +8,9 @@
 	// Données de la page
 	$: ({ product, categories, customizationFields, updateProductForm } =
 		$page.data);
+	
+	// Extraire les images du produit
+	$: productImages = product?.images || [];
 
 	// Fonction pour retourner à la liste des produits
 	function goBack() {
@@ -51,6 +54,7 @@
 			cake_type: product?.cake_type,
 			deposit_percentage: product?.deposit_percentage ?? 50,
 			image_url: product?.image_url,
+			images: productImages,
 			customizationFields: customizationFields,
 		}}
 		onSuccess={goBack}

@@ -6,6 +6,16 @@ import { uuidSchema, descriptionSchema, priceSchema, urlSchema, productNameSchem
  * Gère la création, mise à jour et gestion des produits de pâtisserie
  */
 
+// ===== SCHÉMAS D'IMAGES DE PRODUIT =====
+
+// Schéma pour une image de produit
+export const productImageSchema = z.object({
+    id: uuidSchema.optional(),
+    image_url: urlSchema,
+    public_id: z.string().optional(),
+    display_order: z.number().int().min(0).max(2).default(0)
+});
+
 // ===== SCHÉMAS DE PRODUITS =====
 
 // Produit de base
@@ -14,7 +24,7 @@ export const productBaseSchema = z.object({
     shop_id: uuidSchema,              // Lien vers la boutique
     name: productNameSchema,          // Nom du produit (sans chiffres)
     description: descriptionSchema,   // Description (optionnelle, max 1000 caractères)
-    image_url: urlSchema,             // Image du produit (optionnelle)
+    image_url: urlSchema,             // Image du produit (optionnelle) - DEPRECATED: utiliser product_images
     base_price: priceSchema,          // Prix de base (0 à 10 000€)
     category_id: uuidSchema,          // Lien vers la catégorie
     form_id: uuidSchema,              // Lien vers le formulaire de personnalisation
@@ -52,14 +62,15 @@ export const productBaseSchema = z.object({
 // Création d'un nouveau produit
 export const createProductSchema = productBaseSchema.omit({
     id: true,
-    shop_id: true
+    shop_id: true,
+    image_url: true // Retiré car on utilise maintenant product_images
 });
+// Note: images ne sont pas dans le schéma car elles sont gérées manuellement via FormData
 
 // Mise à jour d'un produit
 export const updateProductSchema = productBaseSchema.pick({
     name: true,
     description: true,
-    image_url: true,
     base_price: true,
     category_id: true,
     form_id: true,
@@ -67,6 +78,7 @@ export const updateProductSchema = productBaseSchema.pick({
     min_days_notice: true,
     deposit_percentage: true
 });
+// Note: images ne sont pas dans le schéma car elles sont gérées manuellement via FormData
 
 // ===== TYPES EXPORTÉS =====
 

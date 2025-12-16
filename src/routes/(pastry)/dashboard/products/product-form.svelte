@@ -23,7 +23,7 @@
 		type CustomizationField,
 	} from '$lib/components/forms';
 	// Props
-	export let data: SuperValidated<Infer<CreateProductForm>>;
+	export let data: SuperValidated<Infer<typeof createProductFormSchema>>;
 	export let categories: any[] = [];
 	export let isEditing: boolean = false;
 	export let productId: string | undefined = undefined;
@@ -35,18 +35,45 @@
 	const form = superForm(data, {
 		validators: zodClient(createProductFormSchema),
 		dataType: 'json', // Permet d'envoyer des structures de données imbriquées
+		onSubmit: ({ formData: fd }) => {
+			// Ajouter les fichiers images au FormData AVANT que Superforms ne le traite
+			_imageFiles.forEach((file, index) => {
+				fd.append(`images-${index}`, file);
+			});
+			
+			// Ajouter les IDs des images existantes à conserver (en mode édition)
+			if (isEditing) {
+				console.log('📤 [Product Form] Existing images to keep:', existingImages);
+				existingImages.forEach((image, index) => {
+					if (image.id) {
+						fd.append(`existing-image-id-${index}`, image.id);
+						console.log('📤 [Product Form] Adding existing image ID:', image.id);
+					} else {
+						console.warn('⚠️ [Product Form] Image without ID at index', index, image);
+					}
+				});
+			}
+			
+			console.log('📤 [Product Form] Submitting with', _imageFiles.length, 'new images and', existingImages.length, 'existing images');
+		}
 	});
 
-	const { form: formData, enhance, submitting, message, errors } = form;
+	const { form: formData, enhance, submitting, message } = form;
 
 	// État pour le feedback de succès
 	let submitted = false;
 
-	// Variables pour l'upload d'image
-	let _imageFile: File | null = null;
-	let imagePreview: string | null = null;
+	// Variables pour l'upload d'images multiples (max 3)
+	let _imageFiles: File[] = [];
+	let imagePreviews: string[] = [];
+	let existingImages: Array<{id?: string, url: string, public_id?: string, display_order: number}> = [];
 	let imageInputElement: HTMLInputElement;
 	let imageError: string | null = null;
+	
+	// Constantes pour la validation
+	const MAX_IMAGES = 3;
+	const MAX_SIZE_PER_IMAGE = 4 * 1024 * 1024; // 4MB par image
+	const MAX_TOTAL_SIZE = 12 * 1024 * 1024; // 12MB total (3 x 4MB)
 
 	// Variables pour les champs de personnalisation
 	let customizationFields: CustomizationField[] = [];
@@ -75,8 +102,20 @@
 		$formData.min_days_notice = initialData.min_days_notice || 0;
 		$formData.cake_type = initialData.cake_type || null;
 		$formData.deposit_percentage = initialData.deposit_percentage ?? 50;
-		if (initialData.image_url) {
-			imagePreview = initialData.image_url;
+		// Charger les images existantes
+		if (initialData.images && Array.isArray(initialData.images)) {
+			existingImages = initialData.images.map((img: any, index: number) => ({
+				id: img.id,
+				url: img.image_url,
+				public_id: img.public_id,
+				display_order: img.display_order ?? index
+			}));
+		} else if (initialData.image_url) {
+			// Fallback pour l'ancien système (une seule image)
+			existingImages = [{
+				url: initialData.image_url,
+				display_order: 0
+			}];
 		}
 		if (initialData.customizationFields) {
 			customizationFields = initialData.customizationFields;
@@ -88,56 +127,103 @@
 		return optimisticCategories || [];
 	}
 
-	// Handle file selection (Cloudinary gère la compression automatiquement)
+	// Handle multiple file selection
 	function handleFileSelect(event: Event) {
 		const target = event.target as HTMLInputElement;
-		const file = target.files?.[0];
+		const files = Array.from(target.files || []);
 
-		if (!file) return;
+		if (files.length === 0) return;
 
 		// Réinitialiser les erreurs précédentes
 		imageError = null;
-		_imageFile = null;
-		imagePreview = null;
 
-		// Validate file type
-		if (!file.type.startsWith('image/')) {
-			imageError = 'Veuillez sélectionner un fichier image valide (JPG, PNG, etc.)';
-			// Réinitialiser l'input file
+		// Calculer le nombre total d'images (existantes + nouvelles)
+		const totalImages = existingImages.length + _imageFiles.length + files.length;
+		
+		// Vérifier la limite de 3 images
+		if (totalImages > MAX_IMAGES) {
+			imageError = `Vous ne pouvez pas ajouter plus de ${MAX_IMAGES} images. Vous avez déjà ${existingImages.length + _imageFiles.length} image(s).`;
 			if (imageInputElement) {
 				imageInputElement.value = '';
 			}
 			return;
 		}
 
-		// Validate file size (max 4MB)
-		if (file.size > 4 * 1024 * 1024) {
-			const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-			imageError = `L'image est trop lourde (${fileSizeMB} MB). La taille maximale autorisée est de 4 MB. Veuillez compresser ou choisir une autre image.`;
-			// Réinitialiser l'input file
-			if (imageInputElement) {
-				imageInputElement.value = '';
+		// Calculer la taille totale actuelle
+		const currentTotalSize = _imageFiles.reduce((sum, f) => sum + f.size, 0);
+		
+		// Valider chaque fichier
+		for (const file of files) {
+			// Validate file type
+			if (!file.type.startsWith('image/')) {
+				imageError = 'Veuillez sélectionner uniquement des fichiers image valides (JPG, PNG, etc.)';
+				if (imageInputElement) {
+					imageInputElement.value = '';
+				}
+				return;
 			}
-			return;
+
+			// Validate individual file size (max 4MB per image)
+			if (file.size > MAX_SIZE_PER_IMAGE) {
+				const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+				imageError = `L'image "${file.name}" est trop lourde (${fileSizeMB} MB). La taille maximale par image est de 4 MB.`;
+				if (imageInputElement) {
+					imageInputElement.value = '';
+				}
+				return;
+			}
+
+			// Vérifier la taille cumulée totale
+			const newTotalSize = currentTotalSize + file.size;
+			if (newTotalSize > MAX_TOTAL_SIZE) {
+				const totalSizeMB = (newTotalSize / (1024 * 1024)).toFixed(2);
+				imageError = `La taille totale des images dépasse la limite de 12 MB. Taille actuelle: ${totalSizeMB} MB.`;
+				if (imageInputElement) {
+					imageInputElement.value = '';
+				}
+				return;
+			}
+
+			// Ajouter le fichier
+			_imageFiles.push(file);
+
+			// Créer une prévisualisation
+			const reader = new FileReader();
+			reader.onload = (e) => {
+				imagePreviews.push(e.target?.result as string);
+				imagePreviews = [...imagePreviews]; // Trigger reactivity
+			};
+			reader.readAsDataURL(file);
 		}
 
-		// Utiliser le fichier original (Cloudinary compresse automatiquement)
-		_imageFile = file;
-
-		// Create preview
-		const reader = new FileReader();
-		reader.onload = (e) => {
-			imagePreview = e.target?.result as string;
-		};
-		reader.readAsDataURL(file);
+		// Réinitialiser l'input
+		if (imageInputElement) {
+			imageInputElement.value = '';
+		}
 	}
 
-	// Remove image
-	function removeImage() {
-		_imageFile = null;
-		imagePreview = null;
+	// Remove new image (from files to upload)
+	function removeNewImage(index: number) {
+		_imageFiles.splice(index, 1);
+		// Nettoyer l'URL de prévisualisation
+		if (imagePreviews[index] && imagePreviews[index].startsWith('blob:')) {
+			URL.revokeObjectURL(imagePreviews[index]);
+		}
+		imagePreviews.splice(index, 1);
+		imagePreviews = [...imagePreviews]; // Trigger reactivity
 		imageError = null;
 	}
+
+	// Remove existing image
+	function removeExistingImage(index: number) {
+		existingImages.splice(index, 1);
+		existingImages = [...existingImages]; // Trigger reactivity
+		imageError = null;
+	}
+
+	// Calculer la taille totale des nouvelles images
+	$: totalNewImagesSize = _imageFiles.reduce((sum, f) => sum + f.size, 0);
+	$: totalNewImagesSizeMB = (totalNewImagesSize / (1024 * 1024)).toFixed(2);
 
 	// Gestionnaire pour les changements de champs
 	function handleFieldsChange(event: CustomEvent<CustomizationField[]>) {
@@ -225,9 +311,9 @@
 
 <div class="space-y-6">
 	<!-- Messages d'erreur/succès -->
-	{#if $errors?.error}
+	{#if $message?.error}
 		<Alert variant="destructive">
-			<AlertDescription>{$errors.error}</AlertDescription>
+			<AlertDescription>{$message.error}</AlertDescription>
 		</Alert>
 	{/if}
 
@@ -252,16 +338,23 @@
 				id="product-form"
 				method="POST"
 				action={isEditing ? '?/updateProduct' : '?/createProduct'}
-				use:enhance={() => {
-					return async ({ result }) => {
+				use:enhance={{
+					onResult: ({ result }) => {
+						console.log('📥 [Product Form] Result:', result.type);
 						if (result.type === 'success') {
 							submitted = true;
 							setTimeout(() => {
 								submitted = false;
 								onSuccess();
 							}, 2000);
+						} else if (result.type === 'failure') {
+							const data = 'data' in result ? result.data : null;
+							console.error('❌ [Product Form] Form submission failed:', data);
+							if (data) {
+								console.error('❌ [Product Form] Error details:', JSON.stringify(data, null, 2));
+							}
 						}
-					};
+					}
 				}}
 				enctype="multipart/form-data"
 				class="space-y-6"
@@ -286,58 +379,110 @@
 					/>
 				{/if}
 
-				<!-- Image du gâteau -->
-				<div>
-					<label class="mb-2 block text-sm font-medium">
-						Image du gâteau
-					</label>
-					<p class="mb-3 text-xs text-muted-foreground">
-						Taille maximale : 4 MB (JPG, PNG, etc.)
-					</p>
+				<!-- Images du gâteau (max 3) -->
+				<div class="space-y-4">
+					<div>
+						<label for="images" class="mb-2 block text-sm font-medium">
+							Photos du gâteau (max {MAX_IMAGES})
+						</label>
+						<p class="text-xs text-muted-foreground">
+							Taille max par image : 4 MB | Taille totale max : 12 MB (JPG, PNG, etc.)
+						</p>
+					</div>
 
-					{#if imagePreview}
-						<!-- Image preview -->
-						<div class="mb-4 flex justify-center">
-							<div class="relative">
-								<img
-									src={imagePreview}
-									alt="Aperçu de l'image"
-									class="h-48 w-48 rounded-lg border-2 border-border object-cover"
-								/>
+					<!-- Grille d'images unifiée (existantes + nouvelles) -->
+					<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+						<!-- Images existantes -->
+						{#each existingImages as image, index}
+							<div class="group relative aspect-square overflow-visible rounded-lg border-2 border-border bg-muted shadow-sm transition-all hover:shadow-md">
+								<div class="h-full w-full overflow-hidden rounded-lg">
+									<img
+										src={image.url}
+										alt="Photo {index + 1}"
+										class="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+									/>
+									<!-- Overlay au survol -->
+									<div class="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/20" />
+								</div>
+								<!-- Bouton supprimer -->
 								<button
 									type="button"
-									on:click={removeImage}
-									class="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-destructive-foreground transition-colors hover:bg-destructive/90"
+									on:click={() => removeExistingImage(index)}
+									class="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-lg transition-all hover:scale-110 hover:bg-destructive/90 z-10"
+									title="Supprimer cette photo"
 								>
 									<X class="h-4 w-4" />
 								</button>
 							</div>
-						</div>
-					{:else}
-						<!-- File upload area -->
-						<div class="mb-4 flex justify-center">
+						{/each}
+
+						<!-- Nouvelles images à uploader -->
+						{#each imagePreviews as preview, index}
+							<div class="group relative aspect-square overflow-visible rounded-lg border-2 border-dashed border-primary/50 bg-muted shadow-sm transition-all hover:shadow-md sm:max-w-none">
+								<div class="h-full w-full overflow-hidden rounded-lg">
+									<img
+										src={preview}
+										alt="Nouvelle photo {index + 1}"
+										class="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+									/>
+									<!-- Overlay au survol -->
+									<div class="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/20" />
+								</div>
+								<!-- Bouton supprimer -->
+								<button
+									type="button"
+									on:click={() => removeNewImage(index)}
+									class="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-lg transition-all hover:scale-110 hover:bg-destructive/90 z-10"
+									title="Supprimer cette photo"
+								>
+									<X class="h-4 w-4" />
+								</button>
+							</div>
+						{/each}
+
+						<!-- Zone d'upload (si moins de 3 images) -->
+						{#if existingImages.length + imagePreviews.length < MAX_IMAGES}
 							<div
-								class="flex h-48 w-48 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/20 transition-colors hover:border-primary"
-								on:click={() => document.getElementById('image')?.click()}
+								class="group relative flex aspect-square cursor-pointer flex-col items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/30 transition-all hover:border-primary hover:bg-muted/50 hover:shadow-md sm:max-w-none"
+								on:click={() => document.getElementById('images')?.click()}
 								role="button"
 								tabindex="0"
 								on:keydown={(e) =>
 									e.key === 'Enter' &&
-									document.getElementById('image')?.click()}
+									document.getElementById('images')?.click()}
 							>
-								<Upload class="mb-2 h-8 w-8 text-muted-foreground" />
-								<p class="text-center text-xs text-muted-foreground">
-									Cliquez pour sélectionner une image
+								<!-- Icône upload -->
+								<div class="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 transition-colors group-hover:bg-primary/20">
+									<Upload class="h-6 w-6 text-primary transition-transform group-hover:scale-110" />
+								</div>
+								<!-- Texte -->
+								<p class="text-center text-sm font-medium text-foreground">
+									Ajouter une photo
 								</p>
+								<p class="mt-1 text-center text-xs text-muted-foreground">
+									{existingImages.length + imagePreviews.length}/{MAX_IMAGES}
+								</p>
+								<!-- Effet de brillance au survol -->
+								<div class="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
 							</div>
+						{/if}
+					</div>
+
+					<!-- Affichage de la taille totale (seulement si des nouvelles images sont ajoutées) -->
+					{#if totalNewImagesSize > 0}
+						<div class="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 text-xs">
+							<span class="text-muted-foreground">
+								Taille totale : <span class="font-medium text-foreground">{totalNewImagesSizeMB} MB</span> / 12 MB
+							</span>
 						</div>
 					{/if}
 
 					<input
-						id="image"
-						name="image"
+						id="images"
+						name="images"
 						type="file"
 						accept="image/*"
+						multiple
 						on:change={handleFileSelect}
 						class="hidden"
 						bind:this={imageInputElement}
@@ -355,11 +500,6 @@
 							<p class="text-sm font-medium text-red-800">{imageError}</p>
 						</div>
 					{/if}
-					{#if $errors?.image}
-						<div class="mt-2 rounded-md bg-red-50 p-3">
-							<p class="text-sm font-medium text-red-800">{$errors.image}</p>
-						</div>
-					{/if}
 				</div>
 
 				<!-- Nom du gâteau -->
@@ -372,7 +512,7 @@
 							type="text"
 							placeholder="Ex: Gâteau au Chocolat"
 							required
-							maxlength="50"
+							maxlength={50}
 						/>
 					</Form.Control>
 					<Form.FieldErrors />
@@ -385,9 +525,9 @@
 						<Textarea
 							{...attrs}
 							bind:value={$formData.description}
-							rows="4"
+							rows={4}
 							placeholder="Description détaillée du gâteau..."
-							maxlength="1000"
+							maxlength={1000}
 						/>
 					</Form.Control>
 					<Form.FieldErrors />

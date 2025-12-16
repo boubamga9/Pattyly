@@ -1,10 +1,12 @@
 <script lang="ts">
+	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { ArrowLeft, Cake } from 'lucide-svelte';
+	import { ArrowLeft, Cake, ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import { ClientFooter } from '$lib/components';
 	import ProductForm from './product-form.svelte';
 	import SocialMediaIcons from '$lib/components/client/social-media-icons.svelte';
+	import * as Carousel from '$lib/components/ui/carousel';
 
 	// Fonction pour formater le prix
 	function formatPrice(price: number): string {
@@ -18,6 +20,7 @@
 	$: ({
 		shop,
 		product,
+		productImages,
 		form,
 		customFields,
 		availabilities,
@@ -26,6 +29,41 @@
 		customizations,
 		orderLimitStats,
 	} = $page.data);
+
+	// Gestion de la galerie d'images
+	$: images = productImages || (product?.images || []);
+	$: primaryImage = images.length > 0 ? images[0].image_url : (product?.image_url || null);
+	$: hasMultipleImages = images.length > 1;
+	
+	// API du carousel pour contrôler la navigation
+	let carouselApi: any;
+	let selectedIndex = 0;
+	let updateIndexFn: (() => void) | null = null;
+	
+	// Mettre à jour l'index sélectionné quand le carousel change
+	$: if (carouselApi) {
+		// Nettoyer l'ancien listener si il existe
+		if (updateIndexFn) {
+			carouselApi.off('select', updateIndexFn);
+		}
+		
+		// Créer un nouveau listener
+		updateIndexFn = () => {
+			if (carouselApi) {
+				selectedIndex = carouselApi.selectedScrollSnap();
+			}
+		};
+		
+		carouselApi.on('select', updateIndexFn);
+		selectedIndex = carouselApi.selectedScrollSnap(); // Initialiser
+	}
+	
+	// Nettoyer à la destruction
+	onDestroy(() => {
+		if (carouselApi && updateIndexFn) {
+			carouselApi.off('select', updateIndexFn);
+		}
+	});
 
 	// Styles personnalisés
 	$: customStyles = {
@@ -153,26 +191,98 @@
 	<!-- Contenu principal -->
 	<div class="px-4 pb-6 sm:pb-8">
 		<div class="mx-auto max-w-6xl p-4 sm:p-8 lg:p-12">
-			<!-- Layout responsive : 2 colonnes sur desktop, 1 colonne sur mobile -->
-			<div class="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
-				<!-- Colonne gauche : Image (fixe sur desktop) - Design moderne -->
-				<div class="h-fit md:sticky md:top-6">
-					<div class="flex justify-center">
-						{#if product.image_url}
-							<img
-								src={product.image_url}
-								alt={product.name}
-								class="aspect-square w-full max-w-[350px] rounded-2xl object-cover shadow-sm lg:max-w-[450px] xl:max-w-[500px]"
-							/>
+			<!-- Layout responsive : 2 colonnes sur desktop si image présente, 1 colonne sinon -->
+			<div class="grid grid-cols-1 gap-6 {primaryImage ? 'md:grid-cols-2 md:gap-8' : ''}">
+				<!-- Colonne gauche : Galerie d'images avec carousel (fixe sur desktop) - Design moderne -->
+				{#if primaryImage}
+					<div class="h-fit md:sticky md:top-6">
+					<div class="flex flex-col items-center gap-4">
+						{#if hasMultipleImages}
+							<!-- Carousel pour plusieurs images -->
+							<div class="relative w-full max-w-[350px] lg:max-w-[450px] xl:max-w-[500px]">
+								<Carousel.Root
+									bind:api={carouselApi}
+									opts={{
+										align: 'center',
+										loop: true,
+										dragFree: false,
+										skipSnaps: false,
+										duration: 25
+									}}
+									class="w-full"
+								>
+									<Carousel.Content class="-ml-0">
+										{#each images as image, index}
+											<Carousel.Item class="pl-0">
+												<div class="flex justify-center">
+													<img
+														src={image.image_url}
+														alt="{product.name} - Photo {index + 1}"
+														class="aspect-square w-full rounded-2xl object-cover shadow-sm"
+														loading={index === 0 ? 'eager' : 'lazy'}
+													/>
+												</div>
+											</Carousel.Item>
+										{/each}
+									</Carousel.Content>
+									
+									<!-- Boutons de navigation -->
+									<Carousel.Previous
+										class="absolute left-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-white/90 shadow-lg hover:bg-white transition-colors"
+										style={`color: ${customizations?.button_color || '#FF6F61'};`}
+									>
+										<ChevronLeft class="h-5 w-5" />
+									</Carousel.Previous>
+									<Carousel.Next
+										class="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-white/90 shadow-lg hover:bg-white transition-colors"
+										style={`color: ${customizations?.button_color || '#FF6F61'};`}
+									>
+										<ChevronRight class="h-5 w-5" />
+									</Carousel.Next>
+								</Carousel.Root>
+								
+								<!-- Indicateurs de position (dots) -->
+								<div class="flex justify-center gap-2 mt-4">
+									{#each images as _, index}
+										<button
+											type="button"
+											on:click={() => {
+												if (carouselApi) {
+													carouselApi.scrollTo(index);
+												}
+											}}
+											class="h-2 rounded-full transition-all {selectedIndex === index ? 'w-8' : 'w-2'} {selectedIndex === index
+												? 'opacity-100'
+												: 'opacity-40'}"
+											style={selectedIndex === index
+												? `background-color: ${customizations?.button_color || '#FF6F61'};`
+												: 'background-color: #9ca3af;'}
+											aria-label="Aller à la photo {index + 1}"
+										/>
+									{/each}
+								</div>
+							</div>
 						{:else}
-							<div
-								class="flex aspect-square w-full max-w-[350px] items-center justify-center rounded-2xl bg-gradient-to-br from-[#FFE8D6]/30 to-white shadow-sm lg:max-w-[450px] xl:max-w-[500px]"
-							>
-								<Cake class="h-16 w-16 text-neutral-300" />
+							<!-- Image unique (pas de carousel) -->
+							<div class="flex justify-center">
+								{#if primaryImage}
+									<img
+										src={primaryImage}
+										alt={product.name}
+										class="aspect-square w-full max-w-[350px] rounded-2xl object-cover shadow-sm lg:max-w-[450px] xl:max-w-[500px]"
+									/>
+								{:else}
+									<div
+										class="flex aspect-square w-full max-w-[350px] items-center justify-center rounded-2xl bg-gradient-to-br from-[#FFE8D6]/30 to-white shadow-sm lg:max-w-[450px] xl:max-w-[500px]"
+									>
+										<Cake class="h-16 w-16 text-neutral-300" />
+									</div>
+								{/if}
 							</div>
 						{/if}
 					</div>
 				</div>
+				{/if}
 
 				<!-- Colonne droite : Contenu (scrollable) - Charte typographique -->
 				<div class="space-y-6">
