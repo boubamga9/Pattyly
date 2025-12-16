@@ -5,21 +5,25 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     try {
         const { slug } = params;
 
-        // ✅ OPTIMISÉ : Charger shop avec les politiques en une seule requête
+        // ✅ OPTIMISÉ : Charger shop d'abord, puis politiques
         const { data: shop, error: shopError } = await (locals.supabaseServiceRole as any)
             .from('shops')
-            .select('id, name, bio, slug, logo_url, instagram, tiktok, website, terms_and_conditions, return_policy, delivery_policy, payment_terms')
+            .select('id, name, bio, slug, logo_url, instagram, tiktok, website')
             .eq('slug', slug)
             .eq('is_active', true)
             .single();
 
-        if (shopError) {
-            throw error(500, 'Erreur serveur lors du chargement de la boutique');
-        }
-
-        if (!shop) {
+        if (shopError || !shop) {
             throw error(404, 'Boutique non trouvée');
         }
+
+        // Charger les politiques
+        const { data: policies } = await (locals.supabaseServiceRole as any)
+            .from('shop_policies')
+            .select('terms_and_conditions, return_policy, delivery_policy, payment_terms')
+            .eq('shop_id', shop.id)
+            .maybeSingle();
+
 
         // Les customizations sont chargées dans le layout parent
 
@@ -34,11 +38,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
                 tiktok: shop.tiktok,
                 website: shop.website
             },
-            policies: {
-                terms_and_conditions: shop.terms_and_conditions,
-                return_policy: shop.return_policy,
-                delivery_policy: shop.delivery_policy,
-                payment_terms: shop.payment_terms
+            policies: policies || {
+                terms_and_conditions: null,
+                return_policy: null,
+                delivery_policy: null,
+                payment_terms: null
             }
         };
 

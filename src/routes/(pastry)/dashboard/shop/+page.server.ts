@@ -41,9 +41,9 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
             .eq('shop_id', permissions.shopId)
             .single(),
         locals.supabase
-            .from('shops')
+            .from('shop_policies')
             .select('terms_and_conditions, return_policy, delivery_policy, payment_terms')
-            .eq('id', permissions.shopId)
+            .eq('shop_id', permissions.shopId)
             .single()
     ]);
 
@@ -704,16 +704,20 @@ export const actions: Actions = {
             return { form };
         }
 
-        // Mettre à jour les politiques de ventes
+        // Mettre à jour les politiques de ventes dans shop_policies
+        // Utiliser upsert pour créer si n'existe pas, sinon mettre à jour
         const { error: updateError } = await locals.supabase
-            .from('shops')
-            .update({
+            .from('shop_policies')
+            .upsert({
+                shop_id: shopId,
                 terms_and_conditions: form.data.terms_and_conditions || null,
                 return_policy: form.data.return_policy || null,
                 delivery_policy: form.data.delivery_policy || null,
-                payment_terms: form.data.payment_terms || null
-            })
-            .eq('id', shopId);
+                payment_terms: form.data.payment_terms || null,
+                updated_at: new Date().toISOString()
+            }, {
+                onConflict: 'shop_id'
+            });
 
         if (updateError) {
             console.error('📋 [Policies] Update error:', updateError);
