@@ -87,7 +87,7 @@ export const actions: Actions = {
         }
 
         // Extraire les données validées
-        const { name, description, base_price, category_id, min_days_notice, cake_type, customizationFields } = form.data;
+        const { name, description, base_price, category_id, min_days_notice, cake_type, deposit_percentage, customizationFields } = form.data;
         const imageFile = formData.get('image') as File;
 
         // Vérifier s'il y a une nouvelle catégorie à créer
@@ -156,6 +156,7 @@ export const actions: Actions = {
                     shop_id: shopId,
                     min_days_notice,
                     cake_type: cake_type || null,
+                    deposit_percentage: deposit_percentage ?? 50,
                     image_url: imageUrl
                 })
                 .select()

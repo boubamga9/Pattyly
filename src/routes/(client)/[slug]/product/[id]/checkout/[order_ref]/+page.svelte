@@ -20,8 +20,9 @@
 		separatorColor: 'rgba(0, 0, 0, 0.3)',
 	};
 
-	// Calculer l'acompte (50% du total)
-	$: depositAmount = data.orderData.total_amount / 2;
+	// Calculer l'acompte selon le pourcentage du produit
+	$: depositPercentage = data.product?.deposit_percentage ?? 50;
+	$: depositAmount = (data.orderData.total_amount * depositPercentage) / 100;
 
 	let copySuccess = false;
 	let confirmationForm: HTMLFormElement | null = null;

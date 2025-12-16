@@ -49,6 +49,7 @@
 			category_id: product?.category_id,
 			min_days_notice: product?.min_days_notice,
 			cake_type: product?.cake_type,
+			deposit_percentage: product?.deposit_percentage ?? 50,
 			image_url: product?.image_url,
 			customizationFields: customizationFields,
 		}}

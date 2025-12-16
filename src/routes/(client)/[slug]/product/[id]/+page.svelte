@@ -204,6 +204,14 @@
 						>
 							Temps de préparation minimum : {product.min_days_notice || 0} jours
 						</p>
+						{#if product.deposit_percentage !== undefined && product.deposit_percentage !== null}
+							<p
+								class="text-xs italic leading-relaxed text-neutral-500 sm:text-sm"
+								style="font-weight: 400; letter-spacing: -0.01em;"
+							>
+								Acompte à la commande : {product.deposit_percentage}%
+							</p>
+						{/if}
 					</div>
 
 					<!-- Separator - Dégradé avec couleur bouton et opacité -->
