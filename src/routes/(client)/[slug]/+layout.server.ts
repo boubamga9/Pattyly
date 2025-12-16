@@ -35,9 +35,9 @@ export const load: LayoutServerLoad = async ({ params, locals }) => {
                 .eq('shop_id', shop.id)
                 .single(),
             (locals.supabaseServiceRole as any)
-                .from('shops')
+                .from('shop_policies')
                 .select('terms_and_conditions, return_policy, delivery_policy, payment_terms')
-                .eq('id', shop.id)
+                .eq('shop_id', shop.id)
                 .single()
         ]);
 
