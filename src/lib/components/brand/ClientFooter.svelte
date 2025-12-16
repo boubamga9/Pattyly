@@ -22,7 +22,7 @@
 		class="mx-auto mb-4 h-px max-w-7xl bg-gradient-to-r from-transparent to-transparent sm:mb-6"
 		style={`background: linear-gradient(to right, transparent, ${separatorColor}, transparent);`}
 	></div>
-	<div class="space-y-2">
+	<div class="space-y-4">
 		{#if shopSlug && hasPolicies}
 			<p class="text-xs sm:text-sm" style={secondaryTextStyle}>
 				<a href="/{shopSlug}/policies" class="font-medium hover:underline" style={textStyle}>

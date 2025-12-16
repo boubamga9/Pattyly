@@ -35,12 +35,30 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
         const { shop, product, customForm, customFields, availabilities, unavailabilities, datesWithLimitReached } = productData;
 
+        // Charger les images du produit depuis product_images
+        let productImages: Array<{ image_url: string, display_order: number }> = [];
+        if (product?.id) {
+            const { data: images, error: imagesError } = await locals.supabase
+                .from('product_images')
+                .select('image_url, display_order')
+                .eq('product_id', product.id)
+                .order('display_order', { ascending: true });
+
+            if (!imagesError && images) {
+                productImages = images;
+            } else if (product.image_url) {
+                // Fallback: utiliser image_url si pas d'images dans product_images
+                productImages = [{ image_url: product.image_url, display_order: 0 }];
+            }
+        }
+
         console.log('✅ productData received:', {
             hasShop: !!shop,
             shopId: shop?.id,
             shopIsVisible: shop?.is_visible,
             shopIsActive: shop?.is_active,
-            hasProduct: !!product
+            hasProduct: !!product,
+            imagesCount: productImages.length
         });
 
         if (!shop) {
@@ -78,7 +96,11 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
         return {
             shop,
-            product,
+            product: {
+                ...product,
+                images: productImages
+            },
+            productImages,
             customForm,
             customFields: customFields || [],
             availabilities: availabilities || [],

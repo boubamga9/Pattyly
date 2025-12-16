@@ -34,8 +34,8 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
         throw error(404, 'Produit non trouvé');
     }
 
-    // ✅ OPTIMISÉ : Récupérer catégories et form_fields en parallèle (2 requêtes simultanées)
-    const [categoriesResult, formFieldsResult] = await Promise.all([
+    // ✅ OPTIMISÉ : Récupérer catégories, form_fields et images en parallèle (3 requêtes simultanées)
+    const [categoriesResult, formFieldsResult, imagesResult] = await Promise.all([
         // Récupérer les catégories disponibles (nécessaire pour le dropdown)
         locals.supabase
             .from('categories')
@@ -49,7 +49,13 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
                 .select('*')
                 .eq('form_id', product.form_id)
                 .order('order')
-            : Promise.resolve({ data: null, error: null })
+            : Promise.resolve({ data: null, error: null }),
+        // Récupérer les images du produit
+        locals.supabase
+            .from('product_images')
+            .select('*')
+            .eq('product_id', productId)
+            .order('display_order', { ascending: true })
     ]);
 
     const categories = categoriesResult.data || [];
@@ -85,6 +91,19 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
         });
     }
 
+    // Charger les images du produit
+    const productImages = imagesResult.data || [];
+
+    // Si pas d'images dans product_images mais qu'il y a image_url, créer une image par défaut
+    if (productImages.length === 0 && product.image_url) {
+        productImages.push({
+            id: undefined,
+            image_url: product.image_url,
+            public_id: null,
+            display_order: 0
+        });
+    }
+
     // Initialiser Superforms pour l'édition
     const updateProductForm = await superValidate(
         zod(updateProductFormSchema),
@@ -106,7 +125,10 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
     const createCategoryForm = await superValidate(zod(createCategoryFormSchema));
 
     return {
-        product,
+        product: {
+            ...product,
+            images: productImages
+        },
         categories: categories || [],
         customizationFields,
         updateProductForm,
@@ -158,7 +180,45 @@ export const actions: Actions = {
 
         // Extraire les données validées
         const { name, description, base_price, category_id, min_days_notice, cake_type, deposit_percentage, customizationFields } = form.data;
-        const imageFile = formData.get('image') as File;
+
+        // Récupérer toutes les nouvelles images depuis formData
+        const newImageFiles: File[] = [];
+        let index = 0;
+        while (formData.has(`images-${index}`)) {
+            const file = formData.get(`images-${index}`) as File;
+            if (file && file.size > 0) {
+                newImageFiles.push(file);
+            }
+            index++;
+        }
+
+        // Récupérer les IDs des images existantes à conserver
+        const existingImageIds: string[] = [];
+        let existingIndex = 0;
+        while (formData.has(`existing-image-id-${existingIndex}`)) {
+            const id = formData.get(`existing-image-id-${existingIndex}`) as string;
+            if (id) {
+                existingImageIds.push(id);
+            }
+            existingIndex++;
+        }
+
+        console.log('📥 [Product Update] Existing image IDs to keep:', existingImageIds);
+        console.log('📥 [Product Update] New image files:', newImageFiles.length);
+
+        // Vérifier la limite de 3 images total
+        const totalImages = existingImageIds.length + newImageFiles.length;
+        if (totalImages > 3) {
+            return fail(400, { form, error: 'Vous ne pouvez pas avoir plus de 3 images' });
+        }
+
+        // Vérifier la taille cumulée des nouvelles images (max 12MB)
+        const MAX_TOTAL_SIZE = 12 * 1024 * 1024; // 12MB
+        const totalNewSize = newImageFiles.reduce((sum, file) => sum + file.size, 0);
+        if (totalNewSize > MAX_TOTAL_SIZE) {
+            const totalSizeMB = (totalNewSize / (1024 * 1024)).toFixed(2);
+            return fail(400, { form, error: `La taille totale des nouvelles images dépasse 12 MB. Taille actuelle: ${totalSizeMB} MB` });
+        }
 
         // Vérifier s'il y a une nouvelle catégorie à créer
         const newCategoryName = formData.get('newCategoryName') as string;
@@ -197,42 +257,95 @@ export const actions: Actions = {
         }
 
         try {
-            // ✅ OPTIMISÉ : Récupérer le produit avec form_id en une seule requête (au lieu de 2)
-            const { data: currentProduct } = await locals.supabase
-                .from('products')
-                .select('image_url, form_id')
-                .eq('id', productId)
-                .eq('shop_id', shopId)
-                .single();
+            // ✅ OPTIMISÉ : Récupérer le produit avec form_id et les images existantes
+            const [currentProductResult, existingImagesResult] = await Promise.all([
+                locals.supabase
+                    .from('products')
+                    .select('image_url, form_id')
+                    .eq('id', productId)
+                    .eq('shop_id', shopId)
+                    .single(),
+                locals.supabase
+                    .from('product_images')
+                    .select('*')
+                    .eq('product_id', productId)
+                    .order('display_order', { ascending: true })
+            ]);
 
-            // Handle image upload if provided
-            let imageUrl = null;
-            const oldImageUrl = currentProduct?.image_url || null;
+            const currentProduct = currentProductResult.data;
             const currentFormId = currentProduct?.form_id || null;
+            const existingImages = existingImagesResult.data || [];
 
-            if (imageFile && imageFile.size > 0) {
+            // Supprimer les images qui ne sont plus dans la liste à conserver
+            const imagesToDelete = existingImages.filter(img => !existingImageIds.includes(img.id));
+            for (const imageToDelete of imagesToDelete) {
+                // Supprimer de Cloudinary si public_id existe
+                if (imageToDelete.public_id) {
+                    try {
+                        await deleteImage(imageToDelete.public_id);
+                    } catch (err) {
+                        console.error('❌ [Product Update] Erreur suppression Cloudinary:', err);
+                    }
+                }
+                // Supprimer de la base de données
+                await locals.supabase
+                    .from('product_images')
+                    .delete()
+                    .eq('id', imageToDelete.id);
+            }
+
+            // Uploader les nouvelles images
+            const uploadedImages: Array<{ url: string, public_id: string }> = [];
+            for (let i = 0; i < newImageFiles.length; i++) {
+                const file = newImageFiles[i];
+
                 // Vérifier que c'est bien une image
-                if (!imageFile.type.startsWith('image/')) {
-                    return fail(400, { form, error: 'Le fichier doit être une image valide (JPG, PNG, etc.)' });
+                if (!file.type.startsWith('image/')) {
+                    return fail(400, { form, error: 'Tous les fichiers doivent être des images valides (JPG, PNG, etc.)' });
                 }
 
                 try {
-                    // Upload vers Cloudinary (compression et optimisation automatiques)
-                    const uploadResult = await uploadProductImage(imageFile, shopId);
-                    imageUrl = uploadResult.secure_url;
+                    // Upload vers Cloudinary
+                    const uploadResult = await uploadProductImage(file, shopId, productId, existingImageIds.length + i);
 
-                    // Supprimer l'ancienne image Cloudinary si elle existe
-                    if (oldImageUrl) {
-                        const oldPublicId = extractPublicIdFromUrl(oldImageUrl);
-                        if (oldPublicId) {
-                            await deleteImage(oldPublicId);
-                        }
+                    // Insérer dans product_images
+                    const { error: imageInsertError } = await locals.supabase
+                        .from('product_images')
+                        .insert({
+                            product_id: productId,
+                            image_url: uploadResult.secure_url,
+                            public_id: uploadResult.public_id,
+                            display_order: existingImageIds.length + i
+                        });
+
+                    if (imageInsertError) {
+                        console.error('❌ [Product Images] Erreur insertion image:', imageInsertError);
+                    } else {
+                        uploadedImages.push({
+                            url: uploadResult.secure_url,
+                            public_id: uploadResult.public_id || ''
+                        });
                     }
                 } catch (err) {
-                    console.error('❌ [Product Update] Erreur Cloudinary:', err);
-                    return fail(500, { form, error: 'Erreur lors de l\'upload de l\'image' });
+                    console.error('❌ [Product Update] Erreur Cloudinary pour image', i, ':', err);
                 }
             }
+
+            // Mettre à jour l'ordre des images existantes conservées
+            for (let i = 0; i < existingImageIds.length; i++) {
+                await locals.supabase
+                    .from('product_images')
+                    .update({ display_order: i })
+                    .eq('id', existingImageIds[i]);
+            }
+
+            // Récupérer toutes les images finales pour mettre à jour image_url du produit (rétrocompatibilité)
+            const { data: allImages } = await locals.supabase
+                .from('product_images')
+                .select('image_url')
+                .eq('product_id', productId)
+                .order('display_order', { ascending: true })
+                .limit(1);
 
             // Mettre à jour le produit
             const updateData: any = {
@@ -245,9 +358,11 @@ export const actions: Actions = {
                 deposit_percentage: deposit_percentage ?? 50
             };
 
-            // Ajouter l'image URL seulement si une nouvelle image a été uploadée
-            if (imageUrl) {
-                updateData.image_url = imageUrl;
+            // Mettre à jour image_url avec la première image (pour rétrocompatibilité)
+            if (allImages && allImages.length > 0) {
+                updateData.image_url = allImages[0].image_url;
+            } else {
+                updateData.image_url = null;
             }
 
             const { data: updatedProduct, error: updateError } = await locals.supabase
@@ -265,22 +380,7 @@ export const actions: Actions = {
                 });
             }
 
-            // Supprimer l'ancienne image Cloudinary si elle existe et a été remplacée
-            if (oldImageUrl && oldImageUrl !== imageUrl) {
-                const oldPublicId = extractPublicIdFromUrl(oldImageUrl);
-                if (oldPublicId) {
-                    // Vérifier que l'image n'est pas utilisée par d'autres produits
-                    const { data: otherProducts } = await locals.supabase
-                        .from('products')
-                        .select('id')
-                        .eq('image_url', oldImageUrl)
-                        .neq('id', productId);
-
-                    if (!otherProducts || otherProducts.length === 0) {
-                        await deleteImage(oldPublicId);
-                    }
-                }
-            }
+            // Note: La suppression des anciennes images Cloudinary est gérée lors de la suppression des images dans product_images
 
             // Mettre à jour les champs de personnalisation si fournis
             if (customizationFields !== undefined) { // Vérifier si le champ est présent (même vide)
@@ -415,9 +515,11 @@ export const actions: Actions = {
                 }
             }
         } catch (err) {
+            console.error('❌ [Product Update] Erreur inattendue:', err);
+            console.error('❌ [Product Update] Stack:', err instanceof Error ? err.stack : 'No stack');
             return fail(500, {
                 form,
-                error: 'Erreur inattendue lors de la modification du produit'
+                error: 'Erreur inattendue lors de la modification du produit: ' + (err instanceof Error ? err.message : String(err))
             });
         }
 
