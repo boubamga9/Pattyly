@@ -722,7 +722,7 @@
 						style={`color: ${customizations?.button_color || '#FF6F61'}; font-weight: 600;`}
 					>
 						<span>À payer aujourd'hui :</span>
-						<span class="text-right whitespace-nowrap">{formatPrice(totalPrice * 0.5)}</span>
+						<span class="text-right whitespace-nowrap">{formatPrice((totalPrice * (product?.deposit_percentage ?? 50)) / 100)}</span>
 					</div>
 				</div>
 			</div>

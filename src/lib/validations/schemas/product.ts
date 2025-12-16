@@ -32,7 +32,21 @@ export const productBaseSchema = z.object({
             required_error: 'Le délai est requis',
             invalid_type_error: 'Le délai doit être un nombre'
         }).int().min(0, 'Le délai minimum doit être positif').max(365, 'Le délai maximum est de 365 jours')
-    )
+    ),
+    deposit_percentage: z.preprocess(
+        (val) => {
+            // Convertir string → number avant validation
+            if (typeof val === 'string') {
+                const num = parseInt(val);
+                return isNaN(num) ? val : num;
+            }
+            return val;
+        },
+        z.number({
+            required_error: 'Le pourcentage d\'acompte est requis',
+            invalid_type_error: 'Le pourcentage d\'acompte doit être un nombre'
+        }).int().min(0, 'Le pourcentage doit être entre 0 et 100').max(100, 'Le pourcentage doit être entre 0 et 100')
+    ).default(50)
 });
 
 // Création d'un nouveau produit
@@ -50,7 +64,8 @@ export const updateProductSchema = productBaseSchema.pick({
     category_id: true,
     form_id: true,
     cake_type: true,
-    min_days_notice: true
+    min_days_notice: true,
+    deposit_percentage: true
 });
 
 // ===== TYPES EXPORTÉS =====

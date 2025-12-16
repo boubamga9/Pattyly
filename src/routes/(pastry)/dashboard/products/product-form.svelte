@@ -74,6 +74,7 @@
 		$formData.category_id = initialData.category_id || '';
 		$formData.min_days_notice = initialData.min_days_notice || 0;
 		$formData.cake_type = initialData.cake_type || null;
+		$formData.deposit_percentage = initialData.deposit_percentage ?? 50;
 		if (initialData.image_url) {
 			imagePreview = initialData.image_url;
 		}
@@ -533,6 +534,25 @@
 						{:else}
 							0 = Le client pourra commander ce gâteau pour le jour même
 						{/if}
+					</p>
+				</Form.Field>
+
+				<Form.Field {form} name="deposit_percentage">
+					<Form.Control let:attrs>
+						<Form.Label>Pourcentage d'acompte (%)</Form.Label>
+						<Input
+							{...attrs}
+							bind:value={$formData.deposit_percentage}
+							type="number"
+							min="0"
+							max="100"
+							placeholder="50"
+							inputmode="numeric"
+						/>
+					</Form.Control>
+					<Form.FieldErrors />
+					<p class="mt-1 text-sm text-muted-foreground">
+						Pourcentage d'acompte demandé pour ce gâteau (par défaut: 50%)
 					</p>
 				</Form.Field>
 			</form>

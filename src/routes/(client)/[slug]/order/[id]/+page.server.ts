@@ -37,9 +37,21 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         // Determine the type of order
         const orderType = order.product_id ? 'product_order' : 'custom_order';
 
+        // Récupérer le produit pour obtenir le pourcentage d'acompte (si c'est une commande produit)
+        let product = null;
+        if (order.product_id) {
+            const { data: productData } = await (locals.supabaseServiceRole as any)
+                .from('products')
+                .select('deposit_percentage')
+                .eq('id', order.product_id)
+                .single();
+            product = productData;
+        }
+
         return {
             order,
             orderType,
+            product,
             session: null, // No session for this approach
         };
 

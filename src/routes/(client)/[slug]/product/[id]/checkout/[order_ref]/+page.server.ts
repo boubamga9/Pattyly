@@ -50,7 +50,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         // Récupérer les informations du produit
         const { data: product, error: productError } = await (locals.supabaseServiceRole as any)
             .from('products')
-            .select('id, name, description, image_url, base_price')
+            .select('id, name, description, image_url, base_price, deposit_percentage')
             .eq('id', orderData.product_id)
             .single();
 
@@ -78,6 +78,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             orderData,
             paypalMe: paymentLink.paypal_me,
             shop,
+            product,
             product,
         };
 
@@ -134,7 +135,7 @@ export const actions: Actions = {
 
             const { data: product, error: productError } = await (locals.supabaseServiceRole as any)
                 .from('products')
-                .select('base_price, shops(slug, logo_url, name, profile_id)')
+                .select('base_price, deposit_percentage, shops(slug, logo_url, name, profile_id)')
                 .eq('id', finalProductId)
                 .single();
 
@@ -156,7 +157,8 @@ export const actions: Actions = {
 
             // 3. Calculer les montants
             const totalAmount = orderData.total_amount;
-            const paidAmount = totalAmount / 2; // Acompte de 50%
+            const depositPercentage = product.deposit_percentage ?? 50; // Par défaut 50% si non défini
+            const paidAmount = (totalAmount * depositPercentage) / 100;
             const remainingAmount = totalAmount - paidAmount;
 
             console.log('💰 [Confirm Payment] Amounts:', {

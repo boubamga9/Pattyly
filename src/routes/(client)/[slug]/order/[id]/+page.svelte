@@ -43,6 +43,11 @@
 	$: customerInstagram = order ? (order as any).customer_instagram : null;
 	$: productBasePrice = order ? (order as any).product_base_price : null;
 	$: totalAmount = order ? (order as any).total_amount : null;
+	// Calculer le pourcentage d'acompte (depuis le produit pour les commandes produit, 50% par défaut pour les commandes personnalisées)
+	$: depositPercentage = orderType === 'product_order' && data.product?.deposit_percentage 
+		? data.product.deposit_percentage 
+		: 50;
+	$: depositAmount = totalAmount ? (totalAmount * depositPercentage) / 100 : 0;
 
 	// Function to format the price
 	function formatPrice(price: number): string {
@@ -493,7 +498,7 @@
 								style={`color: ${data.customizations?.button_color || '#FF6F61'}; font-weight: 600;`}
 							>
 								<span>Payé aujourd'hui :</span>
-								<span class="whitespace-nowrap">{totalAmount ? formatPrice(totalAmount * 0.5) : '0,00€'}</span>
+								<span class="whitespace-nowrap">{formatPrice(depositAmount)}</span>
 							</div>
 						{:else}
 							<!-- Pour les demandes custom -->
@@ -572,7 +577,7 @@
 										style={`color: ${data.customizations?.button_color || '#FF6F61'}; font-weight: 600;`}
 									>
 										<span>À payer aujourd'hui :</span>
-										<span class="whitespace-nowrap">{formatPrice(totalAmount * 0.5)}</span>
+										<span class="whitespace-nowrap">{formatPrice(depositAmount)}</span>
 									</div>
 								{:else if order?.status === 'to_verify' || order?.status === 'confirmed' || order?.status === 'ready' || order?.status === 'completed'}
 									<!-- Acompte -->
@@ -581,7 +586,7 @@
 										style={`color: ${order?.status === 'to_verify' ? (data.customizations?.button_color || '#FF6F61') : '#10b981'}; font-weight: 600;`}
 									>
 										<span>Acompte :</span>
-										<span class="whitespace-nowrap">{formatPrice(totalAmount * 0.5)}</span>
+										<span class="whitespace-nowrap">{formatPrice(depositAmount)}</span>
 									</div>
 								{:else}
 									<!-- Prix total pour les autres statuts -->
