@@ -5,7 +5,7 @@ export const RATE_LIMITS = {
     '/login': { max: 10, window: 3600000 }, // 1 hour
     '/forgot-password': { max: 5, window: 3600000 }, // 1 hour
     '/custom': { max: 10, window: 3600000 }, // 1 hour
-    '/product': { max: 10, window: 3600000 } // 1 hour
+    '/product': { max: 15, window: 3600000 } // 1 hour
 } as const;
 
 export type RateLimitConfig = {

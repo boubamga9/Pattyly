@@ -7,9 +7,11 @@ import { formSchema } from './schema';
 import { customizationSchema } from './customization-schema';
 import { directorySchema, toggleDirectorySchema } from '$lib/validations/schemas/shop';
 import { policiesSchema } from './policies-schema';
+import { paymentConfigSchema } from '../../../onboarding/schema';
 import { uploadShopLogo, uploadBackgroundImage, deleteImage, extractPublicIdFromUrl } from '$lib/cloudinary';
 import { forceRevalidateShop } from '$lib/utils/catalog';
 import { verifyShopOwnership } from '$lib/auth';
+import { setError } from 'sveltekit-superforms';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
     // ✅ OPTIMISÉ : Réutiliser les permissions et shop du layout
@@ -28,8 +30,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
         throw error(404, 'Boutique non trouvée');
     }
 
-    // ✅ OPTIMISÉ : 3 requêtes parallèles pour récupérer directory fields + customizations + policies
-    const [shopDataResult, customizationsResult, policiesResult] = await Promise.all([
+    // ✅ OPTIMISÉ : 4 requêtes parallèles pour récupérer directory fields + customizations + policies + payment_links
+    const [shopDataResult, customizationsResult, policiesResult, paymentLinksResult] = await Promise.all([
         locals.supabase
             .from('shops')
             .select('directory_city, directory_actual_city, directory_postal_code, directory_cake_types, directory_enabled')
@@ -44,7 +46,12 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
             .from('shop_policies')
             .select('terms_and_conditions, return_policy, delivery_policy, payment_terms')
             .eq('shop_id', permissions.shopId)
-            .single()
+            .single(),
+        locals.supabase
+            .from('payment_links')
+            .select('provider_type, payment_identifier')
+            .eq('profile_id', user.id)
+            .eq('is_active', true)
     ]);
 
     if (shopDataResult.error) {
@@ -115,6 +122,19 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
                 delivery_policy: policies?.delivery_policy || '',
                 payment_terms: policies?.payment_terms || ''
             }
+        }),
+        paymentForm: await superValidate(zod(paymentConfigSchema), {
+            defaults: (() => {
+                const defaults: { paypal_me?: string; revolut_me?: string } = {};
+                paymentLinksResult.data?.forEach(link => {
+                    if (link.provider_type === 'paypal') {
+                        defaults.paypal_me = link.payment_identifier;
+                    } else if (link.provider_type === 'revolut') {
+                        defaults.revolut_me = link.payment_identifier;
+                    }
+                });
+                return defaults;
+            })()
         }),
         permissions // ✅ Ajouter permissions pour passer le plan au composant
     };
@@ -744,5 +764,137 @@ export const actions: Actions = {
 
         updatedForm.message = 'Politiques de ventes sauvegardées avec succès !';
         return { form: updatedForm };
+    },
+
+    updatePaymentLinks: async ({ request, locals }) => {
+        try {
+            const { session, user } = await locals.safeGetSession();
+
+            if (!session || !user) {
+                const cleanForm = await superValidate(zod(paymentConfigSchema));
+                setError(cleanForm, 'paypal_me', 'Non autorisé');
+                return { form: cleanForm };
+            }
+
+            const userId = user.id;
+            const form = await superValidate(request, zod(paymentConfigSchema));
+
+            if (!form.valid) {
+                const cleanForm = await superValidate(zod(paymentConfigSchema));
+                cleanForm.errors = form.errors;
+                cleanForm.valid = false;
+                return { form: cleanForm };
+            }
+
+            const { paypal_me, revolut_me } = form.data;
+
+            const hasPaypal = paypal_me && paypal_me.trim() !== '';
+            const hasRevolut = revolut_me && revolut_me.trim() !== '';
+
+            if (!hasPaypal && !hasRevolut) {
+                const cleanForm = await superValidate(zod(paymentConfigSchema));
+                setError(cleanForm, 'paypal_me', 'Vous devez configurer au moins une méthode de paiement');
+                return { form: cleanForm };
+            }
+
+            // Supprimer les anciens payment_links pour ce profil
+            // On supprime d'abord pour éviter les conflits de contrainte unique
+            // Note: Si la suppression échoue (pas de politique DELETE), on utilisera upsert
+            const { error: deleteError, data: deletedData } = await locals.supabase
+                .from('payment_links')
+                .delete()
+                .eq('profile_id', userId)
+                .select();
+
+            if (deleteError) {
+                console.warn('⚠️ [Payment Links] Failed to delete old payment links (may not have DELETE policy):', deleteError);
+                // On continue, on utilisera upsert pour mettre à jour
+            } else {
+                console.log(`✅ [Payment Links] Deleted ${deletedData?.length || 0} old payment links`);
+            }
+
+            // Insérer les nouveaux payment_links
+            // Note: On n'inclut pas paypal_me car la migration 156 l'a rendue nullable
+            // et la migration 158 la supprimera complètement
+            const inserts: any[] = [];
+
+            if (hasPaypal) {
+                inserts.push({
+                    profile_id: userId,
+                    provider_type: 'paypal',
+                    payment_identifier: paypal_me.trim()
+                });
+            }
+
+            if (hasRevolut) {
+                inserts.push({
+                    profile_id: userId,
+                    provider_type: 'revolut',
+                    payment_identifier: revolut_me.trim()
+                });
+            }
+
+            if (inserts.length > 0) {
+                // Si la suppression a échoué, utiliser upsert pour mettre à jour
+                // Sinon, utiliser insert normal
+                let insertError, insertedData;
+
+                // Utiliser upsert pour gérer les cas où la suppression a échoué
+                // La contrainte unique est sur (profile_id, provider_type)
+                // On utilise upsert pour mettre à jour les enregistrements existants
+                const upsertResult = await locals.supabase
+                    .from('payment_links')
+                    .upsert(inserts, {
+                        onConflict: 'profile_id,provider_type'
+                    })
+                    .select();
+                insertError = upsertResult.error;
+                insertedData = upsertResult.data;
+
+                if (insertError) {
+                    console.error('❌ [Payment Links] Failed to create payment links:', insertError);
+                    console.error('❌ [Payment Links] Error details:', {
+                        code: insertError.code,
+                        message: insertError.message,
+                        details: insertError.details,
+                        hint: insertError.hint
+                    });
+                    console.error('❌ [Payment Links] Attempted inserts:', JSON.stringify(inserts, null, 2));
+
+                    const cleanForm = await superValidate(zod(paymentConfigSchema));
+
+                    // Message d'erreur plus détaillé
+                    let errorMessage = 'Erreur lors de la création des liens de paiement';
+                    if (insertError.code === '23505') {
+                        errorMessage = 'Un provider est déjà configuré. Veuillez réessayer.';
+                    } else if (insertError.code === '23502') {
+                        errorMessage = 'Une colonne requise est manquante. Veuillez contacter le support.';
+                    } else if (insertError.message) {
+                        errorMessage = `Erreur: ${insertError.message}`;
+                    }
+
+                    setError(cleanForm, 'paypal_me', errorMessage);
+                    return { form: cleanForm };
+                }
+
+                console.log('✅ [Payment Links] Successfully created payment links:', insertedData);
+            }
+
+            // Retourner le formulaire mis à jour avec un message de succès
+            const updatedForm = await superValidate(zod(paymentConfigSchema), {
+                defaults: {
+                    paypal_me: hasPaypal ? paypal_me : undefined,
+                    revolut_me: hasRevolut ? revolut_me : undefined
+                }
+            });
+            updatedForm.message = 'Méthodes de paiement mises à jour avec succès !';
+            return { form: updatedForm };
+
+        } catch (err) {
+            console.error('Payment links update error:', err);
+            const cleanForm = await superValidate(zod(paymentConfigSchema));
+            setError(cleanForm, 'paypal_me', 'Une erreur inattendue est survenue');
+            return { form: cleanForm };
+        }
     }
 };

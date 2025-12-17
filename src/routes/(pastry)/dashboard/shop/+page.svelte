@@ -16,8 +16,9 @@ import { policiesSchema } from './policies-schema';
 		CardTitle,
 	} from '$lib/components/ui/card';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { Store, Palette, MapPin, FileText } from 'lucide-svelte';
+	import { Store, Palette, MapPin, FileText, CreditCard } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
+	import PaymentForm from './payment-form.svelte';
 
 	export let data: {
 		shop: {
@@ -35,6 +36,7 @@ import { policiesSchema } from './policies-schema';
 		directoryForm: SuperValidated<Infer<typeof directorySchema>>;
 		toggleDirectoryForm: SuperValidated<Infer<typeof toggleDirectorySchema>>;
 		policiesForm: SuperValidated<Infer<typeof policiesSchema>>;
+		paymentForm: SuperValidated<any>;
 		permissions?: {
 			plan: 'free' | 'basic' | 'premium' | 'exempt';
 		};
@@ -42,13 +44,14 @@ import { policiesSchema } from './policies-schema';
 
 	let error = '';
 	let success = '';
-	let activeTab: 'info' | 'customization' | 'directory' | 'policies' = 'info';
+	let activeTab: 'info' | 'customization' | 'directory' | 'policies' | 'payment' = 'info';
 
 	const tabs = [
 		{ id: 'info' as const, label: 'Informations', icon: Store },
 		{ id: 'customization' as const, label: 'Personnalisation', icon: Palette },
 		{ id: 'directory' as const, label: 'Annuaire', icon: MapPin },
-		{ id: 'policies' as const, label: 'Politiques de ventes', icon: FileText }
+		{ id: 'policies' as const, label: 'Politiques de ventes', icon: FileText },
+		{ id: 'payment' as const, label: 'Méthodes de paiement', icon: CreditCard }
 	];
 </script>
 
@@ -141,5 +144,22 @@ import { policiesSchema } from './policies-schema';
 		</Card>
 	{:else if activeTab === 'policies'}
 		<PoliciesForm data={data.policiesForm} />
+	{:else if activeTab === 'payment'}
+		<Card class="shadow-sm">
+			<CardHeader class="pb-6">
+				<div class="flex items-center space-x-4">
+					<CreditCard class="h-7 w-7 text-primary" />
+					<div>
+						<CardTitle class="text-xl">Méthodes de paiement</CardTitle>
+						<CardDescription class="text-base">
+							Configurez vos identifiants PayPal.me et Revolut pour recevoir les paiements
+						</CardDescription>
+					</div>
+				</div>
+			</CardHeader>
+			<CardContent class="pt-0">
+				<PaymentForm data={data.paymentForm} />
+			</CardContent>
+		</Card>
 	{/if}
 </div>
