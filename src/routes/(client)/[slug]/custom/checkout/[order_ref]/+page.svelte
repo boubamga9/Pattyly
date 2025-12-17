@@ -24,14 +24,43 @@
 
 	let copySuccess = false;
 	let confirmationForm: HTMLFormElement | null = null;
+	let selectedPaymentProvider: { provider_type: string; payment_identifier: string } | null = null;
 
-	async function handlePayPalClick() {
-		// Ouvrir PayPal
-		const paypalLink = `https://paypal.me/${data.paypalMe}/${depositAmount}`;
-		window.open(paypalLink, '_blank');
+	// Initialiser avec le premier provider disponible (PayPal en priorité)
+	$: if (data.paymentLinks && data.paymentLinks.length > 0 && !selectedPaymentProvider) {
+		const paypalLink = data.paymentLinks.find((pl: { provider_type: string; payment_identifier: string }) => pl.provider_type === 'paypal');
+		selectedPaymentProvider = paypalLink || data.paymentLinks[0];
+	}
 
-		// Soumettre directement le formulaire de confirmation
-		confirmationForm?.requestSubmit();
+	// Fonction pour générer le lien de paiement selon le provider avec le montant pré-rempli
+	function getPaymentLink(provider: { provider_type: string; payment_identifier: string }): string {
+		if (provider.provider_type === 'paypal') {
+			// Format PayPal.me avec montant en EUR
+			const cleanIdentifier = provider.payment_identifier.replace(/^@/, '');
+			return `https://paypal.me/${cleanIdentifier}/${depositAmount}EUR`;
+		} else if (provider.provider_type === 'revolut') {
+			// Format Revolut avec montant (multiplié par 100 car amount=14 donne 0,14€)
+			const cleanIdentifier = provider.payment_identifier.replace(/^@/, '');
+			const amountInCents = Math.round(depositAmount * 100);
+			return `https://revolut.me/${cleanIdentifier}?amount=${amountInCents}`;
+		}
+		return '';
+	}
+
+	// Fonction pour obtenir le nom du provider
+	function getProviderName(providerType: string): string {
+		if (providerType === 'paypal') return 'PayPal';
+		if (providerType === 'revolut') return 'Revolut';
+		return providerType;
+	}
+
+	async function handlePaymentClick(provider: { provider_type: string; payment_identifier: string }) {
+		const paymentLink = getPaymentLink(provider);
+		if (paymentLink) {
+			window.open(paymentLink, '_blank');
+			// Soumettre directement le formulaire de confirmation
+			confirmationForm?.requestSubmit();
+		}
 	}
 
 	function formatPrice(price: number): string {
@@ -394,23 +423,100 @@
 							class="mt-3 text-xs text-neutral-600"
 							style="font-weight: 400;"
 						>
-							⚠️ N'oubliez pas d'inclure cette référence dans la note du
-							paiement PayPal
+							⚠️ N'oubliez pas d'inclure cette référence dans la note du paiement
 						</p>
 					</div>
 
-					<!-- Bouton PayPal -->
-					<a
-						href="https://paypal.me/{data.paypalMe}/{depositAmount}"
-						target="_blank"
-						rel="noopener noreferrer"
-						on:click={handlePayPalClick}
-						class="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0070ba] px-6 py-3 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#005ea6] hover:shadow-md"
-						style="font-weight: 500;"
-					>
-						Payer l'acompte
-						<ExternalLink class="h-4 w-4" />
-					</a>
+					<!-- Méthodes de paiement disponibles -->
+					{#if data.paymentLinks && data.paymentLinks.length > 0}
+						<div class="space-y-3">
+							<p
+								class="text-sm font-medium text-neutral-700"
+								style="font-weight: 500;"
+							>
+								Choisissez votre moyen de paiement :
+							</p>
+							
+							{#each data.paymentLinks as provider}
+								{@const providerName = getProviderName(provider.provider_type)}
+								{@const isPaypal = provider.provider_type === 'paypal'}
+								{@const isRevolut = provider.provider_type === 'revolut'}
+								{@const backgroundColor = isPaypal ? '#0070ba' : isRevolut ? '#000000' : '#6b7280'}
+								
+								<button
+									type="button"
+									on:click={() => handlePaymentClick(provider)}
+									class="flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:shadow-md"
+									style="font-weight: 500; background-color: {backgroundColor};"
+									on:mouseenter={(e) => {
+										if (isPaypal) e.currentTarget.style.backgroundColor = '#005ea6';
+										else if (isRevolut) e.currentTarget.style.backgroundColor = '#1a1a1a';
+									}}
+									on:mouseleave={(e) => {
+										if (isPaypal) e.currentTarget.style.backgroundColor = '#0070ba';
+										else if (isRevolut) e.currentTarget.style.backgroundColor = '#000000';
+									}}
+								>
+									{#if isPaypal}
+										<!-- Logo PayPal officiel avec couleurs originales -->
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											viewBox="0 0 512 512"
+											class="h-5 w-5"
+										>
+											<path
+												fill="#002c8a"
+												d="M377 184.8L180.7 399h-72c-5 0-9-5-8-10l48-304c1-7 7-12 14-12h122c84 3 107 46 92 112z"
+											/>
+											<path
+												fill="#009be1"
+												d="M380.2 165c30 16 37 46 27 86-13 59-52 84-109 85l-16 1c-6 0-10 4-11 10l-13 79c-1 7-7 12-14 12h-60c-5 0-9-5-8-10l22-143c1-5 182-120 182-120z"
+											/>
+											<path
+												fill="#001f6b"
+												d="M197 292l20-127a14 14 0 0 1 13-11h96c23 0 40 4 54 11-5 44-26 115-128 117h-44c-5 0-10 4-11 10z"
+											/>
+										</svg>
+									{:else if isRevolut}
+										<!-- Logo Revolut officiel en blanc -->
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											viewBox="0 0 800 800"
+											class="h-5 w-5"
+										>
+											<g fill="#FFFFFF">
+												<rect x="209.051" y="262.097" width="101.445" height="410.21"/>
+												<path d="M628.623,285.554c0-87.043-70.882-157.86-158.011-157.86H209.051v87.603h249.125c39.43,0,72.093,30.978,72.814,69.051
+													c0.361,19.064-6.794,37.056-20.146,50.66c-13.357,13.61-31.204,21.109-50.251,21.109h-97.046c-3.446,0-6.25,2.8-6.25,6.245v77.859
+													c0,1.324,0.409,2.59,1.179,3.656l164.655,228.43h120.53L478.623,443.253C561.736,439.08,628.623,369.248,628.623,285.554z"/>
+											</g>
+										</svg>
+									{/if}
+									Payer avec {providerName}
+									<ExternalLink class="h-4 w-4" />
+								</button>
+							{/each}
+						</div>
+					{:else}
+						<!-- Fallback si aucun payment link n'est disponible -->
+						<a
+							href="https://paypal.me/{data.paypalMe}/{depositAmount}"
+							target="_blank"
+							rel="noopener noreferrer"
+							on:click={(e) => {
+								e.preventDefault();
+								if (data.paypalMe) {
+									window.open(`https://paypal.me/${data.paypalMe}/${depositAmount}`, '_blank');
+									confirmationForm?.requestSubmit();
+								}
+							}}
+							class="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0070ba] px-6 py-3 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#005ea6] hover:shadow-md"
+							style="font-weight: 500;"
+						>
+							Payer l'acompte
+							<ExternalLink class="h-4 w-4" />
+						</a>
+					{/if}
 
 					<!-- Bouton de confirmation (caché mais nécessaire pour le submit automatique) -->
 					<form

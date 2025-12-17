@@ -208,7 +208,8 @@ export const actions: Actions = {
                 .insert({
                     shop_id: shopId,
                     target_email: targetEmail,
-                    paypal_me: paypalMe
+                    payment_identifier: paypalMe,
+                    provider_type: 'paypal'
                 })
                 .select()
                 .single();

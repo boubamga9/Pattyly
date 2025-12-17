@@ -2,7 +2,7 @@ import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { superValidate, setError } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
-import { shopCreationSchema, paypalConfigSchema } from './schema';
+import { shopCreationSchema, paypalConfigSchema, paymentConfigSchema } from './schema';
 import { directorySchema } from '$lib/validations/schemas/shop';
 import { uploadShopLogo } from '$lib/cloudinary';
 import Stripe from 'stripe';
@@ -38,10 +38,18 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
         throw error(500, 'Erreur lors du chargement des données');
     }
 
-    const { shop, paypal_account } = onboardingData as any;
+    const { shop, has_paypal } = onboardingData as any;
 
-    // 🟢 Redirection 2 — compte déjà actif (avec paypal_account et annuaire configuré)
-    if (shop && paypal_account) {
+    // Vérifier qu'au moins un payment provider est configuré
+    const { data: paymentLinks } = await supabase
+        .from('payment_links')
+        .select('provider_type, payment_identifier')
+        .eq('profile_id', userId);
+
+    const hasPaymentMethod = paymentLinks && paymentLinks.length > 0;
+
+    // 🟢 Redirection 2 — compte déjà actif (avec payment method et annuaire configuré)
+    if (shop && hasPaymentMethod) {
         // Vérifier si l'annuaire est déjà configuré
         const { data: shopData } = await supabase
             .from('shops')
@@ -56,8 +64,8 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
         }
     }
 
-    // 🧩 Cas 1 : boutique + PayPal mais pas annuaire → étape 3
-    if (shop && paypal_account) {
+    // 🧩 Cas 1 : boutique + payment method mais pas annuaire → étape 3
+    if (shop && hasPaymentMethod) {
         // Récupérer les données complètes de la boutique avec les champs directory
         const { data: shopData } = await supabase
             .from('shops')
@@ -80,12 +88,27 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
         };
     }
 
-    // 🧩 Cas 2 : boutique créée mais pas PayPal → étape 2
+    // 🧩 Cas 2 : boutique créée mais pas de payment method → étape 2
     if (shop) {
+        // Charger les payment_links existants pour pré-remplir le formulaire
+        const { data: existingLinks } = await supabase
+            .from('payment_links')
+            .select('provider_type, payment_identifier')
+            .eq('profile_id', userId);
+
+        const defaults: any = {};
+        existingLinks?.forEach(link => {
+            if (link.provider_type === 'paypal') {
+                defaults.paypal_me = link.payment_identifier;
+            } else if (link.provider_type === 'revolut') {
+                defaults.revolut_me = link.payment_identifier;
+            }
+        });
+
         return {
             step: 2,
             shop,
-            form: await superValidate(zod(paypalConfigSchema))
+            form: await superValidate(zod(paymentConfigSchema), { defaults })
         };
     }
 
@@ -217,56 +240,93 @@ export const actions: Actions = {
         }
     },
 
-    createPaymentLink: async ({ request, locals }) => {
+    createPaymentLinks: async ({ request, locals }) => {
         try {
             const { session, user } = await locals.safeGetSession();
 
             if (!session || !user) {
-                const cleanForm = await superValidate(zod(paypalConfigSchema));
+                const cleanForm = await superValidate(zod(paymentConfigSchema));
                 setError(cleanForm, 'paypal_me', 'Non autorisé');
                 return { form: cleanForm };
             }
 
             const userId = user.id;
-            const form = await superValidate(request, zod(paypalConfigSchema));
+            const form = await superValidate(request, zod(paymentConfigSchema));
 
             if (!form.valid) {
-                const cleanForm = await superValidate(zod(paypalConfigSchema));
+                const cleanForm = await superValidate(zod(paymentConfigSchema));
                 cleanForm.errors = form.errors;
                 cleanForm.valid = false;
                 return { form: cleanForm };
             }
 
-            const { paypal_me } = form.data;
+            const { paypal_me, revolut_me } = form.data;
 
-            console.log('Creating payment link for user:', userId, 'with PayPal.me:', paypal_me);
+            // Vérifier qu'au moins un est rempli (déjà fait par Zod, mais double vérification)
+            // Les chaînes vides sont transformées en undefined par le schéma
+            const hasPaypal = paypal_me !== undefined && paypal_me !== null && paypal_me.trim() !== '';
+            const hasRevolut = revolut_me !== undefined && revolut_me !== null && revolut_me.trim() !== '';
 
-            // Créer le payment_link
-            const { error: insertError } = await (locals.supabase as any)
-                .from('payment_links')
-                .insert({
-                    profile_id: userId,
-                    paypal_me: paypal_me
-                });
-
-            if (insertError) {
-                console.error('Failed to create payment link:', insertError);
-                const cleanForm = await superValidate(zod(paypalConfigSchema));
-
-                // Gérer les erreurs spécifiques
-                if (insertError.code === '23505') { // Unique constraint violation
-                    setError(cleanForm, 'paypal_me', 'Ce nom PayPal.me est déjà utilisé');
-                } else {
-                    setError(cleanForm, 'paypal_me', 'Erreur lors de la création du lien de paiement');
-                }
+            if (!hasPaypal && !hasRevolut) {
+                const cleanForm = await superValidate(zod(paymentConfigSchema));
+                setError(cleanForm, 'paypal_me', 'Vous devez configurer au moins une méthode de paiement');
                 return { form: cleanForm };
             }
 
-            console.log('✅ [Onboarding] Payment link created successfully');
+            console.log('Creating payment links for user:', userId, {
+                paypal: hasPaypal ? paypal_me : 'none',
+                revolut: hasRevolut ? revolut_me : 'none'
+            });
 
-            // ✅ L'essai gratuit est maintenant géré via Stripe lors du choix d'un plan payant
-            // Plus besoin de créer l'essai automatiquement à l'inscription
-            // L'utilisateur devra choisir un plan dans /subscription pour obtenir l'essai gratuit de 7 jours
+            // Supprimer les anciens payment_links pour ce profil
+            const { error: deleteError } = await locals.supabase
+                .from('payment_links')
+                .delete()
+                .eq('profile_id', userId);
+
+            if (deleteError) {
+                console.error('Failed to delete old payment links:', deleteError);
+            }
+
+            // Insérer les nouveaux payment_links
+            const inserts: any[] = [];
+
+            if (hasPaypal) {
+                inserts.push({
+                    profile_id: userId,
+                    provider_type: 'paypal',
+                    payment_identifier: paypal_me.trim()
+                });
+            }
+
+            if (hasRevolut) {
+                inserts.push({
+                    profile_id: userId,
+                    provider_type: 'revolut',
+                    payment_identifier: revolut_me.trim()
+                });
+            }
+
+            if (inserts.length > 0) {
+                const { error: insertError } = await locals.supabase
+                    .from('payment_links')
+                    .insert(inserts);
+
+                if (insertError) {
+                    console.error('Failed to create payment links:', insertError);
+                    const cleanForm = await superValidate(zod(paymentConfigSchema));
+
+                    // Gérer les erreurs spécifiques
+                    if (insertError.code === '23505') { // Unique constraint violation
+                        setError(cleanForm, 'paypal_me', 'Erreur: un provider est déjà configuré');
+                    } else {
+                        setError(cleanForm, 'paypal_me', 'Erreur lors de la création des liens de paiement');
+                    }
+                    return { form: cleanForm };
+                }
+            }
+
+            console.log('✅ [Onboarding] Payment links created successfully');
 
             // Récupérer la boutique pour passer à l'étape 3
             const { data: shopData } = await locals.supabase
@@ -280,13 +340,16 @@ export const actions: Actions = {
             logEventAsync(
                 locals.supabaseServiceRole,
                 Events.PAYMENT_ENABLED,
-                { shop_id: shopData?.id, paypal_me },
+                {
+                    shop_id: shopData?.id,
+                    providers: inserts.map(i => i.provider_type).join(',')
+                },
                 userId,
                 '/onboarding'
             );
 
-            const cleanForm = await superValidate(zod(paypalConfigSchema));
-            cleanForm.message = 'Lien PayPal créé avec succès !';
+            const cleanForm = await superValidate(zod(paymentConfigSchema));
+            cleanForm.message = 'Méthodes de paiement configurées avec succès !';
             return {
                 form: cleanForm,
                 success: true,
@@ -294,8 +357,8 @@ export const actions: Actions = {
             };
 
         } catch (err) {
-            console.error('Payment link creation error:', err);
-            const cleanForm = await superValidate(zod(paypalConfigSchema));
+            console.error('Payment links creation error:', err);
+            const cleanForm = await superValidate(zod(paymentConfigSchema));
             setError(cleanForm, 'paypal_me', 'Une erreur inattendue est survenue');
             return { form: cleanForm };
         }

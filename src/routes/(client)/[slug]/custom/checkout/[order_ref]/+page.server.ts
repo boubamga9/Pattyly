@@ -27,17 +27,21 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
         // Extraire shop depuis la relation
         const shop = order.shops;
 
-        // Récupérer le payment_link pour avoir le paypal_me
-        const { data: paymentLink, error: paymentLinkError } = await (locals.supabaseServiceRole as any)
+        // Récupérer les payment_links (priorité à PayPal pour rétrocompatibilité)
+        const { data: paymentLinks, error: paymentLinkError } = await (locals.supabaseServiceRole as any)
             .from('payment_links')
-            .select('paypal_me')
+            .select('provider_type, payment_identifier')
             .eq('profile_id', shop.profile_id)
-            .single();
+            .order('provider_type', { ascending: true }); // PayPal en premier
 
-        if (paymentLinkError || !paymentLink) {
-            console.error('Error fetching payment link:', paymentLinkError);
+        if (paymentLinkError || !paymentLinks || paymentLinks.length === 0) {
+            console.error('Error fetching payment links:', paymentLinkError);
             throw error(500, 'Erreur lors du chargement des informations de paiement');
         }
+
+        // Récupérer PayPal en priorité, sinon le premier disponible
+        const paypalLink = paymentLinks.find((pl: any) => pl.provider_type === 'paypal');
+        const paymentLink = paypalLink || paymentLinks[0];
 
         // Retourner order sans la relation shops (déjà extraite)
         const { shops, ...orderWithoutShops } = order;
@@ -46,7 +50,8 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
 
         return {
             order: orderWithoutShops,
-            paypalMe: paymentLink.paypal_me,
+            paypalMe: paymentLink.payment_identifier, // Utilise payment_identifier au lieu de paypal_me
+            paymentLinks: paymentLinks, // Pour afficher toutes les options disponibles
             shop,
             hasPolicies: hasPolicies || false,
         };

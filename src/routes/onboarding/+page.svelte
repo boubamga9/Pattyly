@@ -12,7 +12,7 @@
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
 	import { Check, Store } from 'lucide-svelte';
 	import OnboardingForm from './onboarding-form.svelte';
-	import PayPalForm from './paypal-form.svelte';
+	import PaymentForm from './payment-form.svelte';
 	import DirectoryForm from '$lib/components/directory/directory-form.svelte';
 
 	export let data: {
@@ -132,15 +132,15 @@
 						<!-- Labels mobiles -->
 						<div class="mt-2 text-center sm:hidden">
 							<p class="text-xs font-medium {step >= 2 ? 'text-[#FF6F61]' : 'text-neutral-500'}">
-								PayPal
+								Paiement
 							</p>
 						</div>
 						<!-- Labels desktop -->
 						<div class="mt-3 hidden text-center sm:block">
 							<p class="text-sm font-semibold {step >= 2 ? 'text-[#FF6F61]' : 'text-neutral-600'}">
-								PayPal
+								Paiement
 							</p>
-							<p class="mt-1 text-xs text-neutral-500">Configuration PayPal.me</p>
+							<p class="mt-1 text-xs text-neutral-500">Méthodes de paiement</p>
 					</div>
 				</div>
 
@@ -206,40 +206,35 @@
 			</Card>
 		{/if}
 
-		<!-- Step 2: PayPal -->
+		<!-- Step 2: Payment Methods -->
 		{#if step === 2}
 			<Card class="w-full">
 				<CardHeader>
 					<div class="flex items-center space-x-2">
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
-							viewBox="0 0 512 512"
-							class="mr-2 h-6 w-6"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="mr-2 h-6 w-6 text-[#FF6F61]"
 						>
-							<path
-								fill="#002c8a"
-								d="M377 184.8L180.7 399h-72c-5 0-9-5-8-10l48-304c1-7 7-12 14-12h122c84 3 107 46 92 112z"
-							/>
-							<path
-								fill="#009be1"
-								d="M380.2 165c30 16 37 46 27 86-13 59-52 84-109 85l-16 1c-6 0-10 4-11 10l-13 79c-1 7-7 12-14 12h-60c-5 0-9-5-8-10l22-143c1-5 182-120 182-120z"
-							/>
-							<path
-								fill="#001f6b"
-								d="M197 292l20-127a14 14 0 0 1 13-11h96c23 0 40 4 54 11-5 44-26 115-128 117h-44c-5 0-10 4-11 10z"
-							/>
+							<rect width="20" height="14" x="2" y="5" rx="2" />
+							<line x1="2" x2="22" y1="10" y2="10" />
 						</svg>
 						<div>
-							<CardTitle>Configuration PayPal.me</CardTitle>
+							<CardTitle>Configuration des méthodes de paiement</CardTitle>
 							<CardDescription>
-								Configurez votre nom PayPal.me pour recevoir les paiements
+								Configurez au moins une méthode de paiement pour recevoir les paiements. Vous pouvez configurer PayPal et/ou Revolut.
 							</CardDescription>
 						</div>
 					</div>
 				</CardHeader>
 				<CardContent>
-					<!-- Formulaire PayPal.me -->
-					<PayPalForm data={data.form} />
+					<!-- Formulaire de configuration des méthodes de paiement -->
+					<PaymentForm data={data.form} />
 				</CardContent>
 			</Card>
 		{/if}
