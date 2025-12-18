@@ -17,3 +17,6 @@ export const GET: RequestHandler = async ({ url }) => {
 	throw error(404, 'Service Worker not found');
 };
 
+
+
+

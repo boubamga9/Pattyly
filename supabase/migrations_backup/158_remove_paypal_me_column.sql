@@ -81,12 +81,22 @@ $$;
 -- 3. METTRE À JOUR LES INDEX
 -- ==============================================
 
--- Supprimer l'ancien index sur paypal_me
-DROP INDEX IF EXISTS idx_payment_links_paypal_me;
+-- Vérifier que la table payment_links existe avant de modifier les index
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 
+        FROM information_schema.tables 
+        WHERE table_name = 'payment_links'
+    ) THEN
+        -- Supprimer l'ancien index sur paypal_me
+        DROP INDEX IF EXISTS idx_payment_links_paypal_me;
 
--- Créer un index sur payment_identifier si nécessaire
-CREATE INDEX IF NOT EXISTS idx_payment_links_payment_identifier 
-  ON payment_links(payment_identifier);
+        -- Créer un index sur payment_identifier si nécessaire
+        CREATE INDEX IF NOT EXISTS idx_payment_links_payment_identifier 
+          ON payment_links(payment_identifier);
+    END IF;
+END $$;
 
 -- Note: anti_fraud table was removed in migration 130, no index needed
 
@@ -94,32 +104,59 @@ CREATE INDEX IF NOT EXISTS idx_payment_links_payment_identifier
 -- 4. METTRE À JOUR LA TABLE SHOP_TRANSFERS
 -- ==============================================
 
--- Ajouter payment_identifier et provider_type à shop_transfers
-ALTER TABLE shop_transfers 
-  ADD COLUMN IF NOT EXISTS payment_identifier TEXT,
-  ADD COLUMN IF NOT EXISTS provider_type TEXT DEFAULT 'paypal' CHECK (provider_type IN ('paypal', 'revolut'));
+-- Vérifier que la table shop_transfers existe avant de la modifier
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 
+        FROM information_schema.tables 
+        WHERE table_name = 'shop_transfers'
+    ) THEN
+        -- Ajouter payment_identifier et provider_type à shop_transfers
+        ALTER TABLE shop_transfers 
+          ADD COLUMN IF NOT EXISTS payment_identifier TEXT,
+          ADD COLUMN IF NOT EXISTS provider_type TEXT DEFAULT 'paypal' CHECK (provider_type IN ('paypal', 'revolut'));
 
--- Migrer les données existantes
-UPDATE shop_transfers 
-SET payment_identifier = paypal_me,
-    provider_type = 'paypal'
-WHERE payment_identifier IS NULL AND paypal_me IS NOT NULL;
+        -- Migrer les données existantes (seulement si paypal_me existe)
+        IF EXISTS (
+            SELECT 1 
+            FROM information_schema.columns 
+            WHERE table_name = 'shop_transfers' 
+            AND column_name = 'paypal_me'
+        ) THEN
+            UPDATE shop_transfers 
+            SET payment_identifier = paypal_me,
+                provider_type = 'paypal'
+            WHERE payment_identifier IS NULL AND paypal_me IS NOT NULL;
 
--- Rendre payment_identifier NOT NULL après migration
-ALTER TABLE shop_transfers 
-  ALTER COLUMN payment_identifier SET NOT NULL;
+            -- Rendre payment_identifier NOT NULL après migration
+            ALTER TABLE shop_transfers 
+              ALTER COLUMN payment_identifier SET NOT NULL;
 
--- Supprimer la colonne paypal_me de shop_transfers
-ALTER TABLE shop_transfers 
-  DROP COLUMN IF EXISTS paypal_me;
+            -- Supprimer la colonne paypal_me de shop_transfers
+            ALTER TABLE shop_transfers 
+              DROP COLUMN IF EXISTS paypal_me;
+        END IF;
+    END IF;
+END $$;
 
 -- ==============================================
 -- 5. SUPPRIMER LA COLONNE PAYPAL_ME DE PAYMENT_LINKS
 -- ==============================================
 
--- Supprimer la colonne paypal_me de payment_links
-ALTER TABLE payment_links 
-  DROP COLUMN IF EXISTS paypal_me;
+-- Vérifier que la table payment_links existe avant de supprimer la colonne
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 
+        FROM information_schema.tables 
+        WHERE table_name = 'payment_links'
+    ) THEN
+        -- Supprimer la colonne paypal_me de payment_links
+        ALTER TABLE payment_links 
+          DROP COLUMN IF EXISTS paypal_me;
+    END IF;
+END $$;
 
 -- ==============================================
 -- 6. METTRE À JOUR LES FONCTIONS RPC POUR SHOP_TRANSFERS
@@ -218,6 +255,16 @@ $$;
 -- 7. METTRE À JOUR LES COMMENTAIRES
 -- ==============================================
 
-COMMENT ON COLUMN payment_links.payment_identifier IS 'Identifiant du provider (ex: nom PayPal.me, identifiant Revolut)';
+-- Vérifier que la table payment_links existe avant d'ajouter les commentaires
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 
+        FROM information_schema.tables 
+        WHERE table_name = 'payment_links'
+    ) THEN
+        COMMENT ON COLUMN payment_links.payment_identifier IS 'Identifiant du provider (ex: nom PayPal.me, identifiant Revolut)';
+    END IF;
+END $$;
 -- Note: anti_fraud table and check_and_create_trial function were removed in migration 130
 

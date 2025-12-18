@@ -4,9 +4,17 @@
 --   2. Merge multiple permissive policies for SELECT to improve performance
 -- Date: 2025-01-XX
 
--- Supprimer les anciennes politiques
-DROP POLICY IF EXISTS "Public can view product images" ON product_images;
-DROP POLICY IF EXISTS "Users can manage their own product images" ON product_images;
+-- Vérifier que la table product_images existe avant d'optimiser les politiques
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 
+        FROM information_schema.tables 
+        WHERE table_name = 'product_images'
+    ) THEN
+        -- Supprimer les anciennes politiques
+        DROP POLICY IF EXISTS "Public can view product images" ON product_images;
+        DROP POLICY IF EXISTS "Users can manage their own product images" ON product_images;
 
 -- Créer une seule politique optimisée pour SELECT qui combine les deux cas
 -- La politique originale "Public can view" permettait de voir toutes les images (true)
@@ -54,13 +62,15 @@ CREATE POLICY "Users can delete their own product images" ON product_images
         )
     );
 
--- Commentaires
-COMMENT ON POLICY "Public can view product images" ON product_images IS 
-    'Permet à tout le monde de voir les images des produits des boutiques actives, et aux utilisateurs authentifiés de voir leurs propres images - optimisé avec (select auth.uid()) et fusionné en une seule politique';
-COMMENT ON POLICY "Users can insert their own product images" ON product_images IS 
-    'Permet aux utilisateurs de créer des images pour leurs propres produits - optimisé avec (select auth.uid())';
-COMMENT ON POLICY "Users can update their own product images" ON product_images IS 
-    'Permet aux utilisateurs de modifier les images de leurs propres produits - optimisé avec (select auth.uid())';
-COMMENT ON POLICY "Users can delete their own product images" ON product_images IS 
-    'Permet aux utilisateurs de supprimer les images de leurs propres produits - optimisé avec (select auth.uid())';
+        -- Commentaires
+        COMMENT ON POLICY "Public can view product images" ON product_images IS 
+            'Permet à tout le monde de voir les images des produits des boutiques actives, et aux utilisateurs authentifiés de voir leurs propres images - optimisé avec (select auth.uid()) et fusionné en une seule politique';
+        COMMENT ON POLICY "Users can insert their own product images" ON product_images IS 
+            'Permet aux utilisateurs de créer des images pour leurs propres produits - optimisé avec (select auth.uid())';
+        COMMENT ON POLICY "Users can update their own product images" ON product_images IS 
+            'Permet aux utilisateurs de modifier les images de leurs propres produits - optimisé avec (select auth.uid())';
+        COMMENT ON POLICY "Users can delete their own product images" ON product_images IS 
+            'Permet aux utilisateurs de supprimer les images de leurs propres produits - optimisé avec (select auth.uid())';
+    END IF;
+END $$;
 

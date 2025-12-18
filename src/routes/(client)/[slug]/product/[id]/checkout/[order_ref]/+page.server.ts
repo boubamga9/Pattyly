@@ -86,7 +86,6 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
             paymentLinks: paymentLinks, // Pour afficher toutes les options disponibles
             shop,
             product,
-            product,
             hasPolicies: hasPolicies || false,
         };
 
@@ -112,6 +111,7 @@ export const actions: Actions = {
             const shopId = formData.get('shopId') as string;
             const productId = formData.get('productId') as string;
             const orderRefFromForm = formData.get('orderRef') as string || order_ref; // Fallback sur order_ref
+            const paymentProvider = formData.get('paymentProvider') as string | null; // Provider utilisé (paypal, revolut, etc.)
 
             // 1. Récupérer la pending_order
             const { data: pendingOrder, error: pendingOrderError } = await (locals.supabaseServiceRole as any)
@@ -194,7 +194,8 @@ export const actions: Actions = {
                     paid_amount: paidAmount,
                     product_name: orderData.product_name,
                     product_base_price: product.base_price || 0,
-                    order_ref: order_ref
+                    order_ref: order_ref,
+                    payment_provider: paymentProvider || null // Sauvegarder le provider utilisé
                 })
                 .select()
                 .single();

@@ -7,7 +7,7 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import LoaderCircle from '~icons/lucide/loader-circle';
-	import { AlertTriangle, ExternalLink, ChevronDown } from 'lucide-svelte';
+	import { AlertTriangle, ExternalLink, ChevronDown, Check } from 'lucide-svelte';
 	import { paymentConfigSchema } from '../../../onboarding/schema';
 	import { invalidateAll } from '$app/navigation';
 
@@ -19,15 +19,10 @@
 		validators: zodClient(paymentConfigSchema),
 	});
 
-	const { form: formData, enhance, submitting, message } = form;
+	const { form: formData, enhance, submitting } = form;
 
 	let isPaypalGuideOpen = false;
-
-	// Extraire le message de succès (message est un store, donc on utilise $message)
-	// Peut être une chaîne ou un objet
-	$: messageText = $message 
-		? (typeof $message === 'string' ? $message : String($message))
-		: '';
+	let submitted = false;
 </script>
 
 <form
@@ -36,6 +31,10 @@
 	use:enhance={{
 		onResult: async ({ result }) => {
 			if (result.type === 'success' && result.data?.form?.valid) {
+				submitted = true;
+				setTimeout(() => {
+					submitted = false;
+				}, 2000);
 				// Recharger la page pour afficher les nouvelles données
 				await invalidateAll();
 			}
@@ -44,14 +43,6 @@
 	class="space-y-6"
 >
 	<Form.Errors {form} />
-
-	{#if messageText}
-		<Alert class="border-green-200 bg-green-50">
-			<AlertDescription class="text-green-800">
-				{messageText}
-			</AlertDescription>
-		</Alert>
-	{/if}
 
 	<!-- Information importante -->
 	<Alert class="border-blue-200 bg-blue-50">
@@ -211,10 +202,23 @@
 		{/if}
 	</div>
 
-	<Form.Button type="submit" class="w-full" disabled={$submitting}>
+	<Form.Button
+		type="submit"
+		disabled={$submitting || submitted}
+		class={`h-10 w-full text-sm font-medium text-white transition-all duration-200 disabled:cursor-not-allowed ${
+			submitted
+				? 'bg-[#FF6F61] hover:bg-[#e85a4f] disabled:opacity-100'
+				: $submitting
+					? 'bg-gray-600 hover:bg-gray-700 disabled:opacity-50'
+					: 'bg-primary shadow-sm hover:bg-primary/90 hover:shadow-md disabled:opacity-50'
+		}`}
+	>
 		{#if $submitting}
 			<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 			Enregistrement...
+		{:else if submitted}
+			<Check class="mr-2 h-4 w-4" />
+			Sauvegardé !
 		{:else}
 			Enregistrer les méthodes de paiement
 		{/if}
