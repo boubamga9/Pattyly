@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { STRIPE_PRODUCTS } from '$lib/config/server';
 
 /**
  * Limites de produits (gâteaux) par plan
@@ -34,6 +35,7 @@ export interface ProductLimitStats {
 /**
  * Vérifier la limite de produits pour un shop
  * Utilise la fonction RPC SQL pour obtenir les statistiques
+ * ✅ Passe les IDs de produits Stripe depuis la config pour supporter dev/prod
  */
 export async function checkProductLimit(
     shopId: string,
@@ -42,9 +44,12 @@ export async function checkProductLimit(
 ): Promise<ProductLimitStats> {
     console.log('📊 [Product Limits] Checking limit for shop:', shopId, 'profile:', profileId);
     
+    // ✅ Passer les IDs de produits depuis la config pour supporter différents environnements
     const { data, error } = await (supabase as any).rpc('check_product_limit', {
         p_shop_id: shopId,
-        p_profile_id: profileId
+        p_profile_id: profileId,
+        p_premium_product_id: STRIPE_PRODUCTS.PREMIUM,
+        p_basic_product_id: STRIPE_PRODUCTS.BASIC
     });
 
     if (error) {
