@@ -1,7 +1,6 @@
 import type { Stripe } from 'stripe';
 import { error } from '@sveltejs/kit';
 import { EmailService } from '$lib/services/email-service';
-import { sendNewOrderPushNotification } from '$lib/services/push-notification-service-server';
 import { PUBLIC_SITE_URL } from '$env/static/public';
 
 export async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, locals: any): Promise<void> {

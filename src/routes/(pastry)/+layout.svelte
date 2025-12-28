@@ -19,22 +19,12 @@
 
 	import NavLink from './components/nav-link.svelte';
 	import OrderLimitAlert from './components/order-limit-alert.svelte';
-	import { registerServiceWorkerForPastryChef } from '$lib/utils/service-worker-registration';
 
 	export let data;
 
 	let menuOpen = false;
 	onNavigate((_) => {
 		menuOpen = false;
-	});
-
-	// Enregistrer le service worker uniquement pour les pâtissiers (utilisateurs authentifiés)
-	onMount(async () => {
-		// Vérifier que l'utilisateur est bien un pâtissier (authentifié)
-		if (data.user && data.permissions?.shopId) {
-			// Enregistrer le service worker (vérifie automatiquement si déjà enregistré)
-			await registerServiceWorkerForPastryChef();
-		}
 	});
 
 	// Fonction pour gérer la navigation avec goto() pour rester dans la PWA
