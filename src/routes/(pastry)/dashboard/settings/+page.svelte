@@ -6,7 +6,6 @@
 	import DeleteAccountForm from './delete-account-form.svelte';
 	import ChangePasswordForm from './change-password-form.svelte';
 	import CreatePasswordForm from './create-password-form.svelte';
-	import PushNotificationToggle from '$lib/components/push-notification-toggle.svelte';
 	import { Check, AlertCircle, Crown } from 'lucide-svelte';
 	import LoaderCircle from '~icons/lucide/loader-circle';
 
@@ -139,9 +138,6 @@
 		</Card.Content>
 	</Card.Root>
 {/if}
-
-<!-- Notifications push -->
-<PushNotificationToggle />
 
 {#if false}
 	<!-- PayPal -->

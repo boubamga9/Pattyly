@@ -54,6 +54,8 @@
 	let searchRadius = 30; // Rayon par défaut en km
 	let filtersExpanded = true; // Filtres ouverts par défaut
 	let viewMode: 'list' | 'map' = 'list'; // Mode d'affichage : liste ou carte
+	let isLoadingAllShopsForMap = false; // Indicateur de chargement pour la carte
+	let allShopsLoadedForMap = false; // Indicateur si tous les shops ont été chargés pour la carte
 	let showOnlyVerified = false; // Filtre pour afficher uniquement les pâtissiers vérifiés
 
 	const cakeTypes = [
@@ -176,6 +178,83 @@
 	$: h1Title = cityName
 		? `Cake designers à ${cityName}`
 		: 'Trouve le cake designer parfait';
+
+	// Fonction pour charger tous les shops disponibles pour la carte
+	async function loadAllShopsForMap() {
+		// Si on a déjà tous les shops chargés, ne rien faire
+		if (allShopsLoadedForMap && displayedShops.length >= totalShops) {
+			return;
+		}
+
+		isLoadingAllShopsForMap = true;
+		const allShops = [...displayedShops];
+		let currentPageForMap = currentPage;
+		let hasMorePages = hasMore;
+
+		try {
+			// Charger toutes les pages restantes
+			while (hasMorePages) {
+				currentPageForMap++;
+				const params = new URLSearchParams();
+				if (selectedCitySuggestion) {
+					params.set('city', selectedCitySuggestion.city.toLowerCase());
+				}
+				if (selectedCakeType) {
+					const cakeTypeSlug = cakeTypeToSlug[selectedCakeType.toLowerCase()];
+					if (cakeTypeSlug) {
+						params.set('type', cakeTypeSlug);
+					}
+				}
+				if (selectedCitySuggestion?.coordinates) {
+					params.set('lat', selectedCitySuggestion.coordinates.lat.toString());
+					params.set('lon', selectedCitySuggestion.coordinates.lon.toString());
+					params.set('radius', searchRadius.toString());
+				}
+				if (showOnlyVerified) {
+					params.set('verified', 'true');
+				}
+				params.set('page', currentPageForMap.toString());
+
+				const response = await fetch(`/annuaire/api?${params.toString()}`);
+				if (!response.ok) {
+					console.warn(`⚠️ [Annuaire] Erreur lors du chargement de la page ${currentPageForMap}`);
+					break;
+				}
+
+				const result = await response.json();
+				if (!result.shops || result.shops.length === 0) {
+					break;
+				}
+
+				allShops.push(...result.shops);
+				hasMorePages = result.pagination?.hasMore || false;
+				
+				// Limite de sécurité pour éviter les boucles infinies
+				if (currentPageForMap > 100) {
+					console.warn(`⚠️ [Annuaire] Limite de pages atteinte (100)`);
+					break;
+				}
+			}
+
+			// Mettre à jour displayedShops avec tous les shops
+			displayedShops = allShops;
+			
+			// Re-trier pour que les premium restent en tête
+			displayedShops.sort((a, b) => {
+				if (a.isPremium && !b.isPremium) return -1;
+				if (!a.isPremium && b.isPremium) return 1;
+				return a.name.localeCompare(b.name);
+			});
+
+			// Marquer que tous les shops sont chargés pour la carte
+			allShopsLoadedForMap = true;
+			// NE PAS modifier hasMore ici - on le garde pour l'infinite scroll en vue liste
+		} catch (error) {
+			console.error('❌ [Annuaire] Erreur lors du chargement de tous les shops pour la carte:', error);
+		} finally {
+			isLoadingAllShopsForMap = false;
+		}
+	}
 
 	// Fonction pour charger la page suivante
 	async function loadNextPage() {
@@ -341,6 +420,9 @@
 		try {
 			isFiltering = true;
 			isLoadingFilter = true;
+			
+			// Réinitialiser le flag de chargement complet pour la carte
+			allShopsLoadedForMap = false;
 			
 			// ✅ Si le filtre "verified" change, recharger depuis le serveur
 			// On recharge toujours depuis le serveur pour éviter les incohérences
@@ -696,7 +778,11 @@
 						<span class="hidden sm:inline">Liste</span>
 					</button>
 					<button
-						on:click={() => viewMode = 'map'}
+						on:click={async () => {
+							viewMode = 'map';
+							// Charger tous les shops disponibles pour la carte
+							await loadAllShopsForMap();
+						}}
 						class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all {viewMode === 'map' 
 							? 'bg-[#FF6F61] text-white' 
 							: 'text-neutral-600 hover:bg-neutral-50'}"
@@ -733,7 +819,15 @@
 			<!-- Vue carte ou liste -->
 			{#if viewMode === 'map'}
 				<!-- Vue carte -->
-				<div class="relative h-[600px] w-full rounded-xl overflow-hidden border border-neutral-200" style="z-index: 1;">
+				{#if isLoadingAllShopsForMap}
+					<div class="relative h-[600px] w-full rounded-xl overflow-hidden border border-neutral-200 flex items-center justify-center bg-neutral-50">
+						<div class="text-center">
+							<div class="mb-2 h-8 w-8 animate-spin rounded-full border-4 border-[#FF6F61] border-t-transparent mx-auto"></div>
+							<p class="text-sm text-neutral-600">Chargement de tous les shops...</p>
+						</div>
+					</div>
+				{:else}
+					<div class="relative h-[600px] w-full rounded-xl overflow-hidden border border-neutral-200" style="z-index: 1;">
 					<ShopsMap
 						shops={displayedShops.map(designer => ({
 							id: designer.id,
@@ -750,7 +844,8 @@
 						}))}
 						cityName={selectedCitySuggestion?.city || cityName || ''}
 					/>
-				</div>
+					</div>
+				{/if}
 			{:else}
 				<!-- Vue liste -->
 				{#if isLoadingFilter}

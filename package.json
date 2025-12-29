@@ -22,7 +22,17 @@
 		"create:test-shops": "tsx scripts/create-test-shops.ts",
 		"create:test-shops:prod": "NODE_ENV=production tsx scripts/create-test-shops.ts",
 		"migrate:shop-logos": "tsx scripts/migrate-shop-logos-to-cloudinary.ts",
-		"migrate:shop-logos:prod": "NODE_ENV=production tsx scripts/migrate-shop-logos-to-cloudinary.ts"
+		"migrate:shop-logos:prod": "NODE_ENV=production tsx scripts/migrate-shop-logos-to-cloudinary.ts",
+		"db:import:prod-data:local": "dotenv -e .env.local -- tsx scripts/import-prod-data-anonymized.ts local",
+		"db:import:prod-data:staging": "dotenv -e .env.local -- tsx scripts/import-prod-data-anonymized.ts staging",
+		"db:reset:migrations": "dotenv -e .env.local -- tsx scripts/reset-migrations-from-prod.ts",
+		"db:reset:local": "dotenv -e .env.local -- tsx scripts/reset-db-from-prod.ts local",
+		"db:reset:staging": "dotenv -e .env.local -- tsx scripts/reset-db-from-prod.ts staging",
+		"db:sync:local": "dotenv -e .env.local -- tsx scripts/sync-migrations.ts local",
+		"db:sync:staging": "dotenv -e .env.local -- tsx scripts/sync-migrations.ts staging",
+		"db:sync:prod": "dotenv -e .env.local -- tsx scripts/sync-migrations.ts production",
+		"db:reset:staging:history": "dotenv -e .env.local -- tsx scripts/reset-migration-history.ts staging",
+		"db:reset:prod:history": "dotenv -e .env.local -- tsx scripts/reset-migration-history.ts production"
 	},
 	"devDependencies": {
 		"@iconify-json/bi": "^1.1.23",
@@ -54,9 +64,7 @@
 		"typescript": "^5.9.3",
 		"unplugin-icons": "^0.19.0",
 		"vite": "^5.3.5",
-		"vite-plugin-pwa": "^1.2.0",
-		"vitest": "^2.0.5",
-		"workbox-window": "^7.4.0"
+		"vitest": "^2.0.5"
 	},
 	"type": "module",
 	"dependencies": {
@@ -89,7 +97,6 @@
 		"tailwind-merge": "^2.3.0",
 		"tailwind-variants": "^0.2.1",
 		"vaul-svelte": "^0.3.0",
-		"web-push": "^3.6.7",
 		"zod": "^3.23.8"
 	},
 	"engines": {

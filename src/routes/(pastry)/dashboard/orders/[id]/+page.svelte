@@ -269,6 +269,35 @@
 		}
 		return 'Commande personnalisée';
 	}
+
+	// Fonction pour obtenir le nom du provider de paiement
+	function getPaymentProviderName(): string {
+		if (order.payment_provider === 'paypal') return 'PayPal';
+		if (order.payment_provider === 'revolut') return 'Revolut';
+		return 'méthode de paiement';
+	}
+
+	// Fonction pour obtenir le message personnalisé selon le provider
+	function getPaymentMessage(): string {
+		if (order.payment_provider === 'paypal') {
+			return 'Le client a indiqué avoir effectué le paiement via PayPal. Vérifiez votre compte PayPal puis confirmez la réception du paiement.';
+		}
+		if (order.payment_provider === 'revolut') {
+			return 'Le client a indiqué avoir effectué le paiement via Revolut. Vérifiez votre compte Revolut puis confirmez la réception du paiement.';
+		}
+		return 'Le client a indiqué avoir effectué le paiement. Vérifiez votre compte (PayPal, Revolut, etc.) puis confirmez la réception du paiement.';
+	}
+
+	// Fonction pour obtenir le message de référence personnalisé selon le provider
+	function getReferenceMessage(): string {
+		if (order.payment_provider === 'paypal') {
+			return 'Le client doit inclure cette référence lors du paiement PayPal';
+		}
+		if (order.payment_provider === 'revolut') {
+			return 'Le client doit inclure cette référence lors du paiement Revolut';
+		}
+		return 'Le client doit inclure cette référence lors du paiement (PayPal, Revolut, etc.)';
+	}
 </script>
 
 <svelte:head>
@@ -458,8 +487,13 @@
 									</Button>
 								</div>
 								<p class="mt-1 text-xs text-muted-foreground">
-									Le client doit inclure cette référence lors du paiement PayPal
+									{getReferenceMessage()}
 								</p>
+								{#if order.payment_provider}
+									<p class="mt-1 text-xs text-muted-foreground">
+										Méthode de paiement utilisée : <strong>{getPaymentProviderName()}</strong>
+									</p>
+								{/if}
 							</div>
 						{/if}
 						{#if order.chef_pickup_date}
@@ -831,14 +865,12 @@
 							</Button>
 						{/if}
 					{:else if order.status === 'to_verify'}
-						<!-- Actions pour les commandes à vérifier (PayPal.me) -->
+						<!-- Actions pour les commandes à vérifier (paiement externe) -->
 						<div class="space-y-4">
 							<Alert>
 								<AlertCircle class="h-4 w-4" />
 								<AlertDescription>
-									Le client a indiqué avoir effectué le paiement via PayPal.me.
-									Vérifiez votre compte PayPal puis confirmez la réception du
-									paiement.
+									{getPaymentMessage()}
 								</AlertDescription>
 							</Alert>
 							<form

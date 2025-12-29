@@ -86,7 +86,6 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
             paymentLinks: paymentLinks, // Pour afficher toutes les options disponibles
             shop,
             product,
-            product,
             hasPolicies: hasPolicies || false,
         };
 
@@ -112,6 +111,7 @@ export const actions: Actions = {
             const shopId = formData.get('shopId') as string;
             const productId = formData.get('productId') as string;
             const orderRefFromForm = formData.get('orderRef') as string || order_ref; // Fallback sur order_ref
+            const paymentProvider = formData.get('paymentProvider') as string | null; // Provider utilisé (paypal, revolut, etc.)
 
             // 1. Récupérer la pending_order
             const { data: pendingOrder, error: pendingOrderError } = await (locals.supabaseServiceRole as any)
@@ -194,7 +194,8 @@ export const actions: Actions = {
                     paid_amount: paidAmount,
                     product_name: orderData.product_name,
                     product_base_price: product.base_price || 0,
-                    order_ref: order_ref
+                    order_ref: order_ref,
+                    payment_provider: paymentProvider || null // Sauvegarder le provider utilisé
                 })
                 .select()
                 .single();
@@ -269,36 +270,6 @@ export const actions: Actions = {
             } catch (emailError) {
                 console.error('❌ [Confirm Payment] Email error:', emailError);
                 // Ne pas bloquer la commande si les emails échouent
-            }
-
-            // 5.5. Envoyer la notification push au pâtissier (non bloquant)
-            const isDev = import.meta.env?.DEV;
-            if (product.shops?.profile_id) {
-                if (isDev) {
-                    console.log('🔔 [Confirm Payment] Tentative d\'envoi de notification push');
-                    console.log('   - Profile ID:', product.shops.profile_id);
-                    console.log('   - Order ID:', order.id);
-                }
-
-                const { sendNewOrderPushNotification } = await import('$lib/services/push-notification-service-server');
-                await sendNewOrderPushNotification(
-                    locals.supabaseServiceRole,
-                    product.shops.profile_id,
-                    {
-                        orderId: order.id,
-                        customerName: orderData.customer_name,
-                        productName: orderData.product_name,
-                        pickupDate: orderData.pickup_date,
-                        dashboardUrl: `${PUBLIC_SITE_URL}/dashboard/orders/${order.id}`,
-                    }
-                ).catch((error) => {
-                    // Les erreurs sont toujours loggées
-                    console.error('❌ [Confirm Payment] Erreur notification push (non bloquant):', error);
-                });
-            } else {
-                if (isDev) {
-                    console.warn('⚠️ [Confirm Payment] Pas de profile_id, notification push non envoyée');
-                }
             }
 
             // 6. Supprimer la pending_order

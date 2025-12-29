@@ -57,9 +57,29 @@
 	async function handlePaymentClick(provider: { provider_type: string; payment_identifier: string }) {
 		const paymentLink = getPaymentLink(provider);
 		if (paymentLink) {
+			// Stocker le provider dans le formulaire avant de soumettre
+			if (confirmationForm) {
+				const providerInput = confirmationForm.querySelector('input[name="paymentProvider"]');
+				if (providerInput && providerInput instanceof HTMLInputElement) {
+					providerInput.value = provider.provider_type;
+				}
+			}
 			window.open(paymentLink, '_blank');
 			// Soumettre directement le formulaire de confirmation
 			confirmationForm?.requestSubmit();
+		}
+	}
+
+	// Fonction pour gérer le fallback PayPal
+	function handlePaypalFallback() {
+		if (data.paypalMe && confirmationForm) {
+			// Stocker PayPal comme provider par défaut dans le formulaire
+			const providerInput = confirmationForm.querySelector('input[name="paymentProvider"]');
+			if (providerInput && providerInput instanceof HTMLInputElement) {
+				providerInput.value = 'paypal';
+			}
+			window.open(`https://paypal.me/${data.paypalMe}/${depositAmount}`, '_blank');
+			confirmationForm.requestSubmit();
 		}
 	}
 
@@ -499,23 +519,18 @@
 						</div>
 					{:else}
 						<!-- Fallback si aucun payment link n'est disponible -->
-						<a
-							href="https://paypal.me/{data.paypalMe}/{depositAmount}"
-							target="_blank"
-							rel="noopener noreferrer"
+						<button
+							type="button"
 							on:click={(e) => {
 								e.preventDefault();
-								if (data.paypalMe) {
-									window.open(`https://paypal.me/${data.paypalMe}/${depositAmount}`, '_blank');
-									confirmationForm?.requestSubmit();
-								}
+								handlePaypalFallback();
 							}}
 							class="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0070ba] px-6 py-3 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-[#005ea6] hover:shadow-md"
 							style="font-weight: 500;"
 						>
 							Payer l'acompte
 							<ExternalLink class="h-4 w-4" />
-						</a>
+						</button>
 					{/if}
 
 					<!-- Bouton de confirmation (caché mais nécessaire pour le submit automatique) -->
@@ -527,6 +542,7 @@
 					>
 						<!-- ✅ OPTIMISÉ : Passer orderId via formData pour éviter requête redondante -->
 						<input type="hidden" name="orderId" value={data.order.id} />
+						<input type="hidden" name="paymentProvider" value="" />
 					</form>
 				</div>
 			</div>

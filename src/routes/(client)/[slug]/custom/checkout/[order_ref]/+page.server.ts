@@ -79,6 +79,7 @@ export const actions: Actions = {
             // ✅ OPTIMISÉ : Récupérer orderId depuis formData si disponible, sinon utiliser order_ref
             const formData = await request.formData();
             const orderId = formData.get('orderId') as string;
+            const paymentProvider = formData.get('paymentProvider') as string | null; // Provider utilisé (paypal, revolut, etc.)
 
             // 1. Récupérer l'order (avec orderId si disponible, sinon avec order_ref)
             const orderQuery = (locals.supabaseServiceRole as any)
@@ -126,7 +127,8 @@ export const actions: Actions = {
                 .from('orders')
                 .update({
                     status: 'to_verify',
-                    paid_amount: paidAmount
+                    paid_amount: paidAmount,
+                    payment_provider: paymentProvider || null // Sauvegarder le provider utilisé
                 })
                 .eq('id', order.id)
                 .select()
