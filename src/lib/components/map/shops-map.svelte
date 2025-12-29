@@ -150,9 +150,19 @@
 				finalCoords = [shop.latitude, shop.longitude];
 			} else {
 				// Fallback : géocoder à la volée si pas de coordonnées en base
-			const shopCity = shop.actualCity || shop.city || cityName;
-			const coords = await geocodeCity(shopCity, shop.postalCode);
-				finalCoords = coords || getCityCoordinates();
+				const shopCity = shop.actualCity || shop.city || cityName;
+				
+				if (!shopCity || shopCity.trim().length === 0) {
+					finalCoords = getCityCoordinates();
+				} else {
+					const coords = await geocodeCity(shopCity, shop.postalCode);
+					finalCoords = coords || getCityCoordinates();
+				}
+			}
+			
+			// Vérifier que finalCoords est valide
+			if (!finalCoords || !Array.isArray(finalCoords) || finalCoords.length !== 2) {
+				continue;
 			}
 			
 			// Ajouter un petit décalage aléatoire seulement si plusieurs shops dans la même ville précise
@@ -162,7 +172,9 @@
 			const offsetLng = shopsInSameCity > 1 ? (Math.random() - 0.5) * 0.01 : 0;
 			
 			const icon = createCustomIcon(shop);
-			if (!icon) continue;
+			if (!icon) {
+				continue;
+			}
 			
 			const marker = L.marker([finalCoords[0] + offsetLat, finalCoords[1] + offsetLng], {
 				icon: icon,
@@ -354,9 +366,19 @@
 				finalCoords = [shop.latitude, shop.longitude];
 			} else {
 				// Fallback : géocoder à la volée si pas de coordonnées en base
-			const shopCity = shop.actualCity || shop.city || cityName;
-			const coords = await geocodeCity(shopCity, shop.postalCode);
-				finalCoords = coords || getCityCoordinates();
+				const shopCity = shop.actualCity || shop.city || cityName;
+				
+				if (!shopCity || shopCity.trim().length === 0) {
+					finalCoords = getCityCoordinates();
+				} else {
+					const coords = await geocodeCity(shopCity, shop.postalCode);
+					finalCoords = coords || getCityCoordinates();
+				}
+			}
+			
+			// Vérifier que finalCoords est valide
+			if (!finalCoords || !Array.isArray(finalCoords) || finalCoords.length !== 2) {
+				continue;
 			}
 			
 			// Ajouter un petit décalage aléatoire seulement si plusieurs shops dans la même ville précise
@@ -366,7 +388,9 @@
 			const offsetLng = shopsInSameCity > 1 ? (Math.random() - 0.5) * 0.01 : 0;
 			
 			const icon = createCustomIcon(shop);
-			if (!icon) continue;
+			if (!icon) {
+				continue;
+			}
 			
 			const marker = L.marker([finalCoords[0] + offsetLat, finalCoords[1] + offsetLng], {
 				icon: icon,

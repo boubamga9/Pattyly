@@ -1,4 +1,11 @@
+-- MIGRATION INITIALE (PRODUCTION)
+-- Projet: mxlknaajiwtcnyhjpkiz
+-- Générée le: 2025-12-29T17:32:52.935Z
+-- Source de vérité: base de production Supabase
+-- ⚠️ Ne jamais modifier cette migration après application
 
+-- ⚠️ ATTENTION: Cette migration supprime et recrée le schéma public
+-- Toutes les données existantes seront perdues !
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -11,8 +18,11 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
+-- Supprimer le schéma public existant et tout son contenu
+DROP SCHEMA IF EXISTS "public" CASCADE;
 
-CREATE SCHEMA IF NOT EXISTS "public";
+-- Recréer le schéma public
+CREATE SCHEMA "public";
 
 
 ALTER SCHEMA "public" OWNER TO "pg_database_owner";
