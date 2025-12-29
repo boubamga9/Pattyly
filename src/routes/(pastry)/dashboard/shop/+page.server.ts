@@ -533,6 +533,18 @@ export const actions: Actions = {
             return { form };
         }
 
+        // Vérifier si la ville a changé pour déclencher le géocodage
+        const { data: currentShop } = await locals.supabase
+            .from('shops')
+            .select('directory_actual_city, directory_city, directory_postal_code, latitude, longitude')
+            .eq('id', shopId)
+            .single();
+
+        const cityChanged = 
+            currentShop?.directory_actual_city !== form.data.directory_actual_city ||
+            currentShop?.directory_city !== form.data.directory_city ||
+            currentShop?.directory_postal_code !== form.data.directory_postal_code;
+
         // Mettre à jour les champs annuaire (sans directory_enabled qui a son propre formulaire)
         const { error: updateError } = await locals.supabase
             .from('shops')
@@ -550,20 +562,25 @@ export const actions: Actions = {
             return { form };
         }
 
-        // ✅ Géocoder automatiquement si les informations de localisation sont disponibles
-        const { geocodeShopIfNeeded } = await import('$lib/utils/geocoding');
+        // ✅ Géocoder automatiquement si la ville a changé ou si les coordonnées sont manquantes
         const cityName = form.data.directory_actual_city || form.data.directory_city;
-        if (cityName) {
-            // Géocoder en arrière-plan (ne pas bloquer la réponse)
-            geocodeShopIfNeeded(
-                locals.supabase,
-                shopId,
-                cityName,
-                form.data.directory_postal_code
-            ).catch((error) => {
+        if (cityName && (cityChanged || !currentShop?.latitude || !currentShop?.longitude)) {
+            const { geocodeShopIfNeeded } = await import('$lib/utils/geocoding');
+            // Géocoder de manière synchrone pour s'assurer que ça fonctionne
+            try {
+                const success = await geocodeShopIfNeeded(
+                    locals.supabase,
+                    shopId,
+                    cityName,
+                    form.data.directory_postal_code
+                );
+                if (!success) {
+                    console.warn(`⚠️ [Directory] Géocodage échoué pour ${cityName}, mais la mise à jour a réussi`);
+                }
+            } catch (error) {
                 console.error('❌ [Directory] Erreur lors du géocodage automatique:', error);
                 // Ne pas faire échouer la requête si le géocodage échoue
-            });
+            }
         }
 
         // Revalidate shop cache (utiliser shopSlug depuis formData)
@@ -649,17 +666,22 @@ export const actions: Actions = {
                     if (!shopData.latitude || !shopData.longitude) {
                         const cityName = shopData.directory_actual_city || shopData.directory_city;
                         if (cityName) {
-                            // Géocoder en arrière-plan (ne pas bloquer la réponse)
+                            // Géocoder de manière synchrone pour s'assurer que ça fonctionne
                             const { geocodeShopIfNeeded } = await import('$lib/utils/geocoding');
-                            geocodeShopIfNeeded(
-                                locals.supabase,
-                                shopId,
-                                cityName,
-                                shopData.directory_postal_code
-                            ).catch((error) => {
+                            try {
+                                const success = await geocodeShopIfNeeded(
+                                    locals.supabase,
+                                    shopId,
+                                    cityName,
+                                    shopData.directory_postal_code
+                                );
+                                if (!success) {
+                                    console.warn(`⚠️ [Toggle Directory] Géocodage échoué pour ${cityName}`);
+                                }
+                            } catch (error) {
                                 console.error('❌ [Toggle Directory] Erreur lors du géocodage automatique:', error);
                                 // Ne pas faire échouer la requête si le géocodage échoue
-                            });
+                            }
                         }
                     }
                 }

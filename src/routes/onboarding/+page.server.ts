@@ -394,10 +394,10 @@ export const actions: Actions = {
                 return { form: cleanForm };
             }
 
-            // Récupérer la boutique
+            // Récupérer la boutique avec les informations actuelles pour détecter les changements
             const { data: shop, error: shopError } = await supabase
                 .from('shops')
-                .select('id')
+                .select('id, directory_actual_city, directory_city, directory_postal_code, latitude, longitude')
                 .eq('profile_id', userId)
                 .single();
 
@@ -406,6 +406,12 @@ export const actions: Actions = {
                 setError(cleanForm, 'directory_city', 'Boutique non trouvée');
                 return { form: cleanForm };
             }
+
+            // Vérifier si la ville a changé pour déclencher le géocodage
+            const cityChanged = 
+                shop.directory_actual_city !== form.data.directory_actual_city ||
+                shop.directory_city !== form.data.directory_city ||
+                shop.directory_postal_code !== form.data.directory_postal_code;
 
             // Mettre à jour les champs annuaire
             console.log('📋 [Onboarding Directory] Updating shop with data:', {
@@ -433,6 +439,28 @@ export const actions: Actions = {
                 const cleanForm = await superValidate(zod(directorySchema));
                 setError(cleanForm, 'directory_city', 'Erreur lors de la sauvegarde');
                 return { form: cleanForm };
+            }
+
+            // ✅ Géocoder automatiquement si la ville a changé ou si les coordonnées sont manquantes
+            const cityName = form.data.directory_actual_city || form.data.directory_city;
+            if (cityName && (cityChanged || !shop.latitude || !shop.longitude)) {
+                const { geocodeShopIfNeeded } = await import('$lib/utils/geocoding');
+                try {
+                    const success = await geocodeShopIfNeeded(
+                        supabase,
+                        shop.id,
+                        cityName,
+                        form.data.directory_postal_code
+                    );
+                    if (!success) {
+                        console.warn(`⚠️ [Onboarding Directory] Géocodage échoué pour ${cityName}, mais la mise à jour a réussi`);
+                    } else {
+                        console.log(`✅ [Onboarding Directory] Coordonnées géocodées avec succès pour ${cityName}`);
+                    }
+                } catch (error) {
+                    console.error('❌ [Onboarding Directory] Erreur lors du géocodage automatique:', error);
+                    // Ne pas faire échouer la requête si le géocodage échoue
+                }
             }
 
             console.log('📋 [Onboarding Directory] Update successful, creating success form');
