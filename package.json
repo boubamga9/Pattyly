@@ -32,7 +32,9 @@
 		"db:sync:staging": "dotenv -e .env.local -- tsx scripts/sync-migrations.ts staging",
 		"db:sync:prod": "dotenv -e .env.local -- tsx scripts/sync-migrations.ts production",
 		"db:reset:staging:history": "dotenv -e .env.local -- tsx scripts/reset-migration-history.ts staging",
-		"db:reset:prod:history": "dotenv -e .env.local -- tsx scripts/reset-migration-history.ts production"
+		"db:reset:prod:history": "dotenv -e .env.local -- tsx scripts/reset-migration-history.ts production",
+		"db:add-initial-migration:prod": "dotenv -e .env.local -- tsx scripts/add-initial-migration-to-history.ts production",
+		"db:add-initial-migration:staging": "dotenv -e .env.local -- tsx scripts/add-initial-migration-to-history.ts staging"
 	},
 	"devDependencies": {
 		"@iconify-json/bi": "^1.1.23",
