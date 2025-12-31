@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
@@ -25,11 +25,13 @@
 		Copy,
 		Check,
 		CreditCard,
+		Crown,
+		Sparkles,
 	} from 'lucide-svelte';
 	import { env } from '$env/dynamic/public';
 	import TransferButton from '$lib/components/TransferButton.svelte';
 	// Données de la page
-	$: ({ shop, metrics, permissions, user, plans, currentPlan } = $page.data);
+	$: ({ shop, metrics, permissions, user, plans, currentPlan, isLifetimeAvailable, hasLifetimePlan } = $page.data);
 	
 	// ✅ Tracking: Page view côté client (session_id persistant)
 	onMount(() => {
@@ -61,6 +63,57 @@
 
 	// État pour le feedback de copie
 	let copySuccess = false;
+
+	// Compte à rebours pour l'offre limitée
+	const deadline = new Date('2026-01-31T23:59:59').getTime();
+	let timeLeft = {
+		days: 0,
+		hours: 0,
+		minutes: 0,
+		seconds: 0
+	};
+	let intervalId: ReturnType<typeof setInterval> | null = null;
+
+	function updateCountdown() {
+		const now = new Date().getTime();
+		const distance = deadline - now;
+
+		if (distance < 0) {
+			timeLeft = { days: 0, hours: 0, minutes: 0, seconds: 0 };
+			return;
+		}
+
+		timeLeft = {
+			days: Math.floor(distance / (1000 * 60 * 60 * 24)),
+			hours: Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+			minutes: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
+			seconds: Math.floor((distance % (1000 * 60)) / 1000)
+		};
+	}
+
+	// Démarrer le compte à rebours si l'offre est disponible
+	$: if (isLifetimeAvailable && !hasLifetimePlan) {
+		if (typeof window !== 'undefined') {
+			updateCountdown();
+			if (intervalId) {
+				clearInterval(intervalId);
+			}
+			intervalId = setInterval(updateCountdown, 1000);
+		}
+	}
+
+	onMount(() => {
+		if (isLifetimeAvailable && !hasLifetimePlan) {
+			updateCountdown();
+			intervalId = setInterval(updateCountdown, 1000);
+		}
+	});
+
+	onDestroy(() => {
+		if (intervalId) {
+			clearInterval(intervalId);
+		}
+	});
 
 	// Fonction pour formater le prix
 	function formatPrice(price: number): string {
@@ -153,11 +206,63 @@
 </svelte:head>
 
 <div class="container mx-auto space-y-6 p-3 md:p-6">
+	<!-- Bande offre limitée -->
+	{#if false && isLifetimeAvailable && !hasLifetimePlan}
+		<div class="mb-6 w-full rounded-lg bg-gradient-to-r from-[#FF6F61] to-[#FF8A7A] px-4 py-3 text-white shadow-md">
+			<div class="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
+				<div class="flex items-center gap-2">
+					<Sparkles class="h-4 w-4" />
+					<span class="font-semibold">Offre limitée • Paiement unique</span>
+				</div>
+				
+				<!-- Compte à rebours -->
+				<div class="flex items-center gap-1.5">
+					<span class="text-[10px] text-white/80">Se termine dans :</span>
+					<div class="flex gap-1">
+						<div class="rounded bg-white/20 px-1.5 py-0.5 backdrop-blur-sm">
+							<div class="text-xs font-bold">{timeLeft.days}</div>
+							<div class="text-[10px] text-white/80">j</div>
+						</div>
+						<div class="rounded bg-white/20 px-1.5 py-0.5 backdrop-blur-sm">
+							<div class="text-xs font-bold">{timeLeft.hours}</div>
+							<div class="text-[10px] text-white/80">h</div>
+						</div>
+						<div class="rounded bg-white/20 px-1.5 py-0.5 backdrop-blur-sm">
+							<div class="text-xs font-bold">{timeLeft.minutes}</div>
+							<div class="text-[10px] text-white/80">m</div>
+						</div>
+						<div class="rounded bg-white/20 px-1.5 py-0.5 backdrop-blur-sm">
+							<div class="text-xs font-bold">{timeLeft.seconds}</div>
+							<div class="text-[10px] text-white/80">s</div>
+						</div>
+					</div>
+					<Button
+						href="/lifetime"
+						variant="outline"
+						size="sm"
+						class="ml-2 border-white/30 bg-white/20 text-white hover:bg-white/30"
+					>
+						Découvrir
+						<ArrowUpRight class="ml-1 h-3 w-3" />
+					</Button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
 	<!-- En-tête -->
 	<div class="mb-8">
 		<div class="mb-2 flex items-center gap-3">
 			<h1 class="text-3xl font-bold">Tableau de bord</h1>
-			{#if permissions?.isExempt}
+			{#if hasLifetimePlan}
+				<Badge
+					variant="secondary"
+					class="border-0 bg-primary text-white shadow-sm"
+				>
+					<Crown class="mr-1 h-3 w-3" />
+					Plan à vie
+				</Badge>
+			{:else if permissions?.isExempt}
 				<Badge
 					variant="secondary"
 					class="border-0 bg-[#FF6F61] text-white shadow-sm"
@@ -340,62 +445,65 @@
 		</div>
 	</div>
 
-	<!-- Section Plans -->
-	<Card>
-		<CardHeader>
-			<CardTitle class="flex items-center gap-2">
-				<CreditCard class="h-5 w-5" />
-				Votre abonnement
-			</CardTitle>
-			<CardDescription>
+	<!-- Section Plans (masquée si utilisateur a un plan lifetime) -->
+	{#if !hasLifetimePlan}
+		<Card>
+			<CardHeader>
+				<CardTitle class="flex items-center gap-2">
+					<CreditCard class="h-5 w-5" />
+					Votre abonnement
+				</CardTitle>
+				<CardDescription>
+					{#if currentPlan}
+						{@const currentPlanData = plans.find(p => p.id === currentPlan)}
+						{#if currentPlanData}
+							Plan {currentPlanData.name} - {currentPlanData.price}€/mois
+						{/if}
+					{:else}
+						Aucun abonnement actif
+					{/if}
+				</CardDescription>
+			</CardHeader>
+			<CardContent>
 				{#if currentPlan}
 					{@const currentPlanData = plans.find(p => p.id === currentPlan)}
 					{#if currentPlanData}
-						Plan {currentPlanData.name} - {currentPlanData.price}€/mois
+						<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+							<div class="flex items-center gap-3">
+								<Badge class="bg-[#FF6F61] text-white">
+									Plan actuel
+								</Badge>
+								<div>
+									<p class="font-semibold">{currentPlanData.name}</p>
+									<p class="text-sm text-muted-foreground">
+										{currentPlanData.price}€/mois
+									</p>
+								</div>
+							</div>
+							<Button href="/subscription" class="w-full sm:w-auto">
+								Gérer l'abonnement
+								<ArrowUpRight class="ml-2 h-4 w-4" />
+							</Button>
+						</div>
 					{/if}
 				{:else}
-					Aucun abonnement actif
-				{/if}
-			</CardDescription>
-		</CardHeader>
-		<CardContent>
-			{#if currentPlan}
-				{@const currentPlanData = plans.find(p => p.id === currentPlan)}
-				{#if currentPlanData}
 					<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-						<div class="flex items-center gap-3">
-							<Badge class="bg-[#FF6F61] text-white">
-								Plan actuel
-							</Badge>
-							<div>
-								<p class="font-semibold">{currentPlanData.name}</p>
-								<p class="text-sm text-muted-foreground">
-									{currentPlanData.price}€/mois
-								</p>
-							</div>
-						</div>
-						<Button href="/subscription" class="w-full sm:w-auto">
-							Gérer l'abonnement
+						<p class="text-muted-foreground">
+							Vous n'avez pas encore d'abonnement actif
+						</p>
+						<Button 
+							href="/subscription"
+							class="w-full sm:w-auto bg-[#FF6F61] text-white hover:bg-[#e85a4f]"
+						>
+							Souscrire
 							<ArrowUpRight class="ml-2 h-4 w-4" />
 						</Button>
 					</div>
 				{/if}
-			{:else}
-				<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-					<p class="text-muted-foreground">
-						Vous n'avez pas encore d'abonnement actif
-					</p>
-					<Button 
-						href="/subscription"
-						class="w-full sm:w-auto bg-[#FF6F61] text-white hover:bg-[#e85a4f]"
-					>
-						Souscrire
-						<ArrowUpRight class="ml-2 h-4 w-4" />
-					</Button>
-				</div>
-			{/if}
-		</CardContent>
-	</Card>
+			</CardContent>
+		</Card>
+	{/if}
+
 
 	<!-- Actions rapides -->
 	<Card>

@@ -132,16 +132,24 @@
 
 							<Card.Header>
 								<Card.Title>{plan.name}</Card.Title>
-								<Card.Description>7 jours d'essai gratuit, puis facturation mensuelle</Card.Description>
+								<Card.Description>
+									{#if plan.isLifetime}
+										Paiement unique, accès à vie
+									{:else}
+										Facturation mensuelle, annulable à tout moment
+									{/if}
+								</Card.Description>
 							</Card.Header>
 
 							<Card.Content class="flex flex-col gap-6">
 								<div
 									class="flex min-w-[280px] flex-col items-center justify-center gap-1"
 								>
-									<div class="text-center">
-										<span class="text-xs font-semibold text-green-600">7 jours gratuits</span>
-									</div>
+									{#if plan.isLifetime && plan.availableUntil}
+										<div class="text-center mb-2">
+											<span class="text-xs font-semibold text-orange-600 sm:text-sm">Offre limitée</span>
+										</div>
+									{/if}
 									<div class="flex flex-col items-center gap-1">
 										{#if plan.originalPrice}
 											<div class="flex flex-col items-center gap-1">
@@ -157,13 +165,21 @@
 											<span class="text-5xl font-bold tracking-tight">
 												{plan.price}€
 											</span>
-											<span class="text-muted-foreground">/mois</span>
+											{#if !plan.isLifetime}
+												<span class="text-muted-foreground">/mois</span>
+											{/if}
 										</div>
 									</div>
 									<div class="mt-2 text-center">
-										<span class="text-xs text-muted-foreground">
-											✔ Rentabilisé dès la première commande
-										</span>
+										{#if plan.isLifetime && plan.availableUntil}
+											<span class="text-xs text-muted-foreground">
+												Disponible jusqu'au 31 janvier 2026
+											</span>
+										{:else}
+											<span class="text-xs text-muted-foreground">
+												✔ Rentabilisé dès la première commande
+											</span>
+										{/if}
 									</div>
 								</div>
 

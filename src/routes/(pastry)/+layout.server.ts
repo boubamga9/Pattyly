@@ -16,7 +16,8 @@ export const load: LayoutServerLoad = async ({
 	const { data: permissionsData, error: permissionsError } = await (supabase as any).rpc('get_user_permissions_complete', {
 		p_profile_id: user.id,
 		p_premium_product_id: STRIPE_PRODUCTS.PREMIUM,
-		p_basic_product_id: STRIPE_PRODUCTS.BASIC
+		p_basic_product_id: STRIPE_PRODUCTS.BASIC,
+		p_lifetime_product_id: STRIPE_PRODUCTS.LIFETIME
 	});
 
 	if (permissionsError) {

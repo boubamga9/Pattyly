@@ -83,8 +83,8 @@
 	</div>
 {/if}
 
-<!-- Gestion de l'abonnement (masquée si utilisateur exempté ou sans abonnement) -->
-{#if !data.permissions?.isExempt && data.permissions?.plan !== 'free'}
+<!-- Gestion de l'abonnement (masquée si utilisateur exempté, sans abonnement ou avec plan lifetime) -->
+{#if !data.permissions?.isExempt && data.permissions?.plan !== 'free' && !data.isLifetime}
 	<Card.Root>
 		<Card.Header>
 			<div class="flex items-center justify-between">

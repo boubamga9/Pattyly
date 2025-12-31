@@ -64,7 +64,8 @@ async function getUserPlan(
     const { data: plan, error } = await supabase.rpc('get_user_plan', {
         p_profile_id: profileId,
         premium_product_id: STRIPE_PRODUCTS.PREMIUM,
-        basic_product_id: STRIPE_PRODUCTS.BASIC
+        basic_product_id: STRIPE_PRODUCTS.BASIC,
+        lifetime_product_id: STRIPE_PRODUCTS.LIFETIME
     });
 
     // Si abonnement actif → retourne le plan Stripe ('basic' ou 'premium')
@@ -90,7 +91,8 @@ export async function getUserPermissions(profileId: string, supabase: SupabaseCl
     const { data: permissions, error } = await (supabase as any).rpc('get_user_permissions_complete', {
         p_profile_id: profileId,
         p_premium_product_id: STRIPE_PRODUCTS.PREMIUM,
-        p_basic_product_id: STRIPE_PRODUCTS.BASIC
+        p_basic_product_id: STRIPE_PRODUCTS.BASIC,
+        p_lifetime_product_id: STRIPE_PRODUCTS.LIFETIME
     });
 
     if (error) {

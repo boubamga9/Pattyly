@@ -8,6 +8,7 @@ import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { makeQuoteFormSchema, rejectOrderFormSchema, personalNoteFormSchema } from './schema.js';
 import { EmailService } from '$lib/services/email-service';
+import { ErrorLogger } from '$lib/services/error-logging';
 
 
 const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
@@ -234,6 +235,14 @@ export const actions: Actions = {
                 .single();
 
             if (updateError) {
+                await ErrorLogger.logCritical(updateError, {
+                    userId: userId,
+                    shopId: shop.id,
+                    orderId: params.id,
+                }, {
+                    action: 'makeQuote',
+                    step: 'update_order_status',
+                });
                 return fail(500, { form, error: 'Erreur lors de la mise à jour de la commande' });
             }
 
@@ -250,13 +259,28 @@ export const actions: Actions = {
                     })
                 ]);
             } catch (e) {
-                console.error('Error sending quote email/notification:', e);
+                await ErrorLogger.logCritical(e, {
+                    userId: userId,
+                    shopId: shopId,
+                    orderId: params.id,
+                }, {
+                    action: 'makeQuote',
+                    step: 'send_emails',
+                });
             }
 
             // Retourner le succès avec le formulaire Superforms
             form.message = 'Devis envoyé avec succès';
             return { form };
         } catch (err) {
+            await ErrorLogger.logCritical(err, {
+                userId: userId,
+                shopId: shopId,
+                orderId: params.id,
+            }, {
+                action: 'makeQuote',
+                step: 'general_error',
+            });
             // Créer un formulaire vide pour retourner l'erreur
             const errorForm = await superValidate(zod(makeQuoteFormSchema));
             return fail(500, { form: errorForm, error: 'Erreur interne' });
@@ -323,6 +347,14 @@ export const actions: Actions = {
                 .single();
 
             if (updateError) {
+                await ErrorLogger.logCritical(updateError, {
+                    userId: userId,
+                    shopId: shopId,
+                    orderId: params.id,
+                }, {
+                    action: 'rejectOrder',
+                    step: 'update_order_status',
+                });
                 return fail(500, { form, error: 'Erreur lors de la mise à jour de la commande' });
             }
 
@@ -338,12 +370,30 @@ export const actions: Actions = {
                         catalogUrl: `${PUBLIC_SITE_URL}/${shopSlug}`,
                         date: new Date().toLocaleDateString("fr-FR")
                     })]);
-            } catch (e) { }
+            } catch (e) {
+                await ErrorLogger.logCritical(e, {
+                    userId: userId,
+                    shopId: shopId,
+                    orderId: params.id,
+                    customerEmail: order.customer_email,
+                }, {
+                    action: 'rejectOrder',
+                    step: 'send_rejection_email',
+                });
+            }
 
             // Retourner le succès avec le formulaire Superforms
             form.message = 'Commande refusée avec succès';
             return { form };
         } catch (err) {
+            await ErrorLogger.logCritical(err, {
+                userId: userId,
+                shopId: shopId,
+                orderId: params.id,
+            }, {
+                action: 'rejectOrder',
+                step: 'general_error',
+            });
             // Créer un formulaire vide pour retourner l'erreur
             const errorForm = await superValidate(zod(rejectOrderFormSchema));
             return fail(500, { form: errorForm, error: 'Erreur interne' });
@@ -389,7 +439,18 @@ export const actions: Actions = {
                 .single();
 
             if (orderError || !order) {
-                console.error('Error fetching order:', orderError);
+                await ErrorLogger.logCritical(
+                    orderError || new Error('Commande non trouvée ou déjà confirmée'),
+                    {
+                        userId: userId,
+                        shopId: shopId,
+                        orderId: params.id,
+                    },
+                    {
+                        action: 'confirmPayment',
+                        step: 'fetch_order',
+                    }
+                );
                 return fail(404, { error: 'Commande non trouvée ou déjà confirmée' });
             }
 
@@ -402,7 +463,15 @@ export const actions: Actions = {
                 .eq('status', 'to_verify');
 
             if (updateError) {
-                console.error('Error confirming payment:', updateError);
+                await ErrorLogger.logCritical(updateError, {
+                    userId: userId,
+                    shopId: shopId,
+                    orderId: params.id,
+                }, {
+                    action: 'confirmPayment',
+                    step: 'update_order_status',
+                    critical: true, // Paiement confirmé mais statut non mis à jour
+                });
                 return fail(500, { error: 'Erreur lors de la confirmation du paiement' });
             }
 
@@ -432,13 +501,27 @@ export const actions: Actions = {
 
                 console.log('✅ Confirmation email sent to client');
             } catch (emailError) {
-                console.error('❌ Email error:', emailError);
-                // Ne pas bloquer si l'email échoue
+                await ErrorLogger.logCritical(emailError, {
+                    userId: userId,
+                    shopId: shopId,
+                    orderId: order.id,
+                    customerEmail: order.customer_email,
+                }, {
+                    action: 'confirmPayment',
+                    step: 'send_confirmation_email',
+                });
             }
 
             return { message: 'Paiement confirmé avec succès' };
         } catch (err) {
-            console.error('Error confirming payment:', err);
+            await ErrorLogger.logCritical(err, {
+                userId: userId,
+                shopId: shopId,
+                orderId: params.id,
+            }, {
+                action: 'confirmPayment',
+                step: 'general_error',
+            });
             return fail(500, { error: 'Erreur interne' });
         }
     },
@@ -480,11 +563,27 @@ export const actions: Actions = {
                 .eq('shop_id', shopId);
 
             if (updateError) {
+                await ErrorLogger.logCritical(updateError, {
+                    userId: userId,
+                    shopId: shopId,
+                    orderId: params.id,
+                }, {
+                    action: 'makeOrderReady',
+                    step: 'update_order_status',
+                });
                 return fail(500, { error: 'Erreur lors de la mise à jour de la commande' });
             }
 
             return { message: 'Commande marquée comme prête' };
         } catch (err) {
+            await ErrorLogger.logCritical(err, {
+                userId: userId,
+                shopId: shopId,
+                orderId: params.id,
+            }, {
+                action: 'makeOrderReady',
+                step: 'general_error',
+            });
             return fail(500, { error: 'Erreur interne' });
         }
     },
@@ -526,11 +625,27 @@ export const actions: Actions = {
                 .eq('shop_id', shopId);
 
             if (updateError) {
+                await ErrorLogger.logCritical(updateError, {
+                    userId: userId,
+                    shopId: shopId,
+                    orderId: params.id,
+                }, {
+                    action: 'makeOrderCompleted',
+                    step: 'update_order_status',
+                });
                 return fail(500, { error: 'Erreur lors de la mise à jour de la commande' });
             }
 
             return { message: 'Commande marquée comme terminée' };
         } catch (err) {
+            await ErrorLogger.logCritical(err, {
+                userId: userId,
+                shopId: shopId,
+                orderId: params.id,
+            }, {
+                action: 'makeOrderCompleted',
+                step: 'general_error',
+            });
             return fail(500, { error: 'Erreur interne' });
         }
     },

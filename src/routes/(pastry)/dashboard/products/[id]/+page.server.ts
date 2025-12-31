@@ -6,6 +6,7 @@ import { forceRevalidateShop } from '$lib/utils/catalog';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { updateProductFormSchema, createCategoryFormSchema } from './schema.js';
+import { ErrorLogger } from '$lib/services/error-logging';
 
 export const load: PageServerLoad = async ({ params, locals, parent }) => {
     // ✅ OPTIMISÉ : Utiliser shopId et shop du parent (déjà chargé)
@@ -239,11 +240,29 @@ export const actions: Actions = {
                     .merge(); // Si existe déjà, on récupère l'existant
 
                 if (categoryError) {
+                    await ErrorLogger.logCritical(categoryError, {
+                        userId: userId,
+                        shopId: shopId,
+                        productId: productId,
+                        categoryName: newCategoryName,
+                    }, {
+                        action: 'updateProduct',
+                        step: 'create_category',
+                    });
                     return fail(500, { form, error: 'Erreur lors de la création de la catégorie' });
                 }
 
                 finalCategoryId = newCategory.id;
             } catch (err) {
+                await ErrorLogger.logCritical(err, {
+                    userId: userId,
+                    shopId: shopId,
+                    productId: productId,
+                    categoryName: newCategoryName,
+                }, {
+                    action: 'updateProduct',
+                    step: 'create_category_catch',
+                });
                 return fail(500, { form, error: 'Erreur lors de la création de la catégorie' });
             }
         }
@@ -319,7 +338,15 @@ export const actions: Actions = {
                         });
 
                     if (imageInsertError) {
-                        console.error('❌ [Product Images] Erreur insertion image:', imageInsertError);
+                        await ErrorLogger.logCritical(imageInsertError, {
+                            userId: userId,
+                            shopId: shopId,
+                            productId: productId,
+                            imageIndex: i,
+                        }, {
+                            action: 'updateProduct',
+                            step: 'insert_product_image',
+                        });
                     } else {
                         uploadedImages.push({
                             url: uploadResult.secure_url,
@@ -327,7 +354,15 @@ export const actions: Actions = {
                         });
                     }
                 } catch (err) {
-                    console.error('❌ [Product Update] Erreur Cloudinary pour image', i, ':', err);
+                    await ErrorLogger.logCritical(err, {
+                        userId: userId,
+                        shopId: shopId,
+                        productId: productId,
+                        imageIndex: i,
+                    }, {
+                        action: 'updateProduct',
+                        step: 'upload_image_cloudinary',
+                    });
                 }
             }
 
@@ -374,6 +409,14 @@ export const actions: Actions = {
                 .single();
 
             if (updateError) {
+                await ErrorLogger.logCritical(updateError, {
+                    userId: userId,
+                    shopId: shopId,
+                    productId: productId,
+                }, {
+                    action: 'updateProduct',
+                    step: 'update_product',
+                });
                 return fail(500, {
                     form,
                     error: 'Erreur lors de la modification du produit'
@@ -495,6 +538,15 @@ export const actions: Actions = {
                             .insert(formFields);
 
                         if (fieldsError) {
+                            await ErrorLogger.logCritical(fieldsError, {
+                                userId: userId,
+                                shopId: shopId,
+                                productId: productId,
+                                formId: newForm.id,
+                            }, {
+                                action: 'updateProduct',
+                                step: 'create_form_fields',
+                            });
                             return fail(500, {
                                 form,
                                 error: 'Erreur lors de la création des champs de personnalisation'
@@ -515,8 +567,14 @@ export const actions: Actions = {
                 }
             }
         } catch (err) {
-            console.error('❌ [Product Update] Erreur inattendue:', err);
-            console.error('❌ [Product Update] Stack:', err instanceof Error ? err.stack : 'No stack');
+            await ErrorLogger.logCritical(err, {
+                userId: userId,
+                shopId: shopId,
+                productId: productId,
+            }, {
+                action: 'updateProduct',
+                step: 'general_error',
+            });
             return fail(500, {
                 form,
                 error: 'Erreur inattendue lors de la modification du produit: ' + (err instanceof Error ? err.message : String(err))

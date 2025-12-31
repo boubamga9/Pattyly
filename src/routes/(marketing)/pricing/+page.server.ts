@@ -10,6 +10,8 @@ type Plan = {
     limitations: string[];
     popular: boolean;
     isFree: boolean;
+    isLifetime?: boolean; // Pour le plan à vie
+    availableUntil?: string; // Date limite de disponibilité
 };
 
 export const load: PageServerLoad = async () => {

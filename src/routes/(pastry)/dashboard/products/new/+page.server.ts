@@ -7,6 +7,7 @@ import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { createProductFormSchema, createCategoryFormSchema } from './schema';
 import { checkProductLimit } from '$lib/utils/product-limits';
+import { ErrorLogger } from '$lib/services/error-logging';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
     // ✅ OPTIMISÉ : Utiliser shopId et shop du parent (déjà chargé)
@@ -166,6 +167,14 @@ export const actions: Actions = {
                 .single();
 
             if (insertError) {
+                await ErrorLogger.logCritical(insertError, {
+                    userId: userId,
+                    shopId: shopId,
+                    productName: name,
+                }, {
+                    action: 'createProduct',
+                    step: 'insert_product',
+                });
                 return fail(500, { form, error: 'Erreur lors de l\'ajout du produit' });
             }
 
@@ -197,14 +206,28 @@ export const actions: Actions = {
                             });
 
                         if (imageInsertError) {
-                            console.error('❌ [Product Images] Erreur insertion image:', imageInsertError);
-                            // Continuer avec les autres images même si une échoue
+                            await ErrorLogger.logCritical(imageInsertError, {
+                                userId: userId,
+                                shopId: shopId,
+                                productId: product.id,
+                                imageIndex: i,
+                            }, {
+                                action: 'createProduct',
+                                step: 'insert_product_image',
+                            });
                         } else {
                             uploadedImages.push(uploadResult.secure_url);
                         }
                     } catch (err) {
-                        console.error('❌ [Product Upload] Erreur Cloudinary pour image', i, ':', err);
-                        // Continuer avec les autres images
+                        await ErrorLogger.logCritical(err, {
+                            userId: userId,
+                            shopId: shopId,
+                            productId: product.id,
+                            imageIndex: i,
+                        }, {
+                            action: 'createProduct',
+                            step: 'upload_image_cloudinary',
+                        });
                     }
                 }
 
@@ -230,6 +253,14 @@ export const actions: Actions = {
                     .single();
 
                 if (formError) {
+                    await ErrorLogger.logCritical(formError, {
+                        userId: userId,
+                        shopId: shopId,
+                        productId: product.id,
+                    }, {
+                        action: 'createProduct',
+                        step: 'create_form',
+                    });
                     return fail(500, { form, error: 'Erreur lors de la création du formulaire' });
                 }
 
@@ -248,6 +279,15 @@ export const actions: Actions = {
                     .insert(formFields);
 
                 if (fieldsError) {
+                    await ErrorLogger.logCritical(fieldsError, {
+                        userId: userId,
+                        shopId: shopId,
+                        productId: product.id,
+                        formId: newForm.id,
+                    }, {
+                        action: 'createProduct',
+                        step: 'create_form_fields',
+                    });
                     return fail(500, { form, error: 'Erreur lors de la création des champs du formulaire' });
                 }
 
@@ -258,10 +298,26 @@ export const actions: Actions = {
                     .eq('id', product.id);
 
                 if (updateError) {
+                    await ErrorLogger.logCritical(updateError, {
+                        userId: userId,
+                        shopId: shopId,
+                        productId: product.id,
+                        formId: newForm.id,
+                    }, {
+                        action: 'createProduct',
+                        step: 'associate_form_to_product',
+                    });
                     return fail(500, { form, error: 'Erreur lors de l\'association du formulaire au produit' });
                 }
             }
         } catch (err) {
+            await ErrorLogger.logCritical(err, {
+                userId: userId,
+                shopId: shopId,
+            }, {
+                action: 'createProduct',
+                step: 'general_error',
+            });
             return fail(500, { form, error: 'Erreur inattendue lors de l\'ajout du produit' });
         }
 

@@ -2,6 +2,7 @@ import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { EmailService } from '$lib/services/email-service';
 import { PUBLIC_SITE_URL } from '$env/static/public';
+import { ErrorLogger } from '$lib/services/error-logging';
 
 export const load: PageServerLoad = async ({ params, locals, parent }) => {
     const { slug, id, order_ref } = params;
@@ -121,7 +122,18 @@ export const actions: Actions = {
                 .single();
 
             if (pendingOrderError || !pendingOrder) {
-                console.error('Error fetching pending order:', pendingOrderError);
+                await ErrorLogger.logCritical(
+                    pendingOrderError || new Error('Pending order not found'),
+                    {
+                        orderRef: orderRefFromForm,
+                        shopId: shopId,
+                        productId: productId,
+                    },
+                    {
+                        action: 'confirmPayment',
+                        step: 'fetch_pending_order',
+                    }
+                );
                 throw error(404, 'Commande non trouvée');
             }
 
@@ -148,7 +160,18 @@ export const actions: Actions = {
                 .single();
 
             if (productError || !product) {
-                console.error('Error fetching product:', productError);
+                await ErrorLogger.logCritical(
+                    productError || new Error('Product not found'),
+                    {
+                        orderRef: orderRefFromForm,
+                        shopId: finalShopId,
+                        productId: finalProductId,
+                    },
+                    {
+                        action: 'confirmPayment',
+                        step: 'fetch_product',
+                    }
+                );
                 throw error(500, 'Produit non trouvé');
             }
 

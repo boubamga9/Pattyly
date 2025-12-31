@@ -10,7 +10,8 @@ import { env } from '$env/dynamic/private';
  */
 export const STRIPE_PRODUCTS = {
     BASIC: env.STRIPE_BASIC_PRODUCT_ID,
-    PREMIUM: env.STRIPE_PREMIUM_PRODUCT_ID
+    PREMIUM: env.STRIPE_PREMIUM_PRODUCT_ID,
+    LIFETIME: env.STRIPE_LIFETIME_PRODUCT_ID
 } as const;
 
 /**
@@ -18,5 +19,6 @@ export const STRIPE_PRODUCTS = {
  */
 export const STRIPE_PRICES = {
     BASIC: env.STRIPE_BASIC_PRICE_ID,
-    PREMIUM: env.STRIPE_PREMIUM_PRICE_ID
+    PREMIUM: env.STRIPE_PREMIUM_PRICE_ID,
+    LIFETIME: env.STRIPE_LIFETIME_PRICE_ID
 } as const;

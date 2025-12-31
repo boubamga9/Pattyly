@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 import { EmailService } from '$lib/services/email-service';
 import { PUBLIC_SITE_URL } from '$env/static/public';
 import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
+import { ErrorLogger } from '$lib/services/error-logging';
 
 export async function handlePaymentSucceeded(invoice: Stripe.Invoice, locals: any): Promise<void> {
 
@@ -34,10 +35,24 @@ export async function handlePaymentSucceeded(invoice: Stripe.Invoice, locals: an
             .eq('profile_id', profileId);
 
         if (updateError) {
+            await ErrorLogger.logCritical(updateError, {
+                stripeCustomerId: customerId,
+                profileId: profileId,
+            }, {
+                handler: 'handlePaymentSucceeded',
+                step: 'reactivate_subscription',
+            });
             throw error(500, 'Failed to reactivate subscription after payment success');
         }
 
     } catch (err) {
+        await ErrorLogger.logCritical(err, {
+            stripeInvoiceId: invoice.id,
+            stripeCustomerId: invoice.customer as string,
+        }, {
+            handler: 'handlePaymentSucceeded',
+            step: 'general_error',
+        });
         throw error(500, 'handlePaymentSucceeded failed: ' + err);
     }
 }
@@ -69,7 +84,17 @@ export async function handlePaymentFailed(invoice: Stripe.Invoice, locals: any):
             .single();
 
         if (userShopError || !userShopData) {
-            console.error('Failed to get user/shop data:', userShopError);
+            await ErrorLogger.logCritical(
+                userShopError || new Error('Failed to get user/shop data'),
+                {
+                    stripeCustomerId: customerId,
+                    profileId: profileId,
+                },
+                {
+                    handler: 'handlePaymentFailed',
+                    step: 'fetch_user_shop_data',
+                }
+            );
             return;
         }
 
@@ -95,11 +120,25 @@ export async function handlePaymentFailed(invoice: Stripe.Invoice, locals: any):
 
                 console.log(`Payment failed notification sent to ${userShopData.email}`);
             } catch (emailError) {
-                console.error('Failed to send payment failed notification:', emailError);
+                await ErrorLogger.logCritical(emailError, {
+                    stripeCustomerId: customerId,
+                    profileId: profileId,
+                    pastryEmail: userShopData.email,
+                }, {
+                    handler: 'handlePaymentFailed',
+                    step: 'send_notification_email',
+                });
             }
         }
 
     } catch (err) {
+        await ErrorLogger.logCritical(err, {
+            stripeInvoiceId: invoice.id,
+            stripeCustomerId: invoice.customer as string,
+        }, {
+            handler: 'handlePaymentFailed',
+            step: 'general_error',
+        });
         throw error(500, 'handlePaymentFailed failed: ' + err);
     }
 }

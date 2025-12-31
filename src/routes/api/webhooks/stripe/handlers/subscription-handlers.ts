@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { Stripe } from 'stripe';
 import { forceRevalidateShop } from '$lib/utils/catalog/catalog-revalidation';
 import { STRIPE_PRICES } from '$lib/config/server';
+import { ErrorLogger } from '$lib/services/error-logging';
 
 export async function upsertSubscription(subscription: Stripe.Subscription, locals: any): Promise<void> {
     try {
@@ -71,6 +72,15 @@ export async function upsertSubscription(subscription: Stripe.Subscription, loca
             );
 
         if (upsertError) {
+            await ErrorLogger.logCritical(upsertError, {
+                stripeSubscriptionId: subscriptionId,
+                profileId: profileId,
+                productId: productId,
+            }, {
+                handler: 'upsertSubscription',
+                step: 'upsert_subscription',
+                critical: true, // Abonnement Stripe actif mais non enregistré en base
+            });
             throw error(500, 'Failed to upsert subscription in database');
         }
 

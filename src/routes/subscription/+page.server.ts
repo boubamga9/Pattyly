@@ -59,6 +59,7 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders, url })
             } else if (activeSubscription.stripe_product_id === STRIPE_PRODUCTS.PREMIUM) {
                 currentPlan = 'premium';
             }
+            // Note: Le plan à vie est géré dans /lifetime, pas ici
         }
     }
 

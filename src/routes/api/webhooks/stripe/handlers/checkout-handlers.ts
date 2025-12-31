@@ -1,7 +1,12 @@
 import type { Stripe } from 'stripe';
+import StripeLib from 'stripe';
 import { error } from '@sveltejs/kit';
 import { EmailService } from '$lib/services/email-service';
 import { PUBLIC_SITE_URL } from '$env/static/public';
+import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
+import { fetchCurrentUsersSubscription } from '$lib/stripe/client-helpers';
+import { STRIPE_PRODUCTS } from '$lib/config/server';
+import { ErrorLogger } from '$lib/services/error-logging';
 
 export async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, locals: any): Promise<void> {
     console.log('handleCheckoutSessionCompleted', session);
@@ -16,11 +21,20 @@ export async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Se
             await handleProductOrderPayment(session, locals);
         } else if (sessionType === 'custom_order_deposit') {
             await handleCustomOrderDeposit(session, locals);
+        } else if (sessionType === 'lifetime_plan') {
+            await handleLifetimePlanPayment(session, locals);
         } else {
             console.warn('Unknown session type:', sessionType);
         }
     } catch (err) {
-        console.error('handleCheckoutSessionCompleted failed:', err);
+        await ErrorLogger.logCritical(err, {
+            stripeSessionId: session.id,
+            stripeEventType: session.metadata?.type,
+            customerEmail: session.customer_details?.email,
+        }, {
+            handler: 'handleCheckoutSessionCompleted',
+            sessionId: session.id,
+        });
         throw error(500, 'handleCheckoutSessionCompleted failed: ' + err);
     }
 }
@@ -38,6 +52,17 @@ export async function handleProductOrderPayment(session: Stripe.Checkout.Session
             .single();
 
         if (pendingOrderError || !pendingOrder) {
+            await ErrorLogger.logCritical(
+                pendingOrderError || new Error('Pending order not found'),
+                {
+                    stripeSessionId: session.id,
+                    orderId: orderId,
+                },
+                {
+                    handler: 'handleProductOrderPayment',
+                    step: 'fetch_pending_order',
+                }
+            );
             throw error(500, 'Pending order not found');
         }
 
@@ -50,6 +75,19 @@ export async function handleProductOrderPayment(session: Stripe.Checkout.Session
             .single();
 
         if (productError || !product) {
+            await ErrorLogger.logCritical(
+                productError || new Error('Failed to get product'),
+                {
+                    stripeSessionId: session.id,
+                    orderId: orderId,
+                    productId: orderData.productId,
+                    shopId: orderData.shopId,
+                },
+                {
+                    handler: 'handleProductOrderPayment',
+                    step: 'fetch_product',
+                }
+            );
             throw error(500, 'Failed to get product');
         }
 
@@ -91,6 +129,23 @@ export async function handleProductOrderPayment(session: Stripe.Checkout.Session
             .single();
 
         if (orderError || !order) {
+            await ErrorLogger.logCritical(
+                orderError || new Error('Failed to create product order'),
+                {
+                    stripeSessionId: session.id,
+                    stripePaymentIntentId: session.payment_intent as string,
+                    orderId: orderId,
+                    productId: orderData.productId,
+                    shopId: orderData.shopId,
+                    customerEmail: orderData.customerEmail,
+                    paidAmount: paidAmount / 100,
+                },
+                {
+                    handler: 'handleProductOrderPayment',
+                    step: 'create_order',
+                    critical: true, // Paiement réussi mais commande non créée
+                }
+            );
             throw error(500, 'Failed to create product order');
         }
 
@@ -130,7 +185,15 @@ export async function handleProductOrderPayment(session: Stripe.Checkout.Session
                 });
             }
         } catch (err) {
-            console.error('Email sending failed:', err);
+            await ErrorLogger.logCritical(err, {
+                stripeSessionId: session.id,
+                orderId: order.id,
+                shopId: orderData.shopId,
+                customerEmail: orderData.customerEmail,
+            }, {
+                handler: 'handleProductOrderPayment',
+                step: 'send_emails',
+            });
             throw error(500, 'Failed to send order emails: ' + err);
         }
 
@@ -140,12 +203,24 @@ export async function handleProductOrderPayment(session: Stripe.Checkout.Session
             .eq('id', orderId);
 
         if (deleteError) {
-            console.error('Failed to delete pending order:', deleteError);
+            await ErrorLogger.logCritical(deleteError, {
+                stripeSessionId: session.id,
+                orderId: orderId,
+            }, {
+                handler: 'handleProductOrderPayment',
+                step: 'delete_pending_order',
+            });
             throw error(500, 'Failed to delete pending order');
         }
 
     } catch (err) {
-        console.error('handleProductOrderPayment failed:', err);
+        await ErrorLogger.logCritical(err, {
+            stripeSessionId: session.id,
+            orderId: orderId,
+        }, {
+            handler: 'handleProductOrderPayment',
+            step: 'general_error',
+        });
         throw error(500, 'handleProductOrderPayment failed: ' + err);
     }
 }
@@ -171,6 +246,20 @@ export async function handleCustomOrderDeposit(session: Stripe.Checkout.Session,
             .single();
 
         if (orderError || !order) {
+            await ErrorLogger.logCritical(
+                orderError || new Error('Failed to update custom order'),
+                {
+                    stripeSessionId: session.id,
+                    stripePaymentIntentId: session.payment_intent as string,
+                    orderId: orderId,
+                    depositAmount: depositAmount / 100,
+                },
+                {
+                    handler: 'handleCustomOrderDeposit',
+                    step: 'update_order',
+                    critical: true, // Paiement réussi mais commande non mise à jour
+                }
+            );
             throw error(500, 'Failed to update custom order');
         }
 
@@ -217,12 +306,175 @@ export async function handleCustomOrderDeposit(session: Stripe.Checkout.Session,
                 });
             }
         } catch (err) {
-            console.error('Email sending for deposit failed:', err);
+            await ErrorLogger.logCritical(err, {
+                stripeSessionId: session.id,
+                orderId: orderId,
+            }, {
+                handler: 'handleCustomOrderDeposit',
+                step: 'send_emails',
+            });
             throw error(500, 'Failed to send deposit emails: ' + err);
         }
 
     } catch (err) {
-        console.error('handleCustomOrderDeposit failed:', err);
+        await ErrorLogger.logCritical(err, {
+            stripeSessionId: session.id,
+            orderId: orderId,
+        }, {
+            handler: 'handleCustomOrderDeposit',
+            step: 'general_error',
+        });
         throw error(500, 'handleCustomOrderDeposit failed: ' + err);
+    }
+}
+
+export async function handleLifetimePlanPayment(
+    session: Stripe.Checkout.Session,
+    locals: any
+): Promise<void> {
+    try {
+        console.log('🔄 [Lifetime Plan] Processing lifetime plan purchase', session.id);
+
+        const customerId = session.customer as string;
+        const stripe = new StripeLib(PRIVATE_STRIPE_SECRET_KEY, {
+            apiVersion: '2024-04-10'
+        });
+
+        // 1. Récupérer le profile_id depuis stripe_customers
+        const { data: customerData, error: customerError } = await locals.supabaseServiceRole
+            .from('stripe_customers')
+            .select('profile_id')
+            .eq('stripe_customer_id', customerId)
+            .single();
+
+        if (customerError || !customerData) {
+            await ErrorLogger.logCritical(
+                customerError || new Error('Customer not found'),
+                {
+                    stripeSessionId: session.id,
+                    stripeCustomerId: customerId,
+                },
+                {
+                    handler: 'handleLifetimePlanPayment',
+                    step: 'fetch_customer',
+                    critical: true, // Paiement réussi mais client non trouvé
+                }
+            );
+            throw error(500, 'Customer not found');
+        }
+
+        const profileId = customerData.profile_id;
+
+        // 2. Récupérer les abonnements actifs et les annuler
+        const currentSubscriptions = await fetchCurrentUsersSubscription(
+            stripe,
+            customerId
+        );
+
+        if (currentSubscriptions.length > 0) {
+            console.log(`🔄 [Lifetime Plan] Cancelling ${currentSubscriptions.length} active subscription(s)`);
+
+            const cancelPromises = currentSubscriptions.map(async (sub) => {
+                try {
+                    await stripe.subscriptions.cancel(sub.id);
+                    console.log(`✅ [Lifetime Plan] Cancelled subscription ${sub.id}`);
+                } catch (cancelError) {
+                    console.error(`❌ [Lifetime Plan] Failed to cancel subscription ${sub.id}:`, cancelError);
+                    // On continue même si une annulation échoue
+                }
+            });
+
+            await Promise.all(cancelPromises);
+
+            // 3. Mettre à jour les abonnements dans la base de données (passer à inactive)
+            const subscriptionIds = currentSubscriptions.map(s => s.id);
+            const { error: updateError } = await locals.supabaseServiceRole
+                .from('user_products')
+                .update({ subscription_status: 'inactive' })
+                .eq('profile_id', profileId)
+                .in('stripe_subscription_id', subscriptionIds);
+
+            if (updateError) {
+                await ErrorLogger.logCritical(updateError, {
+                    stripeSessionId: session.id,
+                    profileId: profileId,
+                    subscriptionIds: subscriptionIds,
+                }, {
+                    handler: 'handleLifetimePlanPayment',
+                    step: 'update_subscription_status',
+                });
+            } else {
+                console.log('✅ [Lifetime Plan] Updated subscription status to inactive');
+            }
+        }
+
+        // 4. Enregistrer le plan à vie dans user_products
+        const lifetimeProductId = STRIPE_PRODUCTS.LIFETIME;
+        if (!lifetimeProductId) {
+            const configError = new Error('STRIPE_PRODUCTS.LIFETIME not configured');
+            await ErrorLogger.logCritical(configError, {
+                stripeSessionId: session.id,
+                profileId: profileId,
+            }, {
+                handler: 'handleLifetimePlanPayment',
+                step: 'check_config',
+                critical: true,
+            });
+            throw error(500, 'Lifetime product not configured');
+        }
+
+        const { error: upsertError } = await locals.supabaseServiceRole
+            .from('user_products')
+            .upsert({
+                profile_id: profileId,
+                stripe_product_id: lifetimeProductId,
+                stripe_subscription_id: null, // Pas d'abonnement pour le plan à vie
+                subscription_status: 'active'
+            }, {
+                onConflict: 'profile_id'
+            });
+
+        if (upsertError) {
+            await ErrorLogger.logCritical(upsertError, {
+                stripeSessionId: session.id,
+                profileId: profileId,
+                lifetimeProductId: lifetimeProductId,
+            }, {
+                handler: 'handleLifetimePlanPayment',
+                step: 'upsert_lifetime_plan',
+                critical: true, // Paiement réussi mais plan non enregistré
+            });
+            throw error(500, 'Failed to save lifetime plan');
+        }
+
+        console.log('✅ [Lifetime Plan] Lifetime plan activated successfully');
+
+        // 5. Activer les fonctionnalités Premium (is_custom_accepted)
+        const { error: shopUpdateError } = await locals.supabaseServiceRole
+            .from('shops')
+            .update({ is_custom_accepted: true })
+            .eq('profile_id', profileId);
+
+        if (shopUpdateError) {
+            await ErrorLogger.logCritical(shopUpdateError, {
+                stripeSessionId: session.id,
+                profileId: profileId,
+            }, {
+                handler: 'handleLifetimePlanPayment',
+                step: 'enable_custom_requests',
+            });
+        } else {
+            console.log('✅ [Lifetime Plan] Enabled custom requests for shop');
+        }
+
+    } catch (err) {
+        await ErrorLogger.logCritical(err, {
+            stripeSessionId: session.id,
+            customerId: customerId,
+        }, {
+            handler: 'handleLifetimePlanPayment',
+            step: 'general_error',
+        });
+        throw error(500, 'handleLifetimePlanPayment failed: ' + err);
     }
 }

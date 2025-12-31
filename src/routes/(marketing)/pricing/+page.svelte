@@ -148,7 +148,11 @@
 								<Card.Title class="text-xl font-semibold text-neutral-900 mb-2 sm:text-2xl sm:mb-3" style="font-weight: 600;">
 									{plan.name}
 								</Card.Title>
-								{#if !plan.isFree}
+								{#if plan.isLifetime}
+									<Card.Description class="text-sm leading-relaxed text-neutral-600 sm:text-base" style="font-weight: 300;">
+										Paiement unique, accès à vie
+									</Card.Description>
+								{:else if !plan.isFree}
 									<Card.Description class="text-sm leading-relaxed text-neutral-600 sm:text-base" style="font-weight: 300;">
 										Facturation mensuelle, sans engagement
 									</Card.Description>
@@ -172,9 +176,11 @@
 											</span>
 										</div>
 									{:else}
-										<div class="text-center">
-											<span class="text-xs font-semibold text-green-600 sm:text-sm">7 jours gratuits</span>
-										</div>
+										{#if plan.isLifetime && plan.availableUntil}
+											<div class="text-center mb-2">
+												<span class="text-xs font-semibold text-orange-600 sm:text-sm">Offre limitée</span>
+											</div>
+										{/if}
 										<div class="flex flex-col items-center gap-1">
 											{#if plan.originalPrice}
 												<div class="flex flex-col items-center gap-1">
@@ -190,13 +196,21 @@
 												<span class="text-5xl font-bold tracking-tight text-neutral-900 sm:text-6xl" style="font-weight: 700; letter-spacing: -0.04em;">
 													{plan.price}€
 												</span>
-												<span class="text-base text-neutral-600 sm:text-lg" style="font-weight: 300;">/mois</span>
+												{#if !plan.isLifetime}
+													<span class="text-base text-neutral-600 sm:text-lg" style="font-weight: 300;">/mois</span>
+												{/if}
 											</div>
 										</div>
 										<div class="mt-2 text-center">
-											<span class="text-xs text-neutral-600 sm:text-sm" style="font-weight: 400;">
-												✔ Rentabilisé dès la première commande
-											</span>
+											{#if plan.isLifetime && plan.availableUntil}
+												<span class="text-xs text-neutral-600 sm:text-sm" style="font-weight: 400;">
+													Disponible jusqu'au 31 janvier 2026
+												</span>
+											{:else}
+												<span class="text-xs text-neutral-600 sm:text-sm" style="font-weight: 400;">
+													✔ Rentabilisé dès la première commande
+												</span>
+											{/if}
 										</div>
 									{/if}
 								</div>

@@ -49,7 +49,8 @@ export async function checkOrderLimit(
         p_shop_id: shopId,
         p_profile_id: profileId,
         p_premium_product_id: STRIPE_PRODUCTS.PREMIUM,
-        p_basic_product_id: STRIPE_PRODUCTS.BASIC
+        p_basic_product_id: STRIPE_PRODUCTS.BASIC,
+        p_lifetime_product_id: STRIPE_PRODUCTS.LIFETIME
     });
 
     if (error) {

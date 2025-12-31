@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { EmailService } from '$lib/services/email-service';
 import { PUBLIC_SITE_URL } from '$env/static/public';
+import { ErrorLogger } from '$lib/services/error-logging';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
     try {
@@ -48,22 +49,44 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             .eq('id', orderId);
 
         if (updateError) {
+            await ErrorLogger.logCritical(updateError, {
+                orderId: orderId,
+            }, {
+                action: 'rejectQuote',
+                step: 'update_order_status',
+            });
             return json({ error: 'Erreur lors de la mise à jour' }, { status: 500 });
         }
 
         if (pastryEmail) {
-            await EmailService.sendQuoteRejected({
-                pastryEmail: pastryEmail,
-                customerEmail: order.customer_email,
-                customerName: order.customer_name,
-                quoteId: order.id,
-                orderUrl: `${PUBLIC_SITE_URL}/dashboard/orders/${order.id}`,
-                date: new Date().toLocaleDateString("fr-FR"),
-            });
+            try {
+                await EmailService.sendQuoteRejected({
+                    pastryEmail: pastryEmail,
+                    customerEmail: order.customer_email,
+                    customerName: order.customer_name,
+                    quoteId: order.id,
+                    orderUrl: `${PUBLIC_SITE_URL}/dashboard/orders/${order.id}`,
+                    date: new Date().toLocaleDateString("fr-FR"),
+                });
+            } catch (emailError) {
+                await ErrorLogger.logCritical(emailError, {
+                    orderId: orderId,
+                    pastryEmail: pastryEmail,
+                }, {
+                    action: 'rejectQuote',
+                    step: 'send_rejection_email',
+                });
+            }
         }
 
         return json({ success: true });
     } catch (error) {
+        await ErrorLogger.logCritical(error, {
+            orderId: orderId,
+        }, {
+            action: 'rejectQuote',
+            step: 'general_error',
+        });
         return json({ error: 'Erreur interne' }, { status: 500 });
     }
 }; 

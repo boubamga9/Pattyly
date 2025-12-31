@@ -595,7 +595,7 @@
 					href="/register"
 					class="h-14 rounded-xl bg-[#FF6F61] px-8 text-base font-semibold text-white shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-[#e85a4f] hover:shadow-xl"
 				>
-					Commencer mon essai gratuit
+					Commencer maintenant
 				</Button>
 				<a
 					href="/contact"

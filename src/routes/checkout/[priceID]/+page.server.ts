@@ -1,6 +1,7 @@
 import { error, redirect } from '@sveltejs/kit';
 import Stripe from 'stripe';
 import type { PageServerLoad } from './$types';
+import { STRIPE_PRODUCTS } from '$lib/config/server';
 
 export const load: PageServerLoad = async ({
 	params,
@@ -83,6 +84,9 @@ export const load: PageServerLoad = async ({
 		},
 	];
 
+	// Vérifier si c'est le plan à vie
+	const isLifetimePlan = STRIPE_PRODUCTS.LIFETIME && price.product === STRIPE_PRODUCTS.LIFETIME;
+
 	let checkoutUrl;
 	try {
 		const checkoutSession = await stripe.checkout.sessions.create({
@@ -91,19 +95,17 @@ export const load: PageServerLoad = async ({
 			mode: price.type === 'recurring' ? 'subscription' : 'payment',
 			success_url: `${url.origin}/dashboard`,
 			cancel_url: `${url.origin}/subscription`,
-			payment_method_collection: 'always', // ✅ Toujours demander la CB
+			metadata: {
+				// Ajouter le type pour identifier le plan à vie dans le webhook
+				...(isLifetimePlan ? { type: 'lifetime_plan' } : {}),
+			},
 			...(price.type === 'recurring'
 				? {
-					subscription_data: {
-						trial_period_days: 7, // ✅ Essai gratuit de 7 jours
-						trial_settings: {
-							end_behavior: {
-								missing_payment_method: 'cancel' // Annuler si pas de CB après l'essai
-							}
-						}
-					},
+					// ✅ Pour les abonnements récurrents : toujours demander la CB
+					payment_method_collection: 'always',
 				}
 				: {
+					// ✅ Pour les paiements uniques (plan à vie) : créer une facture
 					invoice_creation: {
 						enabled: true,
 					},

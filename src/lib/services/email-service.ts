@@ -17,6 +17,7 @@ import { OrderCancelledEmail } from '$lib/emails/order-cancelled';
 import { ContactConfirmationEmail } from '$lib/emails/contact-confirmation';
 import { ContactNotificationEmail } from '$lib/emails/contact-notification';
 import { PaymentFailedNotificationEmail } from '$lib/emails/payment-failed-notification';
+import { CriticalErrorNotificationEmail } from '$lib/emails/critical-error-notification';
 
 // Initialisation de Resend
 const resend = new Resend(env.RESEND_API_KEY);
@@ -862,6 +863,61 @@ export class EmailService {
             return { success: true, messageId: data?.id };
         } catch (error) {
             console.error('Erreur EmailService.sendAdminOTP:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Envoie une notification d'erreur critique à l'admin
+     */
+    static async sendCriticalErrorNotification({
+        errorMessage,
+        errorStack,
+        errorName,
+        severity,
+        context,
+        metadata,
+        timestamp,
+    }: {
+        errorMessage: string;
+        errorStack?: string;
+        errorName: string;
+        severity: 'critical' | 'error' | 'warning';
+        context: Record<string, any>;
+        metadata: Record<string, any>;
+        timestamp: string;
+    }) {
+        try {
+            const severityLabels = {
+                critical: 'CRITIQUE',
+                error: 'ERREUR',
+                warning: 'AVERTISSEMENT'
+            };
+
+            const { data, error } = await resend.emails.send({
+                from: 'Pattyly Alerts <noreply@pattyly.com>',
+                to: ['pattyly.saas+error@gmail.com'],
+                subject: `[${severityLabels[severity]}] ${errorName} - Pattyly`,
+                html: CriticalErrorNotificationEmail({
+                    errorMessage,
+                    errorStack,
+                    errorName,
+                    severity,
+                    context,
+                    metadata,
+                    timestamp,
+                })
+            });
+
+            if (error) {
+                console.error('Erreur envoi email notification erreur critique:', error);
+                throw error;
+            }
+
+            return { success: true, messageId: data?.id };
+        } catch (error) {
+            // Ne pas logguer ici pour éviter les boucles infinies
+            // Si l'envoi d'email échoue, on accepte la perte silencieuse
             throw error;
         }
     }

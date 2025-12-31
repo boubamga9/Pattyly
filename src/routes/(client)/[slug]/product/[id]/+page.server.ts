@@ -4,6 +4,7 @@ import { superValidate, fail, message, setError } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { createLocalDynamicSchema } from './schema';
 import { checkOrderLimit } from '$lib/utils/order-limits';
+import { ErrorLogger } from '$lib/services/error-logging';
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
     try {
@@ -351,7 +352,17 @@ export const actions: Actions = {
                 .rpc('generate_order_ref');
 
             if (orderRefError || !orderRefData) {
-                console.error('Error generating order_ref:', orderRefError);
+                await ErrorLogger.logCritical(
+                    orderRefError || new Error('Failed to generate order_ref'),
+                    {
+                        shopId: shop.id,
+                        productId: id,
+                    },
+                    {
+                        action: 'createPendingOrder',
+                        step: 'generate_order_ref',
+                    }
+                );
                 return fail(500, { form, error: 'Erreur lors de la génération de la référence' });
             }
 

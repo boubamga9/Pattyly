@@ -16,6 +16,7 @@ import { RateLimiterRedis, type RateLimitResult } from '$lib/rate-limiting';
 import { RATE_LIMITS } from '$lib/rate-limiting/config';
 import { gzip, brotliCompress } from 'zlib';
 import { promisify } from 'util';
+import { ErrorLogger } from '$lib/services/error-logging';
 
 // ============================================================================
 // COMPRESSION UTILITIES
@@ -286,7 +287,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 		return response;
 	} catch (error) {
-		console.error('Error in handle:', error);
+		await ErrorLogger.logCritical(error, {
+			url: event.url.toString(),
+			method: event.request.method,
+			userAgent: event.request.headers.get('user-agent') || undefined,
+		}, {
+			hook: 'handle',
+			timestamp: new Date().toISOString(),
+		});
 
 		// Return a basic error response
 		return new Response('Internal Server Error', {

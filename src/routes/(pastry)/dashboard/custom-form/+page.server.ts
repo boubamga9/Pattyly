@@ -145,7 +145,8 @@ export const actions: Actions = {
         const { data: plan, error: planError } = await locals.supabase.rpc('get_user_plan', {
             p_profile_id: userId,
             premium_product_id: STRIPE_PRODUCTS.PREMIUM,
-            basic_product_id: STRIPE_PRODUCTS.BASIC
+            basic_product_id: STRIPE_PRODUCTS.BASIC,
+            lifetime_product_id: STRIPE_PRODUCTS.LIFETIME
         });
 
         if (planError || !plan || (plan !== 'premium' && plan !== 'exempt')) {
@@ -216,7 +217,8 @@ export const actions: Actions = {
         const { data: plan, error: planError } = await locals.supabase.rpc('get_user_plan', {
             p_profile_id: userId,
             premium_product_id: STRIPE_PRODUCTS.PREMIUM,
-            basic_product_id: STRIPE_PRODUCTS.BASIC
+            basic_product_id: STRIPE_PRODUCTS.BASIC,
+            lifetime_product_id: STRIPE_PRODUCTS.LIFETIME
         });
 
         if (planError || !plan || (plan !== 'premium' && plan !== 'exempt')) {

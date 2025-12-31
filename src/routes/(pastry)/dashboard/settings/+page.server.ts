@@ -14,6 +14,7 @@ import {
     createPasswordFormSchema,
 } from './schema';
 import { deleteAllShopImages } from '$lib/storage';
+import { STRIPE_PRODUCTS } from '$lib/config/server';
 
 
 const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
@@ -53,6 +54,17 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
     if (paypalError && paypalError.code !== 'PGRST116') {
     }
 
+    // Vérifier si l'utilisateur a un plan lifetime
+    const { data: lifetimeProduct } = await locals.supabase
+        .from('user_products')
+        .select('stripe_product_id')
+        .eq('profile_id', userId)
+        .eq('subscription_status', 'active')
+        .eq('stripe_product_id', STRIPE_PRODUCTS.LIFETIME)
+        .single();
+
+    const isLifetime = !!lifetimeProduct;
+
     return {
         infoForm: await superValidate(info, zod(infoFormSchema)),
         deleteAccountForm:
@@ -63,6 +75,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
         createPassword: !passwordSet,
         paypalAccount: paypalAccount || null,
         permissions, // ✅ Ajouter les permissions pour accéder à is_stripe_free
+        isLifetime, // ✅ Ajouter l'information sur le plan lifetime
     };
 };
 

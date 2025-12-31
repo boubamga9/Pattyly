@@ -9,6 +9,7 @@ import { handleSubscriptionDeleted } from '../handlers/subscription-handlers';
 import { handleCustomerCreated } from '../handlers/customer-handlers';
 import { upsertSubscription } from '../handlers/subscription-handlers';
 import type { Stripe } from 'stripe';
+import { ErrorLogger } from '$lib/services/error-logging';
 
 import { PRIVATE_STRIPE_WEBHOOK_SECRET_PAYMENTS } from '$env/static/private';
 
@@ -63,7 +64,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         return json({ received: true });
 
     } catch (err) {
-        console.error('❌ Webhook processing failed:', err);
+        await ErrorLogger.logCritical(err, {
+            url: request.url,
+            method: request.method,
+            userAgent: request.headers.get('user-agent') || undefined,
+        }, {
+            webhookType: 'stripe_payments',
+            timestamp: new Date().toISOString(),
+        });
         return new Response('Webhook processing failed', { status: 500 })
     }
 };
