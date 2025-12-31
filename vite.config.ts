@@ -38,6 +38,9 @@ export default defineConfig({
 		port: 4173
 	},
 	test: {
+		globals: true,
+		environment: 'node',
 		include: ['src/**/*.{test,spec}.{js,ts}'],
+		setupFiles: ['./src/lib/test/setup.ts'],
 	},
 });
