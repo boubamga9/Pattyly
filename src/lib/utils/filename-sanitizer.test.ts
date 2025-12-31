@@ -63,12 +63,13 @@ describe('sanitizeFileName', () => {
 
 	it('should handle empty or invalid names', () => {
 		expect(sanitizeFileName('')).toBe('file');
-		// Un fichier commençant par un point : lastDotIndex = 0, donc name = '' et extension = '.jpg'
-		// Le name vide devient 'file', donc résultat = 'file.jpg'
-		expect(sanitizeFileName('.jpg')).toBe('file.jpg');
-		// Les espaces et caractères spéciaux sont supprimés, mais le résultat est 'file.jpg'
-		expect(sanitizeFileName('   .jpg')).toBe('file.jpg');
-		expect(sanitizeFileName('###.jpg')).toBe('file.jpg');
+		// Un fichier commençant par un point : lastDotIndex = 0, donc name = '.jpg' (pas de séparation)
+		// Le point est supprimé comme caractère spécial, résultat = 'jpg'
+		expect(sanitizeFileName('.jpg')).toBe('jpg');
+		// Les espaces sont supprimés, le point aussi, résultat = 'jpg'
+		expect(sanitizeFileName('   .jpg')).toBe('jpg');
+		// Les caractères spéciaux sont supprimés, résultat = 'jpg'
+		expect(sanitizeFileName('###.jpg')).toBe('jpg');
 	});
 
 	it('should handle complex real-world examples', () => {
