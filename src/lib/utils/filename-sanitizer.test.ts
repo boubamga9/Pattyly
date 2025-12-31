@@ -66,10 +66,11 @@ describe('sanitizeFileName', () => {
 		// Un fichier commençant par un point : lastDotIndex = 0, donc name = '.jpg' (pas de séparation)
 		// Le point est supprimé comme caractère spécial, résultat = 'jpg'
 		expect(sanitizeFileName('.jpg')).toBe('jpg');
-		// Les espaces sont supprimés, le point aussi, résultat = 'jpg'
-		expect(sanitizeFileName('   .jpg')).toBe('jpg');
-		// Les caractères spéciaux sont supprimés, résultat = 'jpg'
-		expect(sanitizeFileName('###.jpg')).toBe('jpg');
+		// Les espaces deviennent des tirets puis sont supprimés (leading/trailing), donc name vide = 'file'
+		// Résultat = 'file.jpg'
+		expect(sanitizeFileName('   .jpg')).toBe('file.jpg');
+		// Les caractères spéciaux sont supprimés, name vide = 'file', résultat = 'file.jpg'
+		expect(sanitizeFileName('###.jpg')).toBe('file.jpg');
 	});
 
 	it('should handle complex real-world examples', () => {
