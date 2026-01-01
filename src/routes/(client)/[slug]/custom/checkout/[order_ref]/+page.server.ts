@@ -295,6 +295,7 @@ export const actions: Actions = {
                         date: new Date().toLocaleDateString('fr-FR')
                     });
                 }
+                }
 
                 console.log('✅ [Confirm Custom Payment] Emails sent successfully');
             } catch (emailError) {
