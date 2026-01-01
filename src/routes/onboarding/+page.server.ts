@@ -6,8 +6,6 @@ import { shopCreationSchema, paypalConfigSchema, paymentConfigSchema } from './s
 import { directorySchema } from '$lib/validations/schemas/shop';
 import { z } from 'zod';
 import { uploadShopLogo } from '$lib/cloudinary';
-import Stripe from 'stripe';
-import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
 import { STRIPE_PRICES } from '$lib/config/server';
 import { PUBLIC_SITE_URL } from '$env/static/public';
 import {
@@ -18,14 +16,10 @@ import {
 } from '$lib/stripe/connect-client';
 // import { paypalClient } from '$lib/paypal/client.js';
 
-const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
-    apiVersion: '2024-04-10'
-});
 
 
 
-
-export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase }, url }) => {
+export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase, stripe }, url }) => {
     const { session, user } = await safeGetSession();
 
     // 🟢 Redirection 1 — pas connecté
@@ -449,20 +443,28 @@ export const actions: Actions = {
 
         try {
             // Vérifier si un compte existe déjà
-            const { data: existingAccount } = await locals.supabase
+            const { data: existingAccount, error: selectError } = await locals.supabase
                 .from('stripe_connect_accounts')
                 .select('stripe_account_id')
                 .eq('profile_id', userId)
                 .single();
 
+            // Logger les erreurs de sélection (PGRST116 = not found, c'est OK)
+            if (selectError && selectError.code !== 'PGRST116') {
+                console.error('Error fetching existing Stripe Connect account:', selectError);
+            }
+
             let accountId: string;
 
             if (existingAccount?.stripe_account_id) {
                 accountId = existingAccount.stripe_account_id;
+                console.log('Using existing Stripe Connect account:', accountId);
             } else {
                 // Créer un nouveau compte Connect Express
-                const account = await createStripeConnectAccount(stripe, user.email || '', 'FR');
+                console.log('Creating new Stripe Connect account for user:', userId);
+                const account = await createStripeConnectAccount(locals.stripe, user.email || '', 'FR');
                 accountId = account.id;
+                console.log('Stripe Connect account created:', accountId);
 
                 // Sauvegarder dans la DB
                 const { error: insertError } = await locals.supabase
@@ -478,18 +480,33 @@ export const actions: Actions = {
 
                 if (insertError) {
                     console.error('Error saving Stripe Connect account:', insertError);
-                    return { success: false, error: 'Erreur lors de la création du compte' };
+                    return { success: false, error: `Erreur lors de la sauvegarde: ${insertError.message}` };
                 }
+                console.log('Stripe Connect account saved to database');
             }
 
             // Créer un account link pour l'onboarding
             const returnUrl = `${PUBLIC_SITE_URL}/onboarding?stripe_connect=return`;
-            const accountLink = await createStripeAccountLink(stripe, accountId, returnUrl);
+            console.log('Creating account link with returnUrl:', returnUrl);
+            const accountLink = await createStripeAccountLink(locals.stripe, accountId, returnUrl);
+            console.log('Account link created:', accountLink.url);
 
             return { success: true, url: accountLink.url };
         } catch (err) {
-            console.error('Stripe Connect error:', err);
-            return { success: false, error: 'Erreur lors de la connexion Stripe' };
+            // Logger l'erreur complète avec tous les détails
+            console.error('Stripe Connect error details:', {
+                error: err,
+                message: err instanceof Error ? err.message : String(err),
+                stack: err instanceof Error ? err.stack : undefined,
+                userId,
+                publicSiteUrl: PUBLIC_SITE_URL
+            });
+            
+            // Retourner un message plus informatif
+            const errorMessage = err instanceof Error 
+                ? `Erreur Stripe: ${err.message}` 
+                : 'Erreur lors de la connexion Stripe';
+            return { success: false, error: errorMessage };
         }
     },
 
