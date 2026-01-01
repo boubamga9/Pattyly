@@ -124,12 +124,11 @@
 		</h1>
 	</header>
 
-	<!-- Separator - Design moderne avec couleur bouton et opacité -->
+	<!-- Separator -->
 	<div class="px-4">
-		<div
-			class="mx-auto mb-6 h-px max-w-7xl bg-gradient-to-r from-transparent to-transparent sm:mb-8"
-			style={`background: linear-gradient(to right, transparent, ${customStyles.separatorColor}, transparent);`}
-		></div>
+		<div class="mx-auto mb-6 max-w-7xl sm:mb-8">
+			<div class="border-t" style="border-color: rgba(0, 0, 0, 0.1);"></div>
+		</div>
 	</div>
 
 	<!-- Contenu principal -->

@@ -18,6 +18,12 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	const radiusParam = url.searchParams.get('radius');
 	const verifiedParam = url.searchParams.get('verified');
 	const verifiedOnly = verifiedParam === 'true';
+	
+	// Paramètres de filtrage par prix
+	const minPriceParam = url.searchParams.get('minPrice');
+	const maxPriceParam = url.searchParams.get('maxPrice');
+	const minPrice = minPriceParam ? parseFloat(minPriceParam) : null;
+	const maxPrice = maxPriceParam ? parseFloat(maxPriceParam) : null;
 
 	// Filtrer par type de gâteau si spécifié
 	let cakeTypeName: string | null = null;
@@ -238,7 +244,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	const products = productsData || [];
 
 	// Transformer les données (is_shop_premium est déjà inclus depuis la fonction SQL)
-	const formattedProducts = products.map((product: any) => {
+	let formattedProducts = products.map((product: any) => {
 		// Calculer la distance si on a les coordonnées
 		let distance: number | null = null;
 		if (latParam && lonParam && product.shop_latitude && product.shop_longitude) {
@@ -275,6 +281,16 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			distance
 		};
 	});
+	
+	// Filtrer par prix si les paramètres sont fournis
+	if (minPrice !== null || maxPrice !== null) {
+		formattedProducts = formattedProducts.filter((product) => {
+			const price = product.base_price;
+			if (minPrice !== null && price < minPrice) return false;
+			if (maxPrice !== null && price > maxPrice) return false;
+			return true;
+		});
+	}
 
 	// ✅ Le tri est déjà fait dans la fonction SQL (premium shop products en premier, puis hash, puis nom)
 

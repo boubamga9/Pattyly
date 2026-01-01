@@ -405,11 +405,10 @@
 					{/each}
 				</div>
 			</div>
-			<!-- Separator - Dégradé -->
-			<div
-				class="h-px bg-gradient-to-r from-transparent to-transparent"
-				style={`background: linear-gradient(to right, transparent, ${customStyles.separatorColor}, transparent);`}
-			></div>
+			<!-- Separator -->
+			<div class="pt-4">
+				<div class="border-t" style="border-color: rgba(0, 0, 0, 0.1);"></div>
+			</div>
 		{/if}
 
 		<!-- Section 2: Information of pickup -->
@@ -506,11 +505,10 @@
 				{/if}
 			</div>
 		</div>
-		<!-- Separator - Dégradé -->
-		<div
-			class="h-px bg-gradient-to-r from-transparent to-transparent"
-			style={`background: linear-gradient(to right, transparent, ${customStyles.separatorColor}, transparent);`}
-		></div>
+		<!-- Separator -->
+		<div class="pt-4">
+			<div class="border-t" style="border-color: rgba(0, 0, 0, 0.1);"></div>
+		</div>
 
 		<!-- Section 3: Information of contact -->
 		<div class="space-y-4">
@@ -605,11 +603,10 @@
 			</div>
 		</div>
 
-		<!-- Separator - Dégradé -->
-		<div
-			class="h-px bg-gradient-to-r from-transparent to-transparent"
-			style={`background: linear-gradient(to right, transparent, ${customStyles.separatorColor}, transparent);`}
-		></div>
+		<!-- Separator -->
+		<div class="pt-4">
+			<div class="border-t" style="border-color: rgba(0, 0, 0, 0.1);"></div>
+		</div>
 
 		<!-- Section 4: Summary of the request -->
 		<div class="space-y-4">
@@ -762,11 +759,10 @@
 						</div>
 					{/if}
 
-					<!-- Separator - Dégradé -->
-					<div
-						class="my-2 h-px bg-gradient-to-r from-transparent to-transparent"
-						style={`background: linear-gradient(to right, transparent, ${customStyles.separatorColor}, transparent);`}
-					></div>
+					<!-- Separator -->
+					<div class="my-2">
+						<div class="border-t" style="border-color: rgba(0, 0, 0, 0.1);"></div>
+					</div>
 					<p class="text-xs italic text-muted-foreground">
 						* Le prix final sera confirmé par le pâtissier après étude de votre
 						demande

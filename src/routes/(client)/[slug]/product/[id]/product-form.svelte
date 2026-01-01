@@ -349,11 +349,10 @@
 					{/each}
 				</div>
 			</div>
-			<!-- Separator - Dégradé avec couleur bouton et opacité -->
-			<div
-				class="h-px bg-gradient-to-r from-transparent to-transparent"
-				style={`background: linear-gradient(to right, transparent, ${customStyles.separatorColor}, transparent);`}
-			></div>
+			<!-- Separator -->
+			<div class="pt-4">
+				<div class="border-t" style="border-color: rgba(0, 0, 0, 0.1);"></div>
+			</div>
 		{/if}
 
 		<!-- Section 2: Information de récupération -->
@@ -453,11 +452,10 @@
 				{/if}
 			</div>
 		</div>
-		<!-- Separator - Dégradé avec couleur bouton et opacité -->
-		<div
-			class="h-px bg-gradient-to-r from-transparent to-transparent"
-			style={`background: linear-gradient(to right, transparent, ${customStyles.separatorColor}, transparent);`}
-		></div>
+		<!-- Separator -->
+		<div class="pt-4">
+			<div class="border-t" style="border-color: rgba(0, 0, 0, 0.1);"></div>
+		</div>
 
 		<!-- Section 3: Information de contact -->
 		<div class="space-y-4">
@@ -559,11 +557,10 @@
 				</div>
 			</div>
 		</div>
-		<!-- Separator - Dégradé avec couleur bouton et opacité -->
-		<div
-			class="h-px bg-gradient-to-r from-transparent to-transparent"
-			style={`background: linear-gradient(to right, transparent, ${customStyles.separatorColor}, transparent);`}
-		></div>
+		<!-- Separator -->
+		<div class="pt-4">
+			<div class="border-t" style="border-color: rgba(0, 0, 0, 0.1);"></div>
+		</div>
 
 		<!-- Section 4: Récapitulatif de la demande -->
 		<div class="space-y-4">
@@ -701,11 +698,10 @@
 						{/if}
 					{/each}
 
-					<!-- Separator - Dégradé avec couleur bouton et opacité -->
-					<div
-						class="my-2 h-px bg-gradient-to-r from-transparent to-transparent"
-						style={`background: linear-gradient(to right, transparent, ${customStyles.separatorColor}, transparent);`}
-					></div>
+					<!-- Separator -->
+					<div class="my-2">
+						<div class="border-t" style="border-color: rgba(0, 0, 0, 0.1);"></div>
+					</div>
 					<div class="flex items-center justify-between gap-2">
 						<span class="text-sm font-semibold text-neutral-700" style="font-weight: 600;">
 							Total :

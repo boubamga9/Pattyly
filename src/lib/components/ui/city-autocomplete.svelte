@@ -109,7 +109,7 @@
 	</div>
 
 	{#if showSuggestions && suggestions.length > 0}
-		<div class="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-neutral-200 bg-white shadow-lg">
+		<div class="absolute z-[60] mt-1 max-h-[50vh] sm:max-h-60 w-full overflow-auto rounded-lg border border-neutral-200 bg-white shadow-lg">
 			{#each suggestions as suggestion}
 				<button
 					type="button"

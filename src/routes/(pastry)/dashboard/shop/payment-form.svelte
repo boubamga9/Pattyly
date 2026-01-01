@@ -139,8 +139,8 @@
 			} else {
 				const errorMessage = actionData?.error || 'Erreur lors de la mise à jour du compte Stripe';
 				console.error('Error updating Stripe account:', errorMessage, result);
-				alert(errorMessage);
-				stripeUpdateLoading = false;
+					alert(errorMessage);
+					stripeUpdateLoading = false;
 			}
 		} catch (err) {
 			console.error('Error updating Stripe account:', err);

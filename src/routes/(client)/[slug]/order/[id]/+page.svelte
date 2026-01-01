@@ -11,7 +11,6 @@
 		Check,
 		X,
 	} from 'lucide-svelte';
-	import { ClientFooter } from '$lib/components/brand';
 	import SocialMediaIcons from '$lib/components/client/social-media-icons.svelte';
 	import type { PageData } from './$types';
 
@@ -188,27 +187,14 @@
 	class="min-h-screen"
 	style="background-color: {customStyles.background}; background-image: {customStyles.backgroundImage}; background-size: cover; background-position: center; background-repeat: no-repeat;"
 >
-	<!-- Header avec logo et informations - Design moderne -->
-	<header class="relative px-4 py-6 text-center sm:py-8 md:py-12">
-		<!-- Réseaux sociaux - Top right -->
-		{#if shop && (shop.instagram || shop.tiktok || shop.website)}
-			<SocialMediaIcons {shop} iconStyle={customStyles.iconStyle} />
-		{/if}
-		<!-- Bouton retour - Top left -->
-		<button
-			on:click={() => goto(`/${order?.shops?.slug}`)}
-			class="absolute left-4 top-4 flex items-center gap-2 rounded-full bg-white/60 px-3 py-2 text-sm font-medium shadow-sm backdrop-blur-sm transition-all duration-300 hover:bg-white/80 hover:shadow-sm sm:left-6 sm:top-6"
-			style={`color: ${data.customizations?.secondary_text_color || '#6b7280'}; font-weight: 500; letter-spacing: -0.01em;`}
-		>
-			<ArrowLeft class="h-4 w-4" />
-			<span class="hidden sm:inline">Retour</span>
-		</button>
-
-		<!-- Logo - Design moderne sans bordure -->
-		<div class="mb-4 flex justify-center">
+	<!-- Header avec logo, nom et bouton retour sur la même ligne -->
+	<header class="relative border-b bg-white px-4 py-4 sm:px-6 sm:py-5">
+		<div class="mx-auto flex max-w-7xl items-center justify-between gap-4">
+			<!-- Logo et nom de la boutique -->
+			<div class="flex items-center gap-3">
 			{#if order?.shops?.logo_url}
 				<div
-					class="relative h-20 w-20 overflow-hidden rounded-full bg-white p-2.5 shadow-sm transition-transform duration-300 hover:scale-105 sm:h-24 sm:w-24 sm:p-3 md:h-28 md:w-28"
+						class="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-white p-1.5 shadow-sm sm:h-12 sm:w-12"
 				>
 					<img
 						src={order.shops.logo_url}
@@ -218,38 +204,34 @@
 				</div>
 			{:else}
 				<div
-					class="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-[#FFE8D6]/30 to-white shadow-sm sm:h-24 sm:w-24 md:h-28 md:w-28"
+						class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#FFE8D6]/30 to-white shadow-sm sm:h-12 sm:w-12"
 				>
 					<span
-						class="text-2xl font-semibold text-neutral-700 sm:text-3xl md:text-4xl"
+							class="text-lg font-semibold text-neutral-700 sm:text-xl"
 						style="font-weight: 600;"
 					>
 						{order?.shops?.name?.charAt(0).toUpperCase() || 'P'}
 					</span>
 				</div>
 			{/if}
-		</div>
-
-		<!-- Nom de la boutique - Charte typographique -->
 		<h1
-			class="mb-3 text-2xl font-semibold leading-[110%] tracking-tight text-neutral-900 sm:text-3xl"
-			style="font-weight: 600; letter-spacing: -0.03em;"
+					class="text-lg font-semibold leading-[110%] tracking-tight text-neutral-900 sm:text-xl"
+					style="font-weight: 600; letter-spacing: -0.02em;"
 		>
 			{order?.shops?.name || 'Boutique'}
 		</h1>
-	</header>
+			</div>
 
-	<!-- Separator - Design moderne avec couleur bouton et opacité -->
-	<div class="px-4">
-		<div
-			class="mx-auto mb-6 h-px max-w-7xl bg-gradient-to-r from-transparent to-transparent sm:mb-8"
-			style={`background: linear-gradient(to right, transparent, ${customStyles.separatorColor}, transparent);`}
-		></div>
-	</div>
+			<!-- Réseaux sociaux -->
+			{#if shop && (shop.instagram || shop.tiktok || shop.website)}
+				<SocialMediaIcons {shop} iconStyle={customStyles.iconStyle} />
+			{/if}
+		</div>
+	</header>
 
 	<!-- Contenu principal -->
 	<div class="px-4 pb-6 sm:pb-8">
-		<div class="mx-auto max-w-2xl p-4 sm:p-8 lg:p-12">
+		<div class="mx-auto max-w-2xl pt-6 sm:pt-0 p-4 sm:p-8 lg:p-12">
 			<!-- Titre de confirmation - Charte typographique -->
 			<div class="mb-8 text-center">
 				<h2
@@ -299,8 +281,77 @@
 				</p>
 			</div>
 
-			<!-- Récapitulatif de la commande -->
+			<!-- Sections principales -->
 			<div class="space-y-6">
+				<!-- Informations de contact -->
+				<div class="rounded-2xl border bg-white p-6 shadow-sm">
+					<h2
+						class="mb-4 text-lg font-semibold text-neutral-900"
+						style="font-weight: 600; letter-spacing: -0.02em;"
+					>
+						Informations de contact
+					</h2>
+
+					<div class="space-y-3">
+						<div class="flex items-center gap-3">
+							<User
+								class="h-4 w-4"
+								style={`color: ${data.customizations?.secondary_text_color || '#6b7280'};`}
+							/>
+							<span
+								class="text-sm text-neutral-900"
+								style="font-weight: 400;"
+							>
+								{order.customer_name}
+							</span>
+						</div>
+
+						<div class="flex items-center gap-3">
+							<Mail
+								class="h-4 w-4"
+								style={`color: ${data.customizations?.secondary_text_color || '#6b7280'};`}
+							/>
+							<span
+								class="text-sm text-neutral-900"
+								style="font-weight: 400;"
+							>
+								{order.customer_email}
+							</span>
+						</div>
+
+						{#if customerPhone}
+							<div class="flex items-center gap-3">
+								<Phone
+									class="h-4 w-4"
+									style={`color: ${data.customizations?.secondary_text_color || '#6b7280'};`}
+								/>
+								<span
+									class="text-sm text-neutral-900"
+									style="font-weight: 400;"
+								>
+									{customerPhone}
+								</span>
+							</div>
+						{/if}
+
+						{#if customerInstagram}
+							<div class="flex items-center gap-3">
+								<Instagram
+									class="h-4 w-4"
+									style={`color: ${data.customizations?.secondary_text_color || '#6b7280'};`}
+								/>
+								<span
+									class="text-sm text-neutral-900"
+									style="font-weight: 400;"
+								>
+									@{customerInstagram}
+								</span>
+							</div>
+						{/if}
+					</div>
+				</div>
+
+				<!-- Récapitulatif de la commande -->
 				<!-- Informations de la commande -->
 				<div class="rounded-2xl border bg-white p-6 shadow-sm">
 					<h2
@@ -477,10 +528,10 @@
 					{/if}
 
 					<!-- Séparateur avant le total -->
-					<div
-						class="border-t pt-4"
-						style={`border-color: ${customStyles.separatorColor};`}
-					>
+					<div class="pt-4">
+						<div class="border-t" style="border-color: rgba(0, 0, 0, 0.1);"></div>
+					</div>
+					<div class="pt-4">
 						{#if orderType === 'product_order'}
 							<!-- Montant total -->
 							<div class="mb-2 flex items-center justify-between gap-2">
@@ -604,81 +655,7 @@
 				</div>
 			</div>
 
-				<!-- Separator - Dégradé -->
-				<div
-					class="h-px bg-gradient-to-r from-transparent to-transparent"
-					style={`background: linear-gradient(to right, transparent, ${customStyles.separatorColor}, transparent);`}
-				></div>
-
-				<!-- Informations de contact -->
-				<div class="rounded-2xl border bg-white p-6 shadow-sm">
-					<h2
-						class="mb-4 text-lg font-semibold text-neutral-900"
-						style="font-weight: 600; letter-spacing: -0.02em;"
-					>
-						Informations de contact
-					</h2>
-
-					<div class="space-y-3">
-						<div class="flex items-center gap-3">
-							<User
-								class="h-4 w-4"
-								style={`color: ${data.customizations?.secondary_text_color || '#6b7280'};`}
-							/>
-							<span
-								class="text-sm text-neutral-900"
-								style="font-weight: 400;"
-							>
-								{order.customer_name}
-							</span>
-						</div>
-
-						<div class="flex items-center gap-3">
-							<Mail
-								class="h-4 w-4"
-								style={`color: ${data.customizations?.secondary_text_color || '#6b7280'};`}
-							/>
-							<span
-								class="text-sm text-neutral-900"
-								style="font-weight: 400;"
-							>
-								{order.customer_email}
-							</span>
-						</div>
-
-						{#if customerPhone}
-							<div class="flex items-center gap-3">
-								<Phone
-									class="h-4 w-4"
-									style={`color: ${data.customizations?.secondary_text_color || '#6b7280'};`}
-								/>
-								<span
-									class="text-sm text-neutral-900"
-									style="font-weight: 400;"
-								>
-									{customerPhone}
-								</span>
-							</div>
-						{/if}
-
-						{#if customerInstagram}
-							<div class="flex items-center gap-3">
-								<Instagram
-									class="h-4 w-4"
-									style={`color: ${data.customizations?.secondary_text_color || '#6b7280'};`}
-								/>
-								<span
-									class="text-sm text-neutral-900"
-									style="font-weight: 400;"
-								>
-									@{customerInstagram}
-								</span>
-							</div>
-						{/if}
-					</div>
-				</div>
-
-				<!-- Message de confirmation -->
+			<!-- Message de confirmation -->
 				<div class="text-center">
 					<p
 						class="text-sm text-neutral-600"
@@ -733,6 +710,20 @@
 		</div>
 	</div>
 
-	<!-- Footer -->
-	<ClientFooter customizations={data.customizations} shopSlug={order?.shops?.slug} hasPolicies={data.hasPolicies ?? false} />
+	<!-- Footer minimaliste style Airbnb -->
+	{#if data.hasPolicies}
+		<footer class="mt-12 border-t border-neutral-200 bg-white px-4 py-6">
+			<div class="mx-auto max-w-7xl">
+				<div class="flex items-center justify-center">
+					<a
+						href="/{order?.shops?.slug}/policies"
+						class="text-xs text-neutral-600 transition-colors hover:text-neutral-900 sm:text-sm"
+						style="font-weight: 400;"
+					>
+						Conditions de vente
+					</a>
+				</div>
+			</div>
+		</footer>
+	{/if}
 </div>

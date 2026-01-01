@@ -5,14 +5,14 @@
 	import { WebsiteName } from '$src/config';
 	import { revealStagger } from '$lib/utils/animations';
 	import { Button } from '$lib/components/ui/button';
-	import { MapPin, Cake, ChevronDown, ChevronUp } from 'lucide-svelte';
-	import * as Card from '$lib/components/ui/card';
+	import { MapPin, Cake } from 'lucide-svelte';
 	import CityAutocomplete from '$lib/components/ui/city-autocomplete.svelte';
 	import RadiusSlider from '$lib/components/ui/radius-slider.svelte';
 	import {
 		searchCities,
 		type CitySuggestion,
 	} from '$lib/services/city-autocomplete';
+	import { isSearchBarVisible as searchBarVisibleStore } from '$lib/stores/searchBarVisibility';
 
 	// ✅ Tracking: Page view côté client (tous-les-gateaux page)
 	onMount(() => {
@@ -62,7 +62,7 @@
 	let displayedProducts = data.products || [];
 	let currentPage = data.pagination?.page || 1;
 	let hasMore = data.pagination?.hasMore || false;
-	let totalProducts = data.pagination?.total || 0; // Total de produits pour l'affichage
+	let _totalProducts = data.pagination?.total || 0; // Total de produits pour l'affichage (non utilisé dans le template)
 	let isLoadingMore = false;
 	let sentinelElement: HTMLElement;
 	let scrollObserver: IntersectionObserver | null = null;
@@ -71,8 +71,47 @@
 	let selectedCitySuggestion: CitySuggestion | null = null;
 	let selectedCakeType = '';
 	let searchRadius = 30; // Rayon par défaut en km
-	let filtersExpanded = true;
 	let showOnlyVerified = false; // Filtre pour afficher uniquement les gâteaux des pâtissiers vérifiés
+	let minPrice = 0;
+	let maxPrice = 1000;
+	
+	// États pour gérer quel champ est ouvert (popovers style Airbnb)
+	let activeField: 'where' | 'type' | 'filters' | null = null;
+	let wherePopoverRef: HTMLElement | null = null;
+	let typePopoverRef: HTMLElement | null = null;
+	let filtersPopoverRef: HTMLElement | null = null;
+	
+	// États pour gérer la visibilité de la barre de recherche au scroll
+	let isSearchBarVisible = true;
+	let lastScrollY = 0;
+	
+	// Synchroniser avec le store
+	$: searchBarVisibleStore.set(isSearchBarVisible);
+	
+	// Texte à afficher dans le champ "Filtres"
+	$: filtersText = (() => {
+		const parts: string[] = [];
+		
+		if (showOnlyVerified) {
+			parts.push('Vérifiés');
+		}
+		
+		if (selectedCitySuggestion && searchRadius !== 30) {
+			parts.push(`${searchRadius}km`);
+		}
+		
+		if (minPrice > 0 || maxPrice < 1000) {
+			if (minPrice > 0 && maxPrice < 1000) {
+				parts.push(`${minPrice}€-${maxPrice}€`);
+			} else if (minPrice > 0) {
+				parts.push(`${minPrice}€+`);
+			} else {
+				parts.push(`jusqu'à ${maxPrice}€`);
+			}
+		}
+		
+		return parts.length > 0 ? parts.join(' • ') : 'Aucun';
+	})();
 
 	const cakeTypes = [
 		"Gâteau d'anniversaire",
@@ -157,6 +196,20 @@
 
 		// Réinitialiser le filtre verified si présent dans l'URL
 		showOnlyVerified = currentUrlVerified === 'true';
+		
+		// Réinitialiser les prix si présents dans l'URL
+		const currentUrlMinPrice = $page.url.searchParams.get('minPrice');
+		const currentUrlMaxPrice = $page.url.searchParams.get('maxPrice');
+		if (currentUrlMinPrice) {
+			minPrice = parseInt(currentUrlMinPrice, 10) || 0;
+		} else {
+			minPrice = 0;
+		}
+		if (currentUrlMaxPrice) {
+			maxPrice = parseInt(currentUrlMaxPrice, 10) || 1000;
+		} else {
+			maxPrice = 1000;
+		}
 	}
 
 	/**
@@ -219,7 +272,7 @@
 
 	// Filtrer les produits avec rayon de recherche (fallback côté client)
 	// filteredProductsSync n'est plus utilisé, on utilise directement displayedProducts
-	let isLoadingFilter = false;
+	let _isLoadingFilter = false;
 	let filterTimeout: ReturnType<typeof setTimeout> | null = null;
 	let isFiltering = false;
 
@@ -238,7 +291,7 @@
 
 		try {
 			isFiltering = true;
-			isLoadingFilter = true;
+			_isLoadingFilter = true;
 			
 			// ✅ Si le filtre "verified" change, recharger depuis le serveur
 			// On recharge toujours depuis le serveur pour éviter les incohérences
@@ -264,6 +317,13 @@
 					params.set('type', cakeTypeSlug);
 				}
 			}
+			
+			if (minPrice > 0) {
+				params.set('minPrice', minPrice.toString());
+			}
+			if (maxPrice < 1000) {
+				params.set('maxPrice', maxPrice.toString());
+			}
 
 			const response = await fetch(`/tous-les-gateaux/api?${params.toString()}`);
 			if (response.ok) {
@@ -271,8 +331,8 @@
 				displayedProducts = result.products || [];
 				currentPage = 1;
 				hasMore = result.pagination?.hasMore || false;
-				totalProducts = result.pagination?.total || 0; // Mettre à jour le total
-				isLoadingFilter = false;
+				_totalProducts = result.pagination?.total || 0; // Mettre à jour le total
+				_isLoadingFilter = false;
 				isFiltering = false;
 				// Réinitialiser l'infinite scroll après le filtrage
 				setTimeout(() => {
@@ -345,6 +405,14 @@
 					.map((item) => item.product);
 			}
 
+			// Filtre par prix
+			if (minPrice > 0 || maxPrice < 1000) {
+				filtered = filtered.filter((product) => {
+					const price = product.base_price;
+					return price >= minPrice && price <= maxPrice;
+				});
+			}
+
 			// Trier : vérifiés en premier, puis par nom de produit
 			filtered.sort((a, b) => {
 				if (a.shop.isPremium && !b.shop.isPremium) return -1;
@@ -354,15 +422,15 @@
 
 			// Mettre à jour displayedProducts avec les résultats filtrés
 			displayedProducts = Array.isArray(filtered) ? filtered : [];
-			totalProducts = displayedProducts.length; // Mettre à jour le total avec le nombre de produits filtrés
-			isLoadingFilter = false;
+			_totalProducts = displayedProducts.length; // Mettre à jour le total avec le nombre de produits filtrés
+			_isLoadingFilter = false;
 			isFiltering = false;
 		} catch (error) {
 			console.error('Erreur lors du filtrage:', error);
 			// En cas d'erreur, afficher un tableau vide
 			displayedProducts = [];
-			totalProducts = 0; // Mettre à jour le total à 0 en cas d'erreur
-			isLoadingFilter = false;
+			_totalProducts = 0; // Mettre à jour le total à 0 en cas d'erreur
+			_isLoadingFilter = false;
 			isFiltering = false;
 		}
 	}
@@ -378,23 +446,25 @@
 		selectedCakeType = '';
 		searchRadius = 30;
 		showOnlyVerified = false;
+		minPrice = 0;
+		maxPrice = 1000;
 		updateUrl();
 		// Recharger les produits sans filtres
 		await filterProducts();
 	}
 
-	async function handleCitySelect(city: CitySuggestion | null) {
+	// Fonction pour sélectionner une ville (sans déclencher le filtrage)
+	function handleCitySelect(city: CitySuggestion | null) {
 		selectedCitySuggestion = city;
 		updateUrl();
-		// Gérer le filtrage directement
-		await filterProducts();
+		// Ne pas fermer le popover automatiquement, l'utilisateur peut continuer à modifier
 	}
 
-	async function handleCakeTypeSelect(cakeType: string) {
+	// Fonction pour sélectionner un type de gâteau (sans déclencher le filtrage)
+	function handleCakeTypeSelect(cakeType: string) {
 		selectedCakeType = selectedCakeType === cakeType ? '' : cakeType;
 		updateUrl();
-		// Gérer le filtrage directement
-		await filterProducts();
+		// Ne pas fermer le popover automatiquement
 	}
 
 	// Mettre à jour l'URL avec les filtres actuels (pour partager)
@@ -420,6 +490,14 @@
 		// Ajouter le filtre verified si activé
 		if (showOnlyVerified) {
 			params.set('verified', 'true');
+		}
+		
+		// Ajouter les prix si modifiés
+		if (minPrice > 0) {
+			params.set('minPrice', minPrice.toString());
+		}
+		if (maxPrice < 1000) {
+			params.set('maxPrice', maxPrice.toString());
 		}
 
 		// Mettre à jour l'URL sans recharger la page
@@ -470,7 +548,7 @@
 			hasMore = result.pagination.hasMore;
 			// Le total ne change pas quand on charge plus de pages, mais on le met à jour au cas où
 			if (result.pagination?.total !== undefined) {
-				totalProducts = result.pagination.total;
+				_totalProducts = result.pagination.total;
 			}
 
 			// Animations pour les nouveaux éléments (infinite scroll - très rapide)
@@ -488,10 +566,8 @@
 		// Initialiser avec les paramètres de l'URL
 		await initializeFiltersFromUrl();
 
-		// Si une ville est sélectionnée, appeler handleCitySelect pour déclencher le filtrage
-		if (selectedCitySuggestion) {
-			handleCitySelect(selectedCitySuggestion);
-		}
+		// Recharger les produits depuis le serveur avec les filtres de l'URL
+		await filterProducts();
 
 		// Animations initiales
 		if (resultsContainer) {
@@ -504,11 +580,38 @@
 		// Configurer l'Intersection Observer pour infinite scroll
 		setupInfiniteScroll();
 
+		// Gérer les clics extérieurs pour fermer les popovers
+		document.addEventListener('click', handleClickOutside);
+		
+		// Gérer le scroll pour cacher/afficher la barre de recherche
+		function handleScroll() {
+			const currentScrollY = window.scrollY;
+			
+			// Si on scroll vers le bas et qu'on dépasse un certain seuil, cacher la barre
+			if (currentScrollY > lastScrollY && currentScrollY > 100) {
+				isSearchBarVisible = false;
+			} 
+			// Si on scroll vers le haut, afficher la barre
+			else if (currentScrollY < lastScrollY) {
+				isSearchBarVisible = true;
+			}
+			
+			lastScrollY = currentScrollY;
+		}
+		
+		window.addEventListener('scroll', handleScroll, { passive: true });
+		lastScrollY = window.scrollY;
+		
+		// Initialiser le store
+		searchBarVisibleStore.set(isSearchBarVisible);
+
 		return () => {
 			if (scrollObserver) {
 				scrollObserver.disconnect();
 				scrollObserver = null;
 			}
+			document.removeEventListener('click', handleClickOutside);
+			window.removeEventListener('scroll', handleScroll);
 		};
 	});
 
@@ -541,16 +644,50 @@
 	}
 
 	// Réagir aux changements de navigation (pour gérer le bouton retour du navigateur)
-	afterNavigate(async () => {
-		// Si on est sur la page /tous-les-gateaux, réinitialiser les filtres depuis l'URL
-		if ($page.url.pathname === '/tous-les-gateaux') {
+	afterNavigate(async ({ to }) => {
+		// Si on revient sur la page /tous-les-gateaux, réinitialiser les filtres depuis l'URL
+		if (to?.url.pathname === '/tous-les-gateaux') {
 			await initializeFiltersFromUrl();
+			// Recharger les produits depuis le serveur avec les filtres de l'URL
+			await filterProducts();
+			// Réinitialiser l'infinite scroll
+			setTimeout(() => {
+				setupInfiniteScroll();
+			}, 100);
 		}
 	});
 
-	function toggleFilters() {
-		filtersExpanded = !filtersExpanded;
+	// Fonction pour ouvrir/fermer un champ
+	function toggleField(field: 'where' | 'type' | 'filters') {
+		activeField = activeField === field ? null : field;
 	}
+
+	// Fonction pour fermer tous les champs
+	function closeAllFields() {
+		activeField = null;
+	}
+
+	// Fonction pour fermer les popovers quand on clique ailleurs
+	function handleClickOutside(event: MouseEvent) {
+		const target = event.target as Node;
+		// Ne pas fermer si on clique dans un input, textarea, ou dans les popovers
+		if (target instanceof HTMLElement) {
+			if (
+				target.tagName === 'INPUT' ||
+				target.tagName === 'TEXTAREA' ||
+				target.closest('[role="dialog"]') ||
+				wherePopoverRef?.contains(target) ||
+				typePopoverRef?.contains(target) ||
+				filtersPopoverRef?.contains(target)
+			) {
+				return;
+			}
+		}
+		if (activeField) {
+			activeField = null;
+		}
+	}
+
 </script>
 
 <svelte:head>
@@ -578,142 +715,252 @@
 		Tous les gâteaux - Catalogue complet de pâtisseries | {WebsiteName}
 	</h1>
 
-	<!-- Barre de recherche et filtres en haut -->
-	<section
-		class="sticky top-0 z-40 border-b border-neutral-200 bg-white pt-20 shadow-sm"
+	<!-- Hero Search Bar style Airbnb -->
+	<section 
+		class="sticky top-0 z-40 border-b border-neutral-200 bg-white pt-20 transition-all duration-500 ease-in-out {isSearchBarVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'}"
 	>
-		<div
-			class="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12 {filtersExpanded
-				? 'py-4'
-				: 'py-2'}"
-		>
-			<div class="flex flex-col {filtersExpanded ? 'gap-4' : 'gap-2'}">
-				<!-- Filtres horizontaux -->
-				{#if filtersExpanded}
-					<div class="flex flex-wrap items-center gap-4">
-						<!-- Autocomplétion ville -->
-						<div class="w-full sm:w-auto sm:min-w-[250px]">
-							<CityAutocomplete
-								value={selectedCitySuggestion?.label || ''}
-								placeholder="Recherche une ville..."
-								onSelect={handleCitySelect}
-							/>
-						</div>
-
-						<!-- Slider de rayon -->
-						{#if selectedCitySuggestion}
-							<div class="w-full sm:w-auto sm:min-w-[200px]">
-								<RadiusSlider
-									value={searchRadius}
-									min={1}
-									max={50}
-									step={1}
-									onChange={async (val) => {
-										searchRadius = val;
-										updateUrl();
-										// Debounce pour éviter trop d'appels pendant le glissement
-										if (filterTimeout) {
-											clearTimeout(filterTimeout);
-										}
-										filterTimeout = setTimeout(async () => {
-											await filterProducts();
-										}, 300);
-									}}
+		<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 xl:px-12 py-3 sm:py-4">
+			<!-- Barre de recherche principale -->
+			<div class="relative flex w-full items-center justify-between rounded-full border border-neutral-300 bg-white px-3 sm:px-4 py-2.5 sm:py-3 shadow-sm transition-all hover:shadow-md max-w-5xl mx-auto">
+				<div class="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm flex-1 min-w-0">
+					<!-- Champ "Où" - Cliquable -->
+					<button
+						on:click={(e) => {
+							e.stopPropagation();
+							toggleField('where');
+						}}
+						class="flex flex-col items-start flex-1 min-w-0 text-left hover:bg-neutral-50 rounded-lg px-2 py-1 -mx-2 -my-1 transition-colors {activeField === 'where' ? 'bg-neutral-50' : ''}"
+					>
+						<span class="font-semibold text-neutral-900">Où</span>
+						<span class="text-neutral-500 truncate w-full">
+							{selectedCitySuggestion?.city || 'Recherche une ville...'}
+						</span>
+					</button>
+					
+					<!-- Popover "Où" -->
+					{#if activeField === 'where'}
+						<div
+							bind:this={wherePopoverRef}
+							class="fixed inset-x-4 sm:absolute sm:left-0 sm:inset-x-auto top-[calc(5rem+80px)] sm:top-full mt-0 sm:mt-2 w-[calc(100%-2rem)] sm:w-80 rounded-2xl border border-neutral-200 bg-white p-4 shadow-xl z-50"
+							role="dialog"
+							aria-label="Sélectionner une ville"
+						>
+							<div class="relative">
+								<CityAutocomplete
+									value={selectedCitySuggestion?.label || ''}
+									placeholder="Recherche une ville..."
+									onSelect={handleCitySelect}
 								/>
 							</div>
-						{/if}
-
-						<!-- Filtre "Notre sélection" (pâtissiers vérifiés) -->
-						<button
-							on:click={async () => {
-								showOnlyVerified = !showOnlyVerified;
-								updateUrl();
-								// Gérer le filtre verified directement
-								await filterProducts();
-							}}
-							class="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-all hover:border-[#FF6F61] hover:bg-[#FFE8D6]/20 {showOnlyVerified
-								? 'border-[#FF6F61] bg-[#FFE8D6]/30'
-								: 'border-neutral-300 bg-white'}"
-						>
-							<span class="flex items-center gap-1.5">
-								<svg
-									class="h-4 w-4 shrink-0 {showOnlyVerified
-										? 'text-[#FF6F61]'
-										: 'text-neutral-400'}"
-									viewBox="0 0 22 22"
-									fill="none"
-								>
-									<circle
-										cx="11"
-										cy="11"
-										r="10"
-										fill={showOnlyVerified ? '#FF6F61' : 'currentColor'}
-									/>
-									<path
-										d="M6.5 11l2.5 2.5 5-5"
-										stroke="white"
-										stroke-width="2"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-									/>
-								</svg>
-								<span
-									class={showOnlyVerified
-										? 'text-[#FF6F61]'
-										: 'text-neutral-700'}>Notre sélection de pâtissiers</span
-								>
-							</span>
-						</button>
-
-						<!-- Filtre par type de gâteau -->
-						<div class="flex flex-wrap gap-2">
-							{#each cakeTypes as cakeType}
-								<Button
-									variant={selectedCakeType === cakeType
-										? 'default'
-										: 'outline'}
-									size="sm"
-									on:click={() => {
-										handleCakeTypeSelect(cakeType);
-									}}
-									class="rounded-full"
-								>
-									<Cake class="mr-1 h-3.5 w-3.5" />
-									{cakeType}
-								</Button>
-							{/each}
 						</div>
+					{/if}
 
-						<!-- Bouton réinitialiser -->
-						{#if selectedCitySuggestion || selectedCakeType || showOnlyVerified}
-							<button
-								on:click={clearFilters}
-								class="ml-auto flex items-center gap-2 rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-all hover:border-[#FF6F61] hover:bg-[#FFE8D6]/20 hover:text-[#FF6F61]"
-							>
-								Réinitialiser
-							</button>
-						{/if}
+					<div class="h-4 sm:h-6 w-px bg-neutral-300 shrink-0"></div>
+					
+					<!-- Champ "Type" - Cliquable -->
+						<button
+						on:click={(e) => {
+							e.stopPropagation();
+							toggleField('type');
+						}}
+						class="flex flex-col items-start flex-1 min-w-0 text-left hover:bg-neutral-50 rounded-lg px-2 py-1 -mx-2 -my-1 transition-colors {activeField === 'type' ? 'bg-neutral-50' : ''}"
+					>
+						<span class="font-semibold text-neutral-900">Type</span>
+						<span class="text-neutral-500 truncate w-full">
+							{selectedCakeType || 'Tous les gâteaux'}
+						</span>
+					</button>
+					
+					<!-- Popover "Type" -->
+					{#if activeField === 'type'}
+						<div
+							bind:this={typePopoverRef}
+							class="fixed inset-x-4 sm:absolute sm:left-1/3 sm:inset-x-auto top-[calc(5rem+80px)] sm:top-full mt-0 sm:mt-2 w-[calc(100%-2rem)] sm:w-80 rounded-2xl border border-neutral-200 bg-white p-4 shadow-xl z-50 max-h-[calc(100vh-10rem)] sm:max-h-none overflow-y-auto"
+							role="dialog"
+							aria-label="Sélectionner un type de gâteau"
+						>
+							<div class="space-y-2">
+								<p class="text-sm font-semibold text-neutral-900 mb-3">Type de gâteau</p>
+								<div class="flex flex-wrap gap-2">
+									<button
+										on:click={() => {
+											handleCakeTypeSelect('');
+										}}
+										class="rounded-full border px-4 py-2 text-sm font-medium transition-all hover:border-[#FF6F61] hover:bg-[#FFE8D6]/20 {!selectedCakeType
+											? 'border-[#FF6F61] bg-[#FFE8D6]/30 text-[#FF6F61]'
+											: 'border-neutral-300 bg-white text-neutral-700'}"
+									>
+										Tous les gâteaux
+									</button>
+									{#each cakeTypes as cakeType}
+										<button
+											on:click={() => {
+												handleCakeTypeSelect(cakeType);
+											}}
+											class="rounded-full border px-4 py-2 text-sm font-medium transition-all hover:border-[#FF6F61] hover:bg-[#FFE8D6]/20 {selectedCakeType === cakeType
+												? 'border-[#FF6F61] bg-[#FFE8D6]/30 text-[#FF6F61]'
+												: 'border-neutral-300 bg-white text-neutral-700'}"
+										>
+											{cakeType}
+										</button>
+									{/each}
+								</div>
+							</div>
+						</div>
+					{/if}
+					
+					<div class="h-4 sm:h-6 w-px bg-neutral-300 shrink-0"></div>
+					
+					<!-- Champ "Filtres" - Cliquable -->
+					<button
+						on:click={(e) => {
+							e.stopPropagation();
+							toggleField('filters');
+						}}
+						class="flex flex-col items-start flex-1 min-w-0 text-left hover:bg-neutral-50 rounded-lg px-2 py-1 -mx-2 -my-1 transition-colors {activeField === 'filters' ? 'bg-neutral-50' : ''}"
+					>
+						<span class="font-semibold text-neutral-900">Filtres</span>
+						<span class="text-neutral-500 truncate w-full">
+							{filtersText}
+						</span>
+					</button>
+					
+					<!-- Popover "Filtres" -->
+					{#if activeField === 'filters'}
+						<div
+							bind:this={filtersPopoverRef}
+							class="fixed inset-x-4 sm:absolute sm:right-0 sm:inset-x-auto top-[calc(5rem+80px)] sm:top-full mt-0 sm:mt-2 w-[calc(100%-2rem)] sm:w-96 rounded-2xl border border-neutral-200 bg-white p-4 sm:p-6 shadow-xl z-50 max-h-[calc(100vh-10rem)] sm:max-h-none overflow-y-auto"
+							role="dialog"
+							aria-label="Filtres de recherche"
+						>
+							<div class="space-y-4">
+								<p class="text-sm font-semibold text-neutral-900 mb-4">Filtres</p>
+								
+								<!-- Slider de rayon (si ville sélectionnée) -->
+								{#if selectedCitySuggestion}
+									<div>
+										<p class="text-sm font-medium text-neutral-700 mb-2">
+											Rayon de recherche : {searchRadius}km
+										</p>
+										<RadiusSlider
+											value={searchRadius}
+											min={1}
+											max={50}
+											step={1}
+											onChange={(val) => {
+												searchRadius = val;
+											}}
+										/>
+									</div>
+								{/if}
+								
+								<!-- Filtre prix -->
+								<div>
+									<p class="text-sm font-medium text-neutral-700 mb-2">Prix</p>
+									<div class="flex items-center gap-3">
+										<div class="flex-1">
+											<p class="text-xs text-neutral-500 mb-1">Min</p>
+											<input
+												type="number"
+												bind:value={minPrice}
+												min="0"
+												max="1000"
+												class="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-[#FF6F61] focus:outline-none focus:ring-1 focus:ring-[#FF6F61]"
+												placeholder="0"
+												aria-label="Prix minimum"
+											/>
+										</div>
+										<div class="flex-1">
+											<p class="text-xs text-neutral-500 mb-1">Max</p>
+											<input
+												type="number"
+												bind:value={maxPrice}
+												min="0"
+												max="1000"
+												class="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-[#FF6F61] focus:outline-none focus:ring-1 focus:ring-[#FF6F61]"
+												placeholder="1000"
+												aria-label="Prix maximum"
+											/>
+										</div>
+									</div>
+								</div>
+
+								<!-- Filtre "Notre sélection" -->
+								<button
+									on:click={() => {
+										showOnlyVerified = !showOnlyVerified;
+									}}
+									class="flex w-full items-center justify-between rounded-lg border px-4 py-3 text-sm font-medium transition-all hover:border-[#FF6F61] hover:bg-[#FFE8D6]/20 {showOnlyVerified
+										? 'border-[#FF6F61] bg-[#FFE8D6]/30'
+										: 'border-neutral-300 bg-white'}"
+								>
+									<span class="flex items-center gap-2">
+										<svg
+											class="h-4 w-4 shrink-0 {showOnlyVerified
+												? 'text-[#FF6F61]'
+												: 'text-neutral-400'}"
+											viewBox="0 0 22 22"
+											fill="none"
+										>
+											<circle
+												cx="11"
+												cy="11"
+												r="10"
+												fill={showOnlyVerified ? '#FF6F61' : 'currentColor'}
+											/>
+											<path
+												d="M6.5 11l2.5 2.5 5-5"
+												stroke="white"
+												stroke-width="2"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+											/>
+										</svg>
+										<span class={showOnlyVerified ? 'text-[#FF6F61]' : 'text-neutral-700'}>
+											Notre sélection de pâtissiers
+										</span>
+									</span>
+								</button>
+
+								<!-- Bouton Valider -->
+								<button
+									on:click={() => {
+										updateUrl();
+										closeAllFields();
+									}}
+									class="w-full rounded-lg bg-[#FF6F61] px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-[#e85a4f]"
+								>
+									Valider
+								</button>
+
+								<!-- Bouton réinitialiser -->
+								{#if selectedCitySuggestion || selectedCakeType || showOnlyVerified || minPrice > 0 || maxPrice < 1000}
+									<button
+										on:click={async () => {
+											await clearFilters();
+											closeAllFields();
+										}}
+										class="w-full rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-all hover:border-[#FF6F61] hover:bg-[#FFE8D6]/20 hover:text-[#FF6F61]"
+									>
+										Réinitialiser
+									</button>
+								{/if}
+							</div>
 					</div>
 				{/if}
+				</div>
 
-				<!-- Bouton pour ouvrir/fermer les filtres -->
-				<button
-					on:click={toggleFilters}
-					class="mx-auto flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-neutral-600 transition-colors hover:text-[#FF6F61]"
-					aria-label={filtersExpanded
-						? 'Masquer les filtres'
-						: 'Afficher les filtres'}
-				>
-					{#if filtersExpanded}
-						<ChevronUp class="h-3.5 w-3.5" />
-					{:else}
-						<ChevronDown class="h-3.5 w-3.5" />
-					{/if}
-					<span class="text-xs"
-						>{filtersExpanded
-							? 'Masquer les filtres'
-							: 'Afficher les filtres'}</span
+					<!-- Bouton de recherche -->
+					<button
+						on:click={async () => {
+							await filterProducts();
+							closeAllFields();
+						}}
+						class="flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-[#FF6F61] ml-2 sm:ml-4 hover:bg-[#e85a4f] transition-colors"
 					>
+						<svg class="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+					</svg>
 				</button>
 			</div>
 		</div>
@@ -724,61 +971,36 @@
 		class="relative overflow-hidden bg-white py-8 pb-12 sm:py-12 sm:pb-16 md:py-16 md:pb-24"
 	>
 		<div class="relative mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
-			<!-- Titre visible -->
-			<div class="mb-8">
-				<h2 class="text-3xl font-semibold text-neutral-900 sm:text-4xl">
-					Tous les <span class="text-[#FF6F61]">gâteaux</span>
-				</h2>
-				<p class="mt-2 text-base text-neutral-600">
-					Découvre tous les gâteaux disponibles chez les meilleurs pâtissiers
-				</p>
-			</div>
-
-			<!-- Compteur de résultats -->
-			<div class="mb-10">
-				{#if isLoadingFilter}
-					<p class="text-base font-medium text-neutral-700">
-						Recherche en cours...
-					</p>
-				{:else}
-					<p class="text-base font-medium text-neutral-700">
-						{#if totalProducts === 0}
-							{#if selectedCitySuggestion}
-								Aucun gâteau trouvé dans un rayon de {searchRadius}km autour de {selectedCitySuggestion.city}
-							{:else}
-								Aucun gâteau trouvé
-							{/if}
-						{:else if totalProducts === 1}
-							{#if selectedCitySuggestion}
-								1 gâteau trouvé dans un rayon de {searchRadius}km autour de {selectedCitySuggestion.city}
-							{:else}
-								1 gâteau trouvé
-							{/if}
-						{:else if selectedCitySuggestion}
-							{totalProducts} gâteaux trouvés dans un rayon de {searchRadius}km autour de {selectedCitySuggestion.city}
-						{:else}
-							{totalProducts} gâteaux trouvés
-						{/if}
-					</p>
-				{/if}
-			</div>
-
-			<!-- Grille de résultats -->
+			<!-- Grille de résultats style Airbnb -->
 			<div
 				bind:this={resultsContainer}
-				class="grid gap-8 sm:grid-cols-2 lg:grid-cols-3"
+				class="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
 			>
 				{#each displayedProducts as product}
-					<Card.Root
-						class="group relative overflow-hidden rounded-2xl border border-neutral-200 bg-white transition-all duration-300 hover:scale-[1.02] hover:border-[#FF6F61]/50 hover:shadow-xl"
+					<a
+						href="/{product.shop.slug}/product/{product.id}?from=app"
+						class="group relative flex cursor-pointer flex-col"
 					>
+						<!-- Image du gâteau -->
+						<div class="relative mb-1.5 aspect-[4/3] w-full overflow-hidden rounded-lg bg-neutral-100 scale-[0.95] origin-top">
+							{#if product.image_url}
+								<img
+									src={product.image_url}
+									alt={product.name}
+									class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+								/>
+							{:else}
+								<div class="flex h-full items-center justify-center">
+									<Cake class="h-6 w-6 text-neutral-300" />
+								</div>
+							{/if}
 						<!-- Badge vérifié (si shop premium) -->
 						{#if product.shop.isPremium}
 							<div
-								class="absolute right-3 top-3 z-10 flex items-center gap-1.5 rounded-full bg-white/90 px-2 py-1 shadow-md backdrop-blur-sm"
+									class="absolute right-1.5 top-1.5 z-10 flex items-center gap-1 rounded-full bg-white px-2 py-1 shadow-sm"
 							>
 								<svg
-									class="h-4 w-4 shrink-0"
+										class="h-2.5 w-2.5 shrink-0"
 									viewBox="0 0 22 22"
 									aria-label="Compte vérifié"
 									fill="none"
@@ -792,95 +1014,38 @@
 										stroke-linejoin="round"
 									/>
 								</svg>
-								<span class="text-xs font-medium text-[#FF6F61]">Vérifié</span>
-							</div>
-						{/if}
-						<!-- Image du gâteau -->
-						<div
-							class="relative h-48 w-full overflow-hidden bg-gradient-to-br from-[#FFE8D6]/20 to-white"
-						>
-							{#if product.image_url}
-								<img
-									src={product.image_url}
-									alt={product.name}
-									class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
-								/>
-							{:else}
-								<div class="flex h-full items-center justify-center">
-									<Cake class="h-16 w-16 text-neutral-300" />
-								</div>
-							{/if}
-							{#if product.cake_type}
-								<div
-									class="absolute left-3 top-3 rounded-full bg-white/90 px-2 py-1 text-xs font-medium text-neutral-700 backdrop-blur-sm"
-								>
-									{product.cake_type}
+									<span class="text-[10px] font-medium text-neutral-700">vérifié</span>
 								</div>
 							{/if}
 						</div>
 
-						<!-- Contenu -->
-						<Card.Content class="p-6">
-							<div class="mb-4 flex items-start justify-between">
-								<div class="flex-1">
-									<Card.Title
-										class="mb-2 text-xl font-semibold text-neutral-900"
-									>
+						<!-- Informations -->
+						<div class="flex flex-1 flex-col">
+							<!-- Nom du produit -->
+							<p class="mb-0.5 text-xs font-semibold text-neutral-900 line-clamp-2 leading-tight">
 										{product.name}
-									</Card.Title>
-									{#if product.description}
-										<p class="mb-3 line-clamp-2 text-sm text-neutral-600">
-											{product.description}
-										</p>
-									{/if}
-								</div>
+							</p>
+
+							<!-- Localisation -->
+							<div class=" flex items-center gap-0.5 text-[10px] text-neutral-500">
+								<MapPin class="h-2.5 w-2.5 shrink-0" />
+								<span class="truncate">{product.shop.actualCity || product.shop.city}</span>
 							</div>
 
-							<!-- Informations du shop -->
-							<div
-								class="mb-4 flex items-center gap-3 border-t border-neutral-100 pt-4"
-							>
-								{#if product.shop.logo_url}
-									<img
-										src={product.shop.logo_url}
-										alt={product.shop.name}
-										class="h-10 w-10 rounded-full object-cover"
-									/>
-								{:else}
-									<div
-										class="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100"
-									>
-										<Cake class="h-5 w-5 text-neutral-400" />
-									</div>
-								{/if}
-								<div class="flex-1">
-									<p class="text-sm font-medium text-neutral-900">
-										{product.shop.name}
-									</p>
-									<div class="flex items-center gap-1 text-xs text-neutral-500">
-										<MapPin class="h-3 w-3" />
-										<span>{product.shop.actualCity || product.shop.city}</span>
-									</div>
+							<!-- Prix -->
+							<div class="flex items-baseline gap-1">
+								<span class="text-[10px] text-neutral-500">à partir de</span>
+								<span class="text-xs font-semibold text-neutral-500">
+									{new Intl.NumberFormat('fr-FR', {
+										style: 'currency',
+										currency: 'EUR',
+										minimumFractionDigits: 0,
+										maximumFractionDigits: 0
+									}).format(product.base_price)}
+								</span>
 								</div>
 							</div>
-
-							<!-- Prix et bouton -->
-							<div class="flex items-center justify-between">
-								<div>
-									<p class="text-2xl font-bold text-[#FF6F61]">
-										{product.base_price.toFixed(2)} €
-									</p>
-									<p class="text-xs text-neutral-500">Prix de base</p>
-								</div>
-								<Button
-									href="/{product.shop.slug}/product/{product.id}?from=app"
-									class="rounded-full bg-[#FF6F61] px-4 py-2 text-sm font-medium text-white transition-all duration-300 hover:bg-[#e85a4f]"
-								>
-									Voir le gâteau
-								</Button>
-							</div>
-						</Card.Content>
-					</Card.Root>
+					</a>
 				{/each}
 			</div>
 

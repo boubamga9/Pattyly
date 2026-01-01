@@ -28,6 +28,7 @@
 	} from '$lib/utils/smooth-scroll';
 	import { gsap } from 'gsap';
 	import { ScrollTrigger } from 'gsap/ScrollTrigger';
+	import { isSearchBarVisible } from '$lib/stores/searchBarVisibility';
 	import '../../app.css';
 
 	const menuItems = {
@@ -60,17 +61,35 @@
 
 		// Animation du header au scroll
 		if (header && logo) {
-			ScrollTrigger.create({
+			let scrollTriggerInstance: ScrollTrigger | null = null;
+			
+			const updateHeaderShadow = () => {
+				const searchBarVisible = $isSearchBarVisible;
+				if (scrollTriggerInstance && scrollTriggerInstance.isActive) {
+					gsap.to(header, {
+						duration: 0.3,
+						boxShadow: searchBarVisible ? '0 0 0 rgba(0, 0, 0, 0)' : '0 1px 3px rgba(0, 0, 0, 0.1)',
+					});
+				}
+			};
+			
+			// Écouter les changements du store
+			const unsubscribe = isSearchBarVisible.subscribe(() => {
+				updateHeaderShadow();
+			});
+			
+			scrollTriggerInstance = ScrollTrigger.create({
 				trigger: document.body,
 				start: 'top -100',
 				onEnter: () => {
+					const searchBarVisible = $isSearchBarVisible;
 					gsap.to(header, {
 						duration: 0.3,
 						paddingTop: '0.75rem',
 						paddingBottom: '0.75rem',
 						backgroundColor: 'rgba(255, 255, 255, 0.95)',
 						backdropFilter: 'blur(10px)',
-						boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+						boxShadow: searchBarVisible ? '0 0 0 rgba(0, 0, 0, 0)' : '0 1px 3px rgba(0, 0, 0, 0.1)',
 					});
 					gsap.to(logo, {
 						duration: 0.3,
@@ -94,6 +113,10 @@
 					});
 				},
 			});
+			
+			return () => {
+				unsubscribe();
+			};
 		}
 	});
 
