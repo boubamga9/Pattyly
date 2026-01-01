@@ -60,3 +60,4 @@ $$;
 
 COMMENT ON FUNCTION "public"."check_order_limit"("p_shop_id" "uuid", "p_profile_id" "uuid", "p_premium_product_id" "text", "p_basic_product_id" "text", "p_lifetime_product_id" "text") IS 'Vérifie si la limite de commandes est atteinte pour un shop et retourne les statistiques. Supporte le plan lifetime.';
 
+

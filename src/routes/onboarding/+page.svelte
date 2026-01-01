@@ -32,6 +32,13 @@
 		form: any;
 		paypalPolling?: boolean;
 		paypalStatus?: string;
+		stripeConnectAccount?: {
+			id: string;
+			is_active: boolean;
+			charges_enabled: boolean;
+			payouts_enabled: boolean;
+			stripe_account_id: string;
+		} | null;
 	};
 
 	// Supprimer l'export form qui n'est pas utilisé
@@ -234,7 +241,7 @@
 				</CardHeader>
 				<CardContent>
 					<!-- Formulaire de configuration des méthodes de paiement -->
-					<PaymentForm data={data.form} />
+					<PaymentForm data={data.form} stripeConnectAccount={data.stripeConnectAccount} />
 				</CardContent>
 			</Card>
 		{/if}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeFileName } from './filename-sanitizer';
+import { sanitizeFileName } from '$lib/utils/filename-sanitizer';
 
 describe('sanitizeFileName', () => {
 	it('should preserve file extension', () => {

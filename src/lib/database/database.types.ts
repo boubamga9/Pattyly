@@ -1,12 +1,8 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
-
-export type Database = {
+/**
+ * @deprecated Use DatabaseDefinitions.ts instead
+ * This file is kept for backward compatibility but re-exports from DatabaseDefinitions
+ */
+export type { Database, Json } from '../../DatabaseDefinitions';
   graphql_public: {
     Tables: {
       [_ in never]: never

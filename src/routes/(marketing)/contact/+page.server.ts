@@ -3,6 +3,8 @@ import { message, superValidate, setError } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { formSchema } from './schema';
 import { EmailService } from '$lib/services/email-service';
+import { ErrorLogger } from '$lib/services/error-logging';
+import { logger } from '$lib/utils/logger';
 
 export const load: ServerLoad = async () => {
 	return {
@@ -41,7 +43,7 @@ export const actions: Actions = {
 		});
 
 		if (error) {
-			console.log(error)
+			logger.error('Error saving contact message:', error);
 			return setError(
 				form,
 				"",
@@ -66,7 +68,14 @@ export const actions: Actions = {
 					date: new Date().toLocaleDateString("fr-FR"),
 				}),
 			]);
-		} catch (e) { }
+		} catch (e) {
+			// Log l'erreur mais ne bloque pas la réponse (emails non critiques)
+			ErrorLogger.logError(e instanceof Error ? e : new Error(String(e)), {
+				context: 'contact_form_email_sending',
+				email,
+				subject,
+			});
+		}
 
 		return message(form, {
 			success: "Merci pour ton message. On te répondra bientôt !",

@@ -37,6 +37,13 @@ import { policiesSchema } from './policies-schema';
 		toggleDirectoryForm: SuperValidated<Infer<typeof toggleDirectorySchema>>;
 		policiesForm: SuperValidated<Infer<typeof policiesSchema>>;
 		paymentForm: SuperValidated<any>;
+		stripeConnectAccount?: {
+			id: string;
+			is_active: boolean;
+			charges_enabled: boolean;
+			payouts_enabled: boolean;
+			stripe_account_id: string;
+		} | null;
 		permissions?: {
 			plan: 'free' | 'basic' | 'premium' | 'exempt';
 		};
@@ -158,7 +165,7 @@ import { policiesSchema } from './policies-schema';
 				</div>
 			</CardHeader>
 			<CardContent class="pt-0">
-				<PaymentForm data={data.paymentForm} />
+				<PaymentForm data={data.paymentForm} stripeConnectAccount={data.stripeConnectAccount} />
 			</CardContent>
 		</Card>
 	{/if}

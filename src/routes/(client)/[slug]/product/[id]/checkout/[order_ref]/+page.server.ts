@@ -3,6 +3,13 @@ import type { PageServerLoad, Actions } from './$types';
 import { EmailService } from '$lib/services/email-service';
 import { PUBLIC_SITE_URL } from '$env/static/public';
 import { ErrorLogger } from '$lib/services/error-logging';
+import Stripe from 'stripe';
+import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
+import { createStripeConnectCheckoutSession } from '$lib/stripe/connect-client';
+
+const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
+    apiVersion: '2024-04-10'
+});
 
 export const load: PageServerLoad = async ({ params, locals, parent }) => {
     const { slug, id, order_ref } = params;
@@ -68,38 +75,138 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
             .from('payment_links')
             .select('provider_type, payment_identifier')
             .eq('profile_id', shop.profile_id)
+            .eq('is_active', true)
             .order('provider_type', { ascending: true }); // PayPal en premier
 
-        if (paymentLinkError || !paymentLinks || paymentLinks.length === 0) {
+        // Récupérer aussi le compte Stripe Connect si actif
+        const { data: stripeConnectAccount } = await (locals.supabaseServiceRole as any)
+            .from('stripe_connect_accounts')
+            .select('stripe_account_id')
+            .eq('profile_id', shop.profile_id)
+            .eq('is_active', true)
+            .eq('charges_enabled', true)
+            .single();
+
+        // Si Stripe Connect est disponible, l'ajouter aux payment_links (seulement s'il n'existe pas déjà)
+        let allPaymentLinks = [...(paymentLinks || [])];
+        if (stripeConnectAccount?.stripe_account_id) {
+            const hasStripe = allPaymentLinks.some(pl => pl.provider_type === 'stripe');
+            if (!hasStripe) {
+                allPaymentLinks.push({
+                    provider_type: 'stripe',
+                    payment_identifier: stripeConnectAccount.stripe_account_id
+                });
+            }
+        }
+
+        if ((paymentLinkError && paymentLinkError.code !== 'PGRST116') || allPaymentLinks.length === 0) {
             console.error('Error fetching payment links:', paymentLinkError);
             throw error(500, 'Erreur lors du chargement des informations de paiement');
         }
 
         // Récupérer PayPal en priorité, sinon le premier disponible
-        const paypalLink = paymentLinks.find((pl: any) => pl.provider_type === 'paypal');
-        const paymentLink = paypalLink || paymentLinks[0];
+        const paypalLink = allPaymentLinks.find((pl: any) => pl.provider_type === 'paypal');
+        const paymentLink = paypalLink || allPaymentLinks[0];
 
         // Les customizations sont chargées dans le layout parent
 
         return {
             orderData,
             paypalMe: paymentLink.payment_identifier, // Utilise payment_identifier au lieu de paypal_me
-            paymentLinks: paymentLinks, // Pour afficher toutes les options disponibles
+            paymentLinks: allPaymentLinks, // Pour afficher toutes les options disponibles (inclut Stripe)
             shop,
             product,
             hasPolicies: hasPolicies || false,
         };
 
     } catch (err) {
-        console.error('Error in checkout load:', err);
-        if (err instanceof Error && 'status' in err) {
+        // Relancer les exceptions SvelteKit (Redirect, HTTPError)
+        if (err && typeof err === 'object' && 'status' in err) {
             throw err;
         }
+        console.error('Error in checkout load:', err);
         throw error(500, 'Erreur lors du chargement de la commande');
     }
 };
 
 export const actions: Actions = {
+    createStripeCheckoutSession: async ({ params, request, locals }) => {
+        const { slug, id, order_ref } = params;
+        
+        try {
+            const formData = await request.formData();
+            const orderRefFromForm = formData.get('orderRef') as string || order_ref;
+
+            // Récupérer la pending_order
+            const { data: pendingOrder, error: pendingOrderError } = await (locals.supabaseServiceRole as any)
+                .from('pending_orders')
+                .select('*')
+                .eq('order_ref', orderRefFromForm)
+                .single();
+
+            if (pendingOrderError || !pendingOrder) {
+                throw error(404, 'Commande non trouvée');
+            }
+
+            const orderData = pendingOrder.order_data as any;
+
+            // Récupérer le shop et le produit
+            const { data: shop } = await (locals.supabaseServiceRole as any)
+                .from('shops')
+                .select('profile_id, name')
+                .eq('id', orderData.shop_id)
+                .single();
+
+            const { data: product } = await (locals.supabaseServiceRole as any)
+                .from('products')
+                .select('deposit_percentage')
+                .eq('id', orderData.product_id)
+                .single();
+
+            // Récupérer le compte Stripe Connect
+            const { data: stripeConnectAccount } = await (locals.supabaseServiceRole as any)
+                .from('stripe_connect_accounts')
+                .select('stripe_account_id')
+                .eq('profile_id', shop.profile_id)
+                .eq('is_active', true)
+                .eq('charges_enabled', true)
+                .single();
+
+            if (!stripeConnectAccount?.stripe_account_id) {
+                throw error(400, 'Stripe Connect non disponible pour cette boutique');
+            }
+
+            const depositPercentage = product?.deposit_percentage ?? 50;
+            const depositAmount = Math.round((orderData.total_amount * depositPercentage / 100) * 100); // En centimes
+            const applicationFee = 0; // Pas de frais de plateforme pour l'instant
+
+            const session = await createStripeConnectCheckoutSession(
+                stripe,
+                stripeConnectAccount.stripe_account_id,
+                depositAmount,
+                {
+                    type: 'product_order_deposit',
+                    orderId: pendingOrder.id,
+                    shopId: orderData.shop_id,
+                    productId: orderData.product_id,
+                    orderRef: orderRefFromForm,
+                },
+                `${PUBLIC_SITE_URL}/${slug}/product/${id}/checkout/${orderRefFromForm}`,
+                `${PUBLIC_SITE_URL}/${slug}/product/${id}/checkout/${orderRefFromForm}`,
+                applicationFee,
+                `Acompte - ${shop.name}`,
+                orderData.customer_email
+            );
+
+            return { success: true, checkoutUrl: session.url };
+        } catch (err) {
+            console.error('Error creating Stripe checkout session:', err);
+            if (err && typeof err === 'object' && 'status' in err) {
+                throw err;
+            }
+            throw error(500, 'Erreur lors de la création de la session de paiement');
+        }
+    },
     confirmPayment: async ({ params, request, locals }) => {
         const { slug, id, order_ref } = params;
 

@@ -10,7 +10,7 @@ import { handleCustomerCreated } from '../handlers/customer-handlers';
 import { upsertSubscription } from '../handlers/subscription-handlers';
 import type { Stripe } from 'stripe';
 import { ErrorLogger } from '$lib/services/error-logging';
-
+import { logger } from '$lib/utils/logger';
 import { PRIVATE_STRIPE_WEBHOOK_SECRET_PAYMENTS } from '$env/static/private';
 
 
@@ -28,33 +28,33 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         switch (event.type) {
 
             case 'customer.created':
-                console.log('customer.created');
+                logger.log('[Webhook] customer.created');
                 await handleCustomerCreated(event.data.object as Stripe.Customer, locals);
                 break;
 
             case 'customer.subscription.created':
             case 'customer.subscription.updated':
-                console.log('customer.subscription.created/updated');
+                logger.log('[Webhook] customer.subscription.created/updated');
                 await upsertSubscription(event.data.object as Stripe.Subscription, locals);
                 break;
 
             case 'customer.subscription.deleted':
-                console.log('customer.subscription.deleted');
+                logger.log('[Webhook] customer.subscription.deleted');
                 await handleSubscriptionDeleted(event.data.object as Stripe.Subscription, locals);
                 break;
 
             case 'invoice.payment_succeeded':
-                console.log('invoice.payment_succeeded');
+                logger.log('[Webhook] invoice.payment_succeeded');
                 await handlePaymentSucceeded(event.data.object as Stripe.Invoice, locals);
                 break;
 
             case 'invoice.payment_failed':
-                console.log('invoice.payment_failed');
+                logger.log('[Webhook] invoice.payment_failed');
                 await handlePaymentFailed(event.data.object as Stripe.Invoice, locals);
                 break;
 
             case 'checkout.session.completed':
-                console.log('checkout.session.completed');
+                logger.log('[Webhook] checkout.session.completed');
                 await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session, locals);
                 break;
 

@@ -274,6 +274,7 @@
 	function getPaymentProviderName(): string {
 		if (order.payment_provider === 'paypal') return 'PayPal';
 		if (order.payment_provider === 'revolut') return 'Revolut';
+		if (order.payment_provider === 'stripe') return 'Stripe';
 		return 'méthode de paiement';
 	}
 
@@ -284,6 +285,9 @@
 		}
 		if (order.payment_provider === 'revolut') {
 			return 'Le client a indiqué avoir effectué le paiement via Revolut. Vérifiez votre compte Revolut puis confirmez la réception du paiement.';
+		}
+		if (order.payment_provider === 'stripe') {
+			return 'Le paiement a été effectué via Stripe. La commande est automatiquement confirmée.';
 		}
 		return 'Le client a indiqué avoir effectué le paiement. Vérifiez votre compte (PayPal, Revolut, etc.) puis confirmez la réception du paiement.';
 	}
@@ -443,7 +447,7 @@
 								{/if}
 							</p>
 						</div>
-						{#if order.order_ref}
+						{#if order.order_ref && order.payment_provider !== 'stripe'}
 							<div class="col-span-2">
 								<Label class="text-sm font-medium text-muted-foreground"
 									>Référence de commande</Label
@@ -494,6 +498,12 @@
 										Méthode de paiement utilisée : <strong>{getPaymentProviderName()}</strong>
 									</p>
 								{/if}
+							</div>
+						{:else if order.payment_provider === 'stripe'}
+							<div class="col-span-2">
+								<p class="text-xs text-muted-foreground">
+									Méthode de paiement utilisée : <strong>{getPaymentProviderName()}</strong>
+								</p>
 							</div>
 						{/if}
 						{#if order.chef_pickup_date}

@@ -1,14 +1,21 @@
-import { redirect, error } from '@sveltejs/kit';
+import { redirect, error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { superValidate, setError } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { shopCreationSchema, paypalConfigSchema, paymentConfigSchema } from './schema';
 import { directorySchema } from '$lib/validations/schemas/shop';
+import { z } from 'zod';
 import { uploadShopLogo } from '$lib/cloudinary';
 import Stripe from 'stripe';
 import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
 import { STRIPE_PRICES } from '$lib/config/server';
-// import { PUBLIC_SITE_URL } from '$env/static/public';
+import { PUBLIC_SITE_URL } from '$env/static/public';
+import {
+	createStripeConnectAccount,
+	createStripeAccountLink,
+	getStripeConnectAccount,
+	isStripeConnectAccountReady
+} from '$lib/stripe/connect-client';
 // import { paypalClient } from '$lib/paypal/client.js';
 
 const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
@@ -28,6 +35,55 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
 
     const userId = user.id;
 
+    // Gérer le retour de Stripe Connect OAuth
+    if (url.searchParams.get('stripe_connect') === 'return') {
+        try {
+            // Récupérer le compte Stripe Connect
+            const { data: account } = await supabase
+                .from('stripe_connect_accounts')
+                .select('stripe_account_id')
+                .eq('profile_id', userId)
+                .single();
+
+            if (account?.stripe_account_id) {
+                // Vérifier le statut du compte
+                const stripeAccount = await getStripeConnectAccount(stripe, account.stripe_account_id);
+
+                // Mettre à jour dans la DB
+                const { error: updateError } = await supabase
+                    .from('stripe_connect_accounts')
+                    .update({
+                        is_active: isStripeConnectAccountReady(stripeAccount),
+                        charges_enabled: stripeAccount.charges_enabled || false,
+                        payouts_enabled: stripeAccount.payouts_enabled || false,
+                        details_submitted: stripeAccount.details_submitted || false,
+                        updated_at: new Date().toISOString(),
+                    })
+                    .eq('profile_id', userId);
+
+                if (!updateError && isStripeConnectAccountReady(stripeAccount)) {
+                    // Créer/mettre à jour payment_links si le compte est actif
+                    await supabase
+                        .from('payment_links')
+                        .upsert({
+                            profile_id: userId,
+                            provider_type: 'stripe',
+                            payment_identifier: account.stripe_account_id,
+                            is_active: true,
+                        }, {
+                            onConflict: 'profile_id,provider_type'
+                        });
+                }
+            }
+        } catch (err) {
+            console.error('Error handling Stripe Connect callback:', err);
+            // Continue même si l'erreur - l'utilisateur pourra réessayer
+        }
+
+        // Rediriger vers la même page sans le paramètre pour éviter les problèmes
+        throw redirect(303, '/onboarding');
+    }
+
     // 🧠 On récupère les données, mais sans inclure les redirections ici
     const { data: onboardingData, error: dbError } = await supabase.rpc('get_onboarding_data', {
         p_profile_id: userId
@@ -46,7 +102,16 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
         .select('provider_type, payment_identifier')
         .eq('profile_id', userId);
 
-    const hasPaymentMethod = paymentLinks && paymentLinks.length > 0;
+    // Vérifier aussi Stripe Connect
+    const { data: stripeConnectAccount } = await supabase
+        .from('stripe_connect_accounts')
+        .select('id')
+        .eq('profile_id', userId)
+        .eq('is_active', true)
+        .eq('charges_enabled', true)
+        .single();
+
+    const hasPaymentMethod = (paymentLinks && paymentLinks.length > 0) || !!stripeConnectAccount;
 
     // 🟢 Redirection 2 — compte déjà actif (avec payment method et annuaire configuré)
     if (shop && hasPaymentMethod) {
@@ -96,6 +161,13 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
             .select('provider_type, payment_identifier')
             .eq('profile_id', userId);
 
+        // Charger le compte Stripe Connect si existant
+        const { data: stripeConnectAccount } = await supabase
+            .from('stripe_connect_accounts')
+            .select('id, is_active, charges_enabled, payouts_enabled, stripe_account_id')
+            .eq('profile_id', userId)
+            .single();
+
         const defaults: any = {};
         existingLinks?.forEach(link => {
             if (link.provider_type === 'paypal') {
@@ -108,7 +180,8 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
         return {
             step: 2,
             shop,
-            form: await superValidate(zod(paymentConfigSchema), { defaults })
+            form: await superValidate(zod(paymentConfigSchema), { defaults }),
+            stripeConnectAccount: stripeConnectAccount || null
         };
     }
 
@@ -116,7 +189,8 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase 
     return {
         step: 1,
         shop: null,
-        form: await superValidate(zod(shopCreationSchema))
+        form: await superValidate(zod(shopCreationSchema)),
+        stripeConnectAccount: null
     };
 };
 
@@ -360,6 +434,275 @@ export const actions: Actions = {
             console.error('Payment links creation error:', err);
             const cleanForm = await superValidate(zod(paymentConfigSchema));
             setError(cleanForm, 'paypal_me', 'Une erreur inattendue est survenue');
+            return { form: cleanForm };
+        }
+    },
+
+    connectStripe: async ({ locals, url }) => {
+        const { session, user } = await locals.safeGetSession();
+
+        if (!session || !user) {
+            return { success: false, error: 'Non autorisé' };
+        }
+
+        const userId = user.id;
+
+        try {
+            // Vérifier si un compte existe déjà
+            const { data: existingAccount } = await locals.supabase
+                .from('stripe_connect_accounts')
+                .select('stripe_account_id')
+                .eq('profile_id', userId)
+                .single();
+
+            let accountId: string;
+
+            if (existingAccount?.stripe_account_id) {
+                accountId = existingAccount.stripe_account_id;
+            } else {
+                // Créer un nouveau compte Connect Express
+                const account = await createStripeConnectAccount(stripe, user.email || '', 'FR');
+                accountId = account.id;
+
+                // Sauvegarder dans la DB
+                const { error: insertError } = await locals.supabase
+                    .from('stripe_connect_accounts')
+                    .insert({
+                        profile_id: userId,
+                        stripe_account_id: accountId,
+                        is_active: false,
+                        charges_enabled: false,
+                        payouts_enabled: false,
+                        details_submitted: false,
+                    });
+
+                if (insertError) {
+                    console.error('Error saving Stripe Connect account:', insertError);
+                    return { success: false, error: 'Erreur lors de la création du compte' };
+                }
+            }
+
+            // Créer un account link pour l'onboarding
+            const returnUrl = `${PUBLIC_SITE_URL}/onboarding?stripe_connect=return`;
+            const accountLink = await createStripeAccountLink(stripe, accountId, returnUrl);
+
+            return { success: true, url: accountLink.url };
+        } catch (err) {
+            console.error('Stripe Connect error:', err);
+            return { success: false, error: 'Erreur lors de la connexion Stripe' };
+        }
+    },
+
+    updatePaypal: async ({ request, locals }) => {
+        try {
+            const { session, user } = await locals.safeGetSession();
+
+            if (!session || !user) {
+                const cleanForm = await superValidate(zod(paymentConfigSchema));
+                setError(cleanForm, 'paypal_me', 'Non autorisé');
+                return { form: cleanForm };
+            }
+
+            const userId = user.id;
+            const formData = await request.formData();
+            const paypal_me = formData.get('paypal_me') as string;
+
+            // Valider le champ PayPal
+            const paypalSchema = z.object({
+                paypal_me: z.string()
+                    .optional()
+                    .transform((val) => {
+                        if (!val || val.trim() === '') return undefined;
+                        return val.toLowerCase().trim();
+                    })
+                    .refine(
+                        (val) => {
+                            if (val === undefined) return true;
+                            return /^[a-zA-Z0-9_-]+$/.test(val) && val.length >= 1 && val.length <= 50;
+                        },
+                        {
+                            message: 'Le nom PayPal.me ne peut contenir que des lettres, chiffres, tirets et underscores (max 50 caractères)'
+                        }
+                    )
+            });
+
+            const validation = paypalSchema.safeParse({ paypal_me });
+            
+            if (!validation.success) {
+                const cleanForm = await superValidate(zod(paymentConfigSchema));
+                const error = validation.error.errors[0];
+                setError(cleanForm, 'paypal_me', error.message);
+                return { form: cleanForm };
+            }
+
+            const validatedPaypal = validation.data.paypal_me;
+
+            // Utiliser upsert pour mettre à jour uniquement PayPal, sans affecter Revolut
+            if (validatedPaypal) {
+                const { error: upsertError } = await locals.supabase
+                    .from('payment_links')
+                    .upsert({
+                        profile_id: userId,
+                        provider_type: 'paypal',
+                        payment_identifier: validatedPaypal,
+                        is_active: true
+                    }, {
+                        onConflict: 'profile_id,provider_type'
+                    });
+
+                if (upsertError) {
+                    console.error('❌ [PayPal] Failed to upsert payment link:', upsertError);
+                    const cleanForm = await superValidate(zod(paymentConfigSchema));
+                    setError(cleanForm, 'paypal_me', 'Erreur lors de la sauvegarde de PayPal');
+                    return { form: cleanForm };
+                }
+
+                console.log('✅ [PayPal] Successfully saved PayPal payment link');
+            } else {
+                // Si vide, supprimer le payment_link PayPal
+                const { error: deleteError } = await locals.supabase
+                    .from('payment_links')
+                    .delete()
+                    .eq('profile_id', userId)
+                    .eq('provider_type', 'paypal');
+
+                if (deleteError) {
+                    console.warn('⚠️ [PayPal] Failed to delete payment link:', deleteError);
+                } else {
+                    console.log('✅ [PayPal] Successfully removed PayPal payment link');
+                }
+            }
+
+            // Récupérer la valeur Revolut actuelle pour la conserver dans le formulaire
+            const { data: currentRevolut } = await locals.supabase
+                .from('payment_links')
+                .select('payment_identifier')
+                .eq('profile_id', userId)
+                .eq('provider_type', 'revolut')
+                .eq('is_active', true)
+                .single();
+
+            // Retourner le formulaire mis à jour (conserver les deux valeurs)
+            const updatedForm = await superValidate(zod(paymentConfigSchema), {
+                defaults: {
+                    paypal_me: validatedPaypal,
+                    revolut_me: currentRevolut?.payment_identifier || undefined
+                }
+            });
+            updatedForm.message = 'PayPal sauvegardé avec succès !';
+            return { form: updatedForm };
+
+        } catch (err) {
+            console.error('PayPal update error:', err);
+            const cleanForm = await superValidate(zod(paymentConfigSchema));
+            setError(cleanForm, 'paypal_me', 'Une erreur inattendue est survenue');
+            return { form: cleanForm };
+        }
+    },
+
+    updateRevolut: async ({ request, locals }) => {
+        try {
+            const { session, user } = await locals.safeGetSession();
+
+            if (!session || !user) {
+                const cleanForm = await superValidate(zod(paymentConfigSchema));
+                setError(cleanForm, 'revolut_me', 'Non autorisé');
+                return { form: cleanForm };
+            }
+
+            const userId = user.id;
+            const formData = await request.formData();
+            const revolut_me = formData.get('revolut_me') as string;
+
+            // Valider le champ Revolut
+            const revolutSchema = z.object({
+                revolut_me: z.string()
+                    .optional()
+                    .transform((val) => {
+                        if (!val || val.trim() === '') return undefined;
+                        return val.trim();
+                    })
+                    .refine(
+                        (val) => {
+                            if (val === undefined) return true;
+                            return /^[a-zA-Z0-9_@.-]+$/.test(val) && val.length >= 1 && val.length <= 100;
+                        },
+                        {
+                            message: 'L\'identifiant Revolut contient des caractères invalides (max 100 caractères)'
+                        }
+                    )
+            });
+
+            const validation = revolutSchema.safeParse({ revolut_me });
+            
+            if (!validation.success) {
+                const cleanForm = await superValidate(zod(paymentConfigSchema));
+                const error = validation.error.errors[0];
+                setError(cleanForm, 'revolut_me', error.message);
+                return { form: cleanForm };
+            }
+
+            const validatedRevolut = validation.data.revolut_me;
+
+            // Utiliser upsert pour mettre à jour uniquement Revolut, sans affecter PayPal
+            if (validatedRevolut) {
+                const { error: upsertError } = await locals.supabase
+                    .from('payment_links')
+                    .upsert({
+                        profile_id: userId,
+                        provider_type: 'revolut',
+                        payment_identifier: validatedRevolut,
+                        is_active: true
+                    }, {
+                        onConflict: 'profile_id,provider_type'
+                    });
+
+                if (upsertError) {
+                    console.error('❌ [Revolut] Failed to upsert payment link:', upsertError);
+                    const cleanForm = await superValidate(zod(paymentConfigSchema));
+                    setError(cleanForm, 'revolut_me', 'Erreur lors de la sauvegarde de Revolut');
+                    return { form: cleanForm };
+                }
+
+                console.log('✅ [Revolut] Successfully saved Revolut payment link');
+            } else {
+                // Si vide, supprimer le payment_link Revolut
+                const { error: deleteError } = await locals.supabase
+                    .from('payment_links')
+                    .delete()
+                    .eq('profile_id', userId)
+                    .eq('provider_type', 'revolut');
+
+                if (deleteError) {
+                    console.warn('⚠️ [Revolut] Failed to delete payment link:', deleteError);
+                } else {
+                    console.log('✅ [Revolut] Successfully removed Revolut payment link');
+                }
+            }
+
+            // Récupérer la valeur PayPal actuelle pour la conserver dans le formulaire
+            const { data: currentPaypal } = await locals.supabase
+                .from('payment_links')
+                .select('payment_identifier')
+                .eq('profile_id', userId)
+                .eq('provider_type', 'paypal')
+                .eq('is_active', true)
+                .single();
+
+            // Retourner le formulaire mis à jour (conserver les deux valeurs)
+            const updatedForm = await superValidate(zod(paymentConfigSchema), {
+                defaults: {
+                    paypal_me: currentPaypal?.payment_identifier || undefined,
+                    revolut_me: validatedRevolut
+                }
+            });
+            updatedForm.message = 'Revolut sauvegardé avec succès !';
+            return { form: updatedForm };
+
+        } catch (err) {
+            console.error('Revolut update error:', err);
+            const cleanForm = await superValidate(zod(paymentConfigSchema));
+            setError(cleanForm, 'revolut_me', 'Une erreur inattendue est survenue');
             return { form: cleanForm };
         }
     },

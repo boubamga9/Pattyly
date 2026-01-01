@@ -3,6 +3,7 @@ import type { Stripe } from 'stripe';
 import { forceRevalidateShop } from '$lib/utils/catalog/catalog-revalidation';
 import { STRIPE_PRICES } from '$lib/config/server';
 import { ErrorLogger } from '$lib/services/error-logging';
+import { logger } from '$lib/utils/logger';
 
 export async function upsertSubscription(subscription: Stripe.Subscription, locals: any): Promise<void> {
     try {
@@ -44,7 +45,7 @@ export async function upsertSubscription(subscription: Stripe.Subscription, loca
             existingSubscription.stripe_subscription_id && 
             existingSubscription.stripe_subscription_id !== subscriptionId;
 
-        console.log('🔍 [Subscription Webhook] Checking subscription:', {
+        logger.log('🔍 [Subscription Webhook] Checking subscription:', {
             profileId,
             subscriptionId,
             subscriptionStatus,
@@ -103,7 +104,7 @@ export async function upsertSubscription(subscription: Stripe.Subscription, loca
             hasDifferentSubscriptionId
         );
 
-        console.log('📊 [Subscription Webhook] Logging decision:', {
+        logger.log('📊 [Subscription Webhook] Logging decision:', {
             isActivating,
             shouldLog,
             subscriptionStatus,
@@ -112,7 +113,7 @@ export async function upsertSubscription(subscription: Stripe.Subscription, loca
 
         if (shouldLog) {
             const { logEventAsync, Events } = await import('$lib/utils/analytics');
-            console.log('✅ [Subscription Webhook] Logging SUBSCRIPTION_STARTED event');
+            logger.log('✅ [Subscription Webhook] Logging SUBSCRIPTION_STARTED event');
             logEventAsync(
                 locals.supabaseServiceRole,
                 Events.SUBSCRIPTION_STARTED,
@@ -127,7 +128,7 @@ export async function upsertSubscription(subscription: Stripe.Subscription, loca
                 '/api/webhooks/stripe'
             );
         } else {
-            console.log('⏭️ [Subscription Webhook] Skipping event log (conditions not met)');
+            logger.log('⏭️ [Subscription Webhook] Skipping event log (conditions not met)');
         }
 
         // Gérer l'état de la boutique selon le statut de l'abonnement

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getOrderLimit, ORDER_LIMITS, type Plan } from './order-limits';
+import { getOrderLimit, ORDER_LIMITS, type Plan } from '$lib/utils/order-limits';
 
 describe('order-limits', () => {
 	describe('getOrderLimit', () => {

@@ -35,7 +35,7 @@
 	}
 
 	// Fonction pour générer le lien de paiement selon le provider avec le montant pré-rempli
-	function getPaymentLink(provider: { provider_type: string; payment_identifier: string }): string {
+	function getPaymentLink(provider: { provider_type: string; payment_identifier: string }): string | null {
 		if (provider.provider_type === 'paypal') {
 			// Format PayPal.me avec montant en EUR
 			const cleanIdentifier = provider.payment_identifier.replace(/^@/, '');
@@ -45,18 +45,85 @@
 			const cleanIdentifier = provider.payment_identifier.replace(/^@/, '');
 			const amountInCents = Math.round(depositAmount * 100);
 			return `https://revolut.me/${cleanIdentifier}?amount=${amountInCents}`;
+		} else if (provider.provider_type === 'stripe') {
+			// Stripe utilise une session checkout, pas un lien direct
+			return null;
 		}
-		return '';
+		return null;
 	}
 
 	// Fonction pour obtenir le nom du provider
 	function getProviderName(providerType: string): string {
 		if (providerType === 'paypal') return 'PayPal';
 		if (providerType === 'revolut') return 'Revolut';
+		if (providerType === 'stripe') return 'Stripe';
 		return providerType;
 	}
 
+	// Fonction pour gérer le clic sur Stripe (créer une session checkout)
+	async function handleStripeClick(provider: { provider_type: string; payment_identifier: string }) {
+		if (provider.provider_type !== 'stripe') return;
+
+		try {
+			const formData = new FormData();
+			if (data.orderData?.order_ref) {
+				formData.append('orderRef', data.orderData.order_ref);
+			}
+
+			const response = await fetch('?/createStripeCheckoutSession', {
+				method: 'POST',
+				body: formData,
+			});
+
+			const result = await response.json();
+			
+			// SvelteKit actions return data in a specific format
+			// result.data can be a string that needs to be parsed
+			let actionResult: unknown;
+			if (typeof result.data === 'string') {
+				try {
+					actionResult = JSON.parse(result.data);
+				} catch {
+					actionResult = result.data;
+				}
+			} else {
+				actionResult = result.data;
+			}
+			
+			// Extract checkoutUrl from the response
+			// Format can be: [{success: 1, checkoutUrl: 2}, true, "https://..."] or {success: true, checkoutUrl: "https://..."}
+			let checkoutUrl: string | null = null;
+			if (Array.isArray(actionResult)) {
+				// If it's an array, the URL is typically the last string element
+				const urlCandidate = actionResult.find((item): item is string => typeof item === 'string' && item.startsWith('http'));
+				if (urlCandidate) {
+					checkoutUrl = urlCandidate;
+				} else if (actionResult[0] && typeof actionResult[0] === 'object' && 'checkoutUrl' in actionResult[0]) {
+					checkoutUrl = (actionResult[0] as { checkoutUrl: string }).checkoutUrl;
+				}
+			} else if (actionResult && typeof actionResult === 'object' && 'checkoutUrl' in actionResult) {
+				checkoutUrl = (actionResult as { checkoutUrl: string }).checkoutUrl;
+			}
+			
+			if (checkoutUrl && checkoutUrl.startsWith('http')) {
+				window.location.href = checkoutUrl;
+			} else {
+				console.error('Error creating Stripe checkout session:', result);
+				alert('Erreur lors de la création de la session de paiement. Veuillez réessayer.');
+			}
+		} catch (err) {
+			console.error('Error creating Stripe checkout session:', err);
+			alert('Erreur lors de la création de la session de paiement. Veuillez réessayer.');
+		}
+	}
+
 	async function handlePaymentClick(provider: { provider_type: string; payment_identifier: string }) {
+		// Stripe nécessite une session checkout spéciale
+		if (provider.provider_type === 'stripe') {
+			await handleStripeClick(provider);
+			return;
+		}
+
 		const paymentLink = getPaymentLink(provider);
 		if (paymentLink) {
 			// Stocker le provider dans le formulaire avant de soumettre
@@ -497,22 +564,32 @@
 								{@const providerName = getProviderName(provider.provider_type)}
 								{@const isPaypal = provider.provider_type === 'paypal'}
 								{@const isRevolut = provider.provider_type === 'revolut'}
+								{@const isStripe = provider.provider_type === 'stripe'}
+								{@const backgroundColor = isPaypal ? '#0070ba' : isRevolut ? '#000000' : isStripe ? '#635BFF' : '#6b7280'}
 								
 								<button
 									type="button"
 									on:click={() => handlePaymentClick(provider)}
 									class="flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:shadow-md"
-									style="font-weight: 500; {isPaypal ? 'background-color: #0070ba;' : ''} {isRevolut ? 'background-color: #000000;' : ''} {!isPaypal && !isRevolut ? 'background-color: #6b7280;' : ''}"
+									style="font-weight: 500; background-color: {backgroundColor};"
 									on:mouseenter={(e) => {
 										if (isPaypal) e.currentTarget.style.backgroundColor = '#005ea6';
 										else if (isRevolut) e.currentTarget.style.backgroundColor = '#1a1a1a';
+										else if (isStripe) e.currentTarget.style.backgroundColor = '#5449E8';
 									}}
 									on:mouseleave={(e) => {
 										if (isPaypal) e.currentTarget.style.backgroundColor = '#0070ba';
 										else if (isRevolut) e.currentTarget.style.backgroundColor = '#000000';
+										else if (isStripe) e.currentTarget.style.backgroundColor = '#635BFF';
 									}}
 								>
-									{#if isPaypal}
+									{#if isStripe}
+										<!-- Stripe Logo -->
+										<svg viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor">
+											<path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l-2.541 4.378c-1.126-.502-2.631-.994-4.094-.994zm-.124 5.563c-2.172 0-3.356-.755-3.356-1.738 0-.754.429-1.171 1.901-1.171 2.227 0 4.515 1.093 6.09 1.948l-2.541 4.503c-1.126-.502-2.631-.994-4.094-.994z"/>
+										</svg>
+										{providerName}
+									{:else if isPaypal}
 										<!-- Logo PayPal officiel avec couleurs originales -->
 										<svg
 											xmlns="http://www.w3.org/2000/svg"

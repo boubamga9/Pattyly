@@ -32,16 +32,38 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
             .from('payment_links')
             .select('provider_type, payment_identifier')
             .eq('profile_id', shop.profile_id)
+            .eq('is_active', true)
             .order('provider_type', { ascending: true }); // PayPal en premier
 
-        if (paymentLinkError || !paymentLinks || paymentLinks.length === 0) {
+        // Récupérer aussi le compte Stripe Connect si actif
+        const { data: stripeConnectAccount } = await (locals.supabaseServiceRole as any)
+            .from('stripe_connect_accounts')
+            .select('stripe_account_id')
+            .eq('profile_id', shop.profile_id)
+            .eq('is_active', true)
+            .eq('charges_enabled', true)
+            .single();
+
+        // Si Stripe Connect est disponible, l'ajouter aux payment_links (seulement s'il n'existe pas déjà)
+        let allPaymentLinks = [...(paymentLinks || [])];
+        if (stripeConnectAccount?.stripe_account_id) {
+            const hasStripe = allPaymentLinks.some(pl => pl.provider_type === 'stripe');
+            if (!hasStripe) {
+                allPaymentLinks.push({
+                    provider_type: 'stripe',
+                    payment_identifier: stripeConnectAccount.stripe_account_id
+                });
+            }
+        }
+
+        if ((paymentLinkError && paymentLinkError.code !== 'PGRST116') || allPaymentLinks.length === 0) {
             console.error('Error fetching payment links:', paymentLinkError);
             throw error(500, 'Erreur lors du chargement des informations de paiement');
         }
 
         // Récupérer PayPal en priorité, sinon le premier disponible
-        const paypalLink = paymentLinks.find((pl: any) => pl.provider_type === 'paypal');
-        const paymentLink = paypalLink || paymentLinks[0];
+        const paypalLink = allPaymentLinks.find((pl: any) => pl.provider_type === 'paypal');
+        const paymentLink = paypalLink || allPaymentLinks[0];
 
         // Retourner order sans la relation shops (déjà extraite)
         const { shops, ...orderWithoutShops } = order;
@@ -51,16 +73,17 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
         return {
             order: orderWithoutShops,
             paypalMe: paymentLink.payment_identifier, // Utilise payment_identifier au lieu de paypal_me
-            paymentLinks: paymentLinks, // Pour afficher toutes les options disponibles
+            paymentLinks: allPaymentLinks, // Pour afficher toutes les options disponibles (inclut Stripe)
             shop,
             hasPolicies: hasPolicies || false,
         };
 
     } catch (err) {
-        console.error('Error in checkout load:', err);
-        if (err instanceof Error && 'status' in err) {
+        // Relancer les exceptions SvelteKit (Redirect, HTTPError)
+        if (err && typeof err === 'object' && 'status' in err) {
             throw err;
         }
+        console.error('Error in checkout load:', err);
         throw error(500, 'Erreur lors du chargement de la commande');
     }
 };
@@ -69,6 +92,73 @@ export const actions: Actions = {
     openPayPal: async ({ params, request, locals }) => {
         // Just return success, the frontend will handle the redirect
         return { success: true };
+    },
+    createStripeCheckoutSession: async ({ params, request, locals }) => {
+        const { slug, order_ref } = params;
+        
+        try {
+            const formData = await request.formData();
+            const orderId = formData.get('orderId') as string;
+
+            // Récupérer la commande
+            const orderQuery = (locals.supabaseServiceRole as any)
+                .from('orders')
+                .select('*, shops!inner(profile_id, name, slug)')
+                .eq('status', 'quoted');
+
+            if (orderId) {
+                orderQuery.eq('id', orderId);
+            } else {
+                orderQuery.eq('order_ref', order_ref);
+            }
+
+            const { data: order, error: orderError } = await orderQuery.single();
+
+            if (orderError || !order) {
+                throw error(404, 'Devis non trouvé');
+            }
+
+            // Récupérer le compte Stripe Connect
+            const { data: stripeConnectAccount } = await (locals.supabaseServiceRole as any)
+                .from('stripe_connect_accounts')
+                .select('stripe_account_id')
+                .eq('profile_id', order.shops.profile_id)
+                .eq('is_active', true)
+                .eq('charges_enabled', true)
+                .single();
+
+            if (!stripeConnectAccount?.stripe_account_id) {
+                throw error(400, 'Stripe Connect non disponible pour cette boutique');
+            }
+
+            const depositAmount = Math.round((order.total_amount / 2) * 100); // 50% en centimes
+            const applicationFee = 0; // Pas de frais de plateforme pour l'instant
+
+            const session = await createStripeConnectCheckoutSession(
+                stripe,
+                stripeConnectAccount.stripe_account_id,
+                depositAmount,
+                {
+                    type: 'custom_order_deposit_stripe',
+                    orderId: order.id,
+                    shopId: order.shop_id,
+                    orderRef: order_ref || order.order_ref || '',
+                },
+                `${PUBLIC_SITE_URL}/${slug}/order/${order.id}`,
+                `${PUBLIC_SITE_URL}/${slug}/custom/checkout/${order_ref}`,
+                applicationFee,
+                `Acompte - ${order.shops.name}`,
+                order.customer_email
+            );
+
+            return { success: true, checkoutUrl: session.url };
+        } catch (err) {
+            console.error('Error creating Stripe checkout session:', err);
+            if (err && typeof err === 'object' && 'status' in err) {
+                throw err;
+            }
+            throw error(500, 'Erreur lors de la création de la session de paiement');
+        }
     },
     confirmPayment: async ({ params, request, locals }) => {
         const { slug, order_ref } = params;
@@ -122,11 +212,16 @@ export const actions: Actions = {
                 remainingAmount
             });
 
-            // 3. Mettre à jour l'order avec statut "to_verify"
+            // 3. Mettre à jour l'order avec statut selon le provider
+            // Pour Stripe Connect, on ne devrait pas arriver ici (paiement géré par webhook)
+            // Pour PayPal/Revolut, on met "to_verify" pour vérification manuelle
+            // Note: Si paymentProvider === 'stripe', cela ne devrait pas arriver car Stripe utilise createStripeCheckoutSession
+            const orderStatus = 'to_verify';
+            
             const { data: updatedOrder, error: updateError } = await (locals.supabaseServiceRole as any)
                 .from('orders')
                 .update({
-                    status: 'to_verify',
+                    status: orderStatus,
                     paid_amount: paidAmount,
                     payment_provider: paymentProvider || null // Sauvegarder le provider utilisé
                 })
@@ -139,14 +234,32 @@ export const actions: Actions = {
                 throw error(500, 'Erreur lors de la confirmation du paiement');
             }
 
-            console.log('✅ [Confirm Custom Payment] Order updated to to_verify');
+            console.log(`✅ [Confirm Custom Payment] Order updated to ${orderStatus}`);
 
-            // 4. Envoyer les emails spécifiques pour PayPal.me (en attente de vérification)
+            // 4. Envoyer les emails selon le provider
+            // Pour Stripe Connect, envoyer des emails de confirmation (pas "pending verification")
+            // Pour PayPal/Revolut, envoyer des emails "pending verification"
             try {
                 console.log('📧 [Confirm Custom Payment] Sending emails...');
 
-                // Email au client (en attente de vérification)
-                await EmailService.sendOrderPendingVerificationClient({
+                if (paymentProvider === 'stripe') {
+                    // Pour Stripe Connect, utiliser les emails de confirmation normale
+                    await EmailService.sendOrderConfirmation({
+                        customerEmail: order.customer_email,
+                        customerName: order.customer_name,
+                        shopName: order.shops.name,
+                        shopLogo: order.shops.logo_url,
+                        productName: 'Commande personnalisée',
+                        pickupDate: order.pickup_date,
+                        pickupTime: order.pickup_time,
+                        totalAmount: totalAmount,
+                        paidAmount: paidAmount,
+                        orderId: order.id,
+                        orderUrl: `${PUBLIC_SITE_URL}/${order.shops.slug}/order/${order.id}`,
+                    });
+                } else {
+                    // Email au client (en attente de vérification pour PayPal/Revolut)
+                    await EmailService.sendOrderPendingVerificationClient({
                     customerEmail: order.customer_email,
                     customerName: order.customer_name,
                     shopName: order.shops.name,

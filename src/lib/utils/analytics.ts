@@ -1,6 +1,9 @@
 /**
  * Système de tracking d'événements pour analytics
  */
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '$lib/DatabaseDefinitions';
+import { logger } from './logger';
 
 /**
  * Events prédéfinis pour faciliter le tracking
@@ -52,9 +55,9 @@ export function getSessionId(): string {
  * ⚠️ IMPORTANT : Pour les page_view, utilisez logPageView() côté client pour avoir un session_id correct
  */
 export async function logEvent(
-	supabase: any,
+	supabase: SupabaseClient<Database>,
 	eventName: string,
-	metadata: Record<string, any> = {},
+	metadata: Record<string, unknown> = {},
 	userId: string | null = null,
 	page?: string
 ): Promise<void> {
@@ -75,14 +78,14 @@ export async function logEvent(
 		const { data, error } = await supabase.from('events').insert(eventData).select();
 
 		if (error) {
-			console.error('❌ [Analytics] Error logging event:', eventName, error);
-			console.error('❌ [Analytics] Event data:', JSON.stringify(eventData, null, 2));
+			logger.error('❌ [Analytics] Error logging event:', eventName, error);
+			logger.error('❌ [Analytics] Event data:', JSON.stringify(eventData, null, 2));
 		} else {
-			console.log('✅ [Analytics] Event logged:', eventName, { userId, ...metadata, inserted: data?.[0]?.id });
+			logger.log('✅ [Analytics] Event logged:', eventName, { userId, ...metadata, inserted: data?.[0]?.id });
 		}
 	} catch (error) {
 		// Ne pas bloquer l'application en cas d'erreur de tracking
-		console.error('❌ [Analytics] Unexpected error logging event:', eventName, error);
+		logger.error('❌ [Analytics] Unexpected error logging event:', eventName, error);
 	}
 }
 
@@ -131,12 +134,12 @@ function getUserTypeFromContext(): 'pastry' | 'client' | 'visitor' {
  * Si supabase n'est pas fourni, un client sera créé automatiquement
  */
 export async function logPageView(
-	supabase: any = null,
-	metadata: Record<string, any> = {}
+	supabase: SupabaseClient<Database> | null = null,
+	metadata: Record<string, unknown> = {}
 ): Promise<void> {
 	// Vérifier qu'on est côté client
 	if (typeof window === 'undefined') {
-		console.warn('⚠️ [Analytics] logPageView should only be called client-side');
+		logger.warn('⚠️ [Analytics] logPageView should only be called client-side');
 		return;
 	}
 
@@ -177,10 +180,10 @@ export async function logPageView(
 		});
 
 		if (error) {
-			console.error('❌ [Analytics] Error logging page_view:', error);
+			logger.error('❌ [Analytics] Error logging page_view:', error);
 		}
 	} catch (error) {
-		console.error('❌ [Analytics] Unexpected error logging page_view:', error);
+		logger.error('❌ [Analytics] Unexpected error logging page_view:', error);
 	}
 }
 
@@ -189,16 +192,16 @@ export async function logPageView(
  * Utilisez cette fonction dans les actions (signup, createShop, etc.) pour ne pas ralentir la réponse
  */
 export function logEventAsync(
-	supabase: any,
+	supabase: SupabaseClient<Database>,
 	eventName: string,
-	metadata: Record<string, any> = {},
+	metadata: Record<string, unknown> = {},
 	userId: string | null = null,
 	page?: string
 ): void {
 	// Fire-and-forget : ne pas attendre le résultat
-	logEvent(supabase, eventName, metadata, userId, page).catch(err => {
+	logEvent(supabase, eventName, metadata, userId, page).catch(() => {
 		// Erreur déjà loggée dans logEvent, juste éviter un warning de Promise non catchée
-		console.error('❌ [Analytics] Async tracking failed:', eventName);
+		logger.error('❌ [Analytics] Async tracking failed:', eventName);
 	});
 }
 

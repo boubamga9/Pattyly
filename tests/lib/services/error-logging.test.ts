@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ErrorLogger } from './error-logging';
-import { EmailService } from './email-service';
+import { ErrorLogger } from '$lib/services/error-logging';
+import { EmailService } from '$lib/services/email-service';
 
 // Mock EmailService
-vi.mock('./email-service', () => ({
+vi.mock('$lib/services/email-service', () => ({
 	EmailService: {
 		sendCriticalErrorNotification: vi.fn().mockResolvedValue({ success: true, messageId: 'test-id' })
 	}

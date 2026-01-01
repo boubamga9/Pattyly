@@ -19,8 +19,12 @@ export async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Se
 
         if (sessionType === 'product_order') {
             await handleProductOrderPayment(session, locals);
+        } else if (sessionType === 'product_order_deposit') {
+            await handleProductOrderDeposit(session, locals);
         } else if (sessionType === 'custom_order_deposit') {
             await handleCustomOrderDeposit(session, locals);
+        } else if (sessionType === 'custom_order_deposit_stripe') {
+            await handleCustomOrderDepositStripe(session, locals);
         } else if (sessionType === 'lifetime_plan') {
             await handleLifetimePlanPayment(session, locals);
         } else {
@@ -222,6 +226,325 @@ export async function handleProductOrderPayment(session: Stripe.Checkout.Session
             step: 'general_error',
         });
         throw error(500, 'handleProductOrderPayment failed: ' + err);
+    }
+}
+
+export async function handleProductOrderDeposit(session: Stripe.Checkout.Session, locals: any): Promise<void> {
+    try {
+        console.log('handleProductOrderDeposit (Stripe Connect)', session);
+
+        const orderId = session.metadata!.orderId; // pending_order.id
+
+        const { data: pendingOrder, error: pendingOrderError } = await locals.supabaseServiceRole
+            .from('pending_orders')
+            .select('order_data')
+            .eq('id', orderId)
+            .single();
+
+        if (pendingOrderError || !pendingOrder) {
+            await ErrorLogger.logCritical(
+                pendingOrderError || new Error('Pending order not found'),
+                {
+                    stripeSessionId: session.id,
+                    orderId: orderId,
+                },
+                {
+                    handler: 'handleProductOrderDeposit',
+                    step: 'fetch_pending_order',
+                }
+            );
+            throw error(500, 'Pending order not found');
+        }
+
+        const orderData = pendingOrder.order_data;
+
+        const { data: product, error: productError } = await locals.supabaseServiceRole
+            .from('products')
+            .select('base_price, deposit_percentage, shops(slug, logo_url, name, profile_id)')
+            .eq('id', orderData.product_id)
+            .single();
+
+        if (productError || !product) {
+            await ErrorLogger.logCritical(
+                productError || new Error('Failed to get product'),
+                {
+                    stripeSessionId: session.id,
+                    orderId: orderId,
+                    productId: orderData.product_id,
+                    shopId: orderData.shop_id,
+                },
+                {
+                    handler: 'handleProductOrderDeposit',
+                    step: 'fetch_product',
+                }
+            );
+            throw error(500, 'Failed to get product');
+        }
+
+        // Récupérer l'email du profile
+        let pastryEmail: string | null = null;
+        if (product.shops?.profile_id) {
+            const { data: profile } = await locals.supabaseServiceRole
+                .from('profiles')
+                .select('email')
+                .eq('id', product.shops.profile_id)
+                .single();
+            pastryEmail = profile?.email || null;
+        }
+
+        const totalAmount = orderData.total_amount;
+        const depositPercentage = product.deposit_percentage ?? 50;
+        const paidAmount = session.amount_total ?? 0; // En centimes
+        const remainingAmount = totalAmount - (paidAmount / 100);
+
+        // Créer l'order avec statut "confirmed" (automatique pour Stripe Connect)
+        const { data: order, error: orderError } = await locals.supabaseServiceRole
+            .from('orders')
+            .insert({
+                shop_id: orderData.shop_id,
+                product_id: orderData.product_id,
+                customer_name: orderData.customer_name,
+                customer_email: orderData.customer_email,
+                customer_phone: orderData.customer_phone || null,
+                customer_instagram: orderData.customer_instagram || null,
+                pickup_date: orderData.pickup_date,
+                pickup_time: orderData.pickup_time || null,
+                additional_information: orderData.additional_information || null,
+                customization_data: orderData.customization_data || null,
+                status: 'confirmed', // Automatique pour Stripe Connect
+                total_amount: totalAmount,
+                paid_amount: paidAmount / 100,
+                product_name: orderData.product_name,
+                product_base_price: product?.base_price || 0,
+                order_ref: session.metadata!.orderRef || '',
+                payment_provider: 'stripe',
+                stripe_payment_intent_id: session.payment_intent as string,
+                stripe_session_id: session.id
+            })
+            .select()
+            .single();
+
+        if (orderError || !order) {
+            await ErrorLogger.logCritical(
+                orderError || new Error('Failed to create product order'),
+                {
+                    stripeSessionId: session.id,
+                    stripePaymentIntentId: session.payment_intent as string,
+                    orderId: orderId,
+                    productId: orderData.product_id,
+                    shopId: orderData.shop_id,
+                    customerEmail: orderData.customer_email,
+                    paidAmount: paidAmount / 100,
+                },
+                {
+                    handler: 'handleProductOrderDeposit',
+                    step: 'create_order',
+                    critical: true,
+                }
+            );
+            throw error(500, 'Failed to create product order');
+        }
+
+        try {
+            await EmailService.sendOrderConfirmation({
+                customerEmail: orderData.customer_email,
+                customerName: orderData.customer_name,
+                shopName: product.shops.name,
+                shopLogo: product.shops.logo_url,
+                productName: orderData.product_name,
+                pickupDate: orderData.pickup_date,
+                pickupTime: orderData.pickup_time || null,
+                totalAmount: totalAmount,
+                paidAmount: paidAmount / 100,
+                remainingAmount: remainingAmount,
+                orderId: order.id,
+                orderUrl: `${PUBLIC_SITE_URL}/${product.shops.slug}/order/${order.id}`,
+            });
+
+            if (pastryEmail && product.shops?.profile_id) {
+                await EmailService.sendOrderNotification({
+                    pastryEmail: pastryEmail,
+                    customerName: orderData.customer_name,
+                    customerEmail: orderData.customer_email,
+                    customerInstagram: orderData.customer_instagram,
+                    productName: orderData.product_name,
+                    pickupDate: orderData.pickup_date,
+                    pickupTime: orderData.pickup_time || null,
+                    totalAmount: totalAmount,
+                    paidAmount: paidAmount / 100,
+                    remainingAmount: remainingAmount,
+                    orderId: order.id,
+                    dashboardUrl: `${PUBLIC_SITE_URL}/dashboard/orders/${order.id}`,
+                });
+            }
+        } catch (err) {
+            await ErrorLogger.logCritical(err, {
+                stripeSessionId: session.id,
+                orderId: order.id,
+                shopId: orderData.shop_id,
+                customerEmail: orderData.customer_email,
+            }, {
+                handler: 'handleProductOrderDeposit',
+                step: 'send_emails',
+            });
+            throw error(500, 'Failed to send order emails: ' + err);
+        }
+
+        // Supprimer la pending_order
+        const { error: deleteError } = await locals.supabaseServiceRole
+            .from('pending_orders')
+            .delete()
+            .eq('id', orderId);
+
+        if (deleteError) {
+            await ErrorLogger.logCritical(deleteError, {
+                stripeSessionId: session.id,
+                orderId: orderId,
+            }, {
+                handler: 'handleProductOrderDeposit',
+                step: 'delete_pending_order',
+            });
+            throw error(500, 'Failed to delete pending order');
+        }
+
+    } catch (err) {
+        await ErrorLogger.logCritical(err, {
+            stripeSessionId: session.id,
+            orderId: session.metadata?.orderId,
+        }, {
+            handler: 'handleProductOrderDeposit',
+            step: 'general_error',
+        });
+        throw error(500, 'handleProductOrderDeposit failed: ' + err);
+    }
+}
+
+export async function handleCustomOrderDepositStripe(session: Stripe.Checkout.Session, locals: any): Promise<void> {
+    try {
+        console.log('handleCustomOrderDepositStripe (Stripe Connect)', session);
+
+        const orderId = session.metadata!.orderId; // order.id (déjà créée avec statut quoted)
+
+        const { data: order, error: orderError } = await locals.supabaseServiceRole
+            .from('orders')
+            .select('*, shops(slug, logo_url, name, profile_id)')
+            .eq('id', orderId)
+            .eq('status', 'quoted') // S'assurer que c'est bien un devis en attente
+            .single();
+
+        if (orderError || !order) {
+            await ErrorLogger.logCritical(
+                orderError || new Error('Order not found'),
+                {
+                    stripeSessionId: session.id,
+                    orderId: orderId,
+                },
+                {
+                    handler: 'handleCustomOrderDepositStripe',
+                    step: 'fetch_order',
+                }
+            );
+            throw error(500, 'Order not found');
+        }
+
+        const paidAmount = session.amount_total ?? 0; // En centimes
+        const remainingAmount = order.total_amount - (paidAmount / 100);
+
+        // Mettre à jour l'order avec statut "confirmed" (automatique pour Stripe Connect)
+        const { data: updatedOrder, error: updateError } = await locals.supabaseServiceRole
+            .from('orders')
+            .update({
+                status: 'confirmed',
+                paid_amount: paidAmount / 100,
+                payment_provider: 'stripe',
+                stripe_payment_intent_id: session.payment_intent as string,
+                stripe_session_id: session.id
+            })
+            .eq('id', orderId)
+            .select()
+            .single();
+
+        if (updateError || !updatedOrder) {
+            await ErrorLogger.logCritical(
+                updateError || new Error('Failed to update custom order'),
+                {
+                    stripeSessionId: session.id,
+                    stripePaymentIntentId: session.payment_intent as string,
+                    orderId: orderId,
+                    paidAmount: paidAmount / 100,
+                },
+                {
+                    handler: 'handleCustomOrderDepositStripe',
+                    step: 'update_order',
+                    critical: true,
+                }
+            );
+            throw error(500, 'Failed to update custom order');
+        }
+
+        // Récupérer l'email du profile
+        let pastryEmail: string | null = null;
+        if (order.shops?.profile_id) {
+            const { data: profile } = await locals.supabaseServiceRole
+                .from('profiles')
+                .select('email')
+                .eq('id', order.shops.profile_id)
+                .single();
+            pastryEmail = profile?.email || null;
+        }
+
+        try {
+            await EmailService.sendOrderConfirmation({
+                customerEmail: order.customer_email,
+                customerName: order.customer_name,
+                shopName: order.shops.name,
+                shopLogo: order.shops.logo_url,
+                productName: 'Commande personnalisée',
+                pickupDate: order.pickup_date,
+                pickupTime: order.pickup_time,
+                totalAmount: order.total_amount,
+                paidAmount: paidAmount / 100,
+                remainingAmount: remainingAmount,
+                orderId: order.id,
+                orderUrl: `${PUBLIC_SITE_URL}/${order.shops.slug}/order/${order.id}`,
+            });
+
+            if (pastryEmail) {
+                await EmailService.sendOrderNotification({
+                    pastryEmail: pastryEmail,
+                    customerName: order.customer_name,
+                    customerEmail: order.customer_email,
+                    customerInstagram: order.customer_instagram,
+                    productName: 'Commande personnalisée',
+                    pickupDate: order.pickup_date,
+                    pickupTime: order.pickup_time,
+                    totalAmount: order.total_amount,
+                    paidAmount: paidAmount / 100,
+                    remainingAmount: remainingAmount,
+                    orderId: order.id,
+                    dashboardUrl: `${PUBLIC_SITE_URL}/dashboard/orders/${order.id}`,
+                });
+            }
+        } catch (err) {
+            await ErrorLogger.logCritical(err, {
+                stripeSessionId: session.id,
+                orderId: orderId,
+            }, {
+                handler: 'handleCustomOrderDepositStripe',
+                step: 'send_emails',
+            });
+            throw error(500, 'Failed to send confirmation emails: ' + err);
+        }
+
+    } catch (err) {
+        await ErrorLogger.logCritical(err, {
+            stripeSessionId: session.id,
+            orderId: session.metadata?.orderId,
+        }, {
+            handler: 'handleCustomOrderDepositStripe',
+            step: 'general_error',
+        });
+        throw error(500, 'handleCustomOrderDepositStripe failed: ' + err);
     }
 }
 

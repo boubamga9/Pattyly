@@ -40,7 +40,7 @@ export default defineConfig({
 	test: {
 		globals: true,
 		environment: 'node',
-		include: ['src/**/*.{test,spec}.{js,ts}'],
-		setupFiles: ['./src/lib/test/setup.ts'],
+		include: ['tests/**/*.{test,spec}.{js,ts}'],
+		setupFiles: ['./tests/setup.ts'],
 	},
 });
