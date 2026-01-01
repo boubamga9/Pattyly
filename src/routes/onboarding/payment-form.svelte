@@ -45,6 +45,38 @@
 
 	let isPaypalGuideOpen = false;
 
+	// Helper function to parse SvelteKit action response
+	// SvelteKit uses a special serialization format: [{"key":index}, value1, value2, ...]
+	function parseSvelteKitActionResponse(data: unknown): { success?: boolean; url?: string; error?: string } | null {
+		if (!data) return null;
+		
+		// If it's already a plain object, return it
+		if (typeof data === 'object' && !Array.isArray(data) && 'success' in data) {
+			return data as { success?: boolean; url?: string; error?: string };
+		}
+		
+		// If it's an array with the SvelteKit format: [{"success":1,"url":2}, true, "https://..."]
+		if (Array.isArray(data) && data.length > 0 && typeof data[0] === 'object') {
+			const refObj = data[0] as Record<string, number>;
+			const result: { success?: boolean; url?: string; error?: string } = {};
+			
+			// Extract values using the indices
+			if ('success' in refObj && typeof refObj.success === 'number') {
+				result.success = data[refObj.success] as boolean;
+			}
+			if ('url' in refObj && typeof refObj.url === 'number') {
+				result.url = data[refObj.url] as string;
+			}
+			if ('error' in refObj && typeof refObj.error === 'number') {
+				result.error = data[refObj.error] as string;
+			}
+			
+			return result;
+		}
+		
+		return null;
+	}
+
 	async function handleConnectStripe() {
 		stripeLoading = true;
 		try {
@@ -55,42 +87,30 @@
 			});
 			const result = await response.json();
 			
-			// SvelteKit actions return data in a specific format
-			// result.data can be a string that needs to be parsed
-			let actionResult: unknown;
-			if (typeof result.data === 'string') {
+			// result.data might be a JSON string, parse it first
+			let parsedData = result.data;
+			if (typeof parsedData === 'string') {
 				try {
-					actionResult = JSON.parse(result.data);
+					parsedData = JSON.parse(parsedData);
 				} catch {
-					actionResult = result.data;
+					// If parsing fails, use the string as-is
 				}
-			} else {
-				actionResult = result.data;
 			}
 			
-			// Extract URL from the response
-			// Format can be: [{success: 1, url: 2}, true, "https://..."] or {success: true, url: "https://..."}
-			let url: string | null = null;
-			if (Array.isArray(actionResult)) {
-				// If it's an array, the URL is typically the last string element
-				const urlCandidate = actionResult.find((item): item is string => typeof item === 'string' && item.startsWith('http'));
-				if (urlCandidate) {
-					url = urlCandidate;
-				} else if (actionResult[0] && typeof actionResult[0] === 'object' && 'url' in actionResult[0]) {
-					url = (actionResult[0] as { url: string }).url;
-				}
-			} else if (actionResult && typeof actionResult === 'object' && 'url' in actionResult) {
-				url = (actionResult as { url: string }).url;
-			}
+			// Parse SvelteKit action response (handles both plain objects and serialized format)
+			const actionData = parseSvelteKitActionResponse(parsedData);
 			
-			if (url && url.startsWith('http')) {
-				window.location.href = url;
+			if (actionData?.success && actionData?.url && typeof actionData.url === 'string' && actionData.url.startsWith('http')) {
+				window.location.href = actionData.url;
 			} else {
-				console.error('Error connecting Stripe: URL not found in response', result);
+				const errorMessage = actionData?.error || 'Erreur lors de la connexion Stripe';
+				console.error('Error connecting Stripe:', errorMessage, result);
+				alert(errorMessage);
 				stripeLoading = false;
 			}
 		} catch (err) {
 			console.error('Error connecting Stripe:', err);
+			alert('Erreur lors de la connexion Stripe. Veuillez réessayer.');
 			stripeLoading = false;
 		}
 	}
