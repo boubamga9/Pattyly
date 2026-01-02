@@ -415,7 +415,7 @@
 			</p>
 
 			<!-- Bouton Connecter ou état connecté -->
-			{#if stripeConnectAccount?.is_active && stripeConnectAccount?.charges_enabled}
+			{#if stripeConnectAccount?.is_active}
 				<Button
 					type="button"
 					variant="outline"
@@ -451,7 +451,7 @@
 							</span>
 						</div>
 
-						{#if stripeConnectAccount?.is_active && stripeConnectAccount?.charges_enabled}
+						{#if stripeConnectAccount?.is_active}
 							<div class="rounded-lg border border-green-200 bg-green-50 p-3">
 								<div class="flex items-start gap-2">
 									<Check class="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
@@ -766,7 +766,7 @@
 						</span>
 					</div>
 
-					{#if stripeConnectAccount?.is_active && stripeConnectAccount?.charges_enabled}
+					{#if stripeConnectAccount?.is_active}
 						<div class="rounded-lg border border-green-200 bg-green-50 p-3">
 							<div class="flex items-start gap-2">
 								<Check class="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
