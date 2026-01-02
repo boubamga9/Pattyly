@@ -3,13 +3,9 @@
 	// On importe les mêmes composants et logique
 	import { onMount, onDestroy } from 'svelte';
 	import { onNavigate, goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import * as Drawer from '$lib/components/ui/drawer';
-	import { Separator } from '$lib/components/ui/separator';
 	import { cn } from '$lib/utils';
-	import MenuIcon from 'virtual:icons/lucide/menu';
-	import XIcon from 'virtual:icons/lucide/x';
-	import ChevronDown from 'virtual:icons/lucide/chevron-down';
 	import Home from 'virtual:icons/lucide/home';
 	import DollarSign from 'virtual:icons/lucide/dollar-sign';
 	import HelpCircle from 'virtual:icons/lucide/help-circle';
@@ -31,16 +27,14 @@
 	import { isSearchBarVisible } from '$lib/stores/searchBarVisibility';
 	import '../../app.css';
 
-	const menuItems = {
-		'/annuaire': 'Tous les pâtissiers',
-		'/tous-les-gateaux': 'Tous les gâteaux',
-	};
-
-	let menuOpen = false;
 	let header: HTMLElement;
 	let logo: HTMLElement;
 
 	export let data;
+	
+	// Déterminer l'état du switch basé sur la page actuelle
+	$: isGateauxView = $page.url.pathname.startsWith('/tous-les-gateaux');
+	$: isPatissiersView = !isGateauxView; // Par défaut, si ce n'est pas la vue gâteaux, c'est la vue pâtissiers
 
 	// Fonction pour gérer la navigation avec goto() pour rester dans la PWA
 	function handleNavClick(href: string, event: MouseEvent) {
@@ -51,7 +45,6 @@
 		
 		// Empêcher le comportement par défaut et utiliser la navigation SvelteKit
 		event.preventDefault();
-		menuOpen = false;
 		goto(href);
 	}
 
@@ -126,7 +119,7 @@
 	});
 
 	onNavigate(() => {
-		menuOpen = false;
+		// Navigation effectuée
 	});
 </script>
 
@@ -153,225 +146,45 @@
 			</Button>
 		</div>
 
-		<!-- Navigation centrée (cachée sur mobile) -->
-		<nav class="absolute left-1/2 hidden -translate-x-1/2 transform lg:block">
-			<ul class="flex items-center gap-8 text-lg font-bold">
-				<!-- Menu Produits avec dropdown (en premier) -->
-				<li class="group relative">
-					<Button
-						variant="ghost"
-						class="flex items-center gap-1 text-base text-foreground transition-colors duration-200 hover:bg-white/20 hover:text-white"
-						style="color: #333; font-size: 18px;"
-					>
-						Produits
-						<ChevronDown
-							class="h-4 w-4 transition-transform duration-200 group-hover:rotate-180"
-						/>
-					</Button>
-					<!-- Dropdown au hover -->
-					<div
-						class="invisible absolute left-1/2 top-full z-50 mt-2 -translate-x-1/2 opacity-0 transition-all duration-200 group-hover:visible group-hover:opacity-100"
-					>
-						<div
-							class="w-[600px] rounded-2xl border border-neutral-200 bg-white p-0 shadow-xl"
-						>
-							<div class="grid grid-cols-2 divide-x divide-neutral-200">
-								<!-- Colonne gauche : Logiciel de gestion -->
-								<div class="p-6">
-									<p class="mb-4 text-sm font-semibold text-neutral-900">
-										Logiciel de gestion
-									</p>
-									<div class="space-y-1">
-										<a
-											href="/"
-											class="flex items-center gap-3 rounded-sm px-2 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-100"
-										>
-											<Home class="h-4 w-4 text-neutral-500" />
-											<span>Accueil</span>
-										</a>
-										<a
-											href="/pricing"
-											class="flex items-center gap-3 rounded-sm px-2 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-100"
-										>
-											<DollarSign class="h-4 w-4 text-neutral-500" />
-											<span>Tarifs</span>
-										</a>
-										<a
-											href="/faq"
-											class="flex items-center gap-3 rounded-sm px-2 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-100"
-										>
-											<HelpCircle class="h-4 w-4 text-neutral-500" />
-											<span>FAQ</span>
-										</a>
-									</div>
-									<div class="my-8 border-t border-neutral-200"></div>
-									<div class="space-y-1">
-										<p
-											class="mb-4 px-2 text-xs font-semibold uppercase tracking-wide text-neutral-500"
-										>
-											Solutions
-										</p>
-										<a
-											href="/boutique-en-ligne-patissier"
-											class="flex items-center gap-3 rounded-sm px-2 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-100"
-										>
-											<ShoppingBag class="h-4 w-4 text-neutral-500" />
-											<span>Boutique en ligne</span>
-										</a>
-										<a
-											href="/logiciel-gestion-patisserie"
-											class="flex items-center gap-3 rounded-sm px-2 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-100"
-										>
-											<Settings class="h-4 w-4 text-neutral-500" />
-											<span>Logiciel de gestion</span>
-										</a>
-										<a
-											href="/formulaire-commande-gateau"
-											class="flex items-center gap-3 rounded-sm px-2 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-100"
-										>
-											<ClipboardList class="h-4 w-4 text-neutral-500" />
-											<span>Formulaire commande</span>
-										</a>
-										<a
-											href="/devis-factures-cake-designer"
-											class="flex items-center gap-3 rounded-sm px-2 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-100"
-										>
-											<Receipt class="h-4 w-4 text-neutral-500" />
-											<span>Devis et factures</span>
-										</a>
-									</div>
-								</div>
-								<!-- Colonne droite : Recherche -->
-								<div class="p-6">
-									<p class="mb-4 text-sm font-semibold text-neutral-900">
-										Recherche
-									</p>
-									<div class="space-y-1">
-										<a
-											href="/trouver-un-cake-designer"
-											class="flex items-center gap-3 rounded-sm px-2 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-100"
-										>
-											<Search class="h-4 w-4 text-neutral-500" />
-											<span>Trouver un cake designer</span>
-										</a>
-										<a
-											href="/annuaire"
-											class="flex items-center gap-3 rounded-sm px-2 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-100"
-										>
-											<Search class="h-4 w-4 text-neutral-500" />
-											<span>Annuaire complet</span>
-										</a>
-										<a
-											href="/tous-les-gateaux"
-											class="flex items-center gap-3 rounded-sm px-2 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-100"
-										>
-											<Cake class="h-4 w-4 text-neutral-500" />
-											<span>Tous les gâteaux</span>
-										</a>
-									</div>
-									<div class="my-8 border-t border-neutral-200"></div>
-									<div class="space-y-1">
-										<p
-											class="mb-4 px-2 text-xs font-semibold uppercase tracking-wide text-neutral-500"
-										>
-											Types de gâteaux
-										</p>
-										<a
-											href="/gateau-anniversaire"
-											class="flex items-center gap-3 rounded-sm px-2 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-100"
-										>
-											<Cake class="h-4 w-4 text-neutral-500" />
-											<span>Gâteau d'anniversaire</span>
-										</a>
-										<a
-											href="/gateau-mariage"
-											class="flex items-center gap-3 rounded-sm px-2 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-100"
-										>
-											<Cake class="h-4 w-4 text-neutral-500" />
-											<span>Gâteau de mariage</span>
-										</a>
-										<a
-											href="/cupcakes"
-											class="flex items-center gap-3 rounded-sm px-2 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-100"
-										>
-											<Cake class="h-4 w-4 text-neutral-500" />
-											<span>Cupcakes</span>
-										</a>
-										<a
-											href="/macarons"
-											class="flex items-center gap-3 rounded-sm px-2 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-100"
-										>
-											<Cake class="h-4 w-4 text-neutral-500" />
-											<span>Macarons</span>
-										</a>
-										<a
-											href="/gateau-personnalise"
-											class="flex items-center gap-3 rounded-sm px-2 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-100"
-										>
-											<Cake class="h-4 w-4 text-neutral-500" />
-											<span>Gâteau personnalisé</span>
-										</a>
-									</div>
-									<div class="my-8 border-t border-neutral-200"></div>
-									<div class="space-y-1">
-										<p
-											class="mb-4 px-2 text-xs font-semibold uppercase tracking-wide text-neutral-500"
-										>
-											Villes populaires
-										</p>
-										<a
-											href="/annuaire/paris"
-											class="flex items-center gap-3 rounded-sm px-2 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-100"
-										>
-											<MapPin class="h-4 w-4 text-neutral-500" />
-											<span>Paris</span>
-										</a>
-										<a
-											href="/annuaire/marseille"
-											class="flex items-center gap-3 rounded-sm px-2 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-100"
-										>
-											<MapPin class="h-4 w-4 text-neutral-500" />
-											<span>Marseille</span>
-										</a>
-										<a
-											href="/annuaire/lyon"
-											class="flex items-center gap-3 rounded-sm px-2 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-100"
-										>
-											<MapPin class="h-4 w-4 text-neutral-500" />
-											<span>Lyon</span>
-										</a>
-									</div>
-								</div>
-							</div>
-						</div>
+		<!-- Switch Pâtissiers | Gâteaux -->
+		<nav class="absolute left-1/2 hidden -translate-x-1/2 transform md:block">
+			<div class="flex items-center gap-2 rounded-full border border-neutral-300 bg-white p-1 shadow-sm">
+				<button
+					on:click={() => goto('/annuaire')}
+					class={cn(
+						'rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200 sm:px-4 sm:py-2 sm:text-sm',
+						isPatissiersView
+							? 'bg-[#FF6F61] text-white shadow-sm'
+							: 'text-neutral-700 hover:text-neutral-900'
+					)}
+				>
+					Pâtissiers
+				</button>
+				<button
+					on:click={() => goto('/tous-les-gateaux')}
+					class={cn(
+						'rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200 sm:px-4 sm:py-2 sm:text-sm',
+						isGateauxView
+							? 'bg-[#FF6F61] text-white shadow-sm'
+							: 'text-neutral-700 hover:text-neutral-900'
+					)}
+				>
+					Gâteaux
+				</button>
 					</div>
-				</li>
-				{#each Object.entries(menuItems) as [href, text]}
-					<li>
-						<Button
-							variant="ghost"
-							{href}
-							class="text-base text-foreground transition-colors duration-200 hover:bg-white/20 hover:text-white"
-							style="color: #333; font-size: 18px;"
-						>
-							{text}
-						</Button>
-					</li>
-				{/each}
-			</ul>
 		</nav>
 
 		<!-- Boutons à droite -->
 		<div class="flex items-center gap-4">
 			<!-- Boutons desktop -->
 			<div class="hidden lg:flex lg:gap-4">
-				<Button
-					variant="ghost"
-					class="text-sm font-normal text-neutral-700 transition-colors duration-200 hover:text-neutral-900 hover:bg-transparent"
-					on:click={(e) => handleNavClick('/', e)}
-				>
-					Je suis pâtissier
-				</Button>
+					<Button
+						variant="ghost"
+						class="text-sm font-normal text-neutral-700 transition-colors duration-200 hover:text-neutral-900 hover:bg-transparent"
+						on:click={(e) => handleNavClick('/', e)}
+					>
+						Je suis pâtissier
+					</Button>
 				{#if data.user}
 					<Button on:click={(e) => handleNavClick('/dashboard', e)}>Dashboard</Button>
 				{/if}
@@ -379,63 +192,22 @@
 
 			<!-- Bouton mobile -->
 			<div class="lg:hidden">
-				<Drawer.Root bind:open={menuOpen}>
-					<Drawer.Trigger asChild let:builder>
-						<Button variant="ghost" size="icon" builders={[builder]}>
-							<span class="sr-only">Menu</span>
-							<MenuIcon />
-						</Button>
-					</Drawer.Trigger>
-					<Drawer.Content>
-						<Drawer.Header class="flex justify-end py-0">
-							<Drawer.Close asChild let:builder>
-								<Button variant="ghost" size="icon" builders={[builder]}>
-									<span class="sr-only">Close</span>
-									<XIcon />
-								</Button>
-							</Drawer.Close>
-						</Drawer.Header>
-						<nav class="flex flex-col divide-y divide-neutral-200">
-							<!-- Liens principaux en haut -->
-							<div class="py-2">
 								<Button
 									variant="ghost"
-									class="w-full justify-center px-4 py-4 text-base font-semibold"
-									on:click={(e) => handleNavClick('/annuaire', e)}
-								>
-									Tous les pâtissiers
-								</Button>
-								<Button
-									variant="ghost"
-									class="w-full justify-center px-4 py-4 text-base font-semibold"
-									on:click={(e) => handleNavClick('/tous-les-gateaux', e)}
-								>
-									Tous les gâteaux
-								</Button>
-							</div>
-							<Separator />
-							<!-- Actions utilisateur -->
-							<div class="flex flex-col py-2">
-								<Button
-									variant="ghost"
-									class="w-full justify-center px-4 py-4 text-base font-semibold"
-									on:click={(e) => handleNavClick('/', e)}
-								>
-									Je suis pâtissier
-								</Button>
-								{#if data.user}
+					class="text-sm font-normal text-neutral-700 transition-colors duration-200 hover:text-neutral-900 hover:bg-transparent"
+										on:click={(e) => handleNavClick('/', e)}
+									>
+										Je suis pâtissier
+									</Button>
+				{#if data.user}
 									<Button
 										variant="ghost"
-										class="w-full justify-center px-4 py-4 text-base"
+						class="text-sm font-normal text-neutral-700 transition-colors duration-200 hover:text-neutral-900 hover:bg-transparent"
 										on:click={(e) => handleNavClick('/dashboard', e)}
 									>
 										Dashboard
 									</Button>
 								{/if}
-							</div>
-						</nav>
-					</Drawer.Content>
-				</Drawer.Root>
 			</div>
 		</div>
 	</div>
@@ -656,14 +428,18 @@
 			<div class="flex flex-col gap-4">
 				<p class="text-sm font-semibold text-neutral-900">Menu</p>
 				<nav class="flex flex-col gap-2">
-					{#each Object.entries(menuItems) as [href, text]}
-						<a
-							{href}
+					<a
+						href="/annuaire"
+						class="text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
+					>
+						Tous les pâtissiers
+					</a>
+					<a
+						href="/tous-les-gateaux"
 							class="text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
 						>
-							{text}
+						Tous les gâteaux
 						</a>
-					{/each}
 				</nav>
 				<div class="my-3 border-t border-neutral-200"></div>
 				<p class="text-sm font-semibold text-neutral-900">Espace pâtissier</p>

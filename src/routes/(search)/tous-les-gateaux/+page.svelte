@@ -66,6 +66,29 @@
 	let isLoadingMore = false;
 	let sentinelElement: HTMLElement;
 	let scrollObserver: IntersectionObserver | null = null;
+	
+	// Suivre les produits avec des erreurs d'image ou sans image
+	let productsWithImageErrors = new Set<string>();
+	
+	// Filtrer les produits pour masquer ceux sans image ou avec erreur
+	$: visibleProducts = displayedProducts.filter((product) => {
+		// Masquer si pas d'image
+		if (!product.image_url) {
+			return false;
+		}
+		// Masquer si erreur d'image détectée
+		if (productsWithImageErrors.has(product.id)) {
+			return false;
+		}
+		return true;
+	});
+	
+	// Fonction pour gérer les erreurs de chargement d'image
+	function handleImageError(productId: string) {
+		productsWithImageErrors.add(productId);
+		// Forcer la mise à jour réactive
+		productsWithImageErrors = productsWithImageErrors;
+	}
 
 	// Filtres
 	let selectedCitySuggestion: CitySuggestion | null = null;
@@ -332,6 +355,8 @@
 				currentPage = 1;
 				hasMore = result.pagination?.hasMore || false;
 				_totalProducts = result.pagination?.total || 0; // Mettre à jour le total
+				// Réinitialiser les erreurs d'image pour les nouveaux produits
+				productsWithImageErrors = new Set();
 				_isLoadingFilter = false;
 				isFiltering = false;
 				// Réinitialiser l'infinite scroll après le filtrage
@@ -544,6 +569,7 @@
 			
 			// Ajouter les nouveaux produits à la liste
 			displayedProducts = [...displayedProducts, ...result.products];
+			// Note: on ne réinitialise pas productsWithImageErrors ici car on veut garder les erreurs des produits précédents
 			currentPage = result.pagination.page;
 			hasMore = result.pagination.hasMore;
 			// Le total ne change pas quand on charge plus de pages, mais on le met à jour au cas où
@@ -976,7 +1002,7 @@
 				bind:this={resultsContainer}
 				class="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
 			>
-				{#each displayedProducts as product}
+				{#each visibleProducts as product}
 					<a
 						href="/{product.shop.slug}/product/{product.id}?from=app"
 						class="group relative flex cursor-pointer flex-col max-w-[280px] mx-auto"
@@ -988,11 +1014,8 @@
 									src={product.image_url}
 									alt={product.name}
 									class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+									on:error={() => handleImageError(product.id)}
 								/>
-							{:else}
-								<div class="flex h-full items-center justify-center">
-									<Cake class="h-6 w-6 text-neutral-300" />
-								</div>
 							{/if}
 						<!-- Badge vérifié (si shop premium) -->
 						{#if product.shop.isPremium}
@@ -1068,7 +1091,7 @@
 			{/if}
 
 			<!-- Message si aucun résultat -->
-			{#if displayedProducts.length === 0}
+			{#if visibleProducts.length === 0}
 				<div class="py-12 text-center">
 					<Cake class="mx-auto mb-4 h-16 w-16 text-neutral-300" />
 					<p class="mb-2 text-lg font-medium text-neutral-700">

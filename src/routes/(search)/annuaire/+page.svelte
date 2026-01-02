@@ -1,15 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
+	import { afterNavigate } from '$app/navigation';
 	import { WebsiteName } from '$src/config';
 	import { revealElement, revealStagger } from '$lib/utils/animations';
 	import { Button } from '$lib/components/ui/button';
-	import { MapPin, Cake, X, ChevronDown, ChevronUp, Map as MapIcon, List } from 'lucide-svelte';
+	import { MapPin, Cake, Map as MapIcon, List } from 'lucide-svelte';
 	import * as Card from '$lib/components/ui/card';
 	import CityAutocomplete from '$lib/components/ui/city-autocomplete.svelte';
 	import RadiusSlider from '$lib/components/ui/radius-slider.svelte';
 	import ShopsMap from '$lib/components/map/shops-map.svelte';
 	import { searchCities, type CitySuggestion } from '$lib/services/city-autocomplete';
+	import { isSearchBarVisible as searchBarVisibleStore } from '$lib/stores/searchBarVisibility';
 
 	// ✅ Tracking: Page view côté client (annuaire page)
 	onMount(() => {
@@ -52,11 +54,38 @@
 	let selectedCitySuggestion: CitySuggestion | null = null;
 	let selectedCakeType = '';
 	let searchRadius = 30; // Rayon par défaut en km
-	let filtersExpanded = true; // Filtres ouverts par défaut
 	let viewMode: 'list' | 'map' = 'list'; // Mode d'affichage : liste ou carte
 	let isLoadingAllShopsForMap = false; // Indicateur de chargement pour la carte
 	let allShopsLoadedForMap = false; // Indicateur si tous les shops ont été chargés pour la carte
 	let showOnlyVerified = false; // Filtre pour afficher uniquement les pâtissiers vérifiés
+	
+	// États pour gérer quel champ est ouvert (popovers style Airbnb)
+	let activeField: 'where' | 'type' | 'filters' | null = null;
+	let wherePopoverRef: HTMLElement | null = null;
+	let typePopoverRef: HTMLElement | null = null;
+	let filtersPopoverRef: HTMLElement | null = null;
+	
+	// États pour gérer la visibilité de la barre de recherche au scroll
+	let isSearchBarVisible = true;
+	let lastScrollY = 0;
+	
+	// Synchroniser avec le store
+	$: searchBarVisibleStore.set(isSearchBarVisible);
+	
+	// Texte à afficher dans le champ "Filtres"
+	$: filtersText = (() => {
+		const parts: string[] = [];
+		
+		if (showOnlyVerified) {
+			parts.push('Vérifiés');
+		}
+		
+		if (selectedCitySuggestion && searchRadius !== 30) {
+			parts.push(`${searchRadius}km`);
+		}
+		
+		return parts.length > 0 ? parts.join(' • ') : 'Aucun';
+	})();
 
 	const cakeTypes = [
 		'Gâteau d\'anniversaire',
@@ -388,11 +417,38 @@
 
 		// Configurer l'Intersection Observer pour infinite scroll
 		setupInfiniteScroll();
+		
+		// Gérer les clics extérieurs pour fermer les popovers
+		document.addEventListener('click', handleClickOutside);
+		
+		// Gérer le scroll pour cacher/afficher la barre de recherche
+		function handleScroll() {
+			const currentScrollY = window.scrollY;
+			
+			// Si on scroll vers le bas et qu'on dépasse un certain seuil, cacher la barre
+			if (currentScrollY > lastScrollY && currentScrollY > 100) {
+				isSearchBarVisible = false;
+			} 
+			// Si on scroll vers le haut, afficher la barre
+			else if (currentScrollY < lastScrollY) {
+				isSearchBarVisible = true;
+			}
+			
+			lastScrollY = currentScrollY;
+		}
+		
+		window.addEventListener('scroll', handleScroll, { passive: true });
+		lastScrollY = window.scrollY;
+		
+		// Initialiser le store
+		searchBarVisibleStore.set(isSearchBarVisible);
 
 		return () => {
 			if (infiniteScrollObserver) {
 				infiniteScrollObserver.disconnect();
 			}
+			document.removeEventListener('click', handleClickOutside);
+			window.removeEventListener('scroll', handleScroll);
 		};
 	});
 
@@ -564,18 +620,49 @@
 		await filterDesigners();
 	}
 
-	async function handleCitySelect(city: CitySuggestion | null) {
+	// Fonction pour sélectionner une ville (sans déclencher le filtrage immédiat)
+	function handleCitySelect(city: CitySuggestion | null) {
 		selectedCitySuggestion = city;
 		updateUrl();
-		// Gérer le filtrage directement
-		await filterDesigners();
+		// Ne pas fermer le popover automatiquement, l'utilisateur peut continuer à modifier
 	}
 
-	async function handleCakeTypeSelect(cakeType: string) {
+	// Fonction pour sélectionner un type de gâteau (sans déclencher le filtrage immédiat)
+	function handleCakeTypeSelect(cakeType: string) {
 		selectedCakeType = selectedCakeType === cakeType ? '' : cakeType;
 		updateUrl();
-		// Gérer le filtrage directement
-		await filterDesigners();
+		// Ne pas fermer le popover automatiquement
+	}
+	
+	// Fonction pour ouvrir/fermer un champ
+	function toggleField(field: 'where' | 'type' | 'filters') {
+		activeField = activeField === field ? null : field;
+	}
+
+	// Fonction pour fermer tous les champs
+	function closeAllFields() {
+		activeField = null;
+	}
+
+	// Fonction pour fermer les popovers quand on clique ailleurs
+	function handleClickOutside(event: MouseEvent) {
+		const target = event.target as Node;
+		// Ne pas fermer si on clique dans un input, textarea, ou dans les popovers
+		if (target instanceof HTMLElement) {
+			if (
+				target.tagName === 'INPUT' ||
+				target.tagName === 'TEXTAREA' ||
+				target.closest('[role="dialog"]') ||
+				wherePopoverRef?.contains(target) ||
+				typePopoverRef?.contains(target) ||
+				filtersPopoverRef?.contains(target)
+			) {
+				return;
+			}
+		}
+		if (activeField) {
+			activeField = null;
+		}
 	}
 
 	// Mettre à jour l'URL avec les filtres actuels (pour partager)
@@ -630,123 +717,229 @@
 <div class="flex flex-col">
 	<!-- H1 masqué pour le SEO -->
 	<h1 class="sr-only">
-					{#if cityName}
+		{#if cityName}
 			Cake designers à {cityName} - Annuaire de pâtissiers | {WebsiteName}
-					{:else}
+		{:else}
 			Annuaire de cake designers - Trouve ton pâtissier | {WebsiteName}
-					{/if}
-				</h1>
+		{/if}
+	</h1>
 
-	<!-- Barre de recherche et filtres en haut -->
-	<section class="sticky top-0 z-40 bg-white border-b border-neutral-200 shadow-sm pt-20">
-		<div class="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12 {filtersExpanded ? 'py-4' : 'py-2'}">
-			<div class="flex flex-col {filtersExpanded ? 'gap-4' : 'gap-2'}">
-				<!-- Filtres horizontaux -->
-				{#if filtersExpanded}
-					<div class="flex flex-wrap items-center gap-4">
-						<!-- Autocomplétion ville -->
-						<div class="w-full sm:w-auto sm:min-w-[250px]">
-							<CityAutocomplete
-								value={selectedCitySuggestion?.label || ''}
-								placeholder="Recherche une ville..."
-								onSelect={handleCitySelect}
-							/>
-						</div>
-
-						<!-- Slider rayon -->
-						{#if selectedCitySuggestion}
-							<div class="w-full sm:w-auto sm:min-w-[200px]">
-								<RadiusSlider
-									value={searchRadius}
-									min={1}
-									max={50}
-									step={1}
-									onChange={async (val) => {
-										searchRadius = val;
-										updateUrl();
-										// Debounce pour éviter trop d'appels pendant le glissement
-										if (filterTimeout) {
-											clearTimeout(filterTimeout);
-										}
-										filterTimeout = setTimeout(async () => {
-											await filterDesigners();
-										}, 300);
-									}}
+	<!-- Hero Search Bar style Airbnb -->
+	<section 
+		class="sticky top-0 z-40 border-b border-neutral-200 bg-white pt-20 transition-all duration-500 ease-in-out {isSearchBarVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'}"
+	>
+		<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 xl:px-12 py-3 sm:py-4">
+			<!-- Barre de recherche principale -->
+			<div class="relative flex w-full items-center justify-between rounded-full border border-neutral-300 bg-white px-3 sm:px-4 py-2.5 sm:py-3 shadow-sm transition-all hover:shadow-md max-w-5xl mx-auto">
+				<div class="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm flex-1 min-w-0">
+					<!-- Champ "Où" - Cliquable -->
+					<button
+						on:click={(e) => {
+							e.stopPropagation();
+							toggleField('where');
+						}}
+						class="flex flex-col items-start flex-1 min-w-0 text-left hover:bg-neutral-50 rounded-lg px-2 py-1 -mx-2 -my-1 transition-colors {activeField === 'where' ? 'bg-neutral-50' : ''}"
+					>
+						<span class="font-semibold text-neutral-900">Où</span>
+						<span class="text-neutral-500 truncate w-full">
+							{selectedCitySuggestion?.city || 'Recherche une ville...'}
+						</span>
+					</button>
+					
+					<!-- Popover "Où" -->
+					{#if activeField === 'where'}
+						<div
+							bind:this={wherePopoverRef}
+							class="fixed inset-x-4 sm:absolute sm:left-0 sm:inset-x-auto top-[calc(5rem+80px)] sm:top-full mt-0 sm:mt-2 w-[calc(100%-2rem)] sm:w-80 rounded-2xl border border-neutral-200 bg-white p-4 shadow-xl z-50"
+							role="dialog"
+							aria-label="Sélectionner une ville"
+						>
+							<div class="relative">
+								<CityAutocomplete
+									value={selectedCitySuggestion?.label || ''}
+									placeholder="Recherche une ville..."
+									onSelect={handleCitySelect}
 								/>
 							</div>
-						{/if}
+						</div>
+					{/if}
 
-						<!-- Filtre "Notre sélection" (pâtissiers vérifiés) -->
-						<button
-							on:click={async () => {
-								showOnlyVerified = !showOnlyVerified;
-								updateUrl();
-								// Gérer le filtre verified directement sans passer par la déclaration réactive
-								await filterDesigners();
-							}}
-							class="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-all hover:border-[#FF6F61] hover:bg-[#FFE8D6]/20 {showOnlyVerified 
-								? 'border-[#FF6F61] bg-[#FFE8D6]/30' 
-								: 'border-neutral-300 bg-white'}">
-							<span class="flex items-center gap-1.5">
-								<svg
-									class="h-4 w-4 shrink-0 {showOnlyVerified ? 'text-[#FF6F61]' : 'text-neutral-400'}"
-									viewBox="0 0 22 22"
-									fill="none"
-								>
-									<circle cx="11" cy="11" r="10" fill={showOnlyVerified ? '#FF6F61' : 'currentColor'} />
-									<path
-										d="M6.5 11l2.5 2.5 5-5"
-										stroke="white"
-										stroke-width="2"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-									/>
-								</svg>
-								<span class={showOnlyVerified ? 'text-[#FF6F61]' : 'text-neutral-700'}>Notre sélection de pâtissiers</span>
-							</span>
-						</button>
+					<div class="h-4 sm:h-6 w-px bg-neutral-300 shrink-0"></div>
+					
+					<!-- Champ "Type" - Cliquable -->
+					<button
+						on:click={(e) => {
+							e.stopPropagation();
+							toggleField('type');
+						}}
+						class="flex flex-col items-start flex-1 min-w-0 text-left hover:bg-neutral-50 rounded-lg px-2 py-1 -mx-2 -my-1 transition-colors {activeField === 'type' ? 'bg-neutral-50' : ''}"
+					>
+						<span class="font-semibold text-neutral-900">Type</span>
+						<span class="text-neutral-500 truncate w-full">
+							{selectedCakeType || 'Tous les types'}
+						</span>
+					</button>
+					
+					<!-- Popover "Type" -->
+					{#if activeField === 'type'}
+						<div
+							bind:this={typePopoverRef}
+							class="fixed inset-x-4 sm:absolute sm:left-1/3 sm:inset-x-auto top-[calc(5rem+80px)] sm:top-full mt-0 sm:mt-2 w-[calc(100%-2rem)] sm:w-80 rounded-2xl border border-neutral-200 bg-white p-4 shadow-xl z-50 max-h-[calc(100vh-10rem)] sm:max-h-none overflow-y-auto"
+							role="dialog"
+							aria-label="Sélectionner un type de gâteau"
+						>
+							<div class="space-y-2">
+								<p class="text-sm font-semibold text-neutral-900 mb-3">Type de gâteau</p>
+								<div class="flex flex-wrap gap-2">
+									<button
+										on:click={() => {
+											handleCakeTypeSelect('');
+										}}
+										class="rounded-full border px-4 py-2 text-sm font-medium transition-all hover:border-[#FF6F61] hover:bg-[#FFE8D6]/20 {!selectedCakeType
+											? 'border-[#FF6F61] bg-[#FFE8D6]/30 text-[#FF6F61]'
+											: 'border-neutral-300 bg-white text-neutral-700'}"
+									>
+										Tous les types
+									</button>
+									{#each cakeTypes as cakeType}
+										<button
+											on:click={() => {
+												handleCakeTypeSelect(cakeType);
+											}}
+											class="rounded-full border px-4 py-2 text-sm font-medium transition-all hover:border-[#FF6F61] hover:bg-[#FFE8D6]/20 {selectedCakeType === cakeType.toLowerCase()
+												? 'border-[#FF6F61] bg-[#FFE8D6]/30 text-[#FF6F61]'
+												: 'border-neutral-300 bg-white text-neutral-700'}"
+										>
+											{cakeType}
+										</button>
+									{/each}
+								</div>
+							</div>
+						</div>
+					{/if}
+					
+					<div class="h-4 sm:h-6 w-px bg-neutral-300 shrink-0"></div>
+					
+					<!-- Champ "Filtres" - Cliquable -->
+					<button
+						on:click={(e) => {
+							e.stopPropagation();
+							toggleField('filters');
+						}}
+						class="flex flex-col items-start flex-1 min-w-0 text-left hover:bg-neutral-50 rounded-lg px-2 py-1 -mx-2 -my-1 transition-colors {activeField === 'filters' ? 'bg-neutral-50' : ''}"
+					>
+						<span class="font-semibold text-neutral-900">Filtres</span>
+						<span class="text-neutral-500 truncate w-full">
+							{filtersText}
+						</span>
+					</button>
+					
+					<!-- Popover "Filtres" -->
+					{#if activeField === 'filters'}
+						<div
+							bind:this={filtersPopoverRef}
+							class="fixed inset-x-4 sm:absolute sm:right-0 sm:inset-x-auto top-[calc(5rem+80px)] sm:top-full mt-0 sm:mt-2 w-[calc(100%-2rem)] sm:w-96 rounded-2xl border border-neutral-200 bg-white p-4 sm:p-6 shadow-xl z-50 max-h-[calc(100vh-10rem)] sm:max-h-none overflow-y-auto"
+							role="dialog"
+							aria-label="Filtres de recherche"
+						>
+							<div class="space-y-4">
+								<p class="text-sm font-semibold text-neutral-900 mb-4">Filtres</p>
+								
+								<!-- Slider de rayon (si ville sélectionnée) -->
+								{#if selectedCitySuggestion}
+									<div>
+										<p class="text-sm font-medium text-neutral-700 mb-2">
+											Rayon de recherche : {searchRadius}km
+										</p>
+										<RadiusSlider
+											value={searchRadius}
+											min={1}
+											max={50}
+											step={1}
+											onChange={(val) => {
+												searchRadius = val;
+											}}
+										/>
+									</div>
+								{/if}
 
-						<!-- Filtres par type de gâteau (pills) -->
-						<div class="flex flex-wrap gap-2">
-							{#each ['Gâteau d\'anniversaire', 'Gâteau de mariage', 'Cupcakes', 'Macarons', 'Gâteau personnalisé'] as type}
+								<!-- Filtre "Notre sélection" -->
 								<button
 									on:click={() => {
-										handleCakeTypeSelect(type.toLowerCase());
+										showOnlyVerified = !showOnlyVerified;
 									}}
-									class="rounded-full border px-4 py-2 text-sm font-medium transition-all {selectedCakeType === type.toLowerCase() 
-										? 'border-[#FF6F61] bg-[#FF6F61] text-white' 
-										: 'border-neutral-300 bg-white text-neutral-700 hover:border-[#FF6F61] hover:bg-[#FFE8D6]/20'}"
+									class="flex w-full items-center justify-between rounded-lg border px-4 py-3 text-sm font-medium transition-all hover:border-[#FF6F61] hover:bg-[#FFE8D6]/20 {showOnlyVerified
+										? 'border-[#FF6F61] bg-[#FFE8D6]/30'
+										: 'border-neutral-300 bg-white'}"
 								>
-									{type}
+									<span class="flex items-center gap-2">
+										<svg
+											class="h-4 w-4 shrink-0 {showOnlyVerified
+												? 'text-[#FF6F61]'
+												: 'text-neutral-400'}"
+											viewBox="0 0 22 22"
+											fill="none"
+										>
+											<circle
+												cx="11"
+												cy="11"
+												r="10"
+												fill={showOnlyVerified ? '#FF6F61' : 'currentColor'}
+											/>
+											<path
+												d="M6.5 11l2.5 2.5 5-5"
+												stroke="white"
+												stroke-width="2"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+											/>
+										</svg>
+										<span class={showOnlyVerified ? 'text-[#FF6F61]' : 'text-neutral-700'}>
+											Notre sélection de pâtissiers
+										</span>
+									</span>
 								</button>
-									{/each}
-							</div>
 
-						<!-- Bouton reset si filtres actifs -->
-						{#if selectedCitySuggestion || selectedCakeType || showOnlyVerified}
+								<!-- Bouton Valider -->
 								<button
-									on:click={clearFilters}
-								class="ml-auto flex items-center gap-2 rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-all hover:border-[#FF6F61] hover:bg-[#FFE8D6]/20 hover:text-[#FF6F61]"
+									on:click={async () => {
+										updateUrl();
+										closeAllFields();
+										await filterDesigners();
+									}}
+									class="w-full rounded-lg bg-[#FF6F61] px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-[#e85a4f]"
 								>
-									<X class="h-4 w-4" />
-								Réinitialiser
+									Valider
 								</button>
-							{/if}
-					</div>
-				{/if}
 
-				<!-- Bouton pour ouvrir/fermer les filtres -->
-				<button
-					on:click={() => filtersExpanded = !filtersExpanded}
-					class="mx-auto flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-neutral-600 transition-colors hover:text-[#FF6F61]"
-					aria-label={filtersExpanded ? 'Masquer les filtres' : 'Afficher les filtres'}
-				>
-					{#if filtersExpanded}
-						<ChevronUp class="h-3.5 w-3.5" />
-					{:else}
-						<ChevronDown class="h-3.5 w-3.5" />
+								<!-- Bouton réinitialiser -->
+								{#if selectedCitySuggestion || selectedCakeType || showOnlyVerified}
+									<button
+										on:click={async () => {
+											await clearFilters();
+											closeAllFields();
+										}}
+										class="w-full rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-all hover:border-[#FF6F61] hover:bg-[#FFE8D6]/20 hover:text-[#FF6F61]"
+									>
+										Réinitialiser
+									</button>
+								{/if}
+							</div>
+						</div>
 					{/if}
-					<span class="text-xs">{filtersExpanded ? 'Masquer les filtres' : 'Afficher les filtres'}</span>
+				</div>
+
+				<!-- Bouton de recherche -->
+				<button
+					on:click={async () => {
+						await filterDesigners();
+						closeAllFields();
+					}}
+					class="flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-[#FF6F61] ml-2 sm:ml-4 hover:bg-[#e85a4f] transition-colors"
+				>
+					<svg class="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+					</svg>
 				</button>
 			</div>
 		</div>
@@ -755,17 +948,8 @@
 	<!-- Titre et résultats -->
 	<section class="relative overflow-hidden bg-white py-8 pb-12 sm:py-12 sm:pb-16 md:py-16 md:pb-24">
 		<div class="relative mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
-			<!-- Titre et toggle map/list -->
-			<div class="mb-8 flex items-center justify-between gap-4">
-				<h2 class="text-3xl font-semibold text-neutral-900 sm:text-4xl">
-					{#if cityName}
-						Pâtissiers et cake designers à <span class="text-[#FF6F61]">{cityName}</span>
-					{:else}
-						Pâtissiers et <span class="text-[#FF6F61]">cake designers</span>
-					{/if}
-				</h2>
-				
-				<!-- Toggle Map/List -->
+			<!-- Toggle Map/List -->
+			<div class="mb-8 flex items-center justify-end gap-4">
 				<div class="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white p-1">
 					<button
 						on:click={() => viewMode = 'list'}
@@ -793,28 +977,6 @@
 					</button>
 				</div>
 			</div>
-			
-			{#if displayedShops.length > 0}
-				<p class="mb-6 text-sm text-neutral-600">
-					{#if selectedCitySuggestion && searchRadius}
-						{#if totalShops === 0}
-							Aucun pâtissier trouvé
-						{:else if totalShops === 1}
-							1 pâtissier trouvé dans un rayon de {searchRadius}km autour de {selectedCitySuggestion.city}
-						{:else}
-							{totalShops} pâtissiers trouvés dans un rayon de {searchRadius}km autour de {selectedCitySuggestion.city}
-						{/if}
-					{:else}
-						{#if totalShops === 0}
-							Aucun pâtissier trouvé
-						{:else if totalShops === 1}
-							1 pâtissier trouvé
-						{:else}
-							{totalShops} pâtissiers trouvés
-						{/if}
-					{/if}
-				</p>
-			{/if}
 
 			<!-- Vue carte ou liste -->
 			{#if viewMode === 'map'}
@@ -874,63 +1036,72 @@
 					</Button>
 				</div>
 			{:else}
-			<div bind:this={resultsContainer} class="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-					{#each displayedShops as designer}
-					<Card.Root class="group relative overflow-hidden rounded-2xl border border-neutral-200 bg-white transition-all duration-300 hover:scale-[1.02] hover:border-[#FF6F61]/50 hover:shadow-xl">
-						{#if designer.isPremium}
-							<div class="absolute right-3 top-3 z-10 flex items-center gap-1.5 rounded-full bg-white/90 px-2 py-1 shadow-md backdrop-blur-sm">
-								<svg
-									class="h-4 w-4 shrink-0"
-									viewBox="0 0 22 22"
-									aria-label="Compte vérifié"
-									fill="none"
+			<div
+				bind:this={resultsContainer}
+				class="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
+			>
+				{#each displayedShops as designer}
+					<a
+						href="/{designer.slug}?from=app"
+						class="group relative flex cursor-pointer flex-col max-w-[280px] mx-auto"
+					>
+						<!-- Logo du pâtissier -->
+						<div class="relative mb-1.5 aspect-[4/3] w-full overflow-hidden rounded-lg bg-neutral-100 scale-[0.95] origin-top border border-neutral-200">
+							<img
+								src={designer.logo}
+								alt={designer.name}
+								class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+							/>
+							<!-- Badge vérifié (si shop premium) -->
+							{#if designer.isPremium}
+								<div
+									class="absolute right-1.5 top-1.5 z-10 flex items-center gap-1 rounded-full bg-white px-2 py-1 shadow-sm"
 								>
-									<circle cx="11" cy="11" r="10" fill="#FF6F61" />
-									<path
-										d="M6.5 11l2.5 2.5 5-5"
-										stroke="white"
-										stroke-width="2"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-									/>
-								</svg>
-								<span class="text-xs font-medium text-[#FF6F61]">Vérifié</span>
-							</div>
-						{/if}
-						<div class="flex items-center justify-center bg-gradient-to-br from-[#FFE8D6]/20 to-white p-8">
-							<div class="relative h-24 w-24 overflow-hidden rounded-full bg-white p-3 shadow-md transition-transform duration-300 group-hover:scale-110">
-								<img
-									src={designer.logo}
-									alt={designer.name}
-									class="h-full w-full object-contain"
-								/>
-							</div>
-						</div>
-						<Card.Content class="p-6">
-							<div class="mb-4">
-								<h3 class="mb-2 text-xl font-semibold text-neutral-900">{designer.name}</h3>
-								<div class="flex items-center gap-2 text-sm text-neutral-600">
-									<MapPin class="h-4 w-4" />
-										<span>{designer.actualCity || designer.city}</span>
-								</div>
-							</div>
-							<div class="mb-6 flex flex-wrap gap-2">
-								{#each designer.specialties.slice(0, 3) as specialty}
-									<span
-										class="rounded-full bg-[#FFE8D6]/50 px-3 py-1.5 text-xs font-medium text-neutral-700"
+									<svg
+										class="h-2.5 w-2.5 shrink-0"
+										viewBox="0 0 22 22"
+										aria-label="Compte vérifié"
+										fill="none"
 									>
-										{specialty}
-									</span>
-								{/each}
+										<circle cx="11" cy="11" r="10" fill="#FF6F61" />
+										<path
+											d="M6.5 11l2.5 2.5 5-5"
+											stroke="white"
+											stroke-width="2"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+										/>
+									</svg>
+									<span class="text-[10px] font-medium text-neutral-700">vérifié</span>
+								</div>
+							{/if}
+						</div>
+
+						<!-- Informations -->
+						<div class="flex flex-1 flex-col">
+							<!-- Nom du pâtissier -->
+							<p class="mb-0.5 text-xs font-semibold text-neutral-900 line-clamp-2 leading-tight">
+								{designer.name}
+							</p>
+
+							<!-- Localisation -->
+							<div class="flex items-center gap-0.5 text-[10px] text-neutral-500">
+								<MapPin class="h-2.5 w-2.5 shrink-0" />
+								<span class="truncate">{designer.actualCity || designer.city}</span>
 							</div>
-							<Button
-								href="/{designer.slug}?from=app"
-								class="w-full rounded-xl bg-[#FF6F61] px-6 py-3 text-sm font-medium text-white shadow-lg transition-all duration-300 hover:scale-105 hover:bg-[#e85a4f] hover:shadow-xl"
-							>
-								Voir la boutique
-							</Button>
-						</Card.Content>
-					</Card.Root>
+
+							<!-- Badges des spécialités -->
+							{#if designer.specialties && designer.specialties.length > 0}
+								<div class="flex flex-wrap gap-1 mt-1">
+									{#each designer.specialties.slice(0, 3) as specialty}
+										<span class="rounded-full bg-[#FFE8D6]/50 px-2 py-0.5 text-[10px] font-medium text-neutral-700">
+											{specialty}
+										</span>
+									{/each}
+								</div>
+							{/if}
+						</div>
+					</a>
 				{/each}
 			</div>
 			
