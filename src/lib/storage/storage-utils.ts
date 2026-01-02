@@ -10,6 +10,7 @@ function isCloudinaryUrl(url: string): boolean {
 
 /**
  * Supprime une image Cloudinary si elle n'est plus utilisée par d'autres produits
+ * Vérifie d'abord dans product_images (table principale), puis dans products.image_url (rétrocompatibilité)
  * @param supabase - Client Supabase pour vérifier les usages
  * @param imageUrl - URL de l'image à supprimer
  * @param excludeProductId - ID du produit à exclure de la vérification (si on modifie un produit)
@@ -28,29 +29,54 @@ export async function deleteImageIfUnused(
     }
 
     try {
-        // Vérifier si d'autres produits utilisent cette image
-        const { data: productsUsingImage, error: checkError } = await supabase
-            .from('products')
-            .select('id')
+        // ✅ CORRECTION: Vérifier d'abord dans product_images (table principale pour les images)
+        const { data: productImagesUsingUrl, error: productImagesCheckError } = await supabase
+            .from('product_images')
+            .select('product_id')
             .eq('image_url', imageUrl);
 
-        if (checkError) {
-            console.error('❌ [Storage] Error checking image usage:', checkError);
+        if (productImagesCheckError) {
+            console.error('❌ [Storage] Error checking product_images usage:', productImagesCheckError);
             return;
         }
 
         // Filtrer le produit actuel si on est en train de le modifier
-        const otherProductsUsingImage = excludeProductId
+        const otherProductsUsingImageInProductImages = excludeProductId
+            ? productImagesUsingUrl.filter(img => img.product_id !== excludeProductId)
+            : productImagesUsingUrl;
+
+        // Si l'image est utilisée dans product_images, ne pas la supprimer
+        if (otherProductsUsingImageInProductImages.length > 0) {
+            console.log('✅ [Storage] Image is still used in product_images, skipping deletion');
+            return;
+        }
+
+        // ✅ CORRECTION: Vérifier aussi dans products.image_url (pour rétrocompatibilité)
+        // au cas où certains produits utilisent encore l'ancien système
+        const { data: productsUsingImage, error: productsCheckError } = await supabase
+            .from('products')
+            .select('id')
+            .eq('image_url', imageUrl);
+
+        if (productsCheckError) {
+            console.error('❌ [Storage] Error checking products image_url:', productsCheckError);
+            return;
+        }
+
+        // Filtrer le produit actuel si on est en train de le modifier
+        const otherProductsInOldSystem = excludeProductId
             ? productsUsingImage.filter(p => p.id !== excludeProductId)
             : productsUsingImage;
 
-        // Si aucun autre produit n'utilise cette image, la supprimer
-        if (otherProductsUsingImage.length === 0) {
+        // Si aucun produit n'utilise cette image (ni dans product_images ni dans products.image_url), la supprimer
+        if (otherProductsInOldSystem.length === 0) {
             const publicId = extractPublicIdFromUrl(imageUrl);
             if (publicId) {
                 await deleteImage(publicId);
                 console.log('✅ [Storage] Deleted unused Cloudinary image:', publicId);
             }
+        } else {
+            console.log('✅ [Storage] Image is still used in products.image_url, skipping deletion');
         }
     } catch (error) {
         console.error('❌ [Storage] Error deleting image:', error);
