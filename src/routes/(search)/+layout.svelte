@@ -185,9 +185,6 @@
 					>
 						Je suis pâtissier
 					</Button>
-				{#if data.user}
-					<Button on:click={(e) => handleNavClick('/dashboard', e)}>Dashboard</Button>
-				{/if}
 			</div>
 
 			<!-- Bouton mobile -->
@@ -199,15 +196,6 @@
 									>
 										Je suis pâtissier
 									</Button>
-				{#if data.user}
-									<Button
-										variant="ghost"
-						class="text-sm font-normal text-neutral-700 transition-colors duration-200 hover:text-neutral-900 hover:bg-transparent"
-										on:click={(e) => handleNavClick('/dashboard', e)}
-									>
-										Dashboard
-									</Button>
-								{/if}
 			</div>
 		</div>
 	</div>
