@@ -49,8 +49,8 @@
 			localStorage.setItem(STORAGE_KEY, 'gourmand');
 		}
 
-		// Rediriger vers l'annuaire
-		goto('/annuaire');
+		// Rediriger vers tous les gateaux
+		goto('/tous-les-gateaux');
 	}
 
 	function handleCreateur() {

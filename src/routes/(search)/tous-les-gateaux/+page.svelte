@@ -974,12 +974,12 @@
 			<!-- Grille de résultats style Airbnb -->
 			<div
 				bind:this={resultsContainer}
-				class="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
+				class="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
 			>
 				{#each displayedProducts as product}
 					<a
 						href="/{product.shop.slug}/product/{product.id}?from=app"
-						class="group relative flex cursor-pointer flex-col"
+						class="group relative flex cursor-pointer flex-col max-w-[280px] mx-auto"
 					>
 						<!-- Image du gâteau -->
 						<div class="relative mb-1.5 aspect-[4/3] w-full overflow-hidden rounded-lg bg-neutral-100 scale-[0.95] origin-top">

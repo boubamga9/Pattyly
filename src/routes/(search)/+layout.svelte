@@ -365,16 +365,15 @@
 		<div class="flex items-center gap-4">
 			<!-- Boutons desktop -->
 			<div class="hidden lg:flex lg:gap-4">
+				<Button
+					variant="ghost"
+					class="text-sm font-normal text-neutral-700 transition-colors duration-200 hover:text-neutral-900 hover:bg-transparent"
+					on:click={(e) => handleNavClick('/', e)}
+				>
+					Je suis pâtissier
+				</Button>
 				{#if data.user}
 					<Button on:click={(e) => handleNavClick('/dashboard', e)}>Dashboard</Button>
-				{:else}
-					<Button
-						class="rounded-xl bg-[#FF6F61] text-base font-medium text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-[#e85a4f]"
-						style="width: 160px; height: 48px;"
-						on:click={(e) => handleNavClick('/', e)}
-					>
-						Je suis pâtissier
-					</Button>
 				{/if}
 			</div>
 
@@ -417,15 +416,14 @@
 							<Separator />
 							<!-- Actions utilisateur -->
 							<div class="flex flex-col py-2">
-								{#if !data.user}
-									<Button
-										variant="ghost"
-										class="w-full justify-center px-4 py-4 text-base font-semibold"
-										on:click={(e) => handleNavClick('/', e)}
-									>
-										Je suis pâtissier
-									</Button>
-								{:else}
+								<Button
+									variant="ghost"
+									class="w-full justify-center px-4 py-4 text-base font-semibold"
+									on:click={(e) => handleNavClick('/', e)}
+								>
+									Je suis pâtissier
+								</Button>
+								{#if data.user}
 									<Button
 										variant="ghost"
 										class="w-full justify-center px-4 py-4 text-base"
