@@ -50,7 +50,7 @@
 		}
 
 		// Rediriger vers tous les gateaux
-		goto('/tous-les-gateaux');
+		goto('/gateaux');
 	}
 
 	function handleCreateur() {

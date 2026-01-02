@@ -368,14 +368,14 @@
 						<span>Trouver un cake designer</span>
 					</a>
 					<a
-						href="/annuaire"
+						href="/patissiers"
 						class="flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
 					>
 						<Search class="h-3.5 w-3.5" />
 						<span>Annuaire complet</span>
 					</a>
 					<a
-						href="/tous-les-gateaux"
+						href="/gateaux"
 						class="flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
 					>
 						<Cake class="h-3.5 w-3.5" />
@@ -388,35 +388,35 @@
 						Villes populaires
 					</p>
 					<a
-						href="/annuaire/paris"
+						href="/patissiers/paris"
 						class="flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
 					>
 						<MapPin class="h-3.5 w-3.5" />
 						<span>Paris</span>
 					</a>
 					<a
-						href="/annuaire/marseille"
+						href="/patissiers/marseille"
 						class="flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
 					>
 						<MapPin class="h-3.5 w-3.5" />
 						<span>Marseille</span>
 					</a>
 					<a
-						href="/annuaire/lyon"
+						href="/patissiers/lyon"
 						class="flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
 					>
 						<MapPin class="h-3.5 w-3.5" />
 						<span>Lyon</span>
 					</a>
 					<a
-						href="/annuaire/toulouse"
+						href="/patissiers/toulouse"
 						class="flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
 					>
 						<MapPin class="h-3.5 w-3.5" />
 						<span>Toulouse</span>
 					</a>
 					<a
-						href="/annuaire/nice"
+						href="/patissiers/nice"
 						class="flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
 					>
 						<MapPin class="h-3.5 w-3.5" />

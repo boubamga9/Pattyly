@@ -33,7 +33,7 @@
 	export let data;
 	
 	// Déterminer l'état du switch basé sur la page actuelle
-	$: isGateauxView = $page.url.pathname.startsWith('/tous-les-gateaux');
+	$: isGateauxView = $page.url.pathname.startsWith('/gateaux');
 	$: isPatissiersView = !isGateauxView; // Par défaut, si ce n'est pas la vue gâteaux, c'est la vue pâtissiers
 
 	// Fonction pour gérer la navigation avec goto() pour rester dans la PWA
@@ -150,7 +150,7 @@
 		<nav class="absolute left-1/2 hidden -translate-x-1/2 transform md:block">
 			<div class="flex items-center gap-2 rounded-full border border-neutral-300 bg-white p-1 shadow-sm">
 				<button
-					on:click={() => goto('/annuaire')}
+					on:click={() => goto('/patissiers')}
 					class={cn(
 						'rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200 sm:px-4 sm:py-2 sm:text-sm',
 						isPatissiersView
@@ -161,7 +161,7 @@
 					Pâtissiers
 				</button>
 				<button
-					on:click={() => goto('/tous-les-gateaux')}
+					on:click={() => goto('/gateaux')}
 					class={cn(
 						'rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200 sm:px-4 sm:py-2 sm:text-sm',
 						isGateauxView
@@ -325,14 +325,14 @@
 						<span>Trouver un cake designer</span>
 					</a>
 					<a
-						href="/annuaire"
+						href="/patissiers"
 						class="flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
 					>
 						<Search class="h-3.5 w-3.5" />
 						<span>Annuaire complet</span>
 					</a>
 					<a
-						href="/tous-les-gateaux"
+						href="/gateaux"
 						class="flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
 					>
 						<Cake class="h-3.5 w-3.5" />
@@ -345,35 +345,35 @@
 						Villes populaires
 					</p>
 					<a
-						href="/annuaire/paris"
+						href="/patissiers/paris"
 						class="flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
 					>
 						<MapPin class="h-3.5 w-3.5" />
 						<span>Paris</span>
 					</a>
 					<a
-						href="/annuaire/marseille"
+						href="/patissiers/marseille"
 						class="flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
 					>
 						<MapPin class="h-3.5 w-3.5" />
 						<span>Marseille</span>
 					</a>
 					<a
-						href="/annuaire/lyon"
+						href="/patissiers/lyon"
 						class="flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
 					>
 						<MapPin class="h-3.5 w-3.5" />
 						<span>Lyon</span>
 					</a>
 					<a
-						href="/annuaire/toulouse"
+						href="/patissiers/toulouse"
 						class="flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
 					>
 						<MapPin class="h-3.5 w-3.5" />
 						<span>Toulouse</span>
 					</a>
 					<a
-						href="/annuaire/nice"
+						href="/patissiers/nice"
 						class="flex items-center gap-2 text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
 					>
 						<MapPin class="h-3.5 w-3.5" />
@@ -429,13 +429,13 @@
 				<p class="text-sm font-semibold text-neutral-900">Menu</p>
 				<nav class="flex flex-col gap-2">
 					<a
-						href="/annuaire"
+						href="/patissiers"
 						class="text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
 					>
 						Tous les pâtissiers
 					</a>
 					<a
-						href="/tous-les-gateaux"
+						href="/gateaux"
 							class="text-sm text-neutral-600 transition-colors hover:text-[#FF6F61]"
 						>
 						Tous les gâteaux

@@ -68,7 +68,7 @@
 						'@type': 'ListItem',
 						position: 4,
 					name: 'Annuaire',
-					url: 'https://pattyly.com/annuaire',
+					url: 'https://pattyly.com/patissiers',
 					},
 				],
 			},

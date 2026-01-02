@@ -116,8 +116,8 @@ function getUserTypeFromContext(): 'pastry' | 'client' | 'visitor' {
 	// 3. Détection basée sur les routes client
 	if (
 		pathname.match(/^\/[^\/]+$/) || // /slug (boutique)
-		pathname.startsWith('/tous-les-gateaux') ||
-		pathname.startsWith('/annuaire') ||
+		pathname.startsWith('/gateaux') ||
+		pathname.startsWith('/patissiers') ||
 		pathname.match(/^\/[^\/]+\/product\/[^\/]+$/) // /slug/product/id
 	) {
 		return 'client';

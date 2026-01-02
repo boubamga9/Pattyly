@@ -232,7 +232,7 @@
 				>
 					{#each cities as city}
 						<a
-							href="/annuaire/{city.code}/macarons"
+							href="/patissiers/{city.code}/macarons"
 							class="group flex flex-col items-center justify-center rounded-xl border border-neutral-200 bg-white p-6 text-center transition-all duration-300 hover:scale-105 hover:border-[#FF6F61] hover:bg-[#FFE8D6]/20 hover:shadow-lg"
 						>
 							<span class="text-base font-medium text-neutral-700 transition-colors group-hover:text-[#FF6F61] sm:text-lg">
@@ -329,7 +329,7 @@
 					</span>
 				</a>
 				<a
-					href="/annuaire"
+					href="/patissiers"
 					class="group rounded-xl border border-neutral-200 bg-white p-6 transition-all duration-300 hover:scale-[1.02] hover:border-[#FF6F61] hover:bg-[#FFE8D6]/20 hover:shadow-lg"
 				>
 					<div class="mb-3 text-3xl">🎨</div>
@@ -386,7 +386,7 @@
 				Découvre les pâtissiers spécialisés en macarons près de chez toi et commande directement en ligne.
 			</p>
 			<Button
-				href="/annuaire"
+				href="/patissiers"
 				class="h-14 rounded-xl bg-white px-10 text-base font-medium text-[#FF6F61] shadow-lg transition-all duration-300 hover:scale-105 hover:bg-neutral-50 hover:shadow-xl"
 			>
 				Rechercher un pâtissier

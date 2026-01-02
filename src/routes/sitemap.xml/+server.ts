@@ -55,68 +55,68 @@ const pages = [
 		priority: 0.9,
 	},
 	{
-		url: '/annuaire',
+		url: '/patissiers',
 		changefreq: 'weekly',
 		priority: 0.9,
 	},
-	// Pages annuaire par ville (SEO local)
+	// Pages patissiers par ville (SEO local)
 	{
-		url: '/annuaire/paris',
-		changefreq: 'weekly',
-		priority: 0.9,
-	},
-	{
-		url: '/annuaire/lyon',
+		url: '/patissiers/paris',
 		changefreq: 'weekly',
 		priority: 0.9,
 	},
 	{
-		url: '/annuaire/marseille',
+		url: '/patissiers/lyon',
 		changefreq: 'weekly',
 		priority: 0.9,
 	},
 	{
-		url: '/annuaire/toulouse',
+		url: '/patissiers/marseille',
 		changefreq: 'weekly',
 		priority: 0.9,
 	},
 	{
-		url: '/annuaire/nice',
+		url: '/patissiers/toulouse',
 		changefreq: 'weekly',
 		priority: 0.9,
 	},
 	{
-		url: '/annuaire/nantes',
+		url: '/patissiers/nice',
 		changefreq: 'weekly',
 		priority: 0.9,
 	},
 	{
-		url: '/annuaire/strasbourg',
+		url: '/patissiers/nantes',
 		changefreq: 'weekly',
 		priority: 0.9,
 	},
 	{
-		url: '/annuaire/montpellier',
+		url: '/patissiers/strasbourg',
 		changefreq: 'weekly',
 		priority: 0.9,
 	},
 	{
-		url: '/annuaire/bordeaux',
+		url: '/patissiers/montpellier',
 		changefreq: 'weekly',
 		priority: 0.9,
 	},
 	{
-		url: '/annuaire/lille',
+		url: '/patissiers/bordeaux',
 		changefreq: 'weekly',
 		priority: 0.9,
 	},
 	{
-		url: '/annuaire/rennes',
+		url: '/patissiers/lille',
 		changefreq: 'weekly',
 		priority: 0.9,
 	},
 	{
-		url: '/annuaire/reims',
+		url: '/patissiers/rennes',
+		changefreq: 'weekly',
+		priority: 0.9,
+	},
+	{
+		url: '/patissiers/reims',
 		changefreq: 'weekly',
 		priority: 0.9,
 	},
@@ -149,115 +149,115 @@ const pages = [
 	// Pages combinées ville + type (principales combinaisons)
 	// Paris
 	{
-		url: '/annuaire/paris/gateau-anniversaire',
+		url: '/patissiers/paris/gateau-anniversaire',
 		changefreq: 'weekly',
 		priority: 0.7,
 	},
 	{
-		url: '/annuaire/paris/gateau-mariage',
+		url: '/patissiers/paris/gateau-mariage',
 		changefreq: 'weekly',
 		priority: 0.7,
 	},
 	{
-		url: '/annuaire/paris/layer-cake',
+		url: '/patissiers/paris/layer-cake',
 		changefreq: 'weekly',
 		priority: 0.7,
 	},
 	{
-		url: '/annuaire/paris/cupcakes',
+		url: '/patissiers/paris/cupcakes',
 		changefreq: 'weekly',
 		priority: 0.6,
 	},
 	{
-		url: '/annuaire/paris/gateau-personnalise',
+		url: '/patissiers/paris/gateau-personnalise',
 		changefreq: 'weekly',
 		priority: 0.6,
 	},
 	// Lyon
 	{
-		url: '/annuaire/lyon/gateau-anniversaire',
+		url: '/patissiers/lyon/gateau-anniversaire',
 		changefreq: 'weekly',
 		priority: 0.7,
 	},
 	{
-		url: '/annuaire/lyon/gateau-mariage',
+		url: '/patissiers/lyon/gateau-mariage',
 		changefreq: 'weekly',
 		priority: 0.7,
 	},
 	{
-		url: '/annuaire/lyon/cupcakes',
+		url: '/patissiers/lyon/cupcakes',
 		changefreq: 'weekly',
 		priority: 0.6,
 	},
 	// Marseille
 	{
-		url: '/annuaire/marseille/gateau-anniversaire',
+		url: '/patissiers/marseille/gateau-anniversaire',
 		changefreq: 'weekly',
 		priority: 0.7,
 	},
 	{
-		url: '/annuaire/marseille/gateau-mariage',
+		url: '/patissiers/marseille/gateau-mariage',
 		changefreq: 'weekly',
 		priority: 0.7,
 	},
 	{
-		url: '/annuaire/marseille/macarons',
+		url: '/patissiers/marseille/macarons',
 		changefreq: 'weekly',
 		priority: 0.6,
 	},
 	// Toulouse
 	{
-		url: '/annuaire/toulouse/gateau-mariage',
+		url: '/patissiers/toulouse/gateau-mariage',
 		changefreq: 'weekly',
 		priority: 0.7,
 	},
 	{
-		url: '/annuaire/toulouse/gateau-anniversaire',
+		url: '/patissiers/toulouse/gateau-anniversaire',
 		changefreq: 'weekly',
 		priority: 0.6,
 	},
 	// Nice
 	{
-		url: '/annuaire/nice/gateau-anniversaire',
+		url: '/patissiers/nice/gateau-anniversaire',
 		changefreq: 'weekly',
 		priority: 0.6,
 	},
 	{
-		url: '/annuaire/nice/cupcakes',
+		url: '/patissiers/nice/cupcakes',
 		changefreq: 'weekly',
 		priority: 0.6,
 	},
 	// Nantes
 	{
-		url: '/annuaire/nantes/gateau-anniversaire',
+		url: '/patissiers/nantes/gateau-anniversaire',
 		changefreq: 'weekly',
 		priority: 0.6,
 	},
 	{
-		url: '/annuaire/nantes/gateau-mariage',
+		url: '/patissiers/nantes/gateau-mariage',
 		changefreq: 'weekly',
 		priority: 0.6,
 	},
 	// Bordeaux
 	{
-		url: '/annuaire/bordeaux/gateau-mariage',
+		url: '/patissiers/bordeaux/gateau-mariage',
 		changefreq: 'weekly',
 		priority: 0.6,
 	},
 	// Lille
 	{
-		url: '/annuaire/lille/gateau-anniversaire',
+		url: '/patissiers/lille/gateau-anniversaire',
 		changefreq: 'weekly',
 		priority: 0.6,
 	},
 	// Montpellier
 	{
-		url: '/annuaire/montpellier/gateau-anniversaire',
+		url: '/patissiers/montpellier/gateau-anniversaire',
 		changefreq: 'weekly',
 		priority: 0.6,
 	},
 	{
-		url: '/annuaire/montpellier/gateau-mariage',
+		url: '/patissiers/montpellier/gateau-mariage',
 		changefreq: 'weekly',
 		priority: 0.6,
 	},

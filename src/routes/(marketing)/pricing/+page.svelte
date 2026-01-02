@@ -253,7 +253,7 @@
 													: 'font-weight: 400; color: #404040;'}
 											>
 												{#if feature.includes('annuaire') || feature.includes('Annuaire')}
-													{@html feature.replace(/(annuaire|Annuaire)/gi, '<a href="/annuaire" class="underline transition-colors hover:text-[#FF6F61]" style="text-decoration-color: currentColor;">$&</a>')}
+													{@html feature.replace(/(annuaire|Annuaire)/gi, '<a href="/patissiers" class="underline transition-colors hover:text-[#FF6F61]" style="text-decoration-color: currentColor;">$&</a>')}
 												{:else}
 													{feature}
 												{/if}

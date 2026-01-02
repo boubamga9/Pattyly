@@ -42,7 +42,7 @@
 		<!-- Bouton "Envie d'un gâteau" -->
 		<div class="mb-8">
 			<Button
-				href="/tous-les-gateaux"
+				href="/gateaux"
 				variant="outline"
 				class="group rounded-full border-2 border-[#FF6F61] bg-white px-6 py-2.5 text-sm font-medium text-[#FF6F61] transition-all duration-300 hover:bg-[#FF6F61] hover:text-white hover:scale-105"
 			>

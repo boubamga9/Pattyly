@@ -106,7 +106,7 @@
 				<!-- Bouton Trouver un patissier rapidement -->
 				<div class="mt-8">
 					<Button
-						href="/annuaire"
+						href="/patissiers"
 						class="inline-flex items-center gap-2 rounded-full bg-[#FF6F61] px-8 py-4 text-base font-medium text-white shadow-lg transition-all duration-300 hover:scale-105 hover:bg-[#e85a4f] hover:shadow-xl"
 					>
 						Trouver un patissier rapidement
@@ -127,7 +127,7 @@
 				>
 					{#each cities as city}
 						<a
-							href="/annuaire/{city.code}"
+							href="/patissiers/{city.code}"
 							class="group flex flex-col items-center justify-center rounded-xl border border-neutral-200 bg-white p-6 text-center transition-all duration-300 hover:scale-105 hover:border-[#FF6F61] hover:bg-[#FFE8D6]/20 hover:shadow-lg"
 						>
 							<span class="text-base font-medium text-neutral-700 transition-colors group-hover:text-[#FF6F61] sm:text-lg">
@@ -139,7 +139,7 @@
 				<!-- Bouton Autres villes -->
 				<div class="mt-6 pb-16 text-center">
 					<Button
-						href="/annuaire"
+						href="/patissiers"
 						class="inline-flex items-center gap-2 rounded-xl bg-[#FF6F61] px-6 py-3 text-sm font-medium text-white transition-all duration-300 hover:bg-[#e85a4f] hover:shadow-lg"
 					>
 						Autres villes
@@ -406,7 +406,7 @@
 				</p>
 				<div class="pt-4">
 					<Button
-						href="/annuaire"
+						href="/patissiers"
 						class="h-14 rounded-xl bg-[#FF6F61] px-10 text-base font-medium text-white shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-[#e85a4f] hover:shadow-xl"
 					>
 						Rechercher un cake designer
