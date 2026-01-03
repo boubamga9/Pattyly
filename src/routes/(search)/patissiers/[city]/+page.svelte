@@ -5,7 +5,6 @@
 	import { revealElement, revealStagger } from '$lib/utils/animations';
 	import { Button } from '$lib/components/ui/button';
 	import { MapPin, Search } from 'lucide-svelte';
-	import * as Card from '$lib/components/ui/card';
 
 	export let data: {
 		city: string;
@@ -109,79 +108,75 @@
 	</section>
 
 	<!-- Résultats -->
-	<section class="relative overflow-hidden bg-white pt-2 pb-12 sm:pt-4 sm:pb-16 md:pb-24">
+	<section class="relative overflow-hidden bg-white pb-12 sm:pb-16 md:pb-24">
 		<div class="relative mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
-			<!-- Compteur de résultats -->
-			<div class="mb-10">
-					<p class="text-base font-medium text-neutral-700">
-						{#if filteredDesigners.length === 0}
-						Aucun résultat trouvé aux alentours de {cityName}
-						{:else if filteredDesigners.length === 1}
-						1 cake designer trouvé aux alentours de {cityName}
-						{:else}
-						{filteredDesigners.length} cake designers trouvés aux alentours de {cityName}
-					{/if}
-				</p>
-			</div>
-
-			<!-- Grille de résultats premium -->
-			<div bind:this={resultsContainer} class="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+			<!-- Grille de résultats compacte -->
+			<div
+				bind:this={resultsContainer}
+				class="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
+			>
 				{#each filteredDesigners as designer}
-					<Card.Root class="group relative overflow-hidden rounded-2xl border border-neutral-200 bg-white transition-all duration-300 hover:scale-[1.02] hover:border-[#FF6F61]/50 hover:shadow-xl">
-						{#if designer.isPremium}
-							<div class="absolute right-3 top-3 z-10 flex items-center gap-1.5 rounded-full bg-white/90 px-2 py-1 shadow-md backdrop-blur-sm">
-								<svg
-									class="h-4 w-4 shrink-0"
-									viewBox="0 0 22 22"
-									aria-label="Compte vérifié"
-									fill="none"
+					<a
+						href="/{designer.slug}?from=app"
+						class="group relative flex cursor-pointer flex-col max-w-[280px] mx-auto"
+					>
+						<!-- Logo du pâtissier -->
+						<div class="relative mb-1.5 aspect-[4/3] w-full overflow-hidden rounded-lg bg-neutral-100 scale-[0.95] origin-top border border-neutral-200">
+							<img
+								src={designer.logo}
+								alt={designer.name}
+								class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+							/>
+							<!-- Badge vérifié (si shop premium) -->
+							{#if designer.isPremium}
+								<div
+									class="absolute right-1.5 top-1.5 z-10 flex items-center gap-1 rounded-full bg-white px-2 py-1 shadow-sm"
 								>
-									<circle cx="11" cy="11" r="10" fill="#FF6F61" />
-									<path
-										d="M6.5 11l2.5 2.5 5-5"
-										stroke="white"
-										stroke-width="2"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-									/>
-								</svg>
-								<span class="text-xs font-medium text-[#FF6F61]">Vérifié</span>
-							</div>
-						{/if}
-						<div class="flex items-center justify-center bg-gradient-to-br from-[#FFE8D6]/20 to-white p-8">
-							<div class="relative h-24 w-24 overflow-hidden rounded-full bg-white p-3 shadow-md transition-transform duration-300 group-hover:scale-110">
-								<img
-									src={designer.logo}
-									alt={designer.name}
-									class="h-full w-full object-contain"
-								/>
-							</div>
-						</div>
-						<Card.Content class="p-6">
-							<div class="mb-4">
-								<h3 class="mb-2 text-xl font-semibold text-neutral-900">{designer.name}</h3>
-								<div class="flex items-center gap-2 text-sm text-neutral-600">
-									<MapPin class="h-4 w-4" />
-									<span>{designer.city}</span>
-								</div>
-							</div>
-							<div class="mb-6 flex flex-wrap gap-2">
-								{#each designer.specialties.slice(0, 3) as specialty}
-									<span
-										class="rounded-full bg-[#FFE8D6]/50 px-3 py-1.5 text-xs font-medium text-neutral-700"
+									<svg
+										class="h-2.5 w-2.5 shrink-0"
+										viewBox="0 0 22 22"
+										aria-label="Compte vérifié"
+										fill="none"
 									>
-										{specialty}
-									</span>
-								{/each}
+										<circle cx="11" cy="11" r="10" fill="#FF6F61" />
+										<path
+											d="M6.5 11l2.5 2.5 5-5"
+											stroke="white"
+											stroke-width="2"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+										/>
+									</svg>
+									<span class="text-[10px] font-medium text-neutral-700">vérifié</span>
+								</div>
+							{/if}
+						</div>
+
+						<!-- Informations -->
+						<div class="flex flex-1 flex-col">
+							<!-- Nom du pâtissier -->
+							<p class="mb-0.5 text-xs font-semibold text-neutral-900 line-clamp-2 leading-tight">
+								{designer.name}
+							</p>
+
+							<!-- Localisation -->
+							<div class="flex items-center gap-0.5 text-[10px] text-neutral-500">
+								<MapPin class="h-2.5 w-2.5 shrink-0" />
+								<span class="truncate">{designer.city}</span>
 							</div>
-							<Button
-								href="/{designer.slug}?from=app"
-								class="w-full rounded-xl bg-[#FF6F61] px-6 py-3 text-sm font-medium text-white shadow-lg transition-all duration-300 hover:scale-105 hover:bg-[#e85a4f] hover:shadow-xl"
-							>
-								Voir la boutique
-							</Button>
-						</Card.Content>
-					</Card.Root>
+
+							<!-- Badges des spécialités -->
+							{#if designer.specialties && designer.specialties.length > 0}
+								<div class="flex flex-wrap gap-1 mt-1">
+									{#each designer.specialties.slice(0, 3) as specialty}
+										<span class="rounded-full bg-[#FFE8D6]/50 px-2 py-0.5 text-[10px] font-medium text-neutral-700">
+											{specialty}
+										</span>
+									{/each}
+								</div>
+							{/if}
+						</div>
+					</a>
 				{/each}
 			</div>
 
