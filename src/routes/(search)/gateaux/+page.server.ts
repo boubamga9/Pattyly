@@ -195,10 +195,10 @@ export const load: PageServerLoad = async ({ locals, url, setHeaders }) => {
 	// ✅ Le tri est déjà fait dans la fonction SQL (premium shop products en premier, puis nom)
 
 	// ✅ Cache HTTP pour optimiser les performances
-	// Cache de 3 minutes (180s) : bon compromis performance/fraîcheur des données
+	// Cache de 5 minutes (300s) : bon compromis performance/fraîcheur des données
 	// stale-while-revalidate de 10 minutes (600s) : sert le cache pendant la mise à jour en arrière-plan
 	setHeaders({
-		'Cache-Control': 'public, s-maxage=180, stale-while-revalidate=600'
+		'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600'
 	});
 
 	return {
