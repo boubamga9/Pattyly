@@ -25,7 +25,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         // Vérifier la limite de commandes
         console.log('🔍 [API Custom Order] Checking order limit before creating order...');
-        const orderLimitStats = await checkOrderLimit(shop.id, shop.profile_id, locals.supabase);
+        const orderLimitStats = await checkOrderLimit(shop.id, shop.profile_id, locals.supabaseServiceRole);
         if (orderLimitStats.isLimitReached) {
             console.warn('🚫 [API Custom Order] Order creation blocked - limit reached:', {
                 shopId: shop.id,

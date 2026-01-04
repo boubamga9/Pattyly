@@ -686,32 +686,38 @@
 		}
 	}
 
-	onMount(async () => {
-		// Initialiser avec les paramètres de l'URL
-		await initializeFiltersFromUrl();
+	onMount(() => {
+		// Fonction asynchrone pour l'initialisation
+		async function initialize() {
+			// Initialiser avec les paramètres de l'URL
+			await initializeFiltersFromUrl();
 
-		// Si on a des produits initiaux depuis le serveur, les valider avant de les afficher
-		if (data.products && data.products.length > 0) {
-			await validateNewProductsImages(data.products, true); // true = chargement initial
-			displayedProducts = data.products;
-			currentPage = data.pagination?.page || 1;
-			hasMore = data.pagination?.hasMore || false;
-			_totalProducts = data.pagination?.total || 0;
-		} else {
-			// Sinon, recharger les produits depuis le serveur avec les filtres de l'URL
-			await filterProducts();
-		}
-		
-		// Marquer que l'initialisation est terminée
-		hasInitialized = true;
+			// Si on a des produits initiaux depuis le serveur, les valider avant de les afficher
+			if (data.products && data.products.length > 0) {
+				await validateNewProductsImages(data.products, true); // true = chargement initial
+				displayedProducts = data.products;
+				currentPage = data.pagination?.page || 1;
+				hasMore = data.pagination?.hasMore || false;
+				_totalProducts = data.pagination?.total || 0;
+			} else {
+				// Sinon, recharger les produits depuis le serveur avec les filtres de l'URL
+				await filterProducts();
+			}
+			
+			// Marquer que l'initialisation est terminée
+			hasInitialized = true;
 
-		// Animations initiales
-		if (resultsContainer) {
-			await revealStagger(resultsContainer, ':scope > div', {
-				delay: 0.1,
-				stagger: 0.05,
-			});
+			// Animations initiales
+			if (resultsContainer) {
+				await revealStagger(resultsContainer, ':scope > div', {
+					delay: 0.1,
+					stagger: 0.05,
+				});
+			}
 		}
+
+		// Lancer l'initialisation
+		initialize();
 
 		// Configurer l'Intersection Observer pour infinite scroll
 		setupInfiniteScroll();
@@ -721,6 +727,11 @@
 		
 		// Gérer le scroll pour cacher/afficher la barre de recherche
 		function handleScroll() {
+			// Ne pas cacher la barre si un popover est ouvert
+			if (activeField !== null) {
+				return;
+			}
+			
 			const currentScrollY = window.scrollY;
 			
 			// Si on scroll vers le bas et qu'on dépasse un certain seuil, cacher la barre

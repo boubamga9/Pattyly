@@ -55,7 +55,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
         // Récupérer les statistiques de limite de commandes
         let orderLimitStats = null;
         if (shop?.id) {
-            orderLimitStats = await checkOrderLimit(shop.id, user.id, locals.supabase);
+            orderLimitStats = await checkOrderLimit(shop.id, user.id, locals.supabaseServiceRole);
         }
 
         return {
