@@ -11,7 +11,7 @@
 	import type { SuperValidated } from 'sveltekit-superforms';
 	import { createLocalDynamicSchema } from './schema';
 	import { goto } from '$app/navigation';
-	import { Upload, X } from 'lucide-svelte';
+	import { Upload, X, Info } from 'lucide-svelte';
 	import { Alert, AlertTitle } from '$lib/components/ui/alert';
 	import { AlertTriangle } from 'lucide-svelte';
 	import type { OrderLimitStats } from '$lib/utils/order-limits';
@@ -68,12 +68,26 @@
 	// Vérifier si le formulaire doit être désactivé
 	$: isFormDisabled = orderLimitStats?.isLimitReached || false;
 
+	// Fonction helper pour convertir hex en rgba avec opacité
+	function hexToRgba(hex: string, alpha: number): string {
+		const r = parseInt(hex.slice(1, 3), 16);
+		const g = parseInt(hex.slice(3, 5), 16);
+		const b = parseInt(hex.slice(5, 7), 16);
+		return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+	}
+
 	// Styles personnalisés
+	$: buttonColor = customizations?.button_color || '#ff6f61';
 	$: customStyles = {
-		buttonStyle: `background-color: ${customizations?.button_color || '#ff6f61'}; color: ${customizations?.button_text_color || '#ffffff'};`,
+		buttonStyle: `background-color: ${buttonColor}; color: ${customizations?.button_text_color || '#ffffff'};`,
 		textStyle: `color: ${customizations?.text_color || '#333333'};`,
 		secondaryTextStyle: `color: ${customizations?.secondary_text_color || '#333333'};`,
 		separatorColor: 'rgba(0, 0, 0, 0.3)',
+		errorAlertStyle: {
+			borderColor: buttonColor,
+			backgroundColor: hexToRgba(buttonColor, 0.08), // 8% opacity pour un fond subtil
+			color: buttonColor,
+		}
 	};
 
 	const form = superForm(data, {
@@ -90,6 +104,7 @@
 	let inspirationPhotos: string[] = $formData.inspiration_photos || [];
 	let inspirationFiles: File[] = [];
 	let inspirationInputElement: HTMLInputElement;
+	let inspirationError: string | null = null;
 
 	// État pour les créneaux horaires
 	let availableTimeSlots: string[] = [];
@@ -185,17 +200,30 @@
 
 		if (files.length === 0) return;
 
+		// Réinitialiser l'erreur précédente
+		inspirationError = null;
+
 		// Limiter à 3 fichiers max
 		if (files.length + inspirationFiles.length > 3) {
-			alert(
-				`Vous pouvez ajouter seulement ${3 - inspirationFiles.length} photo(s)`,
-			);
+			inspirationError = `Vous pouvez ajouter seulement ${3 - inspirationFiles.length} photo(s)`;
 			return;
 		}
 
+		const maxSizeBytes = 5 * 1024 * 1024; // 5 MB
+		const oversizedFiles: string[] = [];
+
 		for (const file of files) {
-			if (!file.type.startsWith('image/')) continue;
-			if (file.size > 5 * 1024 * 1024) continue;
+			// Vérifier le type de fichier
+			if (!file.type.startsWith('image/')) {
+				inspirationError = 'Veuillez sélectionner uniquement des fichiers image valides';
+				continue;
+			}
+
+			// Vérifier la taille
+			if (file.size > maxSizeBytes) {
+				oversizedFiles.push(''); // On ne stocke plus le nom, juste le compteur
+				continue;
+			}
 
 			// Utiliser le fichier original (Cloudinary compresse automatiquement)
 			inspirationFiles.push(file);
@@ -205,6 +233,17 @@
 			};
 			reader.readAsDataURL(file);
 		}
+
+		// Afficher un message d'erreur si des fichiers sont trop volumineux
+		if (oversizedFiles.length > 0) {
+			const fileCount = oversizedFiles.length;
+			inspirationError = fileCount > 1 
+				? `Les fichiers sélectionnés dépassent la limite de 5 MB. Veuillez choisir des fichiers plus petits.`
+				: `Le fichier sélectionné dépasse la limite de 5 MB. Veuillez choisir un fichier plus petit.`;
+		}
+
+		// Si des fichiers valides ont été ajoutés, l'erreur est juste un avertissement
+		// On la garde pour informer l'utilisateur, mais on continue quand même
 
 		// Synchroniser l'input file
 		const dt = new DataTransfer();
@@ -257,14 +296,34 @@
 	>
 		<!-- Section Photos d'inspiration -->
 		<div class="space-y-4">
-			<div class="space-y-2">
-				<h3 class="text-lg font-semibold text-foreground">
+			<div class="space-y-3">
+				<h3 class="text-xl font-semibold tracking-tight" style={customStyles.textStyle}>
 					Photos d'inspiration
 				</h3>
-				<p class="text-sm text-muted-foreground">
-					Ajoutez jusqu'à 3 photos d'inspiration pour votre gâteau (optionnel)
-				</p>
+				<div class="space-y-2">
+					<p class="text-sm leading-relaxed text-muted-foreground">
+						Ajoutez jusqu'à 3 photos d'inspiration pour votre gâteau <span class="text-xs italic">(optionnel)</span>
+					</p>
+					<div class="flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2">
+						<Info class="h-4 w-4 shrink-0 text-muted-foreground/70" />
+						<p class="text-xs font-medium text-muted-foreground">
+							Taille maximale par image : <span class="font-semibold">5 MB</span>
+						</p>
+					</div>
+				</div>
 			</div>
+
+			{#if inspirationError}
+				<Alert 
+					style="border-color: {customStyles.errorAlertStyle.borderColor}; background-color: {customStyles.errorAlertStyle.backgroundColor}; color: {customStyles.errorAlertStyle.color};"
+					class="border"
+				>
+					<AlertTriangle class="h-4 w-4 shrink-0" style="color: {customStyles.errorAlertStyle.color};" />
+					<AlertTitle class="text-sm font-medium leading-relaxed" style="color: {customStyles.errorAlertStyle.color};">
+						{inspirationError}
+					</AlertTitle>
+				</Alert>
+			{/if}
 
 			{#if inspirationPhotos.length > 0}
 				<!-- Galerie des photos -->
@@ -299,12 +358,12 @@
 						disabled={$submitting || isFormDisabled}
 						class="flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/20 transition-colors hover:border-primary hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-50"
 					>
-						<Upload class="mb-2 h-8 w-8 text-muted-foreground" />
-						<p class="text-center text-sm text-muted-foreground">
+						<Upload class="mb-2 h-8 w-8 text-muted-foreground/70 transition-colors group-hover:text-primary" />
+						<p class="text-center text-sm font-medium text-foreground">
 							Cliquez pour ajouter des photos
 						</p>
-						<p class="text-center text-xs text-muted-foreground">
-							{inspirationPhotos.length}/3 photos
+						<p class="mt-1 text-center text-xs font-medium text-muted-foreground">
+							<span class="font-semibold">{inspirationPhotos.length}</span>/3 photos
 						</p>
 					</button>
 				</div>
