@@ -166,7 +166,9 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			p_offset: offset,
 			p_cake_type: cakeTypeName,
 			p_shop_ids: filteredShopIds.length > 0 ? filteredShopIds : null,
-			p_verified_only: verifiedOnly
+			p_verified_only: verifiedOnly,
+			p_min_price: minPrice,
+			p_max_price: maxPrice
 		}
 	);
 
@@ -239,11 +241,20 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		countQuery = countQuery.eq('cake_type', cakeTypeName);
 	}
 
+	// ✅ Ajouter le filtre de prix dans la requête de comptage
+	if (minPrice !== null) {
+		countQuery = countQuery.gte('base_price', minPrice);
+	}
+	if (maxPrice !== null) {
+		countQuery = countQuery.lte('base_price', maxPrice);
+	}
+
 	const { count } = await countQuery;
 	const total = count || 0;
 	const products = productsData || [];
 
 	// Transformer les données (is_shop_premium est déjà inclus depuis la fonction SQL)
+	// Le filtrage par prix est maintenant fait dans la requête SQL, plus besoin de filtrer ici
 	let formattedProducts = products.map((product: any) => {
 		// Calculer la distance si on a les coordonnées
 		let distance: number | null = null;
@@ -281,16 +292,6 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			distance
 		};
 	});
-	
-	// Filtrer par prix si les paramètres sont fournis
-	if (minPrice !== null || maxPrice !== null) {
-		formattedProducts = formattedProducts.filter((product) => {
-			const price = product.base_price;
-			if (minPrice !== null && price < minPrice) return false;
-			if (maxPrice !== null && price > maxPrice) return false;
-			return true;
-		});
-	}
 
 	// ✅ Le tri est déjà fait dans la fonction SQL (premium shop products en premier, puis hash, puis nom)
 

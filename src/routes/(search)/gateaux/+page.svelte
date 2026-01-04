@@ -655,6 +655,12 @@
 			if (showOnlyVerified) {
 				params.set('verified', 'true');
 			}
+			if (minPrice > 0) {
+				params.set('minPrice', minPrice.toString());
+			}
+			if (maxPrice < 1000) {
+				params.set('maxPrice', maxPrice.toString());
+			}
 			params.set('page', nextPage.toString());
 
 			const response = await fetch(`/gateaux/api?${params.toString()}`);
@@ -1072,8 +1078,9 @@
 
 								<!-- Bouton Valider -->
 								<button
-									on:click={() => {
+									on:click={async () => {
 										updateUrl();
+										await filterProducts();
 										closeAllFields();
 									}}
 									class="w-full rounded-lg bg-[#FF6F61] px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-[#e85a4f]"
