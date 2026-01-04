@@ -227,7 +227,13 @@
 
 	// Fonction pour retourner à la page produit
 	function goBack() {
-		goto(`/${data.shop.slug}/product/${data.product.id}`);
+		// Utiliser l'historique du navigateur pour éviter les boucles
+		if (typeof window !== 'undefined' && window.history.length > 1) {
+			window.history.back();
+		} else {
+			// Sinon, retourner à la boutique
+			goto(`/${data.shop.slug}`);
+		}
 	}
 
 	// Fonction pour afficher les options de personnalisation
@@ -314,8 +320,12 @@
 	<!-- Header avec logo, nom et bouton retour sur la même ligne -->
 	<header class="relative border-b bg-white px-4 py-4 sm:px-6 sm:py-5">
 		<div class="mx-auto flex max-w-7xl items-center justify-between gap-4">
-			<!-- Logo et nom de la boutique -->
-			<div class="flex items-center gap-3">
+			<!-- Logo et nom de la boutique (cliquable pour retourner à la boutique) -->
+			<button
+				type="button"
+				on:click={() => goto(`/${data.shop.slug}`)}
+				class="flex cursor-pointer items-center gap-3 transition-opacity duration-200 hover:opacity-80 focus:outline-none"
+			>
 			{#if data.shop.logo_url}
 				<div
 						class="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-white p-1.5 shadow-sm sm:h-12 sm:w-12"
@@ -344,7 +354,7 @@
 		>
 			{data.shop.name}
 		</h1>
-			</div>
+			</button>
 
 			<!-- Réseaux sociaux -->
 			{#if data.shop && (data.shop.instagram || data.shop.tiktok || data.shop.website)}
@@ -582,8 +592,8 @@
 						{@const paymentLink = getPaymentLink(provider)}
 						{@const providerName = getProviderName(provider.provider_type)}
 						{@const isStripe = true}
-						{@const backgroundColor = '#ff6f61'}
-						{@const textColor = '#ffffff'}
+						{@const buttonColor = data.customizations?.button_color || '#ff6f61'}
+						{@const buttonTextColor = data.customizations?.button_text_color || '#ffffff'}
 						
 						<div class="space-y-3">
 							<p
@@ -597,12 +607,12 @@
 								type="button"
 								on:click={() => handlePaymentClick(provider)}
 								class="flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-medium shadow-sm transition-all duration-200 hover:shadow-md"
-								style="font-weight: 500; background-color: {backgroundColor}; color: {textColor};"
+								style="font-weight: 500; background-color: {buttonColor}; color: {buttonTextColor};"
 								on:mouseenter={(e) => {
-									e.currentTarget.style.backgroundColor = '#e55a4f';
+									e.currentTarget.style.opacity = '0.9';
 								}}
 								on:mouseleave={(e) => {
-									e.currentTarget.style.backgroundColor = '#ff6f61';
+									e.currentTarget.style.opacity = '1';
 								}}
 							>
 								{providerName}
