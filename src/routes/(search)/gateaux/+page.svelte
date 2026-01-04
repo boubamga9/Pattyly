@@ -59,7 +59,8 @@
 	let resultsContainer: HTMLElement;
 
 	// Utiliser les données du serveur (première page)
-	let displayedProducts = data.products || [];
+	// On initialise vide, les produits seront ajoutés après validation dans onMount
+	let displayedProducts: typeof data.products = [];
 	let currentPage = data.pagination?.page || 1;
 	let hasMore = data.pagination?.hasMore || false;
 	let _totalProducts = data.pagination?.total || 0; // Total de produits pour l'affichage (non utilisé dans le template)
@@ -67,9 +68,22 @@
 	let sentinelElement: HTMLElement;
 	let scrollObserver: IntersectionObserver | null = null;
 	
-	// Suivre les produits avec des erreurs d'image ou sans image
+	// Suivre les produits avec des erreurs d'image
 	let productsWithImageErrors = new Set<string>();
+	// État pour savoir si on est en train de charger initialement (pour masquer "Aucun produit trouvé")
+	let isInitialLoading = true;
+	// Flag pour savoir si on a déjà fait le chargement initial
+	let hasInitialized = false;
 	
+	// Valider automatiquement les nouveaux produits quand displayedProducts change
+	// (seulement après le chargement initial)
+	$: if (displayedProducts.length > 0 && typeof window !== 'undefined' && hasInitialized) {
+		// Valider de manière asynchrone pour ne pas bloquer le rendu
+		setTimeout(() => {
+			validateNewProductsImages(displayedProducts, false); // false = pas le chargement initial
+		}, 0);
+	}
+
 	// Filtrer les produits pour masquer ceux sans image ou avec erreur
 	$: visibleProducts = displayedProducts.filter((product) => {
 		// Masquer si pas d'image
@@ -88,6 +102,72 @@
 		productsWithImageErrors.add(productId);
 		// Forcer la mise à jour réactive
 		productsWithImageErrors = productsWithImageErrors;
+	}
+
+	// Fonction pour précharger une image et détecter les erreurs avant l'affichage
+	function preloadImage(imageUrl: string): Promise<boolean> {
+		return new Promise((resolve) => {
+			if (typeof window === 'undefined' || typeof Image === 'undefined') {
+				resolve(false);
+				return;
+			}
+			
+			if (!imageUrl) {
+				resolve(false);
+				return;
+			}
+			
+			const img = new Image();
+			img.onload = () => resolve(true);
+			img.onerror = () => resolve(false);
+			img.src = imageUrl;
+		});
+	}
+
+	// Fonction pour valider les images des nouveaux produits avant de les afficher
+	async function validateNewProductsImages(newProducts: typeof displayedProducts, isInitial = false) {
+		if (typeof window === 'undefined' || typeof Image === 'undefined') {
+			if (isInitial) {
+				isInitialLoading = false;
+			}
+			return;
+		}
+
+		// Filtrer les produits qui ont besoin d'être validés
+		const productsToValidate = newProducts.filter(p => 
+			p.image_url && 
+			!productsWithImageErrors.has(p.id)
+		);
+
+		if (productsToValidate.length === 0) {
+			if (isInitial) {
+				isInitialLoading = false;
+			}
+			return;
+		}
+
+		// Valider les images en parallèle (le navigateur limite déjà les connexions)
+		const validationResults = await Promise.all(
+			productsToValidate.map(async (product) => {
+				if (!product.image_url) return { productId: product.id, isValid: false };
+				const isValid = await preloadImage(product.image_url);
+				return { productId: product.id, isValid };
+			})
+		);
+
+		// Ajouter les produits avec erreur au Set
+		validationResults.forEach(({ productId, isValid }) => {
+			if (!isValid) {
+				productsWithImageErrors.add(productId);
+			}
+		});
+
+		// Forcer la mise à jour réactive
+		productsWithImageErrors = productsWithImageErrors;
+		// Masquer le skeleton une fois la validation terminée (seulement si c'est le chargement initial)
+		if (isInitial) {
+			isInitialLoading = false;
+		}
 	}
 
 	// Filtres
@@ -362,6 +442,11 @@
 					)
 				);
 				
+				// ✅ Valider les images des nouveaux produits avant de les afficher
+				// Cela évite les erreurs 404 dans la console et les flashes d'images cassées
+				// Ne pas afficher le skeleton lors des filtres, seulement au chargement initial
+				await validateNewProductsImages(newProducts, false); // false = pas le chargement initial
+				
 				displayedProducts = newProducts;
 				currentPage = 1;
 				hasMore = result.pagination?.hasMore || false;
@@ -575,10 +660,14 @@
 			if (!response.ok) throw new Error('Failed to load next page');
 
 			const result = await response.json();
+			const newProducts = result.products || [];
 			
-			// Ajouter les nouveaux produits à la liste
-			displayedProducts = [...displayedProducts, ...result.products];
-			// Note: on ne réinitialise pas productsWithImageErrors ici car on veut garder les erreurs des produits précédents
+			// ✅ Valider les images des nouveaux produits avant de les afficher
+			// Cela évite les erreurs 404 dans la console et les flashes d'images cassées
+			await validateNewProductsImages(newProducts);
+			
+			// Ajouter les nouveaux produits à la liste (les images invalides sont déjà marquées)
+			displayedProducts = [...displayedProducts, ...newProducts];
 			currentPage = result.pagination.page;
 			hasMore = result.pagination.hasMore;
 			// Le total ne change pas quand on charge plus de pages, mais on le met à jour au cas où
@@ -601,8 +690,20 @@
 		// Initialiser avec les paramètres de l'URL
 		await initializeFiltersFromUrl();
 
-		// Recharger les produits depuis le serveur avec les filtres de l'URL
-		await filterProducts();
+		// Si on a des produits initiaux depuis le serveur, les valider avant de les afficher
+		if (data.products && data.products.length > 0) {
+			await validateNewProductsImages(data.products, true); // true = chargement initial
+			displayedProducts = data.products;
+			currentPage = data.pagination?.page || 1;
+			hasMore = data.pagination?.hasMore || false;
+			_totalProducts = data.pagination?.total || 0;
+		} else {
+			// Sinon, recharger les produits depuis le serveur avec les filtres de l'URL
+			await filterProducts();
+		}
+		
+		// Marquer que l'initialisation est terminée
+		hasInitialized = true;
 
 		// Animations initiales
 		if (resultsContainer) {
@@ -1006,18 +1107,29 @@
 		class="relative overflow-hidden bg-white pt-4 pb-12 sm:pt-6 sm:pb-16 md:pt-8 md:pb-24"
 	>
 		<div class="relative mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
+			<!-- Div de chargement -->
+			{#if isInitialLoading}
+				<div class="flex items-center justify-center py-24">
+					<div class="flex flex-col items-center gap-4">
+						<div class="h-12 w-12 animate-spin rounded-full border-4 border-[#FF6F61] border-t-transparent"></div>
+						<p class="text-sm font-medium text-neutral-600">Chargement des gâteaux...</p>
+					</div>
+				</div>
+			{/if}
+
 			<!-- Grille de résultats style Airbnb -->
-			<div
-				bind:this={resultsContainer}
-				class="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
-			>
-				{#each visibleProducts as product}
+			{#if !isInitialLoading}
+				<div
+					bind:this={resultsContainer}
+					class="grid grid-cols-2 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
+				>
+					{#each visibleProducts as product}
 					<a
 						href="/{product.shop.slug}/product/{product.id}?from=app"
 						class="group relative flex cursor-pointer flex-col max-w-[280px] mx-auto"
 					>
 						<!-- Image du gâteau -->
-						<div class="relative mb-1.5 aspect-[4/3] w-full overflow-hidden rounded-lg bg-neutral-100 scale-[0.95] origin-top">
+						<div class="relative mb-1.5 aspect-[4/3] w-full overflow-hidden rounded-xl bg-neutral-100 scale-[0.95] origin-top">
 							{#if product.image_url}
 								<img
 									src={product.image_url}
@@ -1079,10 +1191,10 @@
 							</div>
 					</a>
 				{/each}
-			</div>
+				</div>
 
-			<!-- Sentinel pour infinite scroll -->
-			{#if hasMore}
+				<!-- Sentinel pour infinite scroll -->
+				{#if hasMore}
 				<div bind:this={sentinelElement} class="py-8 text-center">
 					{#if isLoadingMore}
 						<div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-[#FF6F61] border-t-transparent"></div>
@@ -1097,10 +1209,11 @@
 						</Button>
 					{/if}
 				</div>
+				{/if}
 			{/if}
 
-			<!-- Message si aucun résultat -->
-			{#if visibleProducts.length === 0}
+			<!-- Message si aucun résultat (seulement après le chargement initial) -->
+			{#if !isInitialLoading && visibleProducts.length === 0 && displayedProducts.length === 0}
 				<div class="py-12 text-center">
 					<Cake class="mx-auto mb-4 h-16 w-16 text-neutral-300" />
 					<p class="mb-2 text-lg font-medium text-neutral-700">
