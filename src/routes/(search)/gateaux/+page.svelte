@@ -351,12 +351,21 @@
 			const response = await fetch(`/gateaux/api?${params.toString()}`);
 			if (response.ok) {
 				const result = await response.json();
-				displayedProducts = result.products || [];
+				const newProducts = result.products || [];
+				
+				// ✅ CORRECTION : Ne garder que les erreurs pour les produits qui sont toujours dans la nouvelle liste
+				// Cela évite que les produits avec des images problématiques réapparaissent après un filtrage
+				const newProductIds = new Set(newProducts.map((p: { id: string }) => p.id));
+				productsWithImageErrors = new Set(
+					Array.from(productsWithImageErrors).filter((productId) => 
+						newProductIds.has(productId)
+					)
+				);
+				
+				displayedProducts = newProducts;
 				currentPage = 1;
 				hasMore = result.pagination?.hasMore || false;
 				_totalProducts = result.pagination?.total || 0; // Mettre à jour le total
-				// Réinitialiser les erreurs d'image pour les nouveaux produits
-				productsWithImageErrors = new Set();
 				_isLoadingFilter = false;
 				isFiltering = false;
 				// Réinitialiser l'infinite scroll après le filtrage
