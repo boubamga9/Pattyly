@@ -34,7 +34,10 @@
 		"db:reset:staging:history": "dotenv -e .env.local -- tsx scripts/reset-migration-history.ts staging",
 		"db:reset:prod:history": "dotenv -e .env.local -- tsx scripts/reset-migration-history.ts production",
 		"db:add-initial-migration:prod": "dotenv -e .env.local -- tsx scripts/add-initial-migration-to-history.ts production",
-		"db:add-initial-migration:staging": "dotenv -e .env.local -- tsx scripts/add-initial-migration-to-history.ts staging"
+		"db:add-initial-migration:staging": "dotenv -e .env.local -- tsx scripts/add-initial-migration-to-history.ts staging",
+		"validate:migration": "tsx scripts/validate-migration-safety.ts",
+		"validate:migrations": "tsx scripts/validate-migration-safety.ts all",
+		"backup:before-migration": "dotenv -e .env.local -- tsx scripts/backup-before-migration.ts"
 	},
 	"devDependencies": {
 		"@iconify-json/bi": "^1.1.23",
@@ -78,6 +81,7 @@
 		"bits-ui": "^0.21.10",
 		"cloudinary": "^2.8.0",
 		"clsx": "^2.1.1",
+		"csv-parse": "^6.1.0",
 		"dompurify": "^3.3.0",
 		"dotenv": "^17.2.3",
 		"embla-carousel-autoplay": "^8.1.3",

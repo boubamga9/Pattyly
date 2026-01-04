@@ -1,0 +1,38 @@
+name: Validate Migrations Safety
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/**/*.sql'
+  push:
+    branches:
+      - main
+    paths:
+      - 'supabase/migrations/**/*.sql'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Validate migrations safety
+        run: npx tsx scripts/validate-migration-safety.ts all
+      
+      - name: Check for dangerous patterns
+        run: |
+          if grep -r "DROP SCHEMA.*CASCADE" supabase/migrations/ --include="*.sql" | grep -v "^--"; then
+            echo "❌ DANGEROUS: DROP SCHEMA CASCADE found in migrations!"
+            exit 1
+          fi
+

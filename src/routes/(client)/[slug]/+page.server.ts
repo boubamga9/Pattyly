@@ -56,7 +56,8 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders, url, re
         }
 
         // 4. Charger le catalogue (ISR gère le cache)
-        const catalogData = await loadShopCatalog(locals.supabase, shopId);
+        // Utiliser supabaseServiceRole pour bypasser RLS et améliorer les performances
+        const catalogData = await loadShopCatalog(locals.supabaseServiceRole as any, shopId);
 
         // 6. Headers CDN pour optimiser la performance
         setHeaders({

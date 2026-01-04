@@ -12,3 +12,6 @@ vite.config.ts.timestamp-*
 scripts/
 # Dumps de base de données (contiennent des données sensibles)
 supabase/dumps/
+# Documentation et règles Cursor (ne pas déployer)
+docs/
+.cursor/

@@ -4,8 +4,8 @@
 -- Source de vérité: base de production Supabase
 -- ⚠️ Ne jamais modifier cette migration après application
 
--- ⚠️ ATTENTION: Cette migration supprime et recrée le schéma public
--- Toutes les données existantes seront perdues !
+-- ⚠️ ATTENTION: Cette migration crée le schéma public s'il n'existe pas
+-- Les données existantes sont préservées grâce à "CREATE TABLE IF NOT EXISTS"
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -18,11 +18,12 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
--- Supprimer le schéma public existant et tout son contenu
-DROP SCHEMA IF EXISTS "public" CASCADE;
+-- ❌ SUPPRIMÉ : DROP SCHEMA IF EXISTS "public" CASCADE;
+-- Ce DROP SCHEMA causait la perte de toutes les données lors de la réapplication
+-- Les tables utilisent "CREATE TABLE IF NOT EXISTS" donc pas besoin de supprimer le schéma
 
--- Recréer le schéma public
-CREATE SCHEMA "public";
+-- S'assurer que le schéma public existe (création si nécessaire)
+CREATE SCHEMA IF NOT EXISTS "public";
 
 
 ALTER SCHEMA "public" OWNER TO "pg_database_owner";
