@@ -112,7 +112,10 @@ function applyPerformanceHeaders(response: Response, pathname: string, hostname?
 		response.headers.set('Cache-Control', 'public, max-age=3600');
 	} else {
 		// HTML pages - short cache with revalidation
-		response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate');
+		// ✅ Ne pas écraser si la page a déjà défini son propre cache (ex: /gateaux avec ISR/cache HTTP)
+		if (!response.headers.has('Cache-Control')) {
+			response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate');
+		}
 	}
 }
 

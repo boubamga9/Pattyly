@@ -25,7 +25,7 @@ export const load: PageServerLoad = async ({ locals, url, setHeaders }) => {
 
 	if (shopsError) {
 		console.error('❌ [Tous les gateaux] Error loading shops:', shopsError);
-		return { 
+		return {
 			products: [],
 			pagination: {
 				page,
@@ -39,7 +39,7 @@ export const load: PageServerLoad = async ({ locals, url, setHeaders }) => {
 	const activeShopIds = (activeShops || []).map(shop => shop.id);
 
 	if (activeShopIds.length === 0) {
-		return { 
+		return {
 			products: [],
 			pagination: {
 				page,
@@ -77,7 +77,7 @@ export const load: PageServerLoad = async ({ locals, url, setHeaders }) => {
 	}
 
 	if (filteredShopIds.length === 0) {
-		return { 
+		return {
 			products: [],
 			pagination: {
 				page,
@@ -162,7 +162,7 @@ export const load: PageServerLoad = async ({ locals, url, setHeaders }) => {
 			const lon = parseFloat(lonParam);
 			const shopLat = parseFloat(product.shop_latitude.toString());
 			const shopLon = parseFloat(product.shop_longitude.toString());
-			
+
 			if (!isNaN(lat) && !isNaN(lon) && !isNaN(shopLat) && !isNaN(shopLon)) {
 				// Calculer la distance (formule de Haversine simplifiée)
 				// On peut aussi utiliser la fonction SQL calculate_distance_km si nécessaire
