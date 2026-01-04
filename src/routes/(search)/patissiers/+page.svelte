@@ -423,6 +423,11 @@
 		
 		// Gérer le scroll pour cacher/afficher la barre de recherche
 		function handleScroll() {
+			// Ne pas cacher la barre si un popover est ouvert
+			if (activeField !== null) {
+				return;
+			}
+			
 			const currentScrollY = window.scrollY;
 			
 			// Si on scroll vers le bas et qu'on dépasse un certain seuil, cacher la barre
@@ -631,7 +636,8 @@
 	function handleCakeTypeSelect(cakeType: string) {
 		selectedCakeType = selectedCakeType === cakeType ? '' : cakeType;
 		updateUrl();
-		// Ne pas fermer le popover automatiquement
+		// Fermer le popover après la sélection
+		activeField = null;
 	}
 	
 	// Fonction pour ouvrir/fermer un champ

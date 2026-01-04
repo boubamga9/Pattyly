@@ -583,7 +583,8 @@
 	function handleCakeTypeSelect(cakeType: string) {
 		selectedCakeType = selectedCakeType === cakeType ? '' : cakeType;
 		updateUrl();
-		// Ne pas fermer le popover automatiquement
+		// Fermer le popover après la sélection
+		activeField = null;
 	}
 
 	// Mettre à jour l'URL avec les filtres actuels (pour partager)
