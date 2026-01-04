@@ -226,8 +226,9 @@
 	}
 
 	// Charger les créneaux quand la date change
-	$: if ($formData.pickup_date) {
-		loadTimeSlots($formData.pickup_date);
+	$: pickupDate = $formData.pickup_date;
+	$: if (pickupDate) {
+		loadTimeSlots(pickupDate);
 	}
 
 	// Fonction pour formater le prix
