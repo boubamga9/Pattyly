@@ -28,17 +28,18 @@ export const load: LayoutServerLoad = async ({ params, locals }) => {
         }
 
         // Récupérer les customizations et vérifier les politiques en parallèle (après avoir shop.id)
+        // Utiliser maybeSingle() pour éviter les erreurs si les données n'existent pas
         const [customizationsResult, policiesResult] = await Promise.all([
             (locals.supabaseServiceRole as any)
                 .from('shop_customizations')
                 .select('button_color, button_text_color, text_color, icon_color, secondary_text_color, background_color, background_image_url')
                 .eq('shop_id', shop.id)
-                .single(),
+                .maybeSingle(),
             (locals.supabaseServiceRole as any)
                 .from('shop_policies')
                 .select('terms_and_conditions, return_policy, delivery_policy, payment_terms')
                 .eq('shop_id', shop.id)
-                .single()
+                .maybeSingle()
         ]);
 
         const customizations = customizationsResult.data;

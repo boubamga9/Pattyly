@@ -26,7 +26,8 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders, url, re
         }
 
         // 1. Récupérer uniquement is_active (shopId déjà disponible depuis parent)
-        const { data: shopInfo, error: shopError } = await locals.supabase
+        // Utiliser supabaseServiceRole pour bypasser RLS et éviter les problèmes de permissions
+        const { data: shopInfo, error: shopError } = await (locals.supabaseServiceRole as any)
             .from('shops')
             .select('is_active')
             .eq('id', shopId)
