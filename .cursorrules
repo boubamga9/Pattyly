@@ -1,0 +1,101 @@
+# Règles Cursor pour Pattyly
+
+## 🔒 Règles de Sécurité des Migrations (CRITIQUE)
+
+### ⚠️ INTERDICTIONS ABSOLUES dans les migrations SQL
+
+**JAMAIS** utiliser ces commandes dans les migrations :
+
+1. **`DROP SCHEMA IF EXISTS "public" CASCADE;`**
+   - ❌ INTERDIT - Supprime TOUTES les données de la base
+   - ✅ Utiliser à la place : `CREATE SCHEMA IF NOT EXISTS "public";`
+
+2. **`DROP DATABASE`**
+   - ❌ INTERDIT - Supprime complètement la base de données
+
+3. **`TRUNCATE TABLE ... CASCADE;`**
+   - ❌ DANGEREUX - Supprime toutes les données et dépendances
+   - ✅ Utiliser `DELETE FROM table WHERE condition` si nécessaire
+
+4. **`DELETE FROM table;`** (sans clause WHERE)
+   - ❌ INTERDIT - Supprime toutes les lignes
+   - ✅ Toujours inclure une clause WHERE spécifique
+
+5. **`DROP TABLE ... CASCADE;`**
+   - ⚠️ ATTENTION - Supprime la table et ses dépendances
+   - ✅ Utiliser `DROP TABLE IF EXISTS` sans CASCADE si possible
+
+### ✅ Bonnes Pratiques OBLIGATOIRES
+
+1. **Toujours utiliser `CREATE TABLE IF NOT EXISTS`**
+   ```sql
+   -- ✅ CORRECT
+   CREATE TABLE IF NOT EXISTS "users" (...);
+   ```
+
+2. **Toujours utiliser `CREATE SCHEMA IF NOT EXISTS`**
+   ```sql
+   -- ✅ CORRECT
+   CREATE SCHEMA IF NOT EXISTS "public";
+   ```
+
+3. **Valider AVANT de créer une migration**
+   - Exécuter : `npm run validate:migration <fichier>`
+   - Vérifier qu'aucune commande dangereuse n'est présente
+
+4. **Créer un backup AVANT d'appliquer en production**
+   - Exécuter : `npm run backup:before-migration production`
+   - Toujours avoir un backup récent avant toute migration
+
+### 📋 Checklist OBLIGATOIRE avant chaque migration
+
+Avant de créer ou modifier une migration SQL, vérifier :
+
+- [ ] ✅ Pas de `DROP SCHEMA ... CASCADE`
+- [ ] ✅ Pas de `DROP DATABASE`
+- [ ] ✅ Pas de `TRUNCATE ... CASCADE`
+- [ ] ✅ Pas de `DELETE FROM` sans WHERE
+- [ ] ✅ Utilise `CREATE TABLE IF NOT EXISTS`
+- [ ] ✅ Utilise `CREATE SCHEMA IF NOT EXISTS`
+- [ ] ✅ Migration validée avec `npm run validate:migration`
+- [ ] ✅ Backup créé avant application en prod
+
+### 🚨 En cas de doute
+
+Si tu n'es pas sûr qu'une commande SQL est sûre :
+1. **NE PAS** l'utiliser
+2. Demander confirmation avant de créer la migration
+3. Consulter `docs/MIGRATION_SAFETY.md` pour les règles complètes
+
+### 📚 Références
+
+- Guide complet : `docs/MIGRATION_SAFETY.md`
+- Guide rapide : `README_MIGRATION.md`
+- Script de validation : `scripts/validate-migration-safety.ts`
+- Script de backup : `scripts/backup-before-migration.ts`
+
+## Autres Règles du Projet
+
+### Superforms
+- Toujours retourner le form object même en cas d'erreur (sinon le front-end bug)
+- Toute la logique Superforms doit être côté serveur
+- Côté client, utiliser uniquement `enhance` de SvelteKit sans importer Superforms
+
+### Validation
+- Centraliser tous les schémas de validation dans `lib/validations/schemas`
+- Réutiliser `commonSchemas` dans `product.ts` et autres fichiers de validation
+- Modifier les schémas existants plutôt que d'en créer de nouveaux
+
+### Actions
+- Définir les actions directement dans les fichiers `+page.server.ts` correspondants
+- Ne pas utiliser de dossier `lib/actions` partagé
+
+### Organisation des fichiers
+- Créer les nouveaux fichiers dans les dossiers `src/lib` appropriés
+- Créer de nouveaux répertoires si nécessaire pour maintenir une organisation propre
+
+### Design
+- Aligner le design UI avec le style marketing
+- Utiliser des tokens de design globaux ou variables de style pour les couleurs, polices, etc.
+- Les changements doivent se propager de manière cohérente dans toute l'application
+

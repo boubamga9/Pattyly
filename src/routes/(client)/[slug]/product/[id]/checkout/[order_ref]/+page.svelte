@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { Button } from '$lib/components/ui/button';
@@ -26,6 +28,7 @@
 	let copySuccess = false;
 	let confirmationForm: HTMLFormElement | null = null;
 	let selectedPaymentProvider: { provider_type: string; payment_identifier: string } | null = null;
+	let isWaitingForOrder = false;
 
 	// Initialiser avec le premier provider disponible (Stripe en priorité)
 	$: if (data.paymentLinks && data.paymentLinks.length > 0 && !selectedPaymentProvider) {
@@ -143,18 +146,52 @@
 		}
 	}
 
-	// Fonction pour gérer le fallback PayPal
-	function handlePaypalFallback() {
-		if (data.paypalMe && confirmationForm) {
-			// Stocker PayPal comme provider par défaut dans le formulaire
-			const providerInput = confirmationForm.querySelector('input[name="paymentProvider"]');
-			if (providerInput && providerInput instanceof HTMLInputElement) {
-				providerInput.value = 'paypal';
-			}
-			window.open(`https://paypal.me/${data.paypalMe}/${depositAmount}`, '_blank');
-			confirmationForm.requestSubmit();
+	// Polling pour vérifier si la commande existe après le paiement Stripe
+	onMount(() => {
+		const paymentSuccess = $page.url.searchParams.get('payment') === 'success';
+		const orderRef = data.orderData?.order_ref;
+
+		if (paymentSuccess && orderRef) {
+			// Afficher l'overlay de chargement
+			isWaitingForOrder = true;
+			
+			// Faire un polling pour vérifier si la commande existe
+			let attempts = 0;
+			const maxAttempts = 30; // 30 tentatives = 30 secondes max
+			const pollInterval = 1000; // 1 seconde entre chaque tentative
+
+			const checkOrder = async () => {
+				if (attempts >= maxAttempts) {
+					console.error('Timeout: La commande n\'a pas été trouvée après 30 secondes');
+					isWaitingForOrder = false;
+					return;
+				}
+
+				try {
+					const response = await fetch(`/api/check-order/${orderRef}`);
+					const result = await response.json();
+
+					if (result.exists && result.orderId && result.slug) {
+						// Cacher l'overlay avant redirection
+						isWaitingForOrder = false;
+						// Rediriger vers la page de confirmation
+						goto(`/${result.slug}/order/${result.orderId}`);
+					} else {
+						// Réessayer après un délai
+						attempts++;
+						setTimeout(checkOrder, pollInterval);
+					}
+				} catch (err) {
+					console.error('Error checking order:', err);
+					attempts++;
+					setTimeout(checkOrder, pollInterval);
+				}
+			};
+
+			// Démarrer le polling après un court délai
+			setTimeout(checkOrder, pollInterval);
 		}
-	}
+	});
 
 	// Fonction pour formater le prix
 	function formatPrice(price: number): string {
@@ -233,6 +270,42 @@
 <svelte:head>
 	<title>Paiement - {data.shop.name}</title>
 </svelte:head>
+
+<!-- Overlay de chargement pendant le polling -->
+{#if isWaitingForOrder}
+	{@const buttonColor = customStyles.buttonStyle ? customStyles.buttonStyle.match(/background-color:\s*([^;]+)/)?.[1] || '#ff6f61' : '#ff6f61'}
+	{@const textColor = customStyles.textStyle ? customStyles.textStyle.match(/color:\s*([^;]+)/)?.[1] || '#333333' : '#333333'}
+	<div 
+		class="fixed inset-0 z-50 flex items-center justify-center"
+		style="background-color: {customStyles.background}; background-image: {customStyles.backgroundImage}; background-size: cover; background-position: center; background-repeat: no-repeat;"
+	>
+		<div class="mx-auto max-w-md px-4 text-center">
+			<!-- Spinner avec la couleur du bouton -->
+			<div class="mb-6 flex justify-center">
+				<div 
+					class="h-16 w-16 animate-spin rounded-full border-4 border-transparent"
+					style="border-top-color: {buttonColor}; border-right-color: {buttonColor};"
+				></div>
+			</div>
+			
+			<!-- Titre -->
+			<h2 
+				class="mb-3 text-2xl font-semibold leading-tight tracking-tight sm:text-3xl"
+				style="color: {textColor}; font-weight: 600; letter-spacing: -0.03em;"
+			>
+				Paiement en cours de traitement...
+			</h2>
+			
+			<!-- Description -->
+			<p 
+				class="text-sm leading-relaxed sm:text-base"
+				style="color: {customStyles.secondaryTextStyle ? customStyles.secondaryTextStyle.match(/color:\s*([^;]+)/)?.[1] || '#666666' : '#666666'}; font-weight: 300; letter-spacing: -0.01em;"
+			>
+				Veuillez patienter, nous confirmons votre commande. Cette opération peut prendre quelques secondes.
+			</p>
+		</div>
+	</div>
+{/if}
 
 <div
 	class="min-h-screen"
@@ -687,21 +760,6 @@
 								</div>
 							</div>
 						</div>
-					{:else}
-						<!-- Fallback si aucun payment link n'est disponible -->
-						<button
-							type="button"
-							on:click={(e) => {
-								e.preventDefault();
-								handlePaypalFallback();
-							}}
-							class="flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-medium shadow-sm transition-all duration-200 hover:shadow-md"
-							style="background-color: #ffd140; color: #000000; font-weight: 500;"
-							on:mouseenter={(e) => e.currentTarget.style.backgroundColor = '#e6bc00'}
-							on:mouseleave={(e) => e.currentTarget.style.backgroundColor = '#ffd140'}
-						>
-							Payer l'acompte
-						</button>
 					{/if}
 
 					<!-- Bouton de confirmation (caché mais nécessaire pour le submit automatique) -->

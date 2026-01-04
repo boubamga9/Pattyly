@@ -141,19 +141,6 @@
 		}
 	}
 
-	// Fonction pour gérer le fallback PayPal
-	function handlePaypalFallback() {
-		if (data.paypalMe && confirmationForm) {
-			// Stocker PayPal comme provider par défaut dans le formulaire
-			const providerInput = confirmationForm.querySelector('input[name="paymentProvider"]');
-			if (providerInput && providerInput instanceof HTMLInputElement) {
-				providerInput.value = 'paypal';
-			}
-			window.open(`https://paypal.me/${data.paypalMe}/${depositAmount}`, '_blank');
-			confirmationForm.requestSubmit();
-		}
-	}
-
 	function formatPrice(price: number): string {
 		return new Intl.NumberFormat('fr-FR', {
 			style: 'currency',
@@ -651,21 +638,6 @@
 								</div>
 							</div>
 						</div>
-					{:else}
-						<!-- Fallback si aucun payment link n'est disponible -->
-						<button
-							type="button"
-							on:click={(e) => {
-								e.preventDefault();
-								handlePaypalFallback();
-							}}
-							class="flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-medium shadow-sm transition-all duration-200 hover:shadow-md"
-							style="background-color: #ffd140; color: #000000; font-weight: 500;"
-							on:mouseenter={(e) => e.currentTarget.style.backgroundColor = '#e6bc00'}
-							on:mouseleave={(e) => e.currentTarget.style.backgroundColor = '#ffd140'}
-						>
-							Payer l'acompte
-						</button>
 					{/if}
 
 					<!-- Bouton de confirmation (caché mais nécessaire pour le submit automatique) -->

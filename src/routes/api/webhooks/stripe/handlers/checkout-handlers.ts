@@ -189,6 +189,8 @@ export async function handleProductOrderPayment(session: Stripe.Checkout.Session
                 });
             }
         } catch (err) {
+            // Ne pas faire échouer le webhook si l'envoi des emails échoue
+            // La commande est déjà créée avec succès
             await ErrorLogger.logCritical(err, {
                 stripeSessionId: session.id,
                 orderId: order.id,
@@ -198,7 +200,8 @@ export async function handleProductOrderPayment(session: Stripe.Checkout.Session
                 handler: 'handleProductOrderPayment',
                 step: 'send_emails',
             });
-            throw error(500, 'Failed to send order emails: ' + err);
+            console.error('Failed to send order emails, but order was created successfully:', err);
+            // Ne pas throw - continuer le traitement même si les emails échouent
         }
 
         const { error: deleteError } = await locals.supabaseServiceRole
@@ -378,6 +381,8 @@ export async function handleProductOrderDeposit(session: Stripe.Checkout.Session
                 });
             }
         } catch (err) {
+            // Ne pas faire échouer le webhook si l'envoi des emails échoue
+            // La commande est déjà créée avec succès
             await ErrorLogger.logCritical(err, {
                 stripeSessionId: session.id,
                 orderId: order.id,
@@ -387,7 +392,8 @@ export async function handleProductOrderDeposit(session: Stripe.Checkout.Session
                 handler: 'handleProductOrderDeposit',
                 step: 'send_emails',
             });
-            throw error(500, 'Failed to send order emails: ' + err);
+            console.error('Failed to send order emails, but order was created successfully:', err);
+            // Ne pas throw - continuer le traitement même si les emails échouent
         }
 
         // Supprimer la pending_order
@@ -526,6 +532,8 @@ export async function handleCustomOrderDepositStripe(session: Stripe.Checkout.Se
                 });
             }
         } catch (err) {
+            // Ne pas faire échouer le webhook si l'envoi des emails échoue
+            // La commande est déjà mise à jour avec succès
             await ErrorLogger.logCritical(err, {
                 stripeSessionId: session.id,
                 orderId: orderId,
@@ -533,7 +541,8 @@ export async function handleCustomOrderDepositStripe(session: Stripe.Checkout.Se
                 handler: 'handleCustomOrderDepositStripe',
                 step: 'send_emails',
             });
-            throw error(500, 'Failed to send confirmation emails: ' + err);
+            console.error('Failed to send confirmation emails, but order was updated successfully:', err);
+            // Ne pas throw - continuer le traitement même si les emails échouent
         }
 
     } catch (err) {
@@ -629,6 +638,8 @@ export async function handleCustomOrderDeposit(session: Stripe.Checkout.Session,
                 });
             }
         } catch (err) {
+            // Ne pas faire échouer le webhook si l'envoi des emails échoue
+            // La commande est déjà mise à jour avec succès
             await ErrorLogger.logCritical(err, {
                 stripeSessionId: session.id,
                 orderId: orderId,
@@ -636,7 +647,8 @@ export async function handleCustomOrderDeposit(session: Stripe.Checkout.Session,
                 handler: 'handleCustomOrderDeposit',
                 step: 'send_emails',
             });
-            throw error(500, 'Failed to send deposit emails: ' + err);
+            console.error('Failed to send deposit emails, but order was updated successfully:', err);
+            // Ne pas throw - continuer le traitement même si les emails échouent
         }
 
     } catch (err) {

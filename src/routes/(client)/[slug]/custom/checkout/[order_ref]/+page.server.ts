@@ -2,6 +2,13 @@ import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { EmailService } from '$lib/services/email-service';
 import { PUBLIC_SITE_URL } from '$env/static/public';
+import Stripe from 'stripe';
+import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
+import { createStripeConnectCheckoutSession } from '$lib/stripe/connect-client';
+
+const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
+    apiVersion: '2024-04-10'
+});
 
 export const load: PageServerLoad = async ({ params, locals, parent }) => {
     const { slug, order_ref } = params;

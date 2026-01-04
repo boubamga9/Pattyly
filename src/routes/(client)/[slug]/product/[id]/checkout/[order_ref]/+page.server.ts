@@ -199,7 +199,7 @@ export const actions: Actions = {
                     productId: orderData.product_id,
                     orderRef: orderRefFromForm,
                 },
-                `${PUBLIC_SITE_URL}/${slug}/product/${id}/checkout/${orderRefFromForm}`,
+                `${PUBLIC_SITE_URL}/${slug}/product/${id}/checkout/${orderRefFromForm}?payment=success`,
                 `${PUBLIC_SITE_URL}/${slug}/product/${id}/checkout/${orderRefFromForm}`,
                 applicationFee,
                 `Acompte - ${shop.name}`,
