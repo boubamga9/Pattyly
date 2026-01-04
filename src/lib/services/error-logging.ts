@@ -1,7 +1,3 @@
-import { EmailService } from './email-service';
-
-type ErrorSeverity = 'critical' | 'error' | 'warning';
-
 interface CriticalErrorContext {
     userId?: string;
     orderId?: string;
@@ -15,10 +11,8 @@ interface CriticalErrorContext {
 }
 
 export class ErrorLogger {
-    private static readonly ADMIN_EMAIL = 'pattyly.saas+error@gmail.com';
-    
     /**
-     * Log une erreur critique et envoie une notification email
+     * Log une erreur critique (les erreurs sont uniquement loggées dans la console)
      */
     static async logCritical(
         error: Error | unknown, 
@@ -36,21 +30,8 @@ export class ErrorLogger {
             console.error('📊 Metadata:', metadata);
         }
         
-        // 2. Envoyer un email de notification (non-bloquant)
-        try {
-            await EmailService.sendCriticalErrorNotification({
-                errorMessage: errorObj.message,
-                errorStack: errorObj.stack,
-                errorName: errorObj.name,
-                severity: 'critical',
-                context: context || {},
-                metadata: metadata || {},
-                timestamp: new Date().toISOString(),
-            });
-        } catch (emailError) {
-            // Ne pas faire échouer le processus si l'email échoue
-            console.error('⚠️ Failed to send error notification email:', emailError);
-        }
+        // 2. Email notifications désactivées
+        // Les erreurs sont uniquement loggées dans la console
     }
     
     /**
