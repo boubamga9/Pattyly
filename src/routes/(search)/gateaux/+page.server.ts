@@ -3,7 +3,7 @@ import { STRIPE_PRODUCTS } from '$lib/config/server';
 
 const ITEMS_PER_PAGE = 12;
 
-export const load: PageServerLoad = async ({ locals, url }) => {
+export const load: PageServerLoad = async ({ locals, url, setHeaders }) => {
 	const cityParam = url.searchParams.get('city') || '';
 	const cakeTypeParam = url.searchParams.get('type') || '';
 	const pageParam = url.searchParams.get('page');
@@ -193,6 +193,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	});
 
 	// ✅ Le tri est déjà fait dans la fonction SQL (premium shop products en premier, puis nom)
+
+	// ✅ Cache HTTP pour optimiser les performances
+	// Cache de 3 minutes (180s) : bon compromis performance/fraîcheur des données
+	// stale-while-revalidate de 10 minutes (600s) : sert le cache pendant la mise à jour en arrière-plan
+	setHeaders({
+		'Cache-Control': 'public, s-maxage=180, stale-while-revalidate=600'
+	});
 
 	return {
 		products: formattedProducts,
