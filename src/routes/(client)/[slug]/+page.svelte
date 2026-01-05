@@ -120,6 +120,9 @@
 			? `Découvrez ${shop.name}, votre cake designer et pâtissier. Commandez vos gâteaux personnalisés en ligne${productCount > 0 ? ` parmi ${productCount} créations disponibles` : ''}. ${hasCustomOrders ? 'Demandes sur mesure acceptées. ' : ''}Livraison et retrait disponibles.`
 			: 'Commandez vos gâteaux personnalisés en ligne. Livraison et retrait disponibles.';
 	$: seoKeywords = `cake designer, pâtissier, ${shop?.name || ''}, gâteaux personnalisés, commande en ligne, pâtisserie, gâteaux sur mesure${hasCustomOrders ? ', demande personnalisée' : ''}, livraison gâteaux`;
+	
+	// URL de l'image OG : logo du pâtissier (Cloudinary) si disponible, sinon image par défaut
+	$: ogImageUrl = shop?.logo_url || `${$page.url.origin}/og-image.png`;
 </script>
 
 <svelte:head>
@@ -137,15 +140,11 @@
 		<meta property="og:description" content={seoDescription} />
 		<meta property="og:type" content="website" />
 		<meta property="og:url" content={$page.url.href} />
-		{#if shop?.logo_url}
-			<meta property="og:image" content={shop.logo_url} />
-		{/if}
+		<meta property="og:image" content={ogImageUrl} />
 		<meta name="twitter:card" content="summary_large_image" />
 		<meta name="twitter:title" content={seoTitle} />
 		<meta name="twitter:description" content={seoDescription} />
-		{#if shop?.logo_url}
-			<meta name="twitter:image" content={shop.logo_url} />
-		{/if}
+		<meta name="twitter:image" content={ogImageUrl} />
 	{/if}
 </svelte:head>
 
