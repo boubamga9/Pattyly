@@ -26,6 +26,7 @@
 	$: depositAmount = (data.orderData.total_amount * depositPercentage) / 100;
 
 	let copySuccess = false;
+	let copyWeroSuccess = false;
 	let confirmationForm: HTMLFormElement | null = null;
 	let selectedPaymentProvider: { provider_type: string; payment_identifier: string } | null = null;
 	let isWaitingForOrder = false;
@@ -859,7 +860,30 @@
 													<div class="flex flex-col items-center gap-1.5">
 														<img src="/payments_logo/wero_logo.svg" alt="Wero" class="h-5 w-auto" />
 														{#if showWeroIdentifier}
-															<span class="text-base font-semibold text-gray-900">{provider.payment_identifier}</span>
+															<div class="flex items-center gap-2">
+																<span class="text-base font-semibold text-gray-900">{provider.payment_identifier}</span>
+																<button
+																	type="button"
+																	on:click={async (e) => {
+																		e.stopPropagation();
+																		try {
+																			await navigator.clipboard.writeText(provider.payment_identifier);
+																			copyWeroSuccess = true;
+																			setTimeout(() => { copyWeroSuccess = false; }, 2000);
+																		} catch (err) {
+																			console.error('Failed to copy:', err);
+																		}
+																	}}
+																	class="rounded p-1 text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+																	title="Copier"
+																>
+																	{#if copyWeroSuccess}
+																		<Check class="h-4 w-4 text-green-600" />
+																	{:else}
+																		<Copy class="h-4 w-4" />
+																	{/if}
+																</button>
+															</div>
 														{/if}
 													</div>
 												{/if}

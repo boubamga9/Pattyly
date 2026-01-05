@@ -1,6 +1,11 @@
 import { z } from 'zod';
 import { createShopSchema } from '$lib/validations';
-import { paypalMeSchema } from '$lib/validations/schemas/payment';
+import { 
+    paypalMeSchema,
+    paypalMeOptionalSchema,
+    revolutMeOptionalSchema,
+    weroMeOptionalSchema
+} from '$lib/validations/schemas/payment';
 
 // Schéma spécifique pour l'onboarding qui étend createShopSchema
 // et ajoute le champ logo pour l'upload de fichier et paypal_me
@@ -19,66 +24,21 @@ export const paypalConfigSchema = z.object({
     paypal_me: paypalMeSchema
 });
 
-// Schéma pour l'étape 2 (configuration des méthodes de paiement - PayPal et/ou Revolut)
+// Schéma pour l'étape 2 (configuration des méthodes de paiement - PayPal, Revolut et/ou Wero)
 // Note: Utilise .transform() pour convertir les chaînes vides en undefined, car Superforms
 // ne supporte pas les unions dans FormData. On valide seulement si la valeur existe.
 export const paymentConfigSchema = z.object({
     // PayPal optionnel - les chaînes vides seront transformées en undefined
-    paypal_me: z.string()
-        .optional()
-        .transform((val) => {
-            if (!val || val.trim() === '') return undefined;
-            return val.toLowerCase().trim();
-        })
-        .refine(
-            (val) => {
-                if (val === undefined) return true; // Optionnel
-                return /^[a-zA-Z0-9_-]+$/.test(val) && val.length >= 1 && val.length <= 50;
-            },
-            {
-                message: 'Le nom PayPal.me ne peut contenir que des lettres, chiffres, tirets et underscores (max 50 caractères)'
-            }
-        ),
+    paypal_me: paypalMeOptionalSchema,
     // Revolut optionnel - les chaînes vides seront transformées en undefined
-    revolut_me: z.string()
-        .optional()
-        .transform((val) => {
-            if (!val || val.trim() === '') return undefined;
-            return val.trim();
-        })
-        .refine(
-            (val) => {
-                if (val === undefined) return true; // Optionnel
-                return /^[a-zA-Z0-9_@.-]+$/.test(val) && val.length >= 1 && val.length <= 100;
-            },
-            {
-                message: 'L\'identifiant Revolut contient des caractères invalides (max 100 caractères)'
-            }
-        ),
+    revolut_me: revolutMeOptionalSchema,
     // Wero optionnel - les chaînes vides seront transformées en undefined
-    wero_me: z.string()
-        .optional()
-        .transform((val) => {
-            if (!val || val.trim() === '') return undefined;
-            return val.trim();
-        })
-        .refine(
-            (val) => {
-                if (val === undefined) return true; // Optionnel
-                // Wero accepte email ou numéro de téléphone
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                const phoneRegex = /^\+?[0-9]{10,15}$/;
-                return (emailRegex.test(val) || phoneRegex.test(val)) && val.length <= 100;
-            },
-            {
-                message: 'L\'identifiant Wero doit être un email valide ou un numéro de téléphone (max 100 caractères)'
-            }
-        )
+    wero_me: weroMeOptionalSchema
 }).refine(
     (data) => {
-        const hasPaypal = data.paypal_me && data.paypal_me.trim() !== '';
-        const hasRevolut = data.revolut_me && data.revolut_me.trim() !== '';
-        const hasWero = data.wero_me && data.wero_me.trim() !== '';
+        const hasPaypal = data.paypal_me !== undefined && data.paypal_me !== null;
+        const hasRevolut = data.revolut_me !== undefined && data.revolut_me !== null;
+        const hasWero = data.wero_me !== undefined && data.wero_me !== null;
         return hasPaypal || hasRevolut || hasWero;
     },
     {

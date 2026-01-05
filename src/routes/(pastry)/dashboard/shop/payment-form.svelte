@@ -331,6 +331,7 @@
 									paypalSubmitting = false;
 									if (result.type === 'success') {
 										paypalSubmitted = true;
+										showPaypalForm = false; // Fermer le formulaire après succès
 										setTimeout(() => {
 											paypalSubmitted = false;
 										}, 2000);
@@ -480,6 +481,7 @@
 									revolutSubmitting = false;
 									if (result.type === 'success') {
 										revolutSubmitted = true;
+										showRevolutForm = false; // Fermer le formulaire après succès
 										setTimeout(() => {
 											revolutSubmitted = false;
 										}, 2000);
@@ -598,34 +600,33 @@
 						<form
 							method="POST"
 							action="?/updateWero"
-							use:enhance={{
-								onResult: async ({ result }) => {
-									weroSubmitting = true;
-									const parsed = parseSvelteKitActionResponse(result.data);
-									if (parsed?.success) {
-										weroSubmitting = false;
+							use:enhance={({ formData: _formData, cancel: _cancel }) => {
+								weroSubmitting = true;
+								return async ({ result, update }) => {
+									weroSubmitting = false;
+									if (result.type === 'success') {
 										weroSubmitted = true;
+										showWeroForm = false; // Fermer le formulaire après succès
 										setTimeout(() => {
 											weroSubmitted = false;
 										}, 2000);
 										await invalidateAll();
-									} else {
-										weroSubmitting = false;
 									}
-								},
+									await update();
+								};
 							}}
 						>
 							<input type="hidden" name="wero_me" value={$formData.wero_me || ''} />
 							<Button
 								type="submit"
 								disabled={weroSubmitting || weroSubmitted}
-								class={`w-full ${
+								class={`mt-4 h-10 w-full text-sm font-medium text-white transition-all duration-200 disabled:cursor-not-allowed ${
 									weroSubmitted
-										? 'bg-green-600 hover:bg-green-700'
+										? 'bg-[#FF6F61] hover:bg-[#e85a4f] disabled:opacity-100'
 										: weroSubmitting
-											? 'bg-gray-400 cursor-not-allowed'
-											: 'bg-gray-600 hover:bg-gray-700'
-								} text-white`}
+											? 'bg-gray-600 hover:bg-gray-700 disabled:opacity-50'
+											: 'bg-primary shadow-sm hover:bg-primary/90 hover:shadow-md disabled:opacity-50'
+								}`}
 							>
 								{#if weroSubmitting}
 									<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
@@ -889,6 +890,7 @@
 					paypalSubmitting = false;
 					if (result.type === 'success') {
 						paypalSubmitted = true;
+						showPaypalForm = false; // Fermer le formulaire après succès
 						setTimeout(() => {
 							paypalSubmitted = false;
 						}, 2000);
@@ -983,6 +985,7 @@
 								revolutSubmitting = false;
 								if (result.type === 'success') {
 									revolutSubmitted = true;
+									showRevolutForm = false; // Fermer le formulaire après succès
 									setTimeout(() => {
 										revolutSubmitted = false;
 									}, 2000);
@@ -1054,6 +1057,7 @@
 					weroSubmitting = false;
 					if (result.type === 'success') {
 						weroSubmitted = true;
+						showWeroForm = false; // Fermer le formulaire après succès
 						setTimeout(() => {
 							weroSubmitted = false;
 						}, 2000);
@@ -1072,7 +1076,7 @@
 						? 'bg-[#FF6F61] hover:bg-[#e85a4f] disabled:opacity-100'
 						: weroSubmitting
 							? 'bg-gray-600 hover:bg-gray-700 disabled:opacity-50'
-							: 'bg-gray-600 hover:bg-gray-700 shadow-sm hover:shadow-md disabled:opacity-50'
+							: 'bg-primary shadow-sm hover:bg-primary/90 hover:shadow-md disabled:opacity-50'
 				}`}
 			>
 				{#if weroSubmitting}
