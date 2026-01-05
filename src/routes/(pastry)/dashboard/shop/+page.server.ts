@@ -192,12 +192,14 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
         }),
         paymentForm: await superValidate(zod(paymentConfigSchema), {
             defaults: (() => {
-                const defaults: { paypal_me?: string; revolut_me?: string } = {};
+                const defaults: { paypal_me?: string; revolut_me?: string; wero_me?: string } = {};
                 paymentLinksResult.data?.forEach(link => {
                     if (link.provider_type === 'paypal') {
                         defaults.paypal_me = link.payment_identifier;
                     } else if (link.provider_type === 'revolut') {
                         defaults.revolut_me = link.payment_identifier;
+                    } else if (link.provider_type === 'wero') {
+                        defaults.wero_me = link.payment_identifier;
                     }
                 });
                 return defaults;
@@ -936,7 +938,7 @@ export const actions: Actions = {
                 }
             }
 
-            // Récupérer la valeur Revolut actuelle pour la conserver dans le formulaire
+            // Récupérer les valeurs Revolut et Wero actuelles pour les conserver dans le formulaire
             const { data: currentRevolut } = await locals.supabase
                 .from('payment_links')
                 .select('payment_identifier')
@@ -945,11 +947,20 @@ export const actions: Actions = {
                 .eq('is_active', true)
                 .single();
 
-            // Retourner le formulaire mis à jour (conserver les deux valeurs)
+            const { data: currentWero } = await locals.supabase
+                .from('payment_links')
+                .select('payment_identifier')
+                .eq('profile_id', userId)
+                .eq('provider_type', 'wero')
+                .eq('is_active', true)
+                .single();
+
+            // Retourner le formulaire mis à jour (conserver toutes les valeurs)
             const updatedForm = await superValidate(zod(paymentConfigSchema), {
                 defaults: {
                     paypal_me: validatedPaypal,
-                    revolut_me: currentRevolut?.payment_identifier || undefined
+                    revolut_me: currentRevolut?.payment_identifier || undefined,
+                    wero_me: currentWero?.payment_identifier || undefined
                 }
             });
             updatedForm.message = 'PayPal sauvegardé avec succès !';
@@ -1043,7 +1054,7 @@ export const actions: Actions = {
                 }
             }
 
-            // Récupérer la valeur PayPal actuelle pour la conserver dans le formulaire
+            // Récupérer les valeurs PayPal et Wero actuelles pour les conserver dans le formulaire
             const { data: currentPaypal } = await locals.supabase
                 .from('payment_links')
                 .select('payment_identifier')
@@ -1052,11 +1063,20 @@ export const actions: Actions = {
                 .eq('is_active', true)
                 .single();
 
-            // Retourner le formulaire mis à jour (conserver les deux valeurs)
+            const { data: currentWero } = await locals.supabase
+                .from('payment_links')
+                .select('payment_identifier')
+                .eq('profile_id', userId)
+                .eq('provider_type', 'wero')
+                .eq('is_active', true)
+                .single();
+
+            // Retourner le formulaire mis à jour (conserver toutes les valeurs)
             const updatedForm = await superValidate(zod(paymentConfigSchema), {
                 defaults: {
                     paypal_me: currentPaypal?.payment_identifier || undefined,
-                    revolut_me: validatedRevolut
+                    revolut_me: validatedRevolut,
+                    wero_me: currentWero?.payment_identifier || undefined
                 }
             });
             updatedForm.message = 'Revolut sauvegardé avec succès !';
@@ -1066,6 +1086,125 @@ export const actions: Actions = {
             console.error('Revolut update error:', err);
             const cleanForm = await superValidate(zod(paymentConfigSchema));
             setError(cleanForm, 'revolut_me', 'Une erreur inattendue est survenue');
+            return { form: cleanForm };
+        }
+    },
+
+    updateWero: async ({ request, locals }) => {
+        try {
+            const { session, user } = await locals.safeGetSession();
+
+            if (!session || !user) {
+                const cleanForm = await superValidate(zod(paymentConfigSchema));
+                setError(cleanForm, 'wero_me', 'Non autorisé');
+                return { form: cleanForm };
+            }
+
+            const userId = user.id;
+            const formData = await request.formData();
+            const wero_me = formData.get('wero_me') as string;
+
+            // Valider le champ Wero
+            const weroSchema = z.object({
+                wero_me: z.string()
+                    .optional()
+                    .transform((val) => {
+                        if (!val || val.trim() === '') return undefined;
+                        return val.trim();
+                    })
+                    .refine(
+                        (val) => {
+                            if (val === undefined) return true;
+                            // Wero accepte email ou numéro de téléphone
+                            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                            const phoneRegex = /^\+?[0-9]{10,15}$/;
+                            return (emailRegex.test(val) || phoneRegex.test(val)) && val.length <= 100;
+                        },
+                        {
+                            message: 'L\'identifiant Wero doit être un email valide ou un numéro de téléphone (max 100 caractères)'
+                        }
+                    )
+            });
+
+            const validation = weroSchema.safeParse({ wero_me });
+            
+            if (!validation.success) {
+                const cleanForm = await superValidate(zod(paymentConfigSchema));
+                const error = validation.error.errors[0];
+                setError(cleanForm, 'wero_me', error.message);
+                return { form: cleanForm };
+            }
+
+            const validatedWero = validation.data.wero_me;
+
+            // Utiliser upsert pour mettre à jour uniquement Wero, sans affecter PayPal/Revolut
+            if (validatedWero) {
+                const { error: upsertError } = await locals.supabase
+                    .from('payment_links')
+                    .upsert({
+                        profile_id: userId,
+                        provider_type: 'wero',
+                        payment_identifier: validatedWero,
+                        is_active: true
+                    }, {
+                        onConflict: 'profile_id,provider_type'
+                    });
+
+                if (upsertError) {
+                    console.error('❌ [Wero] Failed to upsert payment link:', upsertError);
+                    const cleanForm = await superValidate(zod(paymentConfigSchema));
+                    setError(cleanForm, 'wero_me', 'Erreur lors de la sauvegarde de Wero');
+                    return { form: cleanForm };
+                }
+
+                console.log('✅ [Wero] Successfully saved Wero payment link');
+            } else {
+                // Si vide, supprimer le payment_link Wero
+                const { error: deleteError } = await locals.supabase
+                    .from('payment_links')
+                    .delete()
+                    .eq('profile_id', userId)
+                    .eq('provider_type', 'wero');
+
+                if (deleteError) {
+                    console.warn('⚠️ [Wero] Failed to delete payment link:', deleteError);
+                } else {
+                    console.log('✅ [Wero] Successfully removed Wero payment link');
+                }
+            }
+
+            // Récupérer les valeurs PayPal et Revolut actuelles pour les conserver dans le formulaire
+            const { data: currentPaypal } = await locals.supabase
+                .from('payment_links')
+                .select('payment_identifier')
+                .eq('profile_id', userId)
+                .eq('provider_type', 'paypal')
+                .eq('is_active', true)
+                .single();
+
+            const { data: currentRevolut } = await locals.supabase
+                .from('payment_links')
+                .select('payment_identifier')
+                .eq('profile_id', userId)
+                .eq('provider_type', 'revolut')
+                .eq('is_active', true)
+                .single();
+
+            // Retourner le formulaire mis à jour (conserver toutes les valeurs)
+            const updatedForm = await superValidate(zod(paymentConfigSchema), {
+                defaults: {
+                    paypal_me: currentPaypal?.payment_identifier || undefined,
+                    revolut_me: currentRevolut?.payment_identifier || undefined,
+                    wero_me: validatedWero
+                }
+            });
+            updatedForm.message = 'Wero sauvegardé avec succès !';
+            return { form: updatedForm };
+
+        } catch (err) {
+            console.error('Wero update error:', err);
+            const cleanForm = await superValidate(zod(paymentConfigSchema));
+            setError(cleanForm, 'wero_me', 'Une erreur inattendue est survenue');
             return { form: cleanForm };
         }
     },

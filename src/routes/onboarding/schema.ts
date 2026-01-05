@@ -54,12 +54,32 @@ export const paymentConfigSchema = z.object({
             {
                 message: 'L\'identifiant Revolut contient des caractères invalides (max 100 caractères)'
             }
+        ),
+    // Wero optionnel - les chaînes vides seront transformées en undefined
+    wero_me: z.string()
+        .optional()
+        .transform((val) => {
+            if (!val || val.trim() === '') return undefined;
+            return val.trim();
+        })
+        .refine(
+            (val) => {
+                if (val === undefined) return true; // Optionnel
+                // Wero accepte email ou numéro de téléphone
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                const phoneRegex = /^\+?[0-9]{10,15}$/;
+                return (emailRegex.test(val) || phoneRegex.test(val)) && val.length <= 100;
+            },
+            {
+                message: 'L\'identifiant Wero doit être un email valide ou un numéro de téléphone (max 100 caractères)'
+            }
         )
 }).refine(
     (data) => {
         const hasPaypal = data.paypal_me && data.paypal_me.trim() !== '';
         const hasRevolut = data.revolut_me && data.revolut_me.trim() !== '';
-        return hasPaypal || hasRevolut;
+        const hasWero = data.wero_me && data.wero_me.trim() !== '';
+        return hasPaypal || hasRevolut || hasWero;
     },
     {
         message: 'Vous devez configurer au moins une méthode de paiement',

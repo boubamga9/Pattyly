@@ -4,7 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { Button } from '$lib/components/ui/button';
-	import { Copy, ExternalLink, Check, ArrowLeft } from 'lucide-svelte';
+	import { Copy, Check, ArrowLeft, AlertCircle } from 'lucide-svelte';
 	import SocialMediaIcons from '$lib/components/client/social-media-icons.svelte';
 
 	export let data;
@@ -29,15 +29,24 @@
 	let confirmationForm: HTMLFormElement | null = null;
 	let selectedPaymentProvider: { provider_type: string; payment_identifier: string } | null = null;
 	let isWaitingForOrder = false;
+	
+	// Écran d'instruction
+	let showPaymentInstructions = true;
+	let paymentInstructionsAccepted = false;
+	let selectedProviderForConfirmation: { provider_type: string; payment_identifier: string } | null = null;
+	let showWeroIdentifier = false;
 
 	// Initialiser avec le premier provider disponible (Stripe en priorité)
 	$: if (data.paymentLinks && data.paymentLinks.length > 0 && !selectedPaymentProvider) {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const stripeLink = data.paymentLinks.find((pl: any) => pl.provider_type === 'stripe');
 		selectedPaymentProvider = stripeLink || data.paymentLinks[0];
 	}
 
 	// Séparer Stripe des autres méthodes de paiement
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	$: stripeProvider = data.paymentLinks?.find((p: any) => p.provider_type === 'stripe');
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	$: otherProviders = data.paymentLinks?.filter((p: any) => p.provider_type !== 'stripe') || [];
 	$: hasOtherProviders = otherProviders.length > 0;
 
@@ -52,6 +61,10 @@
 			const cleanIdentifier = provider.payment_identifier.replace(/^@/, '');
 			const amountInCents = Math.round(depositAmount * 100);
 			return `https://revolut.me/${cleanIdentifier}?amount=${amountInCents}`;
+		} else if (provider.provider_type === 'wero') {
+			// Wero : pour l'instant, retourner null (sera géré différemment)
+			// Format à adapter selon la documentation Wero
+			return null;
 		} else if (provider.provider_type === 'stripe') {
 			// Stripe utilise une session checkout, pas un lien direct
 			return null;
@@ -63,6 +76,7 @@
 	function getProviderName(providerType: string): string {
 		if (providerType === 'paypal') return 'PayPal';
 		if (providerType === 'revolut') return 'Revolut';
+		if (providerType === 'wero') return 'Wero';
 		if (providerType === 'stripe') return 'Carte bancaire';
 		return providerType;
 	}
@@ -124,6 +138,69 @@
 		}
 	}
 
+	// Fonction pour accepter les instructions de paiement
+	function acceptPaymentInstructions() {
+		paymentInstructionsAccepted = true;
+		showPaymentInstructions = false;
+	}
+
+	// Fonction pour gérer le clic sur le lien de paiement (NE PAS soumettre automatiquement)
+	function handlePaymentLinkClick(provider: { provider_type: string; payment_identifier: string }) {
+		const paymentLink = getPaymentLink(provider);
+		
+		if (paymentLink) {
+			// Stocker le provider sélectionné pour la confirmation
+			selectedProviderForConfirmation = provider;
+			
+		// Ouvrir le lien dans un nouvel onglet
+		window.open(paymentLink, '_blank');
+		
+		// Sauvegarder dans localStorage pour détecter le retour
+			if (typeof localStorage !== 'undefined') {
+				localStorage.setItem('paymentLinkOpened', 'true');
+				localStorage.setItem('paymentProvider', provider.provider_type);
+				localStorage.setItem('orderRef', data.orderData.order_ref);
+			}
+		} else if (provider.provider_type === 'wero') {
+			// Pour Wero, sélectionner le provider pour confirmation et afficher l'identifiant
+			selectedProviderForConfirmation = provider;
+			showWeroIdentifier = true;
+			if (typeof localStorage !== 'undefined') {
+				localStorage.setItem('paymentLinkOpened', 'true');
+				localStorage.setItem('paymentProvider', 'wero');
+				localStorage.setItem('orderRef', data.orderData.order_ref);
+			}
+		}
+	}
+
+	// Fonction pour confirmer le paiement manuel
+	function confirmManualPayment() {
+		const providerToUse = selectedProviderForConfirmation || otherProviders[0];
+		
+		if (!providerToUse) {
+			console.error('No payment provider available');
+			return;
+		}
+		
+		// Stocker le provider dans le formulaire
+		if (confirmationForm) {
+			const providerInput = confirmationForm.querySelector('input[name="paymentProvider"]');
+			if (providerInput && providerInput instanceof HTMLInputElement) {
+				providerInput.value = providerToUse.provider_type;
+			}
+		}
+		
+		// Soumettre le formulaire de confirmation
+		confirmationForm?.requestSubmit();
+		
+		// Nettoyer le localStorage
+		if (typeof localStorage !== 'undefined') {
+			localStorage.removeItem('paymentLinkOpened');
+			localStorage.removeItem('paymentProvider');
+			localStorage.removeItem('orderRef');
+		}
+	}
+
 	async function handlePaymentClick(provider: { provider_type: string; payment_identifier: string }) {
 		// Stripe nécessite une session checkout spéciale
 		if (provider.provider_type === 'stripe') {
@@ -131,23 +208,29 @@
 			return;
 		}
 
-		const paymentLink = getPaymentLink(provider);
-		if (paymentLink) {
-			// Stocker le provider dans le formulaire avant de soumettre
-			if (confirmationForm) {
-				const providerInput = confirmationForm.querySelector('input[name="paymentProvider"]');
-				if (providerInput && providerInput instanceof HTMLInputElement) {
-					providerInput.value = provider.provider_type;
-				}
-			}
-			window.open(paymentLink, '_blank');
-			// Soumettre directement le formulaire de confirmation
-			confirmationForm?.requestSubmit();
-		}
+		// Pour les autres providers, utiliser la nouvelle fonction
+		handlePaymentLinkClick(provider);
 	}
 
 	// Polling pour vérifier si la commande existe après le paiement Stripe
 	onMount(() => {
+		// Détecter si l'utilisateur revient après avoir ouvert le lien
+		if (typeof localStorage !== 'undefined') {
+			const wasPaymentLinkOpened = localStorage.getItem('paymentLinkOpened') === 'true';
+			const savedProvider = localStorage.getItem('paymentProvider');
+			const savedOrderRef = localStorage.getItem('orderRef');
+			
+			if (wasPaymentLinkOpened && savedOrderRef === data.orderData?.order_ref) {
+				// L'utilisateur est revenu après avoir ouvert le lien
+				// Trouver le provider sauvegardé
+				if (savedProvider) {
+					selectedProviderForConfirmation = otherProviders.find(
+						p => p.provider_type === savedProvider
+					) || otherProviders[0];
+				}
+			}
+		}
+
 		const paymentSuccess = $page.url.searchParams.get('payment') === 'success';
 		const orderRef = data.orderData?.order_ref;
 
@@ -589,9 +672,7 @@
 					<!-- Bouton Carte bancaire (Stripe) - en premier, sans référence -->
 					{#if stripeProvider}
 						{@const provider = stripeProvider}
-						{@const paymentLink = getPaymentLink(provider)}
 						{@const providerName = getProviderName(provider.provider_type)}
-						{@const isStripe = true}
 						{@const buttonColor = data.customizations?.button_color || '#ff6f61'}
 						{@const buttonTextColor = data.customizations?.button_text_color || '#ffffff'}
 						
@@ -643,14 +724,51 @@
 						{/if}
 					{/if}
 
-					<!-- Paiement PayPal/Revolut avec étapes visuelles -->
-					{#if hasOtherProviders}
+					<!-- Alerte simple avant le paiement -->
+					{#if hasOtherProviders && showPaymentInstructions && !paymentInstructionsAccepted}
+						<div class="rounded-lg border border-orange-200 bg-orange-50 p-4 shadow-sm">
+							<!-- Logos des moyens de paiement centrés -->
+							<div class="mb-4 flex items-center justify-center gap-4">
+								{#each otherProviders as provider}
+									{@const isPaypal = provider.provider_type === 'paypal'}
+									{@const isRevolut = provider.provider_type === 'revolut'}
+									{@const isWero = provider.provider_type === 'wero'}
+									
+									<div class="flex h-14 w-14 items-center justify-center rounded-lg bg-white p-2 shadow-sm border border-neutral-200 sm:h-16 sm:w-16">
+										{#if isPaypal}
+											<img src="/payments_logo/paypal_logo.svg" alt="PayPal" class="h-full w-full object-contain" />
+										{:else if isRevolut}
+											<img src="/payments_logo/revolut_logo.svg" alt="Revolut" class="h-full w-full object-contain" />
+										{:else if isWero}
+											<img src="/payments_logo/wero_logo.svg" alt="Wero" class="h-full w-full object-contain" />
+										{/if}
+									</div>
+								{/each}
+							</div>
+							
+							<!-- Texte avec icône d'alerte -->
+							<div class="flex items-start gap-3">
+								<AlertCircle class="h-5 w-5 shrink-0 text-orange-600 mt-0.5" />
+								<div class="flex-1">
+									<p class="text-sm font-medium text-orange-900" style="font-weight: 600;">
+										Important : Après avoir payé, revenez sur cette page et cliquez sur "J'ai payé" pour finaliser votre commande.
+									</p>
+								</div>
+							</div>
+							
+							<button
+								type="button"
+								on:click={acceptPaymentInstructions}
+								class="mt-4 w-full rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all duration-200 hover:shadow-md"
+								style={customStyles.buttonStyle}>
+								C'est compris
+							</button>
+						</div>
+					{:else if hasOtherProviders && paymentInstructionsAccepted}
+						<!-- Paiement PayPal/Revolut/Wero avec étapes visuelles -->
 						<div class="rounded-xl border bg-white p-6 shadow-sm">
-							<p
-								class="mb-4 text-sm font-medium text-neutral-700"
-							style="font-weight: 500;"
-						>
-								Paiement avec PayPal ou Revolut :
+							<p class="mb-4 text-sm font-medium text-neutral-700" style="font-weight: 500;">
+								Paiement avec {otherProviders.map(p => getProviderName(p.provider_type)).join(', ')} :
 							</p>
 							
 							<!-- Étapes empilées verticalement -->
@@ -665,34 +783,37 @@
 											1
 										</div>
 										<span class="text-sm font-semibold text-neutral-900" style="font-weight: 600;">
-											Copiez la référence
+											Copiez la référence de commande
 										</span>
 									</div>
-						<div class="flex items-center gap-2">
-							<code
+									<div class="flex items-center gap-2">
+										<code
 											class="flex-1 rounded-lg bg-white px-3 py-2 text-center font-mono text-sm font-semibold text-neutral-900 shadow-sm"
-								style="font-weight: 600;"
-							>
-								{data.orderData.order_ref}
-							</code>
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								on:click={copyOrderRef}
+											style="font-weight: 600;"
+										>
+											{data.orderData.order_ref}
+										</code>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											on:click={copyOrderRef}
 											class="h-9 shrink-0 rounded-lg transition-all duration-200"
-								style={copySuccess ? customStyles.buttonStyle : ''}
-							>
-								{#if copySuccess}
-									<Check class="h-4 w-4" />
-								{:else}
-									<Copy class="h-4 w-4" />
-								{/if}
-							</Button>
-						</div>
-					</div>
+											style={copySuccess ? customStyles.buttonStyle : ''}
+										>
+											{#if copySuccess}
+												<Check class="h-4 w-4" />
+											{:else}
+												<Copy class="h-4 w-4" />
+											{/if}
+										</Button>
+									</div>
+									<p class="mt-2 text-xs text-neutral-600">
+										Vous devrez coller cette référence lors du paiement
+									</p>
+								</div>
 
-								<!-- Étape 2 : Cliquer sur le bouton et coller -->
+								<!-- Étape 2 : Ouvrir le lien de paiement -->
 								<div class="rounded-lg border-2 border-dashed border-neutral-200 bg-neutral-50 p-4">
 									<div class="mb-3 flex items-center gap-2">
 										<div
@@ -702,71 +823,74 @@
 											2
 										</div>
 										<span class="text-sm font-semibold text-neutral-900" style="font-weight: 600;">
-											Cliquez et collez la référence
+											Ouvrir {otherProviders.length > 1 ? 'le moyen de paiement' : getProviderName(otherProviders[0].provider_type)} et payer
 										</span>
 									</div>
 									<div class="space-y-2">
 										{#each otherProviders as provider}
-								{@const paymentLink = getPaymentLink(provider)}
-								{@const providerName = getProviderName(provider.provider_type)}
-								{@const isPaypal = provider.provider_type === 'paypal'}
-								{@const isRevolut = provider.provider_type === 'revolut'}
-											{@const backgroundColor = isPaypal ? '#ffd140' : isRevolut ? '#000000' : '#6b7280'}
-											{@const textColor = isPaypal ? '#000000' : '#ffffff'}
-								
-								<button
-									type="button"
-									on:click={() => handlePaymentClick(provider)}
-												class="flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium shadow-sm transition-all duration-200 hover:shadow-md"
-												style="font-weight: 500; background-color: {backgroundColor}; color: {textColor};"
-									on:mouseenter={(e) => {
+											{@const isPaypal = provider.provider_type === 'paypal'}
+											{@const isRevolut = provider.provider_type === 'revolut'}
+											{@const isWero = provider.provider_type === 'wero'}
+											{@const backgroundColor = isPaypal ? '#ffd140' : isRevolut ? '#000000' : isWero ? '#ffffff' : '#6b7280'}
+											{@const textColor = isPaypal ? '#000000' : isWero ? '#000000' : '#ffffff'}
+											{@const borderColor = isWero ? '#e5e7eb' : 'transparent'}
+											
+											<button
+												type="button"
+												on:click={() => handlePaymentLinkClick(provider)}
+												class="flex w-full {isWero && showWeroIdentifier ? 'flex-col' : 'items-center'} justify-center gap-1.5 rounded-lg px-4 {isWero && showWeroIdentifier ? 'py-2.5' : 'h-11'} text-sm font-medium shadow-sm transition-all duration-200 hover:shadow-md"
+												style="font-weight: 500; background-color: {backgroundColor}; color: {textColor}; border: 1px solid {borderColor};"
+												on:mouseenter={(e) => {
 													if (isPaypal) e.currentTarget.style.backgroundColor = '#e6bc00';
-										else if (isRevolut) e.currentTarget.style.backgroundColor = '#1a1a1a';
-									}}
-									on:mouseleave={(e) => {
+													else if (isRevolut) e.currentTarget.style.backgroundColor = '#1a1a1a';
+													else if (isWero) e.currentTarget.style.backgroundColor = '#f9fafb';
+												}}
+												on:mouseleave={(e) => {
 													if (isPaypal) e.currentTarget.style.backgroundColor = '#ffd140';
-										else if (isRevolut) e.currentTarget.style.backgroundColor = '#000000';
+													else if (isRevolut) e.currentTarget.style.backgroundColor = '#000000';
+													else if (isWero) e.currentTarget.style.backgroundColor = '#ffffff';
 												}}
 											>
 												{#if isPaypal}
-										<!-- Logo PayPal officiel avec couleurs originales -->
-										<svg
-											xmlns="http://www.w3.org/2000/svg"
-											viewBox="0 0 512 512"
-											class="h-5 w-5"
-										>
-											<path
-												fill="#002c8a"
-												d="M377 184.8L180.7 399h-72c-5 0-9-5-8-10l48-304c1-7 7-12 14-12h122c84 3 107 46 92 112z"
-											/>
-											<path
-												fill="#009be1"
-												d="M380.2 165c30 16 37 46 27 86-13 59-52 84-109 85l-16 1c-6 0-10 4-11 10l-13 79c-1 7-7 12-14 12h-60c-5 0-9-5-8-10l22-143c1-5 182-120 182-120z"
-											/>
-											<path
-												fill="#001f6b"
-												d="M197 292l20-127a14 14 0 0 1 13-11h96c23 0 40 4 54 11-5 44-26 115-128 117h-44c-5 0-10 4-11 10z"
-											/>
-										</svg>
-									{:else if isRevolut}
-										<!-- Logo Revolut officiel en blanc -->
-										<svg
-											xmlns="http://www.w3.org/2000/svg"
-											viewBox="0 0 800 800"
-											class="h-5 w-5"
-										>
-											<g fill="#FFFFFF">
-												<rect x="209.051" y="262.097" width="101.445" height="410.21"/>
-												<path d="M628.623,285.554c0-87.043-70.882-157.86-158.011-157.86H209.051v87.603h249.125c39.43,0,72.093,30.978,72.814,69.051
-													c0.361,19.064-6.794,37.056-20.146,50.66c-13.357,13.61-31.204,21.109-50.251,21.109h-97.046c-3.446,0-6.25,2.8-6.25,6.245v77.859
-													c0,1.324,0.409,2.59,1.179,3.656l164.655,228.43h120.53L478.623,443.253C561.736,439.08,628.623,369.248,628.623,285.554z"/>
-											</g>
-										</svg>
-									{/if}
-									Payer avec {providerName}
-								</button>
-							{/each}
+													<img src="/payments_logo/paypal_logo.svg" alt="PayPal" class="h-5 w-auto" />
+												{:else if isRevolut}
+													<img src="/payments_logo/revolut_logo.svg" alt="Revolut" class="h-4 w-auto" style="filter: brightness(0) invert(1);" />
+												{:else if isWero}
+													<div class="flex flex-col items-center gap-1.5">
+														<img src="/payments_logo/wero_logo.svg" alt="Wero" class="h-5 w-auto" />
+														{#if showWeroIdentifier}
+															<span class="text-base font-semibold text-gray-900">{provider.payment_identifier}</span>
+														{/if}
+													</div>
+												{/if}
+											</button>
+										{/each}
 									</div>
+								</div>
+
+								<!-- Étape 3 : Confirmer le paiement -->
+								<div class="rounded-lg border-2 border-dashed border-neutral-200 bg-neutral-50 p-4">
+									<div class="mb-3 flex items-center gap-2">
+										<div
+											class="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-white"
+											style="background-color: {customStyles.buttonStyle ? customStyles.buttonStyle.match(/background-color:\s*([^;]+)/)?.[1] || '#ff6f61' : '#ff6f61'};"
+										>
+											3
+										</div>
+										<span class="text-sm font-semibold text-neutral-900" style="font-weight: 600;">
+											Confirmer votre paiement
+										</span>
+									</div>
+									<p class="mb-3 text-xs text-neutral-600">
+										Une fois le paiement effectué, cliquez sur le bouton ci-dessous pour finaliser votre commande.
+									</p>
+									<button
+										type="button"
+										on:click={confirmManualPayment}
+										class="w-full rounded-lg px-4 py-3 text-sm font-medium shadow-sm transition-all duration-200 hover:shadow-md"
+										style={customStyles.buttonStyle}>
+										J'ai payé
+									</button>
 								</div>
 							</div>
 						</div>

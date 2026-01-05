@@ -63,9 +63,9 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
             }
         }
 
-        // Trier pour mettre Stripe en premier, puis PayPal, puis Revolut
+        // Trier pour mettre Stripe en premier, puis Wero, puis PayPal, puis Revolut
         allPaymentLinks.sort((a, b) => {
-            const order = { stripe: 0, paypal: 1, revolut: 2 };
+            const order = { stripe: 0, wero: 1, paypal: 2, revolut: 3 };
             const aOrder = order[a.provider_type as keyof typeof order] ?? 99;
             const bOrder = order[b.provider_type as keyof typeof order] ?? 99;
             return aOrder - bOrder;
