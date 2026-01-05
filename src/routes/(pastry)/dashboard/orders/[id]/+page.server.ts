@@ -781,5 +781,81 @@ export const actions: Actions = {
         } catch (err) {
             return fail(500, { error: 'Erreur serveur' });
         }
+    },
+
+    // Supprimer une commande (uniquement si pas payée avec Stripe)
+    deleteOrder: async ({ request, params, locals }) => {
+        try {
+            // ✅ OPTIMISÉ : Récupérer shopId depuis formData
+            if (!request) {
+                return fail(400, { error: 'Requête invalide' });
+            }
+
+            const formData = await request.formData();
+            const shopId = formData.get('shopId') as string;
+
+            if (!shopId) {
+                return fail(400, { error: 'Données de boutique manquantes' });
+            }
+
+            // ✅ OPTIMISÉ : Utiliser safeGetSession au lieu de getUser()
+            const { session } = await locals.safeGetSession();
+            const userId = session?.user.id;
+
+            if (!userId) {
+                return fail(401, { error: 'Non autorisé' });
+            }
+
+            // ✅ OPTIMISÉ : Vérifier la propriété avec verifyShopOwnership
+            const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
+            if (!isOwner) {
+                return fail(403, { error: 'Accès non autorisé à cette boutique' });
+            }
+
+            // Récupérer la commande pour vérifier qu'elle n'est pas payée avec Stripe
+            const { data: order, error: orderError } = await locals.supabase
+                .from('orders')
+                .select('id, stripe_payment_intent_id, stripe_session_id, status')
+                .eq('id', params.id)
+                .eq('shop_id', shopId)
+                .single();
+
+            if (orderError || !order) {
+                return fail(404, { error: 'Commande non trouvée' });
+            }
+
+            // Vérifier que la commande n'a pas été payée avec Stripe
+            if (order.stripe_payment_intent_id || order.stripe_session_id) {
+                return fail(400, { 
+                    error: 'Impossible de supprimer une commande payée avec Stripe' 
+                });
+            }
+
+            // Supprimer la commande
+            // Utiliser supabaseServiceRole pour contourner les RLS (comme pour d'autres opérations sensibles)
+            const { error: deleteError } = await locals.supabaseServiceRole
+                .from('orders')
+                .delete()
+                .eq('id', params.id)
+                .eq('shop_id', shopId);
+
+            if (deleteError) {
+                console.error('Error deleting order:', deleteError);
+                await ErrorLogger.logCritical(deleteError, {
+                    userId: userId,
+                    shopId: shopId,
+                    orderId: params.id,
+                }, {
+                    action: 'deleteOrder',
+                    step: 'delete_order',
+                });
+                return fail(500, { error: 'Erreur lors de la suppression de la commande' });
+            }
+
+            return { message: 'Commande supprimée avec succès' };
+        } catch (err) {
+            console.error('Error in deleteOrder:', err);
+            return fail(500, { error: 'Erreur interne' });
+        }
     }
 };

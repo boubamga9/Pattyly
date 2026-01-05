@@ -57,6 +57,9 @@
 	// État pour la confirmation d'annulation de commande
 	let confirmingCancelOrder = false;
 
+	// État pour la confirmation de suppression de commande
+	let confirmingDeleteOrder = false;
+
 	// Fonction pour formater le prix
 	function formatPrice(price: number | null): string {
 		if (!price) return 'Non défini';
@@ -257,6 +260,15 @@
 
 	function cancelCancelConfirmation() {
 		confirmingCancelOrder = false;
+	}
+
+	// Fonctions pour la confirmation de suppression de commande
+	function startDeleteOrderConfirmation() {
+		confirmingDeleteOrder = true;
+	}
+
+	function cancelDeleteOrderConfirmation() {
+		confirmingDeleteOrder = false;
 	}
 
 	// Fonction pour obtenir le nom du produit ou "Commande personnalisée"
@@ -947,6 +959,64 @@
 						<p class="text-sm text-muted-foreground">
 							Aucune action disponible pour ce statut.
 						</p>
+					{/if}
+
+					<!-- Bouton de suppression (masqué pour les commandes payées avec Stripe) -->
+					{#if order.payment_provider !== 'stripe'}
+					<div class="border-t pt-4">
+						{#if confirmingDeleteOrder}
+							<!-- Mode confirmation -->
+							<div class="space-y-4">
+								<p class="text-center text-sm text-muted-foreground">
+									Êtes-vous sûr de vouloir supprimer définitivement cette commande ? Cette action est irréversible.
+								</p>
+								<div class="flex gap-2">
+									<form
+										method="POST"
+										action="?/deleteOrder"
+										use:enhance={() => {
+											return async ({ result }) => {
+												if (result.type === 'success') {
+													goto('/dashboard/orders');
+												}
+											};
+										}}
+										class="flex-1"
+									>
+										<input type="hidden" name="shopId" value={shop.id} />
+										<Button
+											type="submit"
+											variant="destructive"
+											class="w-full gap-2"
+										>
+											<Trash2 class="h-4 w-4" />
+											Confirmer la suppression
+										</Button>
+									</form>
+									<Button
+										type="button"
+										variant="outline"
+										class="flex-1 gap-2"
+										on:click={cancelDeleteOrderConfirmation}
+									>
+										<X class="h-4 w-4" />
+										Annuler
+									</Button>
+								</div>
+							</div>
+						{:else}
+							<!-- Mode normal -->
+							<Button
+								type="button"
+								variant="destructive"
+								class="w-full gap-2"
+								on:click={startDeleteOrderConfirmation}
+							>
+								<Trash2 class="h-4 w-4" />
+								Supprimer la commande
+							</Button>
+						{/if}
+					</div>
 					{/if}
 				</CardContent>
 			</Card>

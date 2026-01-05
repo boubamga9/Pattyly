@@ -3,6 +3,16 @@
 
 	import { Button } from '$lib/components/ui/button';
 	import {
+		AlertDialog,
+		AlertDialogAction,
+		AlertDialogCancel,
+		AlertDialogContent,
+		AlertDialogDescription,
+		AlertDialogFooter,
+		AlertDialogHeader,
+		AlertDialogTitle,
+	} from '$lib/components/ui/alert-dialog';
+	import {
 		ArrowLeft,
 		Mail,
 		Phone,
@@ -47,6 +57,13 @@
 		? data.product.deposit_percentage 
 		: 50;
 	$: depositAmount = totalAmount ? (totalAmount * depositPercentage) / 100 : 0;
+
+	// États pour les dialogues de confirmation
+	let showErrorDialog = false;
+	let errorMessage = '';
+	
+	// État pour la confirmation de refus (affiche le bouton rouge)
+	let isConfirmingReject = false;
 
 	// Function to format the price
 	function formatPrice(price: number): string {
@@ -141,40 +158,53 @@
 	// Function to accept the quote and go to checkout
 	function acceptQuote() {
 		if (!order?.id || !order?.order_ref) {
-			alert('Erreur: Référence de commande manquante');
+			errorMessage = 'Erreur: Référence de commande manquante';
+			showErrorDialog = true;
 			return;
 		}
-
 
 		// Rediriger vers la page de checkout pour commande personnalisée
 		goto(`/${order.shops.slug}/custom/checkout/${order.order_ref}`);
 	}
 
-	// Fonction pour refuser le devis
-	async function rejectQuote() {
+	// Fonction pour afficher le bouton de confirmation
+	function showRejectConfirmation() {
+		if (!order?.id) return;
+		isConfirmingReject = true;
+	}
+
+	// Fonction pour annuler la confirmation
+	function cancelRejectConfirmation() {
+		isConfirmingReject = false;
+	}
+
+	// Fonction pour confirmer le refus du devis
+	async function confirmReject() {
 		if (!order?.id) return;
 
-		if (
-			confirm(
-				'Êtes-vous sûr de vouloir refuser ce devis ? Cette action ne peut pas être annulée.',
-			)
-		) {
-			try {
-				const response = await fetch('/api/reject-quote', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-					},
-					body: JSON.stringify({
-						orderId: order.id,
-					}),
-				});
+		try {
+			const response = await fetch('/api/reject-quote', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					orderId: order.id,
+				}),
+			});
 
-				if (response.ok) {
-					// Recharger la page pour voir le nouveau statut
-					window.location.reload();
-				}
-			} catch (error) {}
+			if (response.ok) {
+				// Recharger la page pour voir le nouveau statut
+				window.location.reload();
+			} else {
+				errorMessage = 'Une erreur est survenue lors du refus du devis.';
+				showErrorDialog = true;
+				isConfirmingReject = false;
+			}
+		} catch (error) {
+			errorMessage = 'Une erreur est survenue lors du refus du devis.';
+			showErrorDialog = true;
+			isConfirmingReject = false;
 		}
 	}
 </script>
@@ -684,15 +714,38 @@
 								<Check class="h-4 w-4" />
 								Accepter et payer l'accompte
 							</Button>
-							<Button
-								on:click={rejectQuote}
-								variant="outline"
-								class="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-medium shadow-sm transition-all duration-200 hover:shadow-md sm:w-1/2"
-								style="font-weight: 500;"
-							>
-								<X class="h-4 w-4" />
-								Refuser et annuler
-							</Button>
+							{#if isConfirmingReject}
+								<!-- Boutons de confirmation de refus -->
+								<div class="flex w-full flex-col gap-3 sm:flex-row sm:w-1/2">
+									<Button
+										on:click={confirmReject}
+										class="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-medium text-white shadow-sm transition-all duration-200 hover:shadow-md"
+										style="background-color: #ef4444; font-weight: 500;"
+									>
+										<X class="h-4 w-4" />
+										Confirmer l'annulation
+									</Button>
+									<Button
+										on:click={cancelRejectConfirmation}
+										variant="outline"
+										class="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-medium shadow-sm transition-all duration-200 hover:shadow-md"
+										style="font-weight: 500;"
+									>
+										Annuler
+									</Button>
+								</div>
+							{:else}
+								<!-- Bouton initial de refus -->
+								<Button
+									on:click={showRejectConfirmation}
+									variant="outline"
+									class="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-medium shadow-sm transition-all duration-200 hover:shadow-md sm:w-1/2"
+									style="font-weight: 500;"
+								>
+									<X class="h-4 w-4" />
+									Refuser et annuler
+								</Button>
+							{/if}
 						</div>
 					{:else}
 						<!-- Bouton retour normal -->
@@ -726,4 +779,20 @@
 			</div>
 		</footer>
 	{/if}
+
+	<!-- Dialogue d'erreur -->
+	<AlertDialog bind:open={showErrorDialog}>
+		<AlertDialogContent>
+			<AlertDialogHeader>
+				<AlertDialogTitle>Erreur</AlertDialogTitle>
+				<AlertDialogDescription>
+					{errorMessage}
+				</AlertDialogDescription>
+			</AlertDialogHeader>
+			<AlertDialogFooter>
+				<AlertDialogAction>OK</AlertDialogAction>
+			</AlertDialogFooter>
+		</AlertDialogContent>
+	</AlertDialog>
+
 </div>
