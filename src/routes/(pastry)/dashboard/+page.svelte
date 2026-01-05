@@ -207,7 +207,7 @@
 
 <div class="container mx-auto space-y-6 p-3 md:p-6">
 	<!-- Bande offre limitée -->
-	{#if false && isLifetimeAvailable && !hasLifetimePlan}
+	{#if isLifetimeAvailable && !hasLifetimePlan}
 		<div class="mb-6 w-full rounded-lg bg-gradient-to-r from-[#FF6F61] to-[#FF8A7A] px-4 py-3 text-white shadow-md">
 			<div class="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
 				<div class="flex items-center gap-2">
