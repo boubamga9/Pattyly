@@ -294,6 +294,12 @@ export const actions: Actions = {
                 '/onboarding'
             );
 
+            // ✅ Ajouter à Resend (fire-and-forget)
+            const { syncPastryToResend } = await import('$lib/utils/resend-sync');
+            syncPastryToResend(userId, user.email || '', supabase).catch(err => {
+                console.error('Erreur synchronisation Resend:', err);
+            });
+
             // Retour succès
             const cleanForm = await superValidate(zod(shopCreationSchema));
             cleanForm.message = 'Boutique créée avec succès !';

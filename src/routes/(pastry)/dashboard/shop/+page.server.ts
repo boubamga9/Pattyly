@@ -332,6 +332,14 @@ export const actions: Actions = {
             return { success: false, error: 'Erreur lors de la mise à jour' };
         }
 
+        // ✅ Mettre à jour Resend si shop_name ou shop_slug a changé
+        if (name !== shop.name || slug !== shop.slug) {
+            const { syncPastryToResend } = await import('$lib/utils/resend-sync');
+            syncPastryToResend(userId, session.user.email || '', locals.supabase).catch(err => {
+                console.error('Erreur synchronisation Resend:', err);
+            });
+        }
+
         // Invalidate cache for both old and new slugs if slug changed
         if (slugChanged) {
             try {
@@ -721,6 +729,12 @@ export const actions: Actions = {
                 errorForm.message = 'Erreur lors de la mise à jour';
                 return fail(400, { toggleForm: errorForm });
             }
+
+            // ✅ Mettre à jour Resend
+            const { syncPastryToResend } = await import('$lib/utils/resend-sync');
+            syncPastryToResend(userId, session.user.email || '', locals.supabase).catch(err => {
+                console.error('Erreur synchronisation Resend:', err);
+            });
 
             // ✅ Si l'annuaire est activé, géocoder automatiquement si les informations sont disponibles
             if (directoryEnabled) {

@@ -1,0 +1,82 @@
+import { Resend } from 'resend';
+import { env } from '$env/dynamic/private';
+
+const resend = new Resend(env.RESEND_API_KEY);
+
+export interface ResendContactData {
+    email: string;
+    current_plan?: string;
+    visible_in_listing_page?: boolean;
+    shop_name?: string;
+    shop_slug?: string;
+    unsubscribed?: boolean;
+}
+
+export class ResendContactsService {
+    /**
+     * Crée ou met à jour un contact dans Resend avec ses propriétés personnalisées
+     * Fonctionne même si le contact existe déjà (ajouté manuellement)
+     */
+    static async upsertContact(data: ResendContactData) {
+        try {
+            // Préparer les propriétés personnalisées
+            const properties: Record<string, string | boolean> = {};
+            
+            if (data.current_plan !== undefined) {
+                properties.current_plan = data.current_plan;
+            }
+            if (data.visible_in_listing_page !== undefined) {
+                properties.visible_in_listing_page = data.visible_in_listing_page;
+            }
+            if (data.shop_name !== undefined) {
+                properties.shop_name = data.shop_name;
+            }
+            if (data.shop_slug !== undefined) {
+                properties.shop_slug = data.shop_slug;
+            }
+
+            // Resend.update fonctionne même si le contact n'existe pas encore
+            // Il le créera automatiquement si nécessaire
+            const { data: contact, error } = await resend.contacts.update({
+                email: data.email,
+                unsubscribed: data.unsubscribed ?? false,
+                properties: Object.keys(properties).length > 0 ? properties : undefined,
+            });
+
+            if (error) {
+                // Si le contact n'existe pas, le créer
+                if (error.message?.includes('not found') || error.status === 404) {
+                    const { data: newContact, error: createError } = await resend.contacts.create({
+                        email: data.email,
+                        unsubscribed: data.unsubscribed ?? false,
+                    });
+
+                    if (createError) {
+                        console.error('Erreur création contact Resend:', createError);
+                        throw createError;
+                    }
+
+                    // Mettre à jour les propriétés après création
+                    if (Object.keys(properties).length > 0) {
+                        await resend.contacts.update({
+                            email: data.email,
+                            properties,
+                        });
+                    }
+
+                    return { success: true, contact: newContact };
+                }
+
+                console.error('Erreur mise à jour contact Resend:', error);
+                throw error;
+            }
+
+            return { success: true, contact };
+        } catch (error) {
+            console.error('Erreur ResendContactsService.upsertContact:', error);
+            // Ne pas faire échouer l'opération principale si Resend échoue
+            return { success: false, error };
+        }
+    }
+}
+

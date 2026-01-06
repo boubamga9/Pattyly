@@ -92,6 +92,19 @@ export async function upsertSubscription(subscription: Stripe.Subscription, loca
             .eq('profile_id', profileId)
             .single();
 
+        // ✅ Mettre à jour Resend avec le nouveau plan (fire-and-forget)
+        try {
+            const { data: authUser } = await locals.supabaseServiceRole.auth.admin.getUserById(profileId);
+            if (authUser?.user?.email) {
+                const { syncPastryToResend } = await import('$lib/utils/resend-sync');
+                syncPastryToResend(profileId, authUser.user.email, locals.supabaseServiceRole).catch(err => {
+                    console.error('Erreur synchronisation Resend après changement plan:', err);
+                });
+            }
+        } catch (err) {
+            console.error('Erreur récupération email pour Resend:', err);
+        }
+
         // ✅ Tracking: Subscription started (fire-and-forget pour ne pas bloquer le webhook)
         // Logger l'événement si l'abonnement est actif (active ou trialing) ET :
         // 1. C'est une nouvelle souscription (n'existait pas avant)

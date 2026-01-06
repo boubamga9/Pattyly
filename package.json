@@ -37,7 +37,8 @@
 		"db:add-initial-migration:staging": "dotenv -e .env.local -- tsx scripts/add-initial-migration-to-history.ts staging",
 		"validate:migration": "tsx scripts/validate-migration-safety.ts",
 		"validate:migrations": "tsx scripts/validate-migration-safety.ts all",
-		"backup:before-migration": "dotenv -e .env.local -- tsx scripts/backup-before-migration.ts"
+		"backup:before-migration": "dotenv -e .env.local -- tsx scripts/backup-before-migration.ts",
+		"resend:sync-pastries": "dotenv -e .env.local -- tsx scripts/sync-all-pastries-to-resend.ts"
 	},
 	"devDependencies": {
 		"@iconify-json/bi": "^1.1.23",
