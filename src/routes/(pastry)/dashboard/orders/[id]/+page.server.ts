@@ -34,7 +34,7 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
         if (pendingOrder && !pendingError) {
             // C'est une pending_order
             const orderData = pendingOrder.order_data as any;
-            
+
             // Vérifier que cette pending_order appartient à cette boutique
             if (orderData?.shop_id !== permissions.shopId) {
                 throw error(403, 'Accès non autorisé');
@@ -229,17 +229,6 @@ export const actions: Actions = {
                 return fail(500, { error: 'Produit non trouvé' });
             }
 
-            // Récupérer l'email du profile séparément
-            let pastryEmail: string | null = null;
-            if (product.shops?.profile_id) {
-                const { data: profile } = await (locals.supabaseServiceRole as any)
-                    .from('profiles')
-                    .select('email')
-                    .eq('id', product.shops.profile_id)
-                    .single();
-                pastryEmail = profile?.email || null;
-            }
-
             // Calculer les montants
             const totalAmount = orderData.total_amount;
             const depositPercentage = product.deposit_percentage ?? 50; // Par défaut 50% si non défini
@@ -304,9 +293,8 @@ export const actions: Actions = {
                 `/dashboard/orders/${params.id}`
             );
 
-            // Envoyer les emails de confirmation (commande confirmée)
+            // Envoyer l'email de confirmation uniquement au client
             try {
-                // Email au client (confirmation de commande)
                 await EmailService.sendOrderConfirmation({
                     customerEmail: orderData.customer_email,
                     customerName: orderData.customer_name,
@@ -322,28 +310,9 @@ export const actions: Actions = {
                     orderUrl: `${PUBLIC_SITE_URL}/${product.shops.slug}/order/${order.id}`,
                     date: new Date().toLocaleDateString('fr-FR')
                 });
-
-                // Email au pâtissier (notification de nouvelle commande)
-                if (pastryEmail && product.shops?.profile_id) {
-                    await EmailService.sendOrderNotification({
-                        pastryEmail: pastryEmail,
-                        customerName: orderData.customer_name,
-                        customerEmail: orderData.customer_email,
-                        customerInstagram: orderData.customer_instagram,
-                        productName: orderData.product_name,
-                        pickupDate: orderData.pickup_date,
-                        pickupTime: orderData.pickup_time,
-                        totalAmount: totalAmount,
-                        paidAmount: paidAmount,
-                        remainingAmount: remainingAmount,
-                        orderId: order.id,
-                        dashboardUrl: `${PUBLIC_SITE_URL}/dashboard/orders/${order.id}`,
-                        date: new Date().toLocaleDateString('fr-FR')
-                    });
-                }
             } catch (emailError) {
                 console.error('❌ [Validate Pending Order] Email error:', emailError);
-                // Ne pas bloquer la commande si les emails échouent
+                // Ne pas bloquer la commande si l'email échoue
             }
 
             // Supprimer la pending_order
@@ -1117,8 +1086,8 @@ export const actions: Actions = {
 
             // Vérifier que la commande n'a pas été payée avec Stripe
             if (order.stripe_payment_intent_id || order.stripe_session_id) {
-                return fail(400, { 
-                    error: 'Impossible de supprimer une commande payée avec Stripe' 
+                return fail(400, {
+                    error: 'Impossible de supprimer une commande payée avec Stripe'
                 });
             }
 
