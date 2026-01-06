@@ -7,10 +7,8 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import LoaderCircle from '~icons/lucide/loader-circle';
-	import { ExternalLink, ChevronDown, Check, AlertCircle } from 'lucide-svelte';
+	import { ExternalLink, ChevronDown, Check, AlertCircle, Trash2, X } from 'lucide-svelte';
 	import { paymentConfigSchema } from '../../../onboarding/schema';
-	import { invalidateAll } from '$app/navigation';
-	import { enhance } from '$app/forms';
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	export let data: any;
@@ -22,13 +20,40 @@
 		stripe_account_id: string;
 	} | null | undefined = null;
 
-	// Create a form for payment configuration (PayPal and/or Revolut)
-	// data contient directement le formulaire Superforms (data.paymentForm depuis +page.svelte)
-	const form = superForm(data, {
+	// Créer 3 formulaires indépendants avec des IDs uniques pour éviter les effets de bord
+	// Chaque formulaire est isolé et ne met à jour que son propre état
+	// Note: data est déjà data.paymentForm (passé depuis +page.svelte)
+	// Désactiver la validation en temps réel pour éviter que les boutons changent d'état pendant la saisie
+	// Utiliser validators pour permettre l'affichage des erreurs (comme shop-form.svelte)
+	const paypalForm = superForm(data, {
+		id: 'paypal-payment-form',
 		validators: zodClient(paymentConfigSchema),
 	});
 
-	const { form: formData } = form;
+	const revolutForm = superForm(data, {
+		id: 'revolut-payment-form',
+		validators: zodClient(paymentConfigSchema),
+	});
+
+	const weroForm = superForm(data, {
+		id: 'wero-payment-form',
+		validators: zodClient(paymentConfigSchema),
+	});
+
+	// Extraire les données et enhance de chaque formulaire
+	const { form: paypalFormData, enhance: paypalEnhance } = paypalForm;
+	const { form: revolutFormData, enhance: revolutEnhance } = revolutForm;
+	const { form: weroFormData, enhance: weroEnhance } = weroForm;
+
+	// Pour l'affichage des erreurs globales, utiliser le premier formulaire
+	const form = paypalForm;
+
+	// Stocker les valeurs initiales depuis le serveur pour déterminer si c'est "Configuré"
+	// Ces valeurs viennent de la base de données et indiquent si le moyen de paiement est réellement sauvegardé
+	// Variables locales pour éviter de recharger toute la page (performance)
+	let initialPaypal = data.data?.paypal_me || '';
+	let initialRevolut = data.data?.revolut_me || '';
+	let initialWero = data.data?.wero_me || '';
 
 	let isPaypalGuideOpen = false;
 	let paypalSubmitted = false;
@@ -43,6 +68,15 @@
 	let showRevolutForm = false;
 	let showWeroForm = false;
 	let showStripeInfo = false;
+	let confirmingDeleteProvider: string | null = null;
+
+	function startDeleteConfirmation(provider: string) {
+		confirmingDeleteProvider = provider;
+	}
+
+	function cancelDeleteConfirmation() {
+		confirmingDeleteProvider = null;
+	}
 
 	// Helper function to parse SvelteKit action response
 	// SvelteKit uses a special serialization format: [{"key":index}, value1, value2, ...]
@@ -184,7 +218,7 @@
 			</p>
 
 			<!-- Bouton Connecter ou état connecté -->
-			{#if $formData.paypal_me && $formData.paypal_me.trim() !== ''}
+			{#if initialPaypal && initialPaypal.trim() !== ''}
 				<Button
 					type="button"
 					variant="outline"
@@ -281,7 +315,7 @@
 							</Collapsible.Content>
 						</Collapsible.Root>
 
-						<Form.Field {form} name="paypal_me">
+						<Form.Field form={paypalForm} name="paypal_me">
 							<Form.Control let:attrs>
 								<Form.Label>Votre nom PayPal.me</Form.Label>
 								<div class="flex items-center space-x-2">
@@ -290,7 +324,7 @@
 										{...attrs}
 										type="text"
 										placeholder="votre-nom"
-										bind:value={$formData.paypal_me}
+										bind:value={$paypalFormData.paypal_me}
 										class="flex-1"
 									/>
 								</div>
@@ -303,16 +337,16 @@
 						</Form.Field>
 
 						<!-- Aperçu du lien PayPal -->
-						{#if $formData.paypal_me && $formData.paypal_me.trim() !== ''}
+						{#if $paypalFormData.paypal_me && $paypalFormData.paypal_me.trim() !== ''}
 							<div class="rounded-lg border border-blue-200 bg-blue-50 p-3">
 								<h4 class="mb-2 text-sm font-medium text-blue-900">Aperçu de votre lien :</h4>
 								<a
-									href="https://paypal.me/{$formData.paypal_me.replace(/^@/, '')}"
+									href="https://paypal.me/{$paypalFormData.paypal_me.replace(/^@/, '')}"
 									target="_blank"
 									rel="noopener noreferrer"
 									class="block rounded bg-white px-3 py-2 font-mono text-sm text-blue-600 transition-colors hover:bg-blue-100 hover:text-blue-900"
 								>
-									paypal.me/{$formData.paypal_me.replace(/^@/, '')}
+									paypal.me/{$paypalFormData.paypal_me.replace(/^@/, '')}
 									<ExternalLink class="ml-1 inline h-3 w-3" />
 								</a>
 								<p class="mt-2 text-xs text-blue-700">
@@ -321,27 +355,37 @@
 							</div>
 						{/if}
 
-						<!-- Bouton Enregistrer PayPal -->
+						<!-- Boutons Enregistrer et Supprimer PayPal -->
+						<div class="flex gap-2">
 						<form
 							method="POST"
 							action="?/updatePaypal"
-							use:enhance={({ formData: _formData, cancel: _cancel }) => {
-								paypalSubmitting = true;
-								return async ({ result, update }) => {
+							use:paypalEnhance={{
+								onResult: ({ result }) => {
 									paypalSubmitting = false;
-									if (result.type === 'success') {
+									// Ne fermer le formulaire QUE si la validation a réussi ET qu'il y a un message de succès
+									if (result.type === 'success' && result.data?.form?.message) {
+										// Mettre à jour localement la valeur initiale (évite de recharger toute la page)
+										initialPaypal = result.data.form.data?.paypal_me || '';
 										paypalSubmitted = true;
 										showPaypalForm = false; // Fermer le formulaire après succès
 										setTimeout(() => {
 											paypalSubmitted = false;
 										}, 2000);
-										await invalidateAll();
 									}
-									await update();
-								};
+									// En cas d'erreur (pas de message), le formulaire reste ouvert pour afficher les erreurs
+								},
+								onUpdate: ({ form: _form }) => {
+									// Superforms met automatiquement à jour les erreurs ici
+									// Les erreurs sont disponibles dans _form.errors
+								},
+								onSubmit: () => {
+									paypalSubmitting = true;
+								}
 							}}
+								class="flex-1"
 						>
-							<input type="hidden" name="paypal_me" value={$formData.paypal_me || ''} />
+								<input type="hidden" name="paypal_me" value={$paypalFormData.paypal_me || ''} />
 							<Button
 								type="submit"
 								disabled={paypalSubmitting || paypalSubmitted}
@@ -364,6 +408,67 @@
 								{/if}
 							</Button>
 						</form>
+							{#if initialPaypal && initialPaypal.trim() !== ''}
+								{#if confirmingDeleteProvider === 'paypal'}
+									<div class="flex gap-2">
+										<form
+											method="POST"
+											action="?/updatePaypal"
+											use:paypalEnhance={{
+												onResult: ({ result }) => {
+													paypalSubmitting = false;
+													if (result.type === 'success') {
+														// Mettre à jour localement la valeur initiale (évite de recharger toute la page)
+														initialPaypal = '';
+														confirmingDeleteProvider = null;
+														showPaypalForm = false; // Fermer le formulaire après suppression
+													}
+												},
+												onUpdate: ({ form: _form }) => {
+													// Superforms met automatiquement à jour les erreurs ici
+												},
+												onSubmit: () => {
+													paypalSubmitting = true;
+												}
+											}}
+										>
+											<input type="hidden" name="paypal_me" value="" />
+											<Button
+												type="submit"
+												disabled={paypalSubmitting || paypalSubmitted}
+												variant="ghost"
+												size="sm"
+												class="mt-4 bg-red-600 text-white hover:bg-red-700 hover:text-white disabled:opacity-50"
+												title="Confirmer la suppression"
+											>
+												<Check class="h-4 w-4" />
+											</Button>
+										</form>
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											on:click={cancelDeleteConfirmation}
+											class="mt-4"
+											title="Annuler la suppression"
+										>
+											<X class="h-4 w-4" />
+										</Button>
+									</div>
+								{:else}
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										class="mt-4 text-red-600 hover:bg-red-50 hover:text-red-700"
+										on:click={() => startDeleteConfirmation('paypal')}
+										title="Supprimer PayPal"
+									>
+										<Trash2 class="h-4 w-4" />
+									</Button>
+								{/if}
+							{/if}
+						</div>
 					</div>
 				</Collapsible.Content>
 			</Collapsible.Root>
@@ -387,7 +492,7 @@
 			</p>
 
 			<!-- Bouton Connecter ou état connecté -->
-			{#if $formData.revolut_me && $formData.revolut_me.trim() !== ''}
+			{#if initialRevolut && initialRevolut.trim() !== ''}
 				<Button
 					type="button"
 					variant="outline"
@@ -395,9 +500,9 @@
 						if (showRevolutForm) {
 							showRevolutForm = false; // Fermer si ouvert
 						} else {
-							showPaypalForm = false; // Fermer PayPal
+						showPaypalForm = false; // Fermer PayPal
 							showWeroForm = false; // Fermer Wero
-							showStripeInfo = false; // Fermer Stripe
+						showStripeInfo = false; // Fermer Stripe
 							showRevolutForm = true; // Ouvrir Revolut
 						}
 					}}
@@ -432,7 +537,7 @@
 							<span class="text-xs text-gray-500">Optionnel</span>
 						</div>
 
-						<Form.Field {form} name="revolut_me">
+						<Form.Field form={revolutForm} name="revolut_me">
 							<Form.Control let:attrs>
 								<Form.Label>Votre identifiant Revolut</Form.Label>
 								<div class="flex items-center space-x-2">
@@ -441,7 +546,7 @@
 										{...attrs}
 										type="text"
 										placeholder="votre-identifiant"
-										bind:value={$formData.revolut_me}
+										bind:value={$revolutFormData.revolut_me}
 										class="flex-1"
 									/>
 								</div>
@@ -453,16 +558,16 @@
 						</Form.Field>
 
 						<!-- Aperçu du lien Revolut -->
-						{#if $formData.revolut_me && $formData.revolut_me.trim() !== ''}
+						{#if $revolutFormData.revolut_me && $revolutFormData.revolut_me.trim() !== ''}
 							<div class="rounded-lg border border-purple-200 bg-purple-50 p-3">
 								<h4 class="mb-2 text-sm font-medium text-purple-900">Aperçu de votre lien :</h4>
 								<a
-									href="https://revolut.me/{$formData.revolut_me.replace(/^@/, '')}"
+									href="https://revolut.me/{$revolutFormData.revolut_me.replace(/^@/, '')}"
 									target="_blank"
 									rel="noopener noreferrer"
 									class="block rounded bg-white px-3 py-2 font-mono text-sm text-purple-600 transition-colors hover:bg-purple-100 hover:text-purple-900"
 								>
-									revolut.me/{$formData.revolut_me.replace(/^@/, '')}
+									revolut.me/{$revolutFormData.revolut_me.replace(/^@/, '')}
 									<ExternalLink class="ml-1 inline h-3 w-3" />
 								</a>
 								<p class="mt-2 text-xs text-purple-700">
@@ -471,27 +576,36 @@
 							</div>
 						{/if}
 
-						<!-- Bouton Enregistrer Revolut -->
-						<form
-							method="POST"
-							action="?/updateRevolut"
-							use:enhance={({ formData: _formData, cancel: _cancel }) => {
-								revolutSubmitting = true;
-								return async ({ result, update }) => {
-									revolutSubmitting = false;
-									if (result.type === 'success') {
-										revolutSubmitted = true;
-										showRevolutForm = false; // Fermer le formulaire après succès
-										setTimeout(() => {
-											revolutSubmitted = false;
-										}, 2000);
-										await invalidateAll();
+						<!-- Boutons Enregistrer et Supprimer Revolut -->
+						<div class="flex gap-2">
+							<form
+								method="POST"
+								action="?/updateRevolut"
+								use:revolutEnhance={{
+									onResult: ({ result }) => {
+										revolutSubmitting = false;
+										// Ne fermer le formulaire QUE si la validation a réussi ET qu'il y a un message de succès
+										if (result.type === 'success' && result.data?.form?.message) {
+											// Mettre à jour localement la valeur initiale (évite de recharger toute la page)
+											initialRevolut = result.data.form.data?.revolut_me || '';
+											revolutSubmitted = true;
+											showRevolutForm = false; // Fermer le formulaire après succès
+											setTimeout(() => {
+												revolutSubmitted = false;
+											}, 2000);
+										}
+										// En cas d'erreur (pas de message), le formulaire reste ouvert pour afficher les erreurs
+									},
+								onUpdate: ({ form: _form }) => {
+									// Superforms met automatiquement à jour les erreurs ici
+								},
+									onSubmit: () => {
+										revolutSubmitting = true;
 									}
-									await update();
-								};
-							}}
-						>
-							<input type="hidden" name="revolut_me" value={$formData.revolut_me || ''} />
+								}}
+								class="flex-1"
+							>
+								<input type="hidden" name="revolut_me" value={$revolutFormData.revolut_me || ''} />
 							<Button
 								type="submit"
 								disabled={revolutSubmitting || revolutSubmitted}
@@ -514,6 +628,67 @@
 								{/if}
 							</Button>
 						</form>
+							{#if initialRevolut && initialRevolut.trim() !== ''}
+								{#if confirmingDeleteProvider === 'revolut'}
+									<div class="flex gap-2">
+										<form
+											method="POST"
+											action="?/updateRevolut"
+											use:revolutEnhance={{
+												onResult: ({ result }) => {
+													revolutSubmitting = false;
+													if (result.type === 'success') {
+														// Mettre à jour localement la valeur initiale (évite de recharger toute la page)
+														initialRevolut = '';
+														confirmingDeleteProvider = null;
+														showRevolutForm = false; // Fermer le formulaire après suppression
+													}
+												},
+								onUpdate: ({ form: _form }) => {
+									// Superforms met automatiquement à jour les erreurs ici
+								},
+												onSubmit: () => {
+													revolutSubmitting = true;
+												}
+											}}
+										>
+											<input type="hidden" name="revolut_me" value="" />
+											<Button
+												type="submit"
+												disabled={revolutSubmitting || revolutSubmitted}
+												variant="ghost"
+												size="sm"
+												class="mt-4 bg-red-600 text-white hover:bg-red-700 hover:text-white disabled:opacity-50"
+												title="Confirmer la suppression"
+											>
+												<Check class="h-4 w-4" />
+											</Button>
+										</form>
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											on:click={cancelDeleteConfirmation}
+											class="mt-4"
+											title="Annuler la suppression"
+										>
+											<X class="h-4 w-4" />
+										</Button>
+									</div>
+								{:else}
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										class="mt-4 text-red-600 hover:bg-red-50 hover:text-red-700"
+										on:click={() => startDeleteConfirmation('revolut')}
+										title="Supprimer Revolut"
+									>
+										<Trash2 class="h-4 w-4" />
+									</Button>
+								{/if}
+							{/if}
+						</div>
 					</div>
 				</Collapsible.Content>
 			</Collapsible.Root>
@@ -537,7 +712,7 @@
 			</p>
 
 			<!-- Bouton Connecter ou état connecté -->
-			{#if $formData.wero_me && $formData.wero_me.trim() !== ''}
+			{#if initialWero && initialWero.trim() !== ''}
 				<Button
 					type="button"
 					variant="outline"
@@ -581,14 +756,14 @@
 							<h3 class="font-semibold text-gray-900">Wero</h3>
 							<span class="text-xs text-gray-500">Optionnel</span>
 						</div>
-						<Form.Field {form} name="wero_me">
+						<Form.Field form={weroForm} name="wero_me">
 							<Form.Control let:attrs>
 								<Form.Label>Votre identifiant Wero</Form.Label>
 								<Input
 									{...attrs}
 									type="text"
 									placeholder="email@example.com ou +33612345678"
-									bind:value={$formData.wero_me}
+									bind:value={$weroFormData.wero_me}
 									class="h-10"
 								/>
 							</Form.Control>
@@ -597,48 +772,119 @@
 								Entrez votre email ou numéro de téléphone associé à Wero.
 							</Form.Description>
 						</Form.Field>
-						<form
-							method="POST"
-							action="?/updateWero"
-							use:enhance={({ formData: _formData, cancel: _cancel }) => {
-								weroSubmitting = true;
-								return async ({ result, update }) => {
-									weroSubmitting = false;
-									if (result.type === 'success') {
-										weroSubmitted = true;
-										showWeroForm = false; // Fermer le formulaire après succès
-										setTimeout(() => {
-											weroSubmitted = false;
-										}, 2000);
-										await invalidateAll();
+						<!-- Boutons Enregistrer et Supprimer Wero -->
+						<div class="flex gap-2">
+							<form
+								method="POST"
+								action="?/updateWero"
+								use:weroEnhance={{
+									onResult: ({ result }) => {
+										weroSubmitting = false;
+										// Ne fermer le formulaire QUE si la validation a réussi ET qu'il y a un message de succès
+										if (result.type === 'success' && result.data?.form?.message) {
+											// Mettre à jour localement la valeur initiale (évite de recharger toute la page)
+											initialWero = result.data.form.data?.wero_me || '';
+											weroSubmitted = true;
+											showWeroForm = false; // Fermer le formulaire après succès
+											setTimeout(() => {
+												weroSubmitted = false;
+											}, 2000);
+										}
+										// En cas d'erreur (pas de message), le formulaire reste ouvert pour afficher les erreurs
+									},
+								onUpdate: ({ form: _form }) => {
+									// Superforms met automatiquement à jour les erreurs ici
+								},
+									onSubmit: () => {
+										weroSubmitting = true;
 									}
-									await update();
-								};
-							}}
-						>
-							<input type="hidden" name="wero_me" value={$formData.wero_me || ''} />
-							<Button
-								type="submit"
-								disabled={weroSubmitting || weroSubmitted}
-								class={`mt-4 h-10 w-full text-sm font-medium text-white transition-all duration-200 disabled:cursor-not-allowed ${
-									weroSubmitted
-										? 'bg-[#FF6F61] hover:bg-[#e85a4f] disabled:opacity-100'
-										: weroSubmitting
-											? 'bg-gray-600 hover:bg-gray-700 disabled:opacity-50'
-											: 'bg-primary shadow-sm hover:bg-primary/90 hover:shadow-md disabled:opacity-50'
-								}`}
+								}}
+								class="flex-1"
 							>
-								{#if weroSubmitting}
-									<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-									Enregistrement...
-								{:else if weroSubmitted}
-									<Check class="mr-2 h-4 w-4" />
-									Sauvegardé !
+								<input type="hidden" name="wero_me" value={$weroFormData.wero_me || ''} />
+								<Button
+									type="submit"
+									disabled={weroSubmitting || weroSubmitted}
+									class={`mt-4 h-10 w-full text-sm font-medium text-white transition-all duration-200 disabled:cursor-not-allowed ${
+										weroSubmitted
+											? 'bg-[#FF6F61] hover:bg-[#e85a4f] disabled:opacity-100'
+											: weroSubmitting
+												? 'bg-gray-600 hover:bg-gray-700 disabled:opacity-50'
+												: 'bg-primary shadow-sm hover:bg-primary/90 hover:shadow-md disabled:opacity-50'
+									}`}
+								>
+									{#if weroSubmitting}
+										<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+										Enregistrement...
+									{:else if weroSubmitted}
+										<Check class="mr-2 h-4 w-4" />
+										Sauvegardé !
+									{:else}
+										Enregistrer Wero
+									{/if}
+								</Button>
+							</form>
+							{#if initialWero && initialWero.trim() !== ''}
+								{#if confirmingDeleteProvider === 'wero'}
+									<div class="flex gap-2">
+										<form
+											method="POST"
+											action="?/updateWero"
+											use:weroEnhance={{
+												onResult: ({ result }) => {
+													weroSubmitting = false;
+													if (result.type === 'success') {
+														// Mettre à jour localement la valeur initiale (évite de recharger toute la page)
+														initialWero = '';
+														confirmingDeleteProvider = null;
+														showWeroForm = false; // Fermer le formulaire après suppression
+													}
+												},
+								onUpdate: ({ form: _form }) => {
+									// Superforms met automatiquement à jour les erreurs ici
+								},
+												onSubmit: () => {
+													weroSubmitting = true;
+												}
+											}}
+										>
+											<input type="hidden" name="wero_me" value="" />
+											<Button
+												type="submit"
+												disabled={weroSubmitting || weroSubmitted}
+												variant="ghost"
+												size="sm"
+												class="mt-4 bg-red-600 text-white hover:bg-red-700 hover:text-white disabled:opacity-50"
+												title="Confirmer la suppression"
+											>
+												<Check class="h-4 w-4" />
+											</Button>
+										</form>
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											on:click={cancelDeleteConfirmation}
+											class="mt-4"
+											title="Annuler la suppression"
+										>
+											<X class="h-4 w-4" />
+										</Button>
+									</div>
 								{:else}
-									Enregistrer Wero
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										class="mt-4 text-red-600 hover:bg-red-50 hover:text-red-700"
+										on:click={() => startDeleteConfirmation('wero')}
+										title="Supprimer Wero"
+									>
+										<Trash2 class="h-4 w-4" />
+									</Button>
 								{/if}
-							</Button>
-						</form>
+							{/if}
+						</div>
 					</div>
 				</Collapsible.Content>
 			</Collapsible.Root>
@@ -840,7 +1086,7 @@
 			</Collapsible.Content>
 		</Collapsible.Root>
 
-		<Form.Field {form} name="paypal_me">
+		<Form.Field form={paypalForm} name="paypal_me">
 			<Form.Control let:attrs>
 				<Form.Label>Votre nom PayPal.me</Form.Label>
 				<div class="flex items-center space-x-2">
@@ -849,7 +1095,7 @@
 						{...attrs}
 						type="text"
 						placeholder="votre-nom"
-						bind:value={$formData.paypal_me}
+						bind:value={$paypalFormData.paypal_me}
 						class="flex-1"
 					/>
 				</div>
@@ -862,16 +1108,16 @@
 		</Form.Field>
 
 		<!-- Aperçu du lien PayPal -->
-		{#if $formData.paypal_me && $formData.paypal_me.trim() !== ''}
+		{#if $paypalFormData.paypal_me && $paypalFormData.paypal_me.trim() !== ''}
 			<div class="rounded-lg border border-blue-200 bg-blue-50 p-3">
 				<h4 class="mb-2 text-sm font-medium text-blue-900">Aperçu de votre lien :</h4>
 				<a
-					href="https://paypal.me/{$formData.paypal_me.replace(/^@/, '')}"
+					href="https://paypal.me/{$paypalFormData.paypal_me.replace(/^@/, '')}"
 					target="_blank"
 					rel="noopener noreferrer"
 					class="block rounded bg-white px-3 py-2 font-mono text-sm text-blue-600 transition-colors hover:bg-blue-100 hover:text-blue-900"
 				>
-					paypal.me/{$formData.paypal_me.replace(/^@/, '')}
+					paypal.me/{$paypalFormData.paypal_me.replace(/^@/, '')}
 					<ExternalLink class="ml-1 inline h-3 w-3" />
 				</a>
 				<p class="mt-2 text-xs text-blue-700">
@@ -880,27 +1126,36 @@
 			</div>
 		{/if}
 
-		<!-- Bouton Enregistrer PayPal -->
+		<!-- Boutons Enregistrer et Supprimer PayPal -->
+		<div class="flex gap-2">
 		<form
 			method="POST"
 			action="?/updatePaypal"
-			use:enhance={({ formData: _formData, cancel: _cancel }) => {
-				paypalSubmitting = true;
-				return async ({ result, update }) => {
+			use:paypalEnhance={{
+				onResult: ({ result }) => {
 					paypalSubmitting = false;
-					if (result.type === 'success') {
+					// Ne fermer le formulaire QUE si la validation a réussi ET qu'il y a un message de succès
+					if (result.type === 'success' && result.data?.form?.message) {
+						// Mettre à jour localement la valeur initiale (évite de recharger toute la page)
+						initialPaypal = result.data.form.data?.paypal_me || '';
 						paypalSubmitted = true;
 						showPaypalForm = false; // Fermer le formulaire après succès
 						setTimeout(() => {
 							paypalSubmitted = false;
 						}, 2000);
-						await invalidateAll();
 					}
-					await update();
-				};
+					// En cas d'erreur (pas de message), le formulaire reste ouvert pour afficher les erreurs
+				},
+				onUpdate: ({ form: _form }) => {
+					// Superforms met automatiquement à jour les erreurs ici
+				},
+				onSubmit: () => {
+					paypalSubmitting = true;
+				}
 			}}
+				class="flex-1"
 		>
-			<input type="hidden" name="paypal_me" value={$formData.paypal_me || ''} />
+				<input type="hidden" name="paypal_me" value={$paypalFormData.paypal_me || ''} />
 			<Button
 				type="submit"
 				disabled={paypalSubmitting || paypalSubmitted}
@@ -923,6 +1178,67 @@
 				{/if}
 			</Button>
 		</form>
+			{#if $paypalFormData.paypal_me && $paypalFormData.paypal_me.trim() !== ''}
+				{#if confirmingDeleteProvider === 'paypal'}
+					<div class="flex gap-2">
+						<form
+							method="POST"
+							action="?/updatePaypal"
+							use:paypalEnhance={{
+								onResult: ({ result }) => {
+									paypalSubmitting = false;
+									if (result.type === 'success') {
+										// Mettre à jour localement la valeur initiale (évite de recharger toute la page)
+										initialPaypal = '';
+										confirmingDeleteProvider = null;
+										showPaypalForm = false; // Fermer le formulaire après suppression
+									}
+								},
+								onUpdate: ({ form: _form }) => {
+									// Superforms met automatiquement à jour les erreurs ici
+								},
+								onSubmit: () => {
+									paypalSubmitting = true;
+								}
+							}}
+						>
+							<input type="hidden" name="paypal_me" value="" />
+							<Button
+								type="submit"
+								disabled={paypalSubmitting || paypalSubmitted}
+								variant="ghost"
+								size="sm"
+								class="mt-4 bg-red-600 text-white hover:bg-red-700 hover:text-white disabled:opacity-50"
+								title="Confirmer la suppression"
+							>
+								<Check class="h-4 w-4" />
+							</Button>
+						</form>
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							on:click={cancelDeleteConfirmation}
+							class="mt-4"
+							title="Annuler la suppression"
+						>
+							<X class="h-4 w-4" />
+						</Button>
+					</div>
+				{:else}
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						class="mt-4 text-red-600 hover:bg-red-50 hover:text-red-700"
+						on:click={() => startDeleteConfirmation('paypal')}
+						title="Supprimer PayPal"
+					>
+						<Trash2 class="h-4 w-4" />
+					</Button>
+				{/if}
+			{/if}
+		</div>
 	</div>
 			</Collapsible.Content>
 		</Collapsible.Root>
@@ -936,7 +1252,7 @@
 			<span class="text-xs text-gray-500">Optionnel</span>
 		</div>
 
-		<Form.Field {form} name="revolut_me">
+		<Form.Field form={revolutForm} name="revolut_me">
 			<Form.Control let:attrs>
 				<Form.Label>Votre identifiant Revolut</Form.Label>
 				<div class="flex items-center space-x-2">
@@ -945,7 +1261,7 @@
 						{...attrs}
 						type="text"
 						placeholder="votre-identifiant"
-						bind:value={$formData.revolut_me}
+						bind:value={$revolutFormData.revolut_me}
 						class="flex-1"
 					/>
 				</div>
@@ -957,16 +1273,16 @@
 		</Form.Field>
 
 		<!-- Aperçu du lien Revolut -->
-		{#if $formData.revolut_me && $formData.revolut_me.trim() !== ''}
+		{#if $revolutFormData.revolut_me && $revolutFormData.revolut_me.trim() !== ''}
 			<div class="rounded-lg border border-purple-200 bg-purple-50 p-3">
 				<h4 class="mb-2 text-sm font-medium text-purple-900">Aperçu de votre lien :</h4>
 				<a
-					href="https://revolut.me/{$formData.revolut_me.replace(/^@/, '')}"
+					href="https://revolut.me/{$revolutFormData.revolut_me.replace(/^@/, '')}"
 					target="_blank"
 					rel="noopener noreferrer"
 					class="block rounded bg-white px-3 py-2 font-mono text-sm text-purple-600 transition-colors hover:bg-purple-100 hover:text-purple-900"
 				>
-					revolut.me/{$formData.revolut_me.replace(/^@/, '')}
+					revolut.me/{$revolutFormData.revolut_me.replace(/^@/, '')}
 					<ExternalLink class="ml-1 inline h-3 w-3" />
 				</a>
 				<p class="mt-2 text-xs text-purple-700">
@@ -975,27 +1291,36 @@
 			</div>
 		{/if}
 
-					<!-- Bouton Enregistrer Revolut -->
-					<form
-						method="POST"
-						action="?/updateRevolut"
-						use:enhance={({ formData: _formData, cancel: _cancel }) => {
-							revolutSubmitting = true;
-							return async ({ result, update }) => {
-								revolutSubmitting = false;
-								if (result.type === 'success') {
-									revolutSubmitted = true;
-									showRevolutForm = false; // Fermer le formulaire après succès
-									setTimeout(() => {
-										revolutSubmitted = false;
-									}, 2000);
-									await invalidateAll();
+					<!-- Boutons Enregistrer et Supprimer Revolut -->
+					<div class="flex gap-2">
+						<form
+							method="POST"
+							action="?/updateRevolut"
+							use:revolutEnhance={{
+								onResult: ({ result }) => {
+									revolutSubmitting = false;
+									// Ne fermer le formulaire QUE si la validation a réussi ET qu'il y a un message de succès
+									if (result.type === 'success' && result.data?.form?.message) {
+										// Mettre à jour localement la valeur initiale (évite de recharger toute la page)
+										initialRevolut = result.data.form.data?.revolut_me || '';
+										revolutSubmitted = true;
+										showRevolutForm = false; // Fermer le formulaire après succès
+										setTimeout(() => {
+											revolutSubmitted = false;
+										}, 2000);
+									}
+									// En cas d'erreur (pas de message), le formulaire reste ouvert pour afficher les erreurs
+								},
+								onUpdate: ({ form: _form }) => {
+									// Superforms met automatiquement à jour les erreurs ici
+								},
+								onSubmit: () => {
+									revolutSubmitting = true;
 								}
-								await update();
-							};
-						}}
-					>
-						<input type="hidden" name="revolut_me" value={$formData.revolut_me || ''} />
+							}}
+							class="flex-1"
+						>
+							<input type="hidden" name="revolut_me" value={$revolutFormData.revolut_me || ''} />
 						<Button
 		type="submit"
 							disabled={revolutSubmitting || revolutSubmitted}
@@ -1018,6 +1343,67 @@
 		{/if}
 						</Button>
 </form>
+						{#if $revolutFormData.revolut_me && $revolutFormData.revolut_me.trim() !== ''}
+							{#if confirmingDeleteProvider === 'revolut'}
+								<div class="flex gap-2">
+									<form
+										method="POST"
+										action="?/updateRevolut"
+										use:revolutEnhance={{
+											onResult: ({ result }) => {
+												revolutSubmitting = false;
+												if (result.type === 'success') {
+													// Mettre à jour localement la valeur initiale (évite de recharger toute la page)
+													initialRevolut = '';
+													confirmingDeleteProvider = null;
+													showRevolutForm = false; // Fermer le formulaire après suppression
+												}
+											},
+											onUpdate: ({ form: _form }) => {
+												// Superforms met automatiquement à jour les erreurs ici
+											},
+											onSubmit: () => {
+												revolutSubmitting = true;
+											}
+										}}
+									>
+										<input type="hidden" name="revolut_me" value="" />
+										<Button
+											type="submit"
+											disabled={revolutSubmitting || revolutSubmitted}
+											variant="ghost"
+											size="sm"
+											class="mt-4 bg-red-600 text-white hover:bg-red-700 hover:text-white disabled:opacity-50"
+											title="Confirmer la suppression"
+										>
+											<Check class="h-4 w-4" />
+										</Button>
+									</form>
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										on:click={cancelDeleteConfirmation}
+										class="mt-4"
+										title="Annuler la suppression"
+									>
+										<X class="h-4 w-4" />
+									</Button>
+								</div>
+							{:else}
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									class="mt-4 text-red-600 hover:bg-red-50 hover:text-red-700"
+									on:click={() => startDeleteConfirmation('revolut')}
+									title="Supprimer Revolut"
+								>
+									<Trash2 class="h-4 w-4" />
+								</Button>
+							{/if}
+						{/if}
+					</div>
 				</div>
 			</Collapsible.Content>
 		</Collapsible.Root>
@@ -1031,14 +1417,14 @@
 			<span class="text-xs text-gray-500">Optionnel</span>
 		</div>
 
-		<Form.Field {form} name="wero_me">
+		<Form.Field form={weroForm} name="wero_me">
 			<Form.Control let:attrs>
 				<Form.Label>Votre identifiant Wero</Form.Label>
 				<Input
 					{...attrs}
 					type="text"
 					placeholder="email@example.com ou +33612345678"
-					bind:value={$formData.wero_me}
+					bind:value={$weroFormData.wero_me}
 					class="h-10"
 				/>
 			</Form.Control>
@@ -1048,49 +1434,120 @@
 			</Form.Description>
 		</Form.Field>
 
-		<form
-			method="POST"
-			action="?/updateWero"
-			use:enhance={({ formData: _formData, cancel: _cancel }) => {
-				weroSubmitting = true;
-				return async ({ result, update }) => {
-					weroSubmitting = false;
-					if (result.type === 'success') {
-						weroSubmitted = true;
-						showWeroForm = false; // Fermer le formulaire après succès
-						setTimeout(() => {
-							weroSubmitted = false;
-						}, 2000);
-						await invalidateAll();
+		<!-- Boutons Enregistrer et Supprimer Wero -->
+		<div class="flex gap-2">
+			<form
+				method="POST"
+				action="?/updateWero"
+				use:weroEnhance={{
+					onResult: ({ result }) => {
+						weroSubmitting = false;
+						// Ne fermer le formulaire QUE si la validation a réussi ET qu'il y a un message de succès
+						if (result.type === 'success' && result.data?.form?.message) {
+							// Mettre à jour localement la valeur initiale (évite de recharger toute la page)
+							initialWero = result.data.form.data?.wero_me || '';
+							weroSubmitted = true;
+							showWeroForm = false; // Fermer le formulaire après succès
+							setTimeout(() => {
+								weroSubmitted = false;
+							}, 2000);
+						}
+						// En cas d'erreur (pas de message), le formulaire reste ouvert pour afficher les erreurs
+					},
+					onUpdate: ({ form: _form }) => {
+						// Superforms met automatiquement à jour les erreurs ici
+					},
+					onSubmit: () => {
+						weroSubmitting = true;
 					}
-					await update();
-				};
-			}}
-		>
-			<input type="hidden" name="wero_me" value={$formData.wero_me || ''} />
-			<Button
-				type="submit"
-				disabled={weroSubmitting || weroSubmitted}
-				class={`mt-4 h-10 w-full text-sm font-medium text-white transition-all duration-200 disabled:cursor-not-allowed ${
-					weroSubmitted
-						? 'bg-[#FF6F61] hover:bg-[#e85a4f] disabled:opacity-100'
-						: weroSubmitting
-							? 'bg-gray-600 hover:bg-gray-700 disabled:opacity-50'
-							: 'bg-primary shadow-sm hover:bg-primary/90 hover:shadow-md disabled:opacity-50'
-				}`}
+				}}
+				class="flex-1"
 			>
-				{#if weroSubmitting}
-					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-					Enregistrement...
-				{:else if weroSubmitted}
-					<Check class="mr-2 h-4 w-4" />
-					Sauvegardé !
+				<input type="hidden" name="wero_me" value={$weroFormData.wero_me || ''} />
+				<Button
+					type="submit"
+					disabled={weroSubmitting || weroSubmitted}
+					class={`mt-4 h-10 w-full text-sm font-medium text-white transition-all duration-200 disabled:cursor-not-allowed ${
+						weroSubmitted
+							? 'bg-[#FF6F61] hover:bg-[#e85a4f] disabled:opacity-100'
+							: weroSubmitting
+								? 'bg-gray-600 hover:bg-gray-700 disabled:opacity-50'
+								: 'bg-primary shadow-sm hover:bg-primary/90 hover:shadow-md disabled:opacity-50'
+					}`}
+				>
+					{#if weroSubmitting}
+						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+						Enregistrement...
+					{:else if weroSubmitted}
+						<Check class="mr-2 h-4 w-4" />
+						Sauvegardé !
+					{:else}
+						Enregistrer Wero
+					{/if}
+				</Button>
+			</form>
+			{#if $weroFormData.wero_me && $weroFormData.wero_me.trim() !== ''}
+				{#if confirmingDeleteProvider === 'wero'}
+					<div class="flex gap-2">
+						<form
+							method="POST"
+							action="?/updateWero"
+							use:weroEnhance={{
+								onResult: ({ result }) => {
+									weroSubmitting = false;
+									if (result.type === 'success') {
+										// Mettre à jour localement la valeur initiale (évite de recharger toute la page)
+										initialWero = '';
+										confirmingDeleteProvider = null;
+										showWeroForm = false; // Fermer le formulaire après suppression
+									}
+								},
+								onUpdate: ({ form: _form }) => {
+									// Superforms met automatiquement à jour les erreurs ici
+								},
+								onSubmit: () => {
+									weroSubmitting = true;
+								}
+							}}
+						>
+							<input type="hidden" name="wero_me" value="" />
+							<Button
+								type="submit"
+								disabled={weroSubmitting || weroSubmitted}
+								variant="ghost"
+								size="sm"
+								class="mt-4 bg-red-600 text-white hover:bg-red-700 hover:text-white disabled:opacity-50"
+								title="Confirmer la suppression"
+							>
+								<Check class="h-4 w-4" />
+							</Button>
+						</form>
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							on:click={cancelDeleteConfirmation}
+							class="mt-4"
+							title="Annuler la suppression"
+						>
+							<X class="h-4 w-4" />
+						</Button>
+					</div>
 				{:else}
-					Enregistrer Wero
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						class="mt-4 text-red-600 hover:bg-red-50 hover:text-red-700"
+						on:click={() => startDeleteConfirmation('wero')}
+						title="Supprimer Wero"
+					>
+						<Trash2 class="h-4 w-4" />
+					</Button>
 				{/if}
-			</Button>
-		</form>
-	</div>
+			{/if}
+		</div>
+				</div>
 			</Collapsible.Content>
 		</Collapsible.Root>
 
