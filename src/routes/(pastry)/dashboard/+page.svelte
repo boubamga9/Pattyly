@@ -153,6 +153,8 @@
 				return { label: 'Devis envoyé', variant: 'outline' };
 			case 'to_verify':
 				return { label: 'À vérifier', variant: 'secondary' };
+			case 'refused':
+				return { label: 'Refusée', variant: 'outline' };
 			default:
 				return { label: status, variant: 'outline' };
 		}
