@@ -70,6 +70,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 					p_limit: 1000,
 					p_offset: 0,
 					p_premium_product_id: STRIPE_PRODUCTS.PREMIUM,
+					p_lifetime_product_id: STRIPE_PRODUCTS.LIFETIME,
 					p_verified_only: verifiedOnly
 				}
 			);
@@ -162,6 +163,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		'get_products_sorted_by_shop_premium' as any,
 		{
 			p_premium_product_id: STRIPE_PRODUCTS.PREMIUM,
+			p_lifetime_product_id: STRIPE_PRODUCTS.LIFETIME,
 			p_limit: limit,
 			p_offset: offset,
 			p_cake_type: cakeTypeName,
@@ -196,7 +198,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 					'check_premium_profiles',
 					{
 						p_profile_ids: profileIds,
-						p_premium_product_id: STRIPE_PRODUCTS.PREMIUM
+						p_premium_product_id: STRIPE_PRODUCTS.PREMIUM,
+						p_lifetime_product_id: STRIPE_PRODUCTS.LIFETIME
 					}
 				);
 

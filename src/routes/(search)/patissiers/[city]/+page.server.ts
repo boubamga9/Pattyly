@@ -76,7 +76,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			'check_premium_profiles',
 			{
 				p_profile_ids: profileIds,
-				p_premium_product_id: STRIPE_PRODUCTS.PREMIUM
+				p_premium_product_id: STRIPE_PRODUCTS.PREMIUM,
+				p_lifetime_product_id: STRIPE_PRODUCTS.LIFETIME
 			}
 		);
 		

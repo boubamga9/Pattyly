@@ -66,7 +66,9 @@ export const load: PageServerLoad = async ({ locals, url, setHeaders }) => {
 					p_longitude: longitude,
 					p_radius_km: radius,
 					p_limit: 1000, // Limite élevée pour avoir tous les shops dans le rayon
-					p_offset: 0
+					p_offset: 0,
+					p_premium_product_id: STRIPE_PRODUCTS.PREMIUM,
+					p_lifetime_product_id: STRIPE_PRODUCTS.LIFETIME
 				}
 			);
 
@@ -117,6 +119,7 @@ export const load: PageServerLoad = async ({ locals, url, setHeaders }) => {
 		'get_products_sorted_by_shop_premium' as any,
 		{
 			p_premium_product_id: STRIPE_PRODUCTS.PREMIUM,
+			p_lifetime_product_id: STRIPE_PRODUCTS.LIFETIME,
 			p_limit: limit,
 			p_offset: offset,
 			p_cake_type: cakeTypeName,
