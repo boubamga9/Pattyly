@@ -730,10 +730,13 @@ export const actions: Actions = {
                 return fail(400, { toggleForm: errorForm });
             }
 
-            // ✅ Mettre à jour Resend
+            console.log('✅ [Toggle Directory] Updated directory_enabled to:', directoryEnabled, 'for shop:', shopId);
+
+            // ✅ Mettre à jour Resend (fire-and-forget pour ne pas bloquer)
+            // La synchronisation récupère la valeur directement depuis la base de données
             const { syncPastryToResend } = await import('$lib/utils/resend-sync');
             syncPastryToResend(userId, session.user.email || '', locals.supabase).catch(err => {
-                console.error('Erreur synchronisation Resend:', err);
+                console.error('❌ [Toggle Directory] Erreur synchronisation Resend:', err);
             });
 
             // ✅ Si l'annuaire est activé, géocoder automatiquement si les informations sont disponibles

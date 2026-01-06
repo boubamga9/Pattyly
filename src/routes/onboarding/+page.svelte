@@ -226,7 +226,7 @@
 							stroke-width="2"
 							stroke-linecap="round"
 							stroke-linejoin="round"
-							class="mr-2 h-6 w-6 text-[#FF6F61]"
+							class="mr-2 h-8 w-8 text-[#FF6F61]"
 						>
 							<rect width="20" height="14" x="2" y="5" rx="2" />
 							<line x1="2" x2="22" y1="10" y2="10" />
@@ -234,7 +234,7 @@
 						<div>
 							<CardTitle>Configuration des méthodes de paiement</CardTitle>
 							<CardDescription>
-								Configurez au moins une méthode de paiement pour recevoir les paiements. Vous pouvez configurer PayPal et/ou Revolut.
+								Configurez une méthode de paiement pour recevoir les paiements. Vous pouvez configurer PayPal, Revolut, Wero ou Stripe. Vous pourrez configurer les autres dans votre espace.
 							</CardDescription>
 						</div>
 					</div>

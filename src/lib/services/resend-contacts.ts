@@ -6,7 +6,7 @@ const resend = new Resend(env.RESEND_API_KEY);
 export interface ResendContactData {
     email: string;
     current_plan?: string;
-    visible_in_listing_page?: boolean;
+    visible_in_listing_page?: boolean; // Sera converti en number (0/1) avant envoi
     shop_name?: string;
     shop_slug?: string;
     unsubscribed?: boolean;
@@ -20,13 +20,15 @@ export class ResendContactsService {
     static async upsertContact(data: ResendContactData) {
         try {
             // Préparer les propriétés personnalisées
-            const properties: Record<string, string | boolean> = {};
+            // Note: Resend attend visible_in_listing_page comme number (0 ou 1), pas boolean
+            const properties: Record<string, string | number> = {};
             
             if (data.current_plan !== undefined) {
                 properties.current_plan = data.current_plan;
             }
             if (data.visible_in_listing_page !== undefined) {
-                properties.visible_in_listing_page = data.visible_in_listing_page;
+                // Convertir boolean en number pour Resend (0 = false, 1 = true)
+                properties.visible_in_listing_page = data.visible_in_listing_page ? 1 : 0;
             }
             if (data.shop_name !== undefined) {
                 properties.shop_name = data.shop_name;
