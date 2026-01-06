@@ -1,5 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { error, fail } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { getUserPermissions, verifyShopOwnership } from '$lib/auth';
 import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
 import { PUBLIC_SITE_URL } from '$env/static/public';
@@ -24,14 +24,95 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
             throw error(401, 'Non autorisé');
         }
 
+        // Vérifier d'abord si c'est une pending_order
+        const { data: pendingOrder, error: pendingError } = await locals.supabase
+            .from('pending_orders')
+            .select('*')
+            .eq('id', params.id)
+            .maybeSingle();
+
+        if (pendingOrder && !pendingError) {
+            // C'est une pending_order
+            const orderData = pendingOrder.order_data as any;
+            
+            // Vérifier que cette pending_order appartient à cette boutique
+            if (orderData?.shop_id !== permissions.shopId) {
+                throw error(403, 'Accès non autorisé');
+            }
+
+            // Récupérer les informations de la boutique
+            const { data: shop } = await locals.supabase
+                .from('shops')
+                .select('id, name, slug, logo_url')
+                .eq('id', permissions.shopId)
+                .single();
+
+            if (!shop) {
+                throw error(404, 'Boutique non trouvée');
+            }
+
+            // Récupérer le produit si disponible
+            let product = null;
+            if (orderData.product_id) {
+                const { data: productData } = await locals.supabase
+                    .from('products')
+                    .select('base_price, deposit_percentage, image_url')
+                    .eq('id', orderData.product_id)
+                    .single();
+                product = productData;
+            }
+
+            // Transformer en format similaire à order pour l'affichage
+            const order = {
+                id: pendingOrder.id,
+                customer_name: orderData.customer_name || 'Client inconnu',
+                customer_email: orderData.customer_email || '',
+                customer_phone: orderData.customer_phone || null,
+                customer_instagram: orderData.customer_instagram || null,
+                pickup_date: orderData.pickup_date,
+                pickup_time: orderData.pickup_time || null,
+                status: 'non_finalisee',
+                total_amount: orderData.total_amount || null,
+                paid_amount: null,
+                product_name: orderData.product_name || null,
+                product_base_price: product?.base_price || null,
+                additional_information: orderData.additional_information || null,
+                customization_data: orderData.customization_data || null,
+                chef_message: null,
+                chef_pickup_date: null,
+                chef_pickup_time: null,
+                order_ref: pendingOrder.order_ref || null,
+                created_at: pendingOrder.created_at,
+                is_pending: true
+            };
+
+            // Initialiser les formulaires Superforms
+            const makeQuoteForm = await superValidate(zod(makeQuoteFormSchema));
+            const rejectOrderForm = await superValidate(zod(rejectOrderFormSchema));
+            const personalNoteForm = await superValidate(zod(personalNoteFormSchema));
+
+            return {
+                order,
+                shop,
+                paidAmount: null,
+                personalNote: null,
+                makeQuoteForm,
+                rejectOrderForm,
+                personalNoteForm,
+                isPending: true,
+                product
+            };
+        }
+
+        // Sinon, c'est une commande normale
         // ✅ OPTIMISÉ : Un seul appel DB pour toutes les données de commande
-        const { data: orderDetailData, error } = await locals.supabase.rpc('get_order_detail_data', {
+        const { data: orderDetailData, error: rpcError } = await locals.supabase.rpc('get_order_detail_data', {
             p_order_id: params.id,
             p_profile_id: user.id
         });
 
-        if (error) {
-            console.error('Error fetching order detail data:', error);
+        if (rpcError) {
+            console.error('Error fetching order detail data:', rpcError);
             throw error(404, 'Commande non trouvée');
         }
 
@@ -69,7 +150,8 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
             personalNote: personalNote || null,
             makeQuoteForm,
             rejectOrderForm,
-            personalNoteForm
+            personalNoteForm,
+            isPending: false
         };
     } catch (err) {
         throw err;
@@ -77,6 +159,215 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
 };
 
 export const actions: Actions = {
+    // Valider une pending_order (convertir en order)
+    validatePendingOrder: async ({ params, request, locals }) => {
+        try {
+            // Récupérer l'utilisateur depuis la session
+            const { session, user } = await locals.safeGetSession();
+
+            if (!session || !user) {
+                return fail(401, { error: 'Non autorisé' });
+            }
+
+            // Récupérer les permissions de l'utilisateur
+            const permissions = await getUserPermissions(user.id, locals.supabase);
+
+            if (!permissions.shopId) {
+                return fail(403, { error: 'Boutique non trouvée' });
+            }
+
+            // Récupérer la pending_order
+            const { data: pendingOrder, error: pendingOrderError } = await (locals.supabaseServiceRole as any)
+                .from('pending_orders')
+                .select('*')
+                .eq('id', params.id)
+                .single();
+
+            if (pendingOrderError || !pendingOrder) {
+                await ErrorLogger.logCritical(
+                    pendingOrderError || new Error('Pending order not found'),
+                    {
+                        pendingOrderId: params.id,
+                        userId: user.id,
+                    },
+                    {
+                        action: 'validatePendingOrder',
+                        step: 'fetch_pending_order',
+                    }
+                );
+                return fail(404, { error: 'Commande non trouvée' });
+            }
+
+            const orderData = pendingOrder.order_data as any;
+
+            // Vérifier que cette pending_order appartient à cette boutique
+            const shopId = permissions.shopId;
+            if (orderData?.shop_id !== shopId) {
+                return fail(403, { error: 'Accès non autorisé à cette boutique' });
+            }
+
+            // Récupérer les informations du produit et de la boutique
+            const { data: product, error: productError } = await (locals.supabaseServiceRole as any)
+                .from('products')
+                .select('base_price, deposit_percentage, shops(slug, logo_url, name, profile_id)')
+                .eq('id', orderData.product_id)
+                .single();
+
+            if (productError || !product) {
+                await ErrorLogger.logCritical(
+                    productError || new Error('Product not found'),
+                    {
+                        pendingOrderId: params.id,
+                        productId: orderData.product_id,
+                        shopId: orderData.shop_id,
+                    },
+                    {
+                        action: 'validatePendingOrder',
+                        step: 'fetch_product',
+                    }
+                );
+                return fail(500, { error: 'Produit non trouvé' });
+            }
+
+            // Récupérer l'email du profile séparément
+            let pastryEmail: string | null = null;
+            if (product.shops?.profile_id) {
+                const { data: profile } = await (locals.supabaseServiceRole as any)
+                    .from('profiles')
+                    .select('email')
+                    .eq('id', product.shops.profile_id)
+                    .single();
+                pastryEmail = profile?.email || null;
+            }
+
+            // Calculer les montants
+            const totalAmount = orderData.total_amount;
+            const depositPercentage = product.deposit_percentage ?? 50; // Par défaut 50% si non défini
+            const paidAmount = (totalAmount * depositPercentage) / 100;
+            const remainingAmount = totalAmount - paidAmount;
+
+            // Créer l'order avec statut "confirmed" (validé manuellement par le pâtissier)
+            const { data: order, error: orderError } = await (locals.supabaseServiceRole as any)
+                .from('orders')
+                .insert({
+                    shop_id: orderData.shop_id,
+                    product_id: orderData.product_id,
+                    customer_name: orderData.customer_name,
+                    customer_email: orderData.customer_email,
+                    customer_phone: orderData.customer_phone || null,
+                    customer_instagram: orderData.customer_instagram || null,
+                    pickup_date: orderData.pickup_date,
+                    pickup_time: orderData.pickup_time || null,
+                    additional_information: orderData.additional_information || null,
+                    customization_data: orderData.customization_data || null,
+                    status: 'confirmed',
+                    total_amount: totalAmount,
+                    paid_amount: paidAmount,
+                    product_name: orderData.product_name,
+                    product_base_price: product.base_price || 0,
+                    order_ref: pendingOrder.order_ref,
+                    payment_provider: null // Paiement manuel validé par le pâtissier
+                })
+                .select()
+                .single();
+
+            if (orderError || !order) {
+                await ErrorLogger.logCritical(
+                    orderError || new Error('Failed to create order'),
+                    {
+                        pendingOrderId: params.id,
+                        shopId: orderData.shop_id,
+                        productId: orderData.product_id,
+                    },
+                    {
+                        action: 'validatePendingOrder',
+                        step: 'create_order',
+                    }
+                );
+                return fail(500, { error: 'Erreur lors de la création de la commande' });
+            }
+
+            // Tracking: Order received
+            const { logEventAsync, Events } = await import('$lib/utils/analytics');
+            logEventAsync(
+                locals.supabaseServiceRole,
+                Events.ORDER_RECEIVED,
+                {
+                    order_id: order.id,
+                    order_ref: pendingOrder.order_ref,
+                    shop_id: orderData.shop_id,
+                    product_id: orderData.product_id,
+                    total_amount: totalAmount,
+                    order_type: 'product_order'
+                },
+                user.id,
+                `/dashboard/orders/${params.id}`
+            );
+
+            // Envoyer les emails de confirmation (commande confirmée)
+            try {
+                // Email au client (confirmation de commande)
+                await EmailService.sendOrderConfirmation({
+                    customerEmail: orderData.customer_email,
+                    customerName: orderData.customer_name,
+                    shopName: product.shops.name,
+                    shopLogo: product.shops.logo_url,
+                    productName: orderData.product_name,
+                    pickupDate: orderData.pickup_date,
+                    pickupTime: orderData.pickup_time,
+                    totalAmount: totalAmount,
+                    paidAmount: paidAmount,
+                    remainingAmount: remainingAmount,
+                    orderId: order.id,
+                    orderUrl: `${PUBLIC_SITE_URL}/${product.shops.slug}/order/${order.id}`,
+                    date: new Date().toLocaleDateString('fr-FR')
+                });
+
+                // Email au pâtissier (notification de nouvelle commande)
+                if (pastryEmail && product.shops?.profile_id) {
+                    await EmailService.sendOrderNotification({
+                        pastryEmail: pastryEmail,
+                        customerName: orderData.customer_name,
+                        customerEmail: orderData.customer_email,
+                        customerInstagram: orderData.customer_instagram,
+                        productName: orderData.product_name,
+                        pickupDate: orderData.pickup_date,
+                        pickupTime: orderData.pickup_time,
+                        totalAmount: totalAmount,
+                        paidAmount: paidAmount,
+                        remainingAmount: remainingAmount,
+                        orderId: order.id,
+                        dashboardUrl: `${PUBLIC_SITE_URL}/dashboard/orders/${order.id}`,
+                        date: new Date().toLocaleDateString('fr-FR')
+                    });
+                }
+            } catch (emailError) {
+                console.error('❌ [Validate Pending Order] Email error:', emailError);
+                // Ne pas bloquer la commande si les emails échouent
+            }
+
+            // Supprimer la pending_order
+            const { error: deleteError } = await (locals.supabaseServiceRole as any)
+                .from('pending_orders')
+                .delete()
+                .eq('id', params.id);
+
+            if (deleteError) {
+                console.error('❌ [Validate Pending Order] Failed to delete pending order:', deleteError);
+                // Ne pas bloquer si la suppression échoue
+            }
+
+            // Rediriger vers la liste des commandes
+            throw redirect(303, '/dashboard/orders');
+        } catch (err) {
+            // Si c'est une redirection, la relancer
+            if (err && typeof err === 'object' && 'status' in err && err.status === 303) {
+                throw err;
+            }
+            console.error('❌ [Validate Pending Order] Error:', err);
+            return fail(500, { error: 'Erreur lors de la validation de la commande' });
+        }
+    },
     // Sauvegarder/modifier la note personnelle
     savePersonalNote: async ({ request, params, locals }) => {
         try {

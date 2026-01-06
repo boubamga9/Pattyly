@@ -38,10 +38,12 @@
 		products?: { name: string; image_url: string | null } | null;
 		chef_pickup_date: string | null;
 		chef_pickup_time: string | null;
+		is_pending?: boolean; // Flag pour identifier les pending_orders
+		order_ref?: string | null; // Référence de commande
 	}
 
 	// Données de la page
-	$: ({ orders, statusCounts, orderLimitStats } = $page.data);
+	$: ({ orders, pendingOrders, statusCounts, orderLimitStats } = $page.data);
 
 	// État du filtre
 	let selectedStatus: string | null = null;
@@ -50,10 +52,12 @@
 	// Filtrer les commandes quand le statut change
 	$: filteredOrders =
 		selectedStatus === null || selectedStatus === 'all'
-			? orders || []
-			: (orders || []).filter(
-					(order: Order) => order.status === selectedStatus,
-				);
+			? orders || [] // "Tout" : uniquement les commandes normales
+			: selectedStatus === 'non_finalisee'
+				? pendingOrders || [] // "Non finalisée" : uniquement les pending_orders
+				: (orders || []).filter(
+						(order: Order) => order.status === selectedStatus,
+					);
 
 	// Fonction pour formater le prix
 	function formatPrice(price: number | null): string {
@@ -77,6 +81,8 @@
 	// Fonction pour obtenir l'icône du statut
 	function getStatusIcon(status: string) {
 		switch (status) {
+			case 'non_finalisee':
+				return AlertCircle;
 			case 'to_verify':
 				return AlertCircle;
 			case 'pending':
@@ -99,6 +105,8 @@
 	// Fonction pour obtenir la couleur du statut
 	function getStatusColor(status: string): string {
 		switch (status) {
+			case 'non_finalisee':
+				return 'bg-red-100 text-red-800 border-red-200';
 			case 'to_verify':
 				return 'bg-orange-100 text-orange-800 border-orange-200';
 			case 'pending':
@@ -121,6 +129,8 @@
 	// Fonction pour obtenir le texte du statut
 	function getStatusText(status: string): string {
 		switch (status) {
+			case 'non_finalisee':
+				return 'Non finalisée';
 			case 'to_verify':
 				return 'Paiement à confirmer';
 			case 'pending':
@@ -372,6 +382,16 @@
 				>
 					Refusées* ({statusCounts.refused})
 				</Button>
+
+				<!-- Bouton "Non finalisée" à la fin avec style discret -->
+				<Button
+					variant={selectedStatus === 'non_finalisee' ? 'secondary' : 'ghost'}
+					size="sm"
+					on:click={() => (selectedStatus = 'non_finalisee')}
+					class="whitespace-nowrap text-muted-foreground hover:text-foreground"
+				>
+					Non finalisée ({statusCounts.non_finalisee || 0})
+				</Button>
 			</div>
 		</div>
 
@@ -414,6 +434,12 @@
 									role="button"
 									tabindex="0"
 								>
+									{#if order.is_pending}
+										<!-- Bandeau d'alerte pour les commandes non finalisées -->
+										<div class="mb-2 rounded-t-lg bg-red-50 p-2 text-xs text-red-700">
+											⚠️ Commande non finalisée - Le client a peut-être payé mais n'a pas validé sa commande
+										</div>
+									{/if}
 									<CardHeader>
 										<div class="flex items-start justify-between">
 											<div class="flex-1">

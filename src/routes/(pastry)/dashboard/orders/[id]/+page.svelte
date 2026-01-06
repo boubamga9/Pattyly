@@ -41,6 +41,7 @@
 		makeQuoteForm,
 		rejectOrderForm,
 		personalNoteForm,
+		isPending,
 	} = $page.data);
 
 	// État du formulaire pour les actions
@@ -155,6 +156,8 @@
 	// Fonction pour obtenir l'icône du statut
 	function getStatusIcon(status: string) {
 		switch (status) {
+			case 'non_finalisee':
+				return AlertCircle;
 			case 'to_verify':
 				return AlertCircle;
 			case 'pending':
@@ -177,6 +180,8 @@
 	// Fonction pour obtenir la couleur du statut
 	function getStatusColor(status: string): string {
 		switch (status) {
+			case 'non_finalisee':
+				return 'bg-red-100 text-red-800 border-red-200';
 			case 'to_verify':
 				return 'bg-orange-100 text-orange-800 border-orange-200';
 			case 'pending':
@@ -199,6 +204,8 @@
 	// Fonction pour obtenir le texte du statut
 	function getStatusText(status: string): string {
 		switch (status) {
+			case 'non_finalisee':
+				return 'Non finalisée';
 			case 'to_verify':
 				return 'Paiement à confirmer';
 			case 'pending':
@@ -788,7 +795,31 @@
 					<CardTitle>Actions</CardTitle>
 				</CardHeader>
 				<CardContent class="space-y-4">
-					{#if order.status === 'pending'}
+					{#if isPending || order.status === 'non_finalisee'}
+						<!-- Actions pour les commandes non finalisées (pending_orders) -->
+						<div class="space-y-4">
+							<Alert variant="destructive">
+								<AlertCircle class="h-4 w-4" />
+								<AlertDescription>
+									Cette commande n'a pas été finalisée. Le client a peut-être payé mais n'a pas cliqué sur "J'ai payé" pour valider sa commande. 
+									Cliquez sur "Valider la commande" pour créer la commande et notifier le client.
+								</AlertDescription>
+							</Alert>
+							<form
+								method="POST"
+								action="?/validatePendingOrder"
+								use:enhance
+							>
+								<Button
+									type="submit"
+									class="w-full gap-2"
+								>
+									<Check class="h-4 w-4" />
+									Valider la commande
+								</Button>
+							</form>
+						</div>
+					{:else if order.status === 'pending'}
 						<!-- Actions pour les commandes en attente -->
 						<div class="space-y-4">
 							<Button

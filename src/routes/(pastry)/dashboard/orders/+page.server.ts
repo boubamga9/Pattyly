@@ -19,6 +19,8 @@ interface Order {
     products?: { name: string; image_url: string | null } | null;
     chef_pickup_date: string | null;
     chef_pickup_time: string | null;
+    is_pending?: boolean; // Flag pour identifier les pending_orders
+    order_ref?: string | null; // Référence de commande
 }
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
@@ -46,11 +48,86 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
             throw svelteError(404, 'Boutique non trouvée');
         }
 
-        // Grouper les commandes par date
-        const groupedOrders = groupOrdersByDate(orders || []);
+        // Récupérer les pending_orders pour cette boutique
+        const { data: pendingOrdersData, error: pendingError } = await locals.supabase
+            .from('pending_orders')
+            .select('*')
+            .order('created_at', { ascending: false });
 
-        // Compter les commandes par statut
-        const statusCounts = getStatusCounts(orders || []);
+        // Transformer les pending_orders en format similaire aux commandes
+        const pendingOrders: Order[] = [];
+        if (pendingOrdersData) {
+            // Récupérer tous les product_ids uniques pour optimiser les requêtes
+            const productIds = new Set<string>();
+            const pendingOrdersByShop: typeof pendingOrdersData = [];
+            
+            for (const pending of pendingOrdersData) {
+                const orderData = pending.order_data as any;
+                // Vérifier que cette pending_order appartient à cette boutique
+                if (orderData?.shop_id === shop.id) {
+                    pendingOrdersByShop.push(pending);
+                    if (orderData.product_id) {
+                        productIds.add(orderData.product_id);
+                    }
+                }
+            }
+
+            // Récupérer toutes les images de produits en une seule requête
+            const productImagesMap = new Map<string, string | null>();
+            if (productIds.size > 0) {
+                const { data: products } = await locals.supabase
+                    .from('products')
+                    .select('id, image_url')
+                    .in('id', Array.from(productIds));
+                
+                if (products) {
+                    products.forEach(product => {
+                        productImagesMap.set(product.id, product.image_url);
+                    });
+                }
+            }
+
+            // Transformer les pending_orders
+            for (const pending of pendingOrdersByShop) {
+                const orderData = pending.order_data as any;
+                const productImage = orderData.product_id ? productImagesMap.get(orderData.product_id) || null : null;
+
+                pendingOrders.push({
+                    id: pending.id, // Utiliser l'id de pending_order
+                    customer_name: orderData.customer_name || 'Client inconnu',
+                    customer_email: orderData.customer_email || '',
+                    pickup_date: orderData.pickup_date || new Date().toISOString(),
+                    pickup_time: orderData.pickup_time || null,
+                    status: 'non_finalisee', // Nouveau statut
+                    total_amount: orderData.total_amount || null,
+                    product_name: orderData.product_name || null,
+                    additional_information: orderData.additional_information || null,
+                    chef_message: null,
+                    created_at: pending.created_at || new Date().toISOString(),
+                    products: orderData.product_id ? {
+                        name: orderData.product_name || null,
+                        image_url: productImage
+                    } : null,
+                    chef_pickup_date: null,
+                    chef_pickup_time: null,
+                    is_pending: true, // Flag pour identifier les pending_orders
+                    order_ref: pending.order_ref || null
+                });
+            }
+        }
+
+        // Séparer les commandes normales et les pending_orders
+        // Les pending_orders ne doivent apparaître que dans le filtre "Non finalisée"
+        const normalOrders = orders || [];
+
+        // Grouper les commandes normales par date (pour l'affichage "Tout")
+        const groupedOrders = groupOrdersByDate(normalOrders);
+
+        // Compter les commandes normales par statut (sans les pending_orders)
+        const statusCounts = getStatusCounts(normalOrders);
+        
+        // Ajouter le compte des pending_orders au statut "non_finalisee"
+        statusCounts.non_finalisee = pendingOrders.length;
 
         // Récupérer les statistiques de limite de commandes
         let orderLimitStats = null;
@@ -59,7 +136,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
         }
 
         return {
-            orders: orders || [],
+            orders: normalOrders, // Commandes normales uniquement
+            pendingOrders: pendingOrders, // Pending orders séparées
             groupedOrders,
             statusCounts,
             shop,
@@ -161,7 +239,8 @@ function getStatusCounts(orders: Order[]) {
         confirmed: 0,
         ready: 0,
         completed: 0,
-        refused: 0
+        refused: 0,
+        non_finalisee: 0 // Ajouter le nouveau statut
     };
 
     orders.forEach((order) => {
