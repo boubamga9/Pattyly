@@ -195,14 +195,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 		stripeConnect?.charges_enabled &&
 		stripeConnect?.payouts_enabled;
 
-	// Récupérer le code d'affiliation du profil
+	// Récupérer le code d'affiliation du profil et is_stripe_free
 	const { data: profile } = await (locals.supabaseServiceRole as any)
 		.from('profiles')
-		.select('affiliate_code')
+		.select('affiliate_code, is_stripe_free')
 		.eq('id', userId)
 		.single();
 
 	const affiliateCode = (profile as any)?.affiliate_code || null;
+	const isAmbassador = (profile as any)?.is_stripe_free === true;
 
 	// Compter les abonnés (affiliations actives avec abonnement actif)
 	const totalAbonnes = affiliationsWithSubscription.filter(
@@ -214,6 +215,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		affiliateCode,
 		affiliateLink: affiliateCode ? `${PUBLIC_SITE_URL}?ref=${affiliateCode}` : null,
 		hasStripeConnect: !!hasStripeConnect,
+		isAmbassador, // ✅ Ajouter isAmbassador pour le texte dynamique
 		stats: {
 			totalInscrits,
 			totalAbonnes,

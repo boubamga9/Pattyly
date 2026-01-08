@@ -309,10 +309,10 @@ export const actions: Actions = {
                 console.log('🔍 [AFFILIATION] User ID:', userId);
 
                 try {
-                    // Vérifier que le code existe et récupérer le profile_id
+                    // Vérifier que le code existe et récupérer le profile_id et is_stripe_free
                     const { data: referrerProfile, error: profileError } = await supabaseServiceRole
                         .from('profiles')
-                        .select('id')
+                        .select('id, is_stripe_free')
                         .eq('affiliate_code', affiliateCode)
                         .single();
 
@@ -352,6 +352,11 @@ export const actions: Actions = {
                             if (existingAffiliation) {
                                 console.log('⚠️ [AFFILIATION] Affiliation déjà existante:', existingAffiliation.id);
                             } else {
+                                // ✅ Déterminer les valeurs de commission selon si c'est un ambassadeur
+                                const isAmbassador = referrerProfile.is_stripe_free === true;
+                                const commissionRate = isAmbassador ? 50.00 : 30.00; // Valeur par défaut de la table
+                                const commissionDurationMonths = isAmbassador ? 99999 : 6; // Valeur par défaut de la table
+
                                 // Créer l'affiliation avec status 'pending'
                                 const { data: affiliation, error: affiliationError } = await supabaseServiceRole
                                     .from('affiliations')
@@ -359,7 +364,9 @@ export const actions: Actions = {
                                         referrer_profile_id: referrerProfile.id,
                                         referred_profile_id: userId,
                                         affiliate_slug: affiliateCode, // ✅ Stocker le code dans affiliate_slug (pas besoin de changer la colonne DB)
-                                        status: 'pending'
+                                        status: 'pending',
+                                        commission_rate: commissionRate, // ✅ Ajouter commission_rate
+                                        commission_duration_months: commissionDurationMonths // ✅ Ajouter commission_duration_months
                                     })
                                     .select()
                                     .single();

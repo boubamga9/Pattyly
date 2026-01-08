@@ -22,6 +22,8 @@
 		UserPlus,
 		AlertCircle,
 		ArrowUpRight,
+		Crown,
+		Sparkles,
 	} from 'lucide-svelte';
 
 	export let data;
@@ -101,11 +103,97 @@
 <div class="container mx-auto space-y-6 p-3 md:p-6">
 	<!-- En-tête -->
 	<div class="mb-8">
-		<h1 class="text-3xl font-bold">Programme d'affiliation</h1>
+		<div class="flex items-center gap-3 mb-2">
+			<h1 class="text-3xl font-bold">Programme d'affiliation</h1>
+			{#if data.isAmbassador}
+				<Badge class="flex items-center gap-1.5 bg-gradient-to-r from-yellow-400 to-orange-500 text-white border-0 px-3 py-1">
+					<Crown class="h-4 w-4" />
+					Ambassadeur
+				</Badge>
+			{/if}
+		</div>
 		<p class="mt-2 text-muted-foreground">
-			Partage ton lien et gagne 30% de l'abonnement de chaque personne parrainée pendant 6 mois
+			{#if data.isAmbassador}
+				Partage ton lien et gagne 50% de l'abonnement de chaque personne parrainée à vie
+			{:else}
+				Partage ton lien et gagne 30% de l'abonnement de chaque personne parrainée pendant 6 mois
+			{/if}
 		</p>
 	</div>
+
+	<!-- Section Avantages - Affichage conditionnel selon le statut -->
+	{#if data.isAmbassador}
+		<!-- Section pour les Ambassadeurs -->
+		<Card>
+			<CardHeader>
+				<CardTitle class="flex items-center gap-2">
+					<Sparkles class="h-5 w-5" />
+					Avantages du programme Ambassadeur
+				</CardTitle>
+				<CardDescription>
+					Tu bénéficies du statut Ambassadeur avec des avantages exclusifs
+				</CardDescription>
+			</CardHeader>
+			<CardContent>
+				<div class="rounded-lg border p-4 bg-gradient-to-br from-yellow-50 to-orange-50 border-yellow-400 ring-2 ring-yellow-200">
+					<div class="mb-3">
+						<h3 class="font-semibold flex items-center gap-2">
+							<Crown class="h-4 w-4 text-yellow-600" />
+							Programme Ambassadeur
+						</h3>
+					</div>
+					<ul class="space-y-2 text-sm">
+						<li class="flex items-start gap-2">
+							<Sparkles class="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+							<span><strong>50%</strong> de commission sur chaque abonnement</span>
+						</li>
+						<li class="flex items-start gap-2">
+							<Sparkles class="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+							<span>Durée : <strong>À vie</strong></span>
+						</li>
+						<li class="flex items-start gap-2">
+							<Sparkles class="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+							<span>Paiements mensuels le 5 de chaque mois</span>
+						</li>
+					</ul>
+				</div>
+			</CardContent>
+		</Card>
+	{:else}
+		<!-- Section pour les non-Ambassadeurs (programme standard uniquement) -->
+		<Card>
+			<CardHeader>
+				<CardTitle class="flex items-center gap-2">
+					<Sparkles class="h-5 w-5" />
+					Avantages du programme d'affiliation
+				</CardTitle>
+				<CardDescription>
+					Informations sur ton programme d'affiliation
+				</CardDescription>
+			</CardHeader>
+			<CardContent>
+				<div class="rounded-lg border p-4 border-primary">
+					<div class="mb-3">
+						<h3 class="font-semibold">Programme d'affiliation</h3>
+					</div>
+					<ul class="space-y-2 text-sm">
+						<li class="flex items-start gap-2">
+							<Check class="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+							<span><strong>30%</strong> de commission sur chaque abonnement</span>
+						</li>
+						<li class="flex items-start gap-2">
+							<Check class="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+							<span>Durée : <strong>6 mois</strong> après l'inscription</span>
+						</li>
+						<li class="flex items-start gap-2">
+							<Check class="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+							<span>Paiements mensuels le 5 de chaque mois</span>
+						</li>
+					</ul>
+				</div>
+			</CardContent>
+		</Card>
+	{/if}
 
 	<!-- Statistiques -->
 	<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -175,7 +263,11 @@
 		<CardHeader>
 			<CardTitle>Ton lien d'affiliation</CardTitle>
 			<CardDescription>
-				Partage ce lien pour gagner 30% de l'abonnement de chaque personne parrainée pendant 6 mois
+				{#if data.isAmbassador}
+					Partage ce lien pour gagner 50% de l'abonnement de chaque personne parrainée à vie
+				{:else}
+					Partage ce lien pour gagner 30% de l'abonnement de chaque personne parrainée pendant 6 mois
+				{/if}
 			</CardDescription>
 		</CardHeader>
 		<CardContent class="space-y-4">
