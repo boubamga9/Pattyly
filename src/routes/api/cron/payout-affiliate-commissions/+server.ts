@@ -54,7 +54,7 @@ export const GET: RequestHandler = async ({ locals, url, request }) => {
                 end: lastMonthEnd.toISOString()
             },
             date: today.toISOString()
-        });/
+        });
 
         // ✅ PROTECTION DOUBLONS : Récupérer uniquement les commissions pending SANS transfer_id
         // Cela garantit qu'on ne traite pas des commissions déjà payées
