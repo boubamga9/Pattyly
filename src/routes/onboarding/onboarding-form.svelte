@@ -14,7 +14,6 @@
 	import { Upload, X } from 'lucide-svelte';
 	import { shopCreationSchema, type FormSchema } from './schema';
 	import { createEventDispatcher } from 'svelte';
-	import { invalidateAll } from '$app/navigation';
 
 	export let data: SuperValidated<Infer<FormSchema>>;
 	const dispatch = createEventDispatcher();
@@ -77,14 +76,7 @@
 <form
 	method="POST"
 	action="?/createShop"
-	use:enhance={() => {
-		return async ({ result }) => {
-			if (result.type === 'success' && result.data?.success) {
-				// Recharger la page pour que le serveur détecte le changement d'état
-				await invalidateAll();
-			}
-		};
-	}}
+	use:enhance
 	enctype="multipart/form-data"
 	class="space-y-6"
 >

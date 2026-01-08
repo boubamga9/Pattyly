@@ -260,7 +260,50 @@
 					👆 Cliquez sur le lien pour vérifier qu'il fonctionne avant de continuer
 				</p>
 			</div>
-						{/if}
+		{/if}
+
+		<!-- Bouton Enregistrer PayPal -->
+		<form
+			method="POST"
+			action="?/updatePaypal"
+			use:enhance={({ formData: _formData, cancel: _cancel }) => {
+				paypalSubmitting = true;
+				return async ({ result, update }) => {
+					paypalSubmitting = false;
+					if (result.type === 'success') {
+						paypalSubmitted = true;
+						setTimeout(() => {
+							paypalSubmitted = false;
+						}, 2000);
+						await invalidateAll();
+					}
+					await update();
+				};
+			}}
+		>
+			<input type="hidden" name="paypal_me" value={$formData.paypal_me || ''} />
+			<Button
+				type="submit"
+				disabled={paypalSubmitting || paypalSubmitted}
+				class={`mt-4 h-10 w-full text-sm font-medium text-white transition-all duration-200 disabled:cursor-not-allowed ${
+					paypalSubmitted
+						? 'bg-[#FF6F61] hover:bg-[#e85a4f] disabled:opacity-100'
+						: paypalSubmitting
+							? 'bg-gray-600 hover:bg-gray-700 disabled:opacity-50'
+							: 'bg-primary shadow-sm hover:bg-primary/90 hover:shadow-md disabled:opacity-50'
+				}`}
+			>
+				{#if paypalSubmitting}
+					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+					Enregistrement...
+				{:else if paypalSubmitted}
+					<Check class="mr-2 h-4 w-4" />
+					Sauvegardé !
+				{:else}
+					Enregistrer PayPal
+				{/if}
+			</Button>
+		</form>
 					</div>
 				</Collapsible.Content>
 			</Collapsible.Root>
@@ -363,6 +406,49 @@
 				</p>
 			</div>
 		{/if}
+
+		<!-- Bouton Enregistrer Revolut -->
+		<form
+			method="POST"
+			action="?/updateRevolut"
+			use:enhance={({ formData: _formData, cancel: _cancel }) => {
+				revolutSubmitting = true;
+				return async ({ result, update }) => {
+					revolutSubmitting = false;
+					if (result.type === 'success') {
+						revolutSubmitted = true;
+						setTimeout(() => {
+							revolutSubmitted = false;
+						}, 2000);
+						await invalidateAll();
+					}
+					await update();
+				};
+			}}
+		>
+			<input type="hidden" name="revolut_me" value={$formData.revolut_me || ''} />
+			<Button
+				type="submit"
+				disabled={revolutSubmitting || revolutSubmitted}
+				class={`mt-4 h-10 w-full text-sm font-medium text-white transition-all duration-200 disabled:cursor-not-allowed ${
+					revolutSubmitted
+						? 'bg-[#FF6F61] hover:bg-[#e85a4f] disabled:opacity-100'
+						: revolutSubmitting
+							? 'bg-gray-600 hover:bg-gray-700 disabled:opacity-50'
+							: 'bg-primary shadow-sm hover:bg-primary/90 hover:shadow-md disabled:opacity-50'
+				}`}
+			>
+				{#if revolutSubmitting}
+					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+					Enregistrement...
+				{:else if revolutSubmitted}
+					<Check class="mr-2 h-4 w-4" />
+					Sauvegardé !
+				{:else}
+					Enregistrer Revolut
+				{/if}
+			</Button>
+		</form>
 	</div>
 				</Collapsible.Content>
 			</Collapsible.Root>

@@ -74,3 +74,4 @@ COMMENT ON COLUMN affiliations.status IS 'pending, active, expired, cancelled';
 COMMENT ON TABLE affiliate_commissions IS 'Commissions earned from affiliate referrals';
 COMMENT ON COLUMN affiliate_commissions.status IS 'pending, paid, failed, cancelled';
 
+

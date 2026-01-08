@@ -85,6 +85,8 @@
 	const organizationScript = scriptOpen + organizationJson + scriptEnd;
 	const websiteScript = scriptOpen + websiteJson + scriptEnd;
 
+	import { browser } from '$app/environment';
+
 	onMount(() => {
 		// ✅ Tracking: Page view côté client (home page)
 		import('$lib/utils/analytics').then(({ logPageView }) => {

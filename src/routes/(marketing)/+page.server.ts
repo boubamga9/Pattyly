@@ -18,3 +18,4 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
 	return {};
 };
 
+

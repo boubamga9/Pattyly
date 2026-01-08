@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
+	import { browser } from '$app/environment';
 	import * as Card from '$lib/components/ui/card';
 	import { WebsiteName } from '../../../../config';
 	import ConfirmationForm from './confirmation-form.svelte';
@@ -19,6 +20,8 @@
 	let cardContainer: HTMLElement;
 
 	onMount(async () => {
+		// Le ref est stocké dans un cookie côté serveur, pas besoin de localStorage
+
 		if (heroTitle) await revealElement(heroTitle, { delay: 0, duration: 0.6 });
 		if (heroContent) await revealElement(heroContent, { delay: 0.1, duration: 0.6 });
 		if (cardContainer) await revealElement(cardContainer, { delay: 0.2, duration: 0.6 });

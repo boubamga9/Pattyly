@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
+	import { browser } from '$app/environment';
 	import * as Alert from '$lib/components/ui/alert';
 	import * as Card from '$lib/components/ui/card';
 	import { WebsiteName } from '../../../../config';
@@ -19,6 +20,8 @@
 	let cardContainer: HTMLElement;
 
 	onMount(async () => {
+		// Le ref sera transmis via l'URL et stocké dans un cookie lors de la confirmation
+
 		// ✅ Tracking: Page view côté client (register page)
 		import('$lib/utils/analytics').then(({ logPageView }) => {
 			const supabase = $page.data.supabase;
