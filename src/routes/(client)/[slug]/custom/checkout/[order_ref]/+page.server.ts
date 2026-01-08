@@ -42,18 +42,19 @@ export const load: PageServerLoad = async ({ params, locals, parent }) => {
             .eq('is_active', true)
             .order('provider_type', { ascending: true }); // PayPal en premier
 
-        // Récupérer aussi le compte Stripe Connect si actif
+        // Récupérer aussi le compte Stripe Connect si actif ET configuré pour les commandes
         const { data: stripeConnectAccount } = await (locals.supabaseServiceRole as any)
             .from('stripe_connect_accounts')
-            .select('stripe_account_id')
+            .select('stripe_account_id, use_for_orders')
             .eq('profile_id', shop.profile_id)
             .eq('is_active', true)
             .eq('charges_enabled', true)
+            .eq('use_for_orders', true) // ✅ Vérifier que Stripe Connect est activé pour les commandes
             .single();
 
-        // Si Stripe Connect est disponible, l'ajouter aux payment_links (seulement s'il n'existe pas déjà)
+        // Si Stripe Connect est disponible ET activé pour les commandes, l'ajouter aux payment_links
         let allPaymentLinks = [...(paymentLinks || [])];
-        if (stripeConnectAccount?.stripe_account_id) {
+        if (stripeConnectAccount?.stripe_account_id && stripeConnectAccount?.use_for_orders) {
             const hasStripe = allPaymentLinks.some(pl => pl.provider_type === 'stripe');
             if (!hasStripe) {
                 allPaymentLinks.push({
@@ -133,16 +134,17 @@ export const actions: Actions = {
                 throw error(404, 'Devis non trouvé');
             }
 
-            // Récupérer le compte Stripe Connect
+            // Récupérer le compte Stripe Connect ET vérifier qu'il est activé pour les commandes
             const { data: stripeConnectAccount } = await (locals.supabaseServiceRole as any)
                 .from('stripe_connect_accounts')
-                .select('stripe_account_id')
+                .select('stripe_account_id, use_for_orders')
                 .eq('profile_id', order.shops.profile_id)
                 .eq('is_active', true)
                 .eq('charges_enabled', true)
+                .eq('use_for_orders', true) // ✅ Vérifier que Stripe Connect est activé pour les commandes
                 .single();
 
-            if (!stripeConnectAccount?.stripe_account_id) {
+            if (!stripeConnectAccount?.stripe_account_id || !stripeConnectAccount?.use_for_orders) {
                 throw error(400, 'Stripe Connect non disponible pour cette boutique');
             }
 

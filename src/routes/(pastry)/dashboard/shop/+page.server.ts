@@ -56,10 +56,11 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
                 const stripeAccount = await getStripeConnectAccount(locals.stripe, account.stripe_account_id);
 
                 // Mettre à jour dans la DB
+                const isReady = isStripeConnectAccountReady(stripeAccount);
                 await locals.supabase
                     .from('stripe_connect_accounts')
                     .update({
-                        is_active: isStripeConnectAccountReady(stripeAccount),
+                        is_active: isReady,
                         charges_enabled: stripeAccount.charges_enabled || false,
                         payouts_enabled: stripeAccount.payouts_enabled || false,
                         details_submitted: stripeAccount.details_submitted || false,
@@ -67,8 +68,14 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
                     })
                     .eq('profile_id', user.id);
 
-                // Créer/mettre à jour payment_links si le compte est actif
-                if (isStripeConnectAccountReady(stripeAccount)) {
+                // Créer/mettre à jour payment_links si le compte est actif ET use_for_orders est true
+                const { data: updatedAccount } = await locals.supabase
+                    .from('stripe_connect_accounts')
+                    .select('use_for_orders')
+                    .eq('profile_id', user.id)
+                    .single();
+
+                if (isReady && updatedAccount?.use_for_orders) {
                     await locals.supabase
                         .from('payment_links')
                         .upsert({
@@ -79,6 +86,13 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
                         }, {
                             onConflict: 'profile_id,provider_type'
                         });
+                } else if (!updatedAccount?.use_for_orders) {
+                    // Si use_for_orders est false, retirer Stripe de payment_links
+                    await locals.supabase
+                        .from('payment_links')
+                        .delete()
+                        .eq('profile_id', user.id)
+                        .eq('provider_type', 'stripe');
                 }
             }
         } catch (err) {
@@ -114,7 +128,7 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
             .eq('is_active', true),
         locals.supabase
             .from('stripe_connect_accounts')
-            .select('id, is_active, charges_enabled, payouts_enabled, stripe_account_id')
+            .select('id, is_active, charges_enabled, payouts_enabled, stripe_account_id, use_for_orders')
             .eq('profile_id', user.id)
             .single()
     ]);
@@ -1262,6 +1276,7 @@ export const actions: Actions = {
                         charges_enabled: false,
                         payouts_enabled: false,
                         details_submitted: false,
+                        use_for_orders: true, // ✅ Par défaut activé pour les commandes
                     });
 
                 if (insertError) {
@@ -1312,6 +1327,66 @@ export const actions: Actions = {
         } catch (err) {
             console.error('Stripe Connect update error:', err);
             return { success: false, error: 'Erreur lors de la mise à jour du compte Stripe' };
+        }
+    },
+
+    updateStripeUseForOrders: async ({ request, locals }) => {
+        const { session, user } = await locals.safeGetSession();
+
+        if (!session || !user) {
+            return { success: false, error: 'Non autorisé' };
+        }
+
+        const userId = user.id;
+
+        try {
+            const formData = await request.formData();
+            const useForOrders = formData.get('use_for_orders') === 'true';
+
+            // Mettre à jour use_for_orders
+            const { error: updateError } = await locals.supabase
+                .from('stripe_connect_accounts')
+                .update({ use_for_orders: useForOrders })
+                .eq('profile_id', userId);
+
+            if (updateError) {
+                console.error('Error updating use_for_orders:', updateError);
+                return { success: false, error: 'Erreur lors de la mise à jour' };
+            }
+
+            // Si use_for_orders est désactivé, retirer Stripe de payment_links
+            if (!useForOrders) {
+                await locals.supabase
+                    .from('payment_links')
+                    .delete()
+                    .eq('profile_id', userId)
+                    .eq('provider_type', 'stripe');
+            } else {
+                // Si use_for_orders est activé, ajouter/mettre à jour Stripe dans payment_links
+                const { data: account } = await locals.supabase
+                    .from('stripe_connect_accounts')
+                    .select('stripe_account_id, is_active, charges_enabled, payouts_enabled')
+                    .eq('profile_id', userId)
+                    .single();
+
+                if (account?.is_active && account?.charges_enabled && account?.payouts_enabled) {
+                    await locals.supabase
+                        .from('payment_links')
+                        .upsert({
+                            profile_id: userId,
+                            provider_type: 'stripe',
+                            payment_identifier: account.stripe_account_id,
+                            is_active: true,
+                        }, {
+                            onConflict: 'profile_id,provider_type'
+                        });
+                }
+            }
+
+            return { success: true };
+        } catch (err) {
+            console.error('Error updating use_for_orders:', err);
+            return { success: false, error: 'Erreur lors de la mise à jour' };
         }
     }
 };

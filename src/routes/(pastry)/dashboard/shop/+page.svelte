@@ -159,7 +159,7 @@ import { policiesSchema } from './policies-schema';
 					<div>
 						<CardTitle class="text-xl">Méthodes de paiement</CardTitle>
 						<CardDescription class="text-base">
-							Configurez vos identifiants PayPal.me et Revolut pour recevoir les paiements
+							Configurez vos moyens de paiement pour recevoir les paiements
 						</CardDescription>
 					</div>
 				</div>

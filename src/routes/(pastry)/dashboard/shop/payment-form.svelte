@@ -18,6 +18,7 @@
 		charges_enabled: boolean;
 		payouts_enabled: boolean;
 		stripe_account_id: string;
+		use_for_orders: boolean;
 	} | null | undefined = null;
 
 	// Créer 3 formulaires indépendants avec des IDs uniques pour éviter les effets de bord
@@ -194,7 +195,7 @@
 	<!-- Information importante -->
 	<Alert class="border-blue-200 bg-blue-50">
 		<AlertDescription class="text-blue-800">
-			<strong>Astuce :</strong> Configurez au moins une méthode de paiement. Vous pouvez configurer les deux si vous le souhaitez.
+			<strong>Astuce :</strong> Configurez au moins une méthode de paiement. Vous pouvez en configurer plusieurs si vous le souhaitez.
 		</AlertDescription>
 	</Alert>
 
@@ -920,8 +921,17 @@
 					}}
 					class="mb-2 w-full"
 				>
-					<Check class="mr-2 h-4 w-4 text-indigo-600" />
-					Configuré
+					<div class="flex items-center justify-between w-full">
+						<div class="flex items-center gap-2">
+							<Check class="h-4 w-4 text-indigo-600" />
+							<span>Configuré</span>
+						</div>
+						{#if stripeConnectAccount?.use_for_orders === false}
+							<span class="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">
+								Uniquement pour l'affiliation
+							</span>
+						{/if}
+					</div>
 				</Button>
 			{:else}
 				<Button
