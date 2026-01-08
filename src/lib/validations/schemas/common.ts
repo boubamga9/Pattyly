@@ -45,12 +45,12 @@ export const shopNameSchema = z
     .regex(/^[A-Za-zÀ-ÿ0-9'-]+(\s[A-Za-zÀ-ÿ0-9'-]+)*$/, 'Le nom de boutique ne peut contenir que des lettres, chiffres, tirets, apostrophes et espaces, avec un seul espace entre chaque mot')
     .trim();
 
-// Nom de produit - pour les produits de pâtisserie (sans chiffres)
+// Nom de produit - pour les produits de pâtisserie (avec chiffres autorisés)
 export const productNameSchema = z
     .string()
     .min(2, 'Le nom du produit doit faire au moins 2 caractères')
     .max(50, 'Le nom du produit ne peut pas dépasser 50 caractères')
-    .regex(/^[A-Za-zÀ-ÿ'-]+(\s[A-Za-zÀ-ÿ'-]+)*$/, 'Le nom du produit ne peut contenir que des lettres, tirets, apostrophes et espaces, avec un seul espace entre chaque mot')
+    .regex(/^[A-Za-zÀ-ÿ0-9'-]+(\s[A-Za-zÀ-ÿ0-9'-]+)*$/, 'Le nom du produit ne peut contenir que des lettres, chiffres, tirets, apostrophes et espaces, avec un seul espace entre chaque mot')
     .trim();
 
 // Description - pour les textes longs optionnels (avec protection XSS)

@@ -131,8 +131,10 @@ describe('productNameSchema', () => {
         expect(() => productNameSchema.parse("Tarte d'Été")).not.toThrow();
     });
 
-    it('should reject product names with numbers', () => {
-        expect(() => productNameSchema.parse('Cake 123')).toThrow();
+    it('should accept product names with numbers', () => {
+        expect(() => productNameSchema.parse('Cake 123')).not.toThrow();
+        expect(() => productNameSchema.parse('Gâteau 2 étages')).not.toThrow();
+        expect(() => productNameSchema.parse('Tarte 3.14')).not.toThrow();
     });
 
     it('should reject names shorter than 2 characters', () => {

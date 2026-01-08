@@ -208,7 +208,7 @@
 
 <div class="container mx-auto space-y-6 p-3 md:p-6">
 	<!-- Bande offre limitée -->
-	{#if isLifetimeAvailable && !hasLifetimePlan}
+	{#if isLifetimeAvailable && !hasLifetimePlan && !permissions?.isExempt}
 		<div class="mb-6 w-full rounded-lg bg-gradient-to-r from-[#FF6F61] to-[#FF8A7A] px-4 py-3 text-white shadow-md">
 			<div class="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
 				<div class="flex items-center gap-2">
@@ -443,8 +443,8 @@
 		</div>
 	</div>
 
-	<!-- Section Plans (masquée si utilisateur a un plan lifetime) -->
-	{#if !hasLifetimePlan}
+	<!-- Section Plans (masquée si utilisateur a un plan lifetime ou est exempt) -->
+	{#if !hasLifetimePlan && !permissions?.isExempt}
 		<Card>
 			<CardHeader>
 				<CardTitle class="flex items-center gap-2">
