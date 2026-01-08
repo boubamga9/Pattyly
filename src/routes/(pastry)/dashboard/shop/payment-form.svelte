@@ -9,6 +9,8 @@
 	import LoaderCircle from '~icons/lucide/loader-circle';
 	import { ExternalLink, ChevronDown, Check, AlertCircle, Trash2, X } from 'lucide-svelte';
 	import { paymentConfigSchema } from '../../../onboarding/schema';
+	import { invalidateAll } from '$app/navigation';
+	import { enhance } from '$app/forms';
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	export let data: any;
@@ -65,6 +67,7 @@
 	let weroSubmitting = false;
 	let stripeLoading = false;
 	let stripeUpdateLoading = false;
+	let stripeToggleLoading = false;
 	let showPaypalForm = false;
 	let showRevolutForm = false;
 	let showWeroForm = false;
@@ -988,6 +991,54 @@
 									Gérer mon compte Stripe
 								{/if}
 							</Button>
+
+							<!-- Toggle pour utiliser Stripe Connect uniquement pour l'affiliation -->
+							<form
+								method="POST"
+								action="?/updateStripeUseForOrders"
+								use:enhance={() => {
+									stripeToggleLoading = true;
+									return async ({ result, update }) => {
+										stripeToggleLoading = false;
+										await update();
+										if (result.type === 'success') {
+											await invalidateAll();
+										} else if (result.type === 'failure' && result.data?.error) {
+											alert(result.data.error);
+										}
+									};
+								}}
+							>
+								<input
+									type="hidden"
+									name="use_for_orders"
+									value={(!stripeConnectAccount?.use_for_orders).toString()}
+								/>
+								<div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+									<div class="flex items-center justify-between">
+										<div class="flex-1">
+											<p class="text-sm font-medium text-gray-900">
+												Utiliser Stripe Connect uniquement pour les commissions d'affiliation
+											</p>
+											<p class="mt-1 text-xs text-gray-600">
+												Si activé, Stripe Connect ne sera pas utilisé pour les paiements de
+												commandes, uniquement pour recevoir tes commissions d'affiliation
+											</p>
+										</div>
+										<button
+											type="submit"
+											disabled={stripeToggleLoading}
+											class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#FF6F61] focus:ring-offset-2 disabled:opacity-50 {!stripeConnectAccount?.use_for_orders ? 'bg-[#FF6F61]' : 'bg-gray-200'}"
+											role="switch"
+											aria-checked={!stripeConnectAccount?.use_for_orders}
+										>
+											<span
+												class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {!stripeConnectAccount?.use_for_orders ? 'translate-x-5' : 'translate-x-0'}"
+											/>
+										</button>
+									</div>
+								</div>
+							</form>
 						{:else}
 							<Alert class="border-indigo-200 bg-white">
 								<AlertCircle class="h-4 w-4 text-indigo-600" />
@@ -1599,7 +1650,55 @@
 							{:else}
 								Gérer mon compte Stripe
 							{/if}
-						</Button>
+							</Button>
+
+						<!-- Toggle pour utiliser Stripe Connect uniquement pour l'affiliation -->
+						<form
+							method="POST"
+							action="?/updateStripeUseForOrders"
+							use:enhance={() => {
+								stripeToggleLoading = true;
+								return async ({ result, update }) => {
+									stripeToggleLoading = false;
+									await update();
+									if (result.type === 'success') {
+										await invalidateAll();
+									} else if (result.type === 'failure' && result.data?.error) {
+										alert(result.data.error);
+									}
+								};
+							}}
+						>
+							<input
+								type="hidden"
+								name="use_for_orders"
+								value={(!stripeConnectAccount?.use_for_orders).toString()}
+							/>
+							<div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+								<div class="flex items-center justify-between">
+									<div class="flex-1">
+										<p class="text-sm font-medium text-gray-900">
+											Utiliser Stripe Connect uniquement pour les commissions d'affiliation
+										</p>
+										<p class="mt-1 text-xs text-gray-600">
+											Si activé, Stripe Connect ne sera pas utilisé pour les paiements de
+											commandes, uniquement pour recevoir tes commissions d'affiliation
+										</p>
+									</div>
+									<button
+										type="submit"
+										disabled={stripeToggleLoading}
+										class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#FF6F61] focus:ring-offset-2 disabled:opacity-50 {!stripeConnectAccount?.use_for_orders ? 'bg-[#FF6F61]' : 'bg-gray-200'}"
+										role="switch"
+										aria-checked={!stripeConnectAccount?.use_for_orders}
+									>
+										<span
+											class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {!stripeConnectAccount?.use_for_orders ? 'translate-x-5' : 'translate-x-0'}"
+										/>
+									</button>
+								</div>
+							</div>
+						</form>
 					{:else}
 						<Alert class="border-indigo-200 bg-white">
 							<AlertCircle class="h-4 w-4 text-indigo-600" />

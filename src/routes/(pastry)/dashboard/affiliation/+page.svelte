@@ -28,7 +28,6 @@
 
 	let copied = false;
 	let isGenerating = false;
-	let isToggleLoading = false;
 
 	function copyLink() {
 		navigator.clipboard.writeText(data.affiliateLink);
@@ -257,45 +256,6 @@
 							{/if}
 						</Button>
 					</div>
-
-					<!-- Toggle pour utiliser Stripe Connect uniquement pour l'affiliation -->
-					<form method="POST" action="?/updateStripeUseForOrders" use:enhance={() => {
-						isToggleLoading = true;
-						return async ({ result, update }) => {
-							isToggleLoading = false;
-							await update();
-							if (result.type === 'success') {
-								await invalidateAll();
-							} else if (result.type === 'failure' && result.data?.error) {
-								alert(result.data.error);
-							}
-						};
-					}}>
-						<input type="hidden" name="use_for_orders" value={(!data.useForOrders).toString()} />
-						<div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
-							<div class="flex items-center justify-between">
-								<div class="flex-1">
-									<p class="text-sm font-medium text-gray-900">
-										Utiliser Stripe Connect uniquement pour les commissions d'affiliation
-									</p>
-									<p class="mt-1 text-xs text-gray-600">
-										Si activé, Stripe Connect ne sera pas utilisé pour les paiements de commandes, uniquement pour recevoir tes commissions d'affiliation
-									</p>
-								</div>
-								<button
-									type="submit"
-									disabled={isToggleLoading}
-									class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#FF6F61] focus:ring-offset-2 disabled:opacity-50 {!data.useForOrders ? 'bg-[#FF6F61]' : 'bg-gray-200'}"
-									role="switch"
-									aria-checked={!data.useForOrders}
-								>
-									<span
-										class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {!data.useForOrders ? 'translate-x-5' : 'translate-x-0'}"
-									/>
-								</button>
-							</div>
-						</div>
-					</form>
 				</div>
 			{/if}
 		</CardContent>

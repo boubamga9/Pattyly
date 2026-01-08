@@ -214,7 +214,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 		affiliateCode,
 		affiliateLink: affiliateCode ? `${PUBLIC_SITE_URL}?ref=${affiliateCode}` : null,
 		hasStripeConnect: !!hasStripeConnect,
-		useForOrders: stripeConnect?.use_for_orders ?? true, // ✅ Ajouter use_for_orders pour le toggle
 		stats: {
 			totalInscrits,
 			totalAbonnes,
@@ -305,65 +304,6 @@ export const actions: Actions = {
 		}
 
 		return { success: true, affiliateCode: newCode as string };
-	},
-
-	updateStripeUseForOrders: async ({ request, locals }) => {
-		const { session, user } = await locals.safeGetSession();
-		if (!session || !user) {
-			return fail(401, { error: 'Non autorisé' });
-		}
-
-		const userId = user.id;
-
-		try {
-			const formData = await request.formData();
-			const useForOrders = formData.get('use_for_orders') === 'true';
-
-			// Mettre à jour use_for_orders
-			const { error: updateError } = await (locals.supabaseServiceRole as any)
-				.from('stripe_connect_accounts')
-				.update({ use_for_orders: useForOrders })
-				.eq('profile_id', userId);
-
-			if (updateError) {
-				console.error('Error updating use_for_orders:', updateError);
-				return fail(500, { error: 'Erreur lors de la mise à jour' });
-			}
-
-			// Si use_for_orders est désactivé, retirer Stripe de payment_links
-			if (!useForOrders) {
-				await (locals.supabaseServiceRole as any)
-					.from('payment_links')
-					.delete()
-					.eq('profile_id', userId)
-					.eq('provider_type', 'stripe');
-			} else {
-				// Si use_for_orders est activé, ajouter/mettre à jour Stripe dans payment_links
-				const { data: account } = await (locals.supabaseServiceRole as any)
-					.from('stripe_connect_accounts')
-					.select('stripe_account_id, is_active, charges_enabled, payouts_enabled')
-					.eq('profile_id', userId)
-					.single();
-
-				if (account?.is_active && account?.charges_enabled && account?.payouts_enabled) {
-					await (locals.supabaseServiceRole as any)
-						.from('payment_links')
-						.upsert({
-							profile_id: userId,
-							provider_type: 'stripe',
-							payment_identifier: account.stripe_account_id,
-							is_active: true,
-						}, {
-							onConflict: 'profile_id,provider_type'
-						});
-				}
-			}
-
-			return { success: true };
-		} catch (err) {
-			console.error('Error updating use_for_orders:', err);
-			return fail(500, { error: 'Erreur lors de la mise à jour' });
-		}
 	}
 };
 

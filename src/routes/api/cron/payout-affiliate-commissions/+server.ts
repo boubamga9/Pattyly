@@ -34,27 +34,27 @@ export const GET: RequestHandler = async ({ locals, url, request }) => {
         const payoutDay = 5; // Le 5 de chaque mois
 
         // Ne s'exécuter que le X du mois (selon l'heure de Paris)
-        /*if (dayOfMonth !== payoutDay) {
+        if (dayOfMonth !== payoutDay) {
             return json({
                 message: 'Not payout day',
                 day: dayOfMonth,
                 expectedDay: payoutDay,
                 timezone: 'Europe/Paris'
             });
-        }*/
+        }
 
         // Calculer la période du mois précédent (en UTC pour la base de données)
         const today = new Date();
         const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
         const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0, 23, 59, 59);
 
-        /*console.log('💰 [Cron Payout] Début traitement virements groupés:', {
+        console.log('💰 [Cron Payout] Début traitement virements groupés:', {
             period: {
                 start: lastMonthStart.toISOString(),
                 end: lastMonthEnd.toISOString()
             },
             date: today.toISOString()
-        }); */
+        });/
 
         // ✅ PROTECTION DOUBLONS : Récupérer uniquement les commissions pending SANS transfer_id
         // Cela garantit qu'on ne traite pas des commissions déjà payées
@@ -63,8 +63,8 @@ export const GET: RequestHandler = async ({ locals, url, request }) => {
             .select('*')
             .eq('status', 'pending')
             .is('stripe_transfer_id', null) // ✅ Protection : seulement celles sans transfer_id
-        //.gte('created_at', lastMonthStart.toISOString())
-        //.lte('created_at', lastMonthEnd.toISOString());
+            .gte('created_at', lastMonthStart.toISOString())
+            .lte('created_at', lastMonthEnd.toISOString());
 
         if (fetchError) {
             console.error('❌ [Cron Payout] Erreur récupération commissions:', fetchError);
