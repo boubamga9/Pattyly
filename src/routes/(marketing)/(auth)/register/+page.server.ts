@@ -7,9 +7,12 @@ import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad } from './$types.js';
 import { formSchema } from './schema';
 
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = async ({ url, cookies }) => {
 	const next = url.searchParams.get('next');
-	const plan = url.searchParams.get('plan'); // Récupérer le plan depuis l'URL
+	const plan = url.searchParams.get('plan');
+	// ✅ Récupérer le ref depuis l'URL ou le cookie
+	const affiliateCode = url.searchParams.get('ref') || cookies.get('affiliate_ref');
+	
 	const isCheckout = Boolean(
 		typeof next === 'string' &&
 		decodeURIComponent(next).match(/^\/checkout\/.+$/),
@@ -17,7 +20,8 @@ export const load: PageServerLoad = async ({ url }) => {
 
 	return {
 		isCheckout,
-		plan, // Passer le plan aux données
+		plan,
+		affiliateCode, // ✅ Passer le code aux données
 		form: await superValidate(zod(formSchema)),
 	};
 };
@@ -105,7 +109,15 @@ export const actions: Actions = {
 
 		// Si l'inscription a réussi (avec ou sans session), rediriger vers la confirmation
 		if (user && user.email) {
-			throw redirect(303, `/confirmation?email=${encodeURIComponent(user.email)}`);
+			// ✅ Transmettre le ref dans l'URL de confirmation (depuis l'URL ou le cookie)
+			const affiliateCode = event.url.searchParams.get('ref') || event.cookies.get('affiliate_ref');
+			console.log('🔍 [REGISTER] Ref lors de l\'inscription:', affiliateCode);
+			const confirmationUrl = affiliateCode 
+				? `/confirmation?email=${encodeURIComponent(user.email)}&ref=${encodeURIComponent(affiliateCode)}`
+				: `/confirmation?email=${encodeURIComponent(user.email)}`;
+			
+			console.log('🔍 [REGISTER] URL de confirmation:', confirmationUrl);
+			throw redirect(303, confirmationUrl);
 		}
 
 

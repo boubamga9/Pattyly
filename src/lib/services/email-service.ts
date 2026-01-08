@@ -921,4 +921,183 @@ export class EmailService {
             throw error;
         }
     }
+
+    /**
+     * Envoie une notification de paiement d'affiliation au parrain
+     */
+    static async sendAffiliatePayoutNotification({
+        pastryEmail,
+        amount,
+        commissionCount,
+        periodMonth,
+        periodYear,
+        payoutDate,
+    }: {
+        pastryEmail: string;
+        amount: number;
+        commissionCount: number;
+        periodMonth: string;
+        periodYear: number;
+        payoutDate: string;
+    }) {
+        try {
+            const { PUBLIC_SITE_URL } = await import('$env/static/public');
+            
+            // Formater le prix
+            const formatPrice = (price: number): string => {
+                return new Intl.NumberFormat('fr-FR', {
+                    style: 'currency',
+                    currency: 'EUR',
+                }).format(price);
+            };
+
+            const { data, error } = await resend.emails.send({
+                from: 'Pattyly <noreply@pattyly.com>',
+                to: [pastryEmail],
+                subject: `Pattyly - 💰 Paiement de commissions d'affiliation - ${formatPrice(amount)}`,
+                html: `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="utf-8">
+                        <style>
+                            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+                            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                            .header { background: #FF6F61; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+                            .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+                            .amount { font-size: 32px; font-weight: bold; color: #FF6F61; text-align: center; margin: 20px 0; }
+                            .info { background: white; padding: 15px; border-radius: 4px; margin: 15px 0; }
+                            .info ul { margin: 10px 0; padding-left: 20px; }
+                            .info li { margin: 5px 0; }
+                            .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
+                            .button { display: inline-block; padding: 12px 24px; background: #FF6F61; color: white; text-decoration: none; border-radius: 4px; margin: 20px 0; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <div class="header">
+                                <h1>💰 Paiement de commissions reçu</h1>
+                            </div>
+                            <div class="content">
+                                <p>Bonjour,</p>
+                                <p>Nous avons effectué le virement de tes commissions d'affiliation pour la période de <strong>${periodMonth} ${periodYear}</strong>.</p>
+                                
+                                <div class="amount">${formatPrice(amount)}</div>
+                                
+                                <div class="info">
+                                    <p><strong>Détails du paiement :</strong></p>
+                                    <ul>
+                                        <li><strong>Montant total :</strong> ${formatPrice(amount)}</li>
+                                        <li><strong>Nombre de commissions :</strong> ${commissionCount}</li>
+                                        <li><strong>Période :</strong> ${periodMonth} ${periodYear}</li>
+                                        <li><strong>Date de paiement :</strong> ${payoutDate}</li>
+                                    </ul>
+                                </div>
+                                
+                                <p>Le virement a été effectué sur ton compte bancaire via Stripe Connect. Il devrait arriver sous 1 à 3 jours ouvrés.</p>
+                                
+                                <div style="text-align: center;">
+                                    <a href="${PUBLIC_SITE_URL}/dashboard/affiliation" class="button">Voir l'historique</a>
+                                </div>
+                                
+                                <p>Merci de faire confiance à Pattyly ! 🎂</p>
+                                
+                                <div class="footer">
+                                    <p>Pattyly - La plateforme pensée pour simplifier le quotidien des pâtissiers</p>
+                                </div>
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                `
+            });
+
+            if (error) {
+                console.error('Erreur envoi email paiement affiliation:', error);
+                throw error;
+            }
+
+            return { success: true, messageId: data?.id };
+        } catch (error) {
+            console.error('Erreur EmailService.sendAffiliatePayoutNotification:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Envoie une notification quand un pâtissier active son code d'affiliation
+     */
+    static async sendAffiliateActivationNotification({
+        shopName,
+        shopSlug,
+        shopInstagram,
+        shopTiktok,
+        shopUrl,
+        affiliateCode
+    }: {
+        shopName: string;
+        shopSlug: string;
+        shopInstagram: string | null;
+        shopTiktok: string | null;
+        shopUrl: string;
+        affiliateCode: string;
+    }) {
+        try {
+            const { data, error } = await resend.emails.send({
+                from: 'Pattyly <noreply@pattyly.com>',
+                to: ['affiliations@pattyly.com'],
+                subject: `Nouveau code d'affiliation activé - ${shopName}`,
+                html: `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="utf-8">
+                        <style>
+                            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+                            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                            .header { background: #FF6F61; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+                            .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+                            .info { background: white; padding: 15px; border-radius: 4px; margin: 15px 0; }
+                            .info p { margin: 10px 0; }
+                            .button { display: inline-block; padding: 12px 24px; background: #FF6F61; color: white; text-decoration: none; border-radius: 4px; margin: 20px 0; }
+                            code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-family: monospace; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <div class="header">
+                                <h1>🎉 Nouveau code d'affiliation activé</h1>
+                            </div>
+                            <div class="content">
+                                <p>Bonjour,</p>
+                                <p>Un nouveau pâtissier a activé son code d'affiliation.</p>
+                                
+                                <div class="info">
+                                    <p><strong>Boutique :</strong> ${shopName}</p>
+                                    <p><strong>Code d'affiliation :</strong> <code>${affiliateCode}</code></p>
+                                    ${shopInstagram ? `<p><strong>Instagram :</strong> <a href="https://instagram.com/${shopInstagram.replace('@', '')}">@${shopInstagram.replace('@', '')}</a></p>` : ''}
+                                    ${shopTiktok ? `<p><strong>TikTok :</strong> <a href="https://tiktok.com/@${shopTiktok.replace('@', '')}">@${shopTiktok.replace('@', '')}</a></p>` : ''}
+                                </div>
+                                
+                                <div style="text-align: center;">
+                                    <a href="${shopUrl}" class="button">Voir la boutique</a>
+                                </div>
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                `
+            });
+
+            if (error) {
+                console.error('Erreur envoi email activation affiliation:', error);
+                throw error;
+            }
+
+            return { success: true, messageId: data?.id };
+        } catch (error) {
+            console.error('Erreur EmailService.sendAffiliateActivationNotification:', error);
+            throw error;
+        }
+    }
 }

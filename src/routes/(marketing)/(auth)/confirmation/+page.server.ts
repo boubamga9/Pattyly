@@ -5,12 +5,16 @@ import { zod } from 'sveltekit-superforms/adapters';
 import { otpSchema } from './schema';
 import { fail } from '@sveltejs/kit';
 
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = async ({ url, cookies }) => {
     const email = url.searchParams.get('email');
     const typeParam = url.searchParams.get('type');
-    const plan = url.searchParams.get('plan'); // Récupérer le plan depuis l'URL
-    const type: 'signup' | 'recovery' = (typeParam === 'recovery' ? 'recovery' : 'signup');
+    const plan = url.searchParams.get('plan');
+    // ✅ Récupérer le ref depuis l'URL ou le cookie
+    const affiliateCode = url.searchParams.get('ref') || cookies.get('affiliate_ref');
 
+    console.log('🔍 [AFFILIATION LOAD] Ref (URL ou cookie):', affiliateCode);
+
+    const type: 'signup' | 'recovery' = (typeParam === 'recovery' ? 'recovery' : 'signup');
 
     // Si pas d'email, rediriger vers la page d'accueil
     if (!email) {
@@ -26,13 +30,14 @@ export const load: PageServerLoad = async ({ url }) => {
     return {
         userEmail: email,
         type,
-        plan, // Passer le plan aux données
+        plan,
+        affiliateCode, // ✅ Passer le code aux données
         form
     };
 };
 
 export const actions: Actions = {
-    verifyOtp: async ({ request, locals, url }) => {
+    verifyOtp: async ({ request, locals, url, cookies }) => {
         const form = await superValidate(request, zod(otpSchema));
 
         if (!form.valid) {
@@ -72,49 +77,32 @@ export const actions: Actions = {
         console.log(type)
 
         if (data.user) {
-            // Si c'est une inscription, vérifier les transferts
-            if (type === 'signup') {
-                try {
-                    // Exécuter le transfert complet via RPC (inclut la recherche par email)
-                    const { data: transferResult, error: transferError } = await (locals.supabaseServiceRole as any)
-                        .rpc('execute_shop_transfer_by_email', {
-                            p_target_email: email,
-                            p_new_user_id: data.user.id,
-                            p_new_user_email: data.user.email
-                        });
-
-                    if (transferError) {
-                        console.error('Transfer RPC error:', transferError);
-                        throw redirect(303, '/onboarding');
-                    }
-
-                    if (!transferResult?.success) {
-                        // Pas de transfert trouvé ou erreur - continuer avec le flux normal
-                        throw redirect(303, '/onboarding');
-                    }
-
-                    // Supprimer l'ancien utilisateur Auth (après le transfert réussi)
-                    if (transferResult.old_profile_id) {
-                        const { error: deleteError } = await locals.supabaseServiceRole.auth.admin.deleteUser(transferResult.old_profile_id);
-                        if (deleteError) {
-                            console.error('Error deleting old auth user:', deleteError);
-                            // Ne pas faire échouer le transfert pour ça
-                        }
-                    }
-
-                    throw redirect(303, '/dashboard');
-
-                } catch (error) {
-                    console.error('Error during transfer:', error);
-                    throw redirect(303, '/onboarding');
-                }
-            }
-
             // Redirection selon le type
             if (type === 'recovery') {
                 throw redirect(303, '/new-password');
             } else {
-                // Pour signup, rediriger vers l'onboarding
+                // Pour signup, créer le contact dans Resend avant redirection
+                // ✅ Créer le contact dans Resend dès la confirmation (fire-and-forget)
+                const { createPastryInResend } = await import('$lib/utils/resend-sync');
+                createPastryInResend(data.user.id, email, locals.supabase).catch(err => {
+                    console.error('Erreur création contact Resend:', err);
+                });
+
+                // ✅ Stocker le ref dans un cookie pour l'utiliser lors de la création de la boutique
+                // Récupérer depuis l'URL ou le cookie existant
+                const affiliateCode = url.searchParams.get('ref') || cookies.get('affiliate_ref');
+                if (affiliateCode) {
+                    // S'assurer que le cookie est bien défini (même s'il existe déjà)
+                    cookies.set('affiliate_ref', affiliateCode, {
+                        path: '/',
+                        maxAge: 3600, // 1 heure
+                        httpOnly: true, // Sécurisé, pas accessible depuis JavaScript
+                        sameSite: 'lax'
+                    });
+                    console.log('✅ [AFFILIATION] Ref stocké dans cookie:', affiliateCode);
+                }
+
+                // Rediriger vers l'onboarding
                 throw redirect(303, '/onboarding');
             }
         }

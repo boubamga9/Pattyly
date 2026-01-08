@@ -194,7 +194,7 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession, supabase,
 // lors du choix d'un plan payant dans /subscription avec demande de CB
 
 export const actions: Actions = {
-    createShop: async ({ request, locals: { safeGetSession, supabase, supabaseServiceRole } }) => {
+    createShop: async ({ request, locals: { safeGetSession, supabase, supabaseServiceRole }, cookies }) => {
         try {
             const { session, user } = await safeGetSession();
 
@@ -301,6 +301,88 @@ export const actions: Actions = {
             syncPastryToResend(userId, user.email || '', supabase).catch(err => {
                 console.error('Erreur synchronisation Resend:', err);
             });
+
+            // ✅ Créer l'affiliation si un ref existe dans le cookie
+            const affiliateCode = cookies.get('affiliate_ref');
+            if (affiliateCode) {
+                console.log('🔍 [AFFILIATION] Ref trouvé dans cookie:', affiliateCode);
+                console.log('🔍 [AFFILIATION] User ID:', userId);
+
+                try {
+                    // Vérifier que le code existe et récupérer le profile_id
+                    const { data: referrerProfile, error: profileError } = await supabaseServiceRole
+                        .from('profiles')
+                        .select('id')
+                        .eq('affiliate_code', affiliateCode)
+                        .single();
+
+                    if (profileError) {
+                        console.error('❌ [AFFILIATION] Erreur recherche profile:', profileError);
+                    } else if (!referrerProfile) {
+                        console.log('⚠️ [AFFILIATION] Profile non trouvé pour code:', affiliateCode);
+                    } else if (referrerProfile.id === userId) {
+                        console.log('⚠️ [AFFILIATION] Auto-parrainage détecté, ignoré');
+                    } else {
+                        console.log('✅ [AFFILIATION] Profile trouvé, profile_id referrer:', referrerProfile.id);
+
+                        // Vérifier que le parrain a un compte Stripe Connect configuré
+                        const { data: stripeConnect, error: stripeError } = await supabaseServiceRole
+                            .from('stripe_connect_accounts')
+                            .select('stripe_account_id, is_active, charges_enabled, payouts_enabled')
+                            .eq('profile_id', referrerProfile.id)
+                            .eq('is_active', true)
+                            .eq('charges_enabled', true)
+                            .eq('payouts_enabled', true)
+                            .single();
+
+                        if (stripeError) {
+                            console.error('❌ [AFFILIATION] Erreur recherche Stripe Connect:', stripeError);
+                        } else if (!stripeConnect) {
+                            console.log('⚠️ [AFFILIATION] Stripe Connect non configuré pour referrer:', referrerProfile.id);
+                        } else {
+                            console.log('✅ [AFFILIATION] Stripe Connect trouvé, création affiliation...');
+
+                            // Vérifier si l'affiliation existe déjà
+                            const { data: existingAffiliation } = await supabaseServiceRole
+                                .from('affiliations')
+                                .select('id')
+                                .eq('referred_profile_id', userId)
+                                .single();
+
+                            if (existingAffiliation) {
+                                console.log('⚠️ [AFFILIATION] Affiliation déjà existante:', existingAffiliation.id);
+                            } else {
+                                // Créer l'affiliation avec status 'pending'
+                                const { data: affiliation, error: affiliationError } = await supabaseServiceRole
+                                    .from('affiliations')
+                                    .insert({
+                                        referrer_profile_id: referrerProfile.id,
+                                        referred_profile_id: userId,
+                                        affiliate_slug: affiliateCode, // ✅ Stocker le code dans affiliate_slug (pas besoin de changer la colonne DB)
+                                        status: 'pending'
+                                    })
+                                    .select()
+                                    .single();
+
+                                if (affiliationError) {
+                                    console.error('❌ [AFFILIATION] Erreur création affiliation:', affiliationError);
+                                } else if (affiliation) {
+                                    console.log('✅ [AFFILIATION] Affiliation créée avec succès:', affiliation.id);
+                                } else {
+                                    console.error('❌ [AFFILIATION] Aucune donnée retournée après insertion');
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Supprimer le cookie après utilisation
+                    cookies.delete('affiliate_ref', { path: '/' });
+                    console.log('✅ [AFFILIATION] Cookie supprimé après utilisation');
+                } catch (error) {
+                    console.error('❌ [AFFILIATION] Erreur inattendue:', error);
+                    // Ne pas bloquer la création de la boutique en cas d'erreur d'affiliation
+                }
+        }
 
             // Retour succès
             const cleanForm = await superValidate(zod(shopCreationSchema));
