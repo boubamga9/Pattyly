@@ -1,6 +1,4 @@
 import { redirect } from '@sveltejs/kit';
-import { validateTransferData, getTransferErrorMessage } from '$lib/utils/transfer-utils';
-import { verifyShopOwnership } from '$lib/auth';
 import { STRIPE_PRODUCTS, STRIPE_PRICES } from '$lib/config/server';
 import type { Actions } from './$types';
 
@@ -180,69 +178,5 @@ export const load = async ({ locals, parent }) => {
 };
 
 export const actions: Actions = {
-    createTransfer: async ({ request, locals }) => {
-        const { session, user } = await locals.safeGetSession();
-
-        if (!session || !user) {
-            return { error: 'Non autorisé' };
-        }
-
-        const formData = await request.formData();
-        const shopId = formData.get('shop_id') as string;
-        const targetEmail = formData.get('target_email') as string;
-        const paypalMe = formData.get('paypal_me') as string;
-
-        // Validation des données
-        const validation = validateTransferData(targetEmail, paypalMe);
-        if (!validation.isValid) {
-            return { error: validation.errorMessage };
-        }
-
-        // ✅ OPTIMISÉ : Utiliser la fonction utilitaire pour vérifier la propriété
-        const isOwner = await verifyShopOwnership(user.id, shopId, locals.supabase);
-
-        if (!isOwner) {
-            return { error: 'Boutique introuvable ou non autorisée' };
-        }
-
-        // Vérifier qu'un transfert n'existe pas déjà pour cet email
-        const { data: existingTransfer } = await (locals.supabase as any)
-            .from('shop_transfers')
-            .select('id')
-            .eq('target_email', targetEmail)
-            .is('used_at', null)
-            .single();
-
-        if (existingTransfer) {
-            return { error: 'Un transfert est déjà en attente pour cet email' };
-        }
-
-        try {
-            // Créer l'entrée de transfert
-            const { data: transfer, error } = await (locals.supabase as any)
-                .from('shop_transfers')
-                .insert({
-                    shop_id: shopId,
-                    target_email: targetEmail,
-                    payment_identifier: paypalMe,
-                    provider_type: 'paypal'
-                })
-                .select()
-                .single();
-
-            if (error) {
-                console.error('Error creating transfer:', error);
-                return { error: getTransferErrorMessage(error) };
-            }
-
-            return {
-                success: true,
-                message: `Transfert créé pour ${targetEmail}. La pâtissière pourra récupérer sa boutique lors de son inscription.`
-            };
-
-        } catch (error) {
-            console.error('Unexpected error creating transfer:', error);
-            return { error: 'Erreur inattendue lors de la création du transfert' };
-        }
-    }
+    // Actions disponibles pour le dashboard
 }; 

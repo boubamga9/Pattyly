@@ -209,3 +209,5 @@ COMMENT ON FUNCTION "public"."get_user_plan"("p_profile_id" "uuid", "premium_pro
 COMMENT ON FUNCTION "public"."get_user_permissions_complete"("p_profile_id" "uuid", "p_premium_product_id" "text", "p_basic_product_id" "text", "p_lifetime_product_id" "text") IS 'Get all user permissions in a single optimized query. The lifetime plan is treated as premium for all permissions.';
 
 
+
+
