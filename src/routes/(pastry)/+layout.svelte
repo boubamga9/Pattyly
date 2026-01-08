@@ -1,18 +1,20 @@
 <script lang="ts">
 	import { onNavigate, goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import Home from '~icons/lucide/home';
-	import Settings from '~icons/lucide/settings';
-	import ShoppingCart from '~icons/lucide/shopping-cart';
-	import Cake from '~icons/lucide/cake';
-	import FileText from '~icons/lucide/file-text';
-	import Calendar from '~icons/lucide/calendar';
-	import Store from '~icons/lucide/store';
-	import HelpCircle from '~icons/lucide/help-circle';
-	import MenuIcon from '~icons/lucide/menu';
-	import XIcon from '~icons/lucide/x';
+import Home from '~icons/lucide/home';
+import Settings from '~icons/lucide/settings';
+import ShoppingCart from '~icons/lucide/shopping-cart';
+import Cake from '~icons/lucide/cake';
+import FileText from '~icons/lucide/file-text';
+import Calendar from '~icons/lucide/calendar';
+import Store from '~icons/lucide/store';
+import HelpCircle from '~icons/lucide/help-circle';
+import MenuIcon from '~icons/lucide/menu';
+import XIcon from '~icons/lucide/x';
+import UserPlus from '~icons/lucide/user-plus';
 
 	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
 	import * as Drawer from '$lib/components/ui/drawer';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { Separator } from '$lib/components/ui/separator';
@@ -168,6 +170,20 @@
 				</Tooltip.Trigger>
 				<Tooltip.Content side="right">FAQ</Tooltip.Content>
 			</Tooltip.Root>
+			<Tooltip.Root>
+				<Tooltip.Trigger asChild let:builder>
+					<NavLink
+						href="/dashboard/affiliation"
+						class="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
+						activeClass="bg-accent text-accent-foreground"
+						{builder}
+					>
+						<UserPlus class="h-5 w-5" />
+						<span class="sr-only">Affiliation</span>
+					</NavLink>
+				</Tooltip.Trigger>
+				<Tooltip.Content side="right">Affiliation</Tooltip.Content>
+			</Tooltip.Root>
 		</nav>
 		<nav class="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5">
 			<Tooltip.Root>
@@ -291,6 +307,15 @@
 										on:click={(e) => handleNavClick('/dashboard/faq', e)}
 									>
 										FAQ
+									</Button>
+								</li>
+								<li>
+									<Button
+										variant="ghost"
+										class="w-full py-6 text-base"
+										on:click={(e) => handleNavClick('/dashboard/affiliation', e)}
+									>
+										Affiliation
 									</Button>
 								</li>
 							</ul>
