@@ -174,6 +174,18 @@ export const actions = {
             await deleteAllShopImages(supabaseServiceRole, shop.id);
         }
 
+        // ✅ Supprimer le contact de Resend (fire-and-forget pour ne pas bloquer la suppression)
+        if (user?.email) {
+            try {
+                const { ResendContactsService } = await import('$lib/services/resend-contacts');
+                ResendContactsService.deleteContact(user.email).catch(err => {
+                    console.error('Erreur suppression contact Resend lors de la suppression de compte:', err);
+                });
+            } catch (err) {
+                console.error('Erreur import ResendContactsService:', err);
+            }
+        }
+
         const { error: deleteProfileError } = await supabaseServiceRole.from('profiles').delete().eq('id', user.id);
 
         const { error: delError } = await supabaseServiceRole.auth.admin.deleteUser(

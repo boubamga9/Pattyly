@@ -20,3 +20,5 @@ CREATE POLICY "Users can update their own stripe connect accounts"
     ON stripe_connect_accounts FOR UPDATE
     USING ((select auth.uid()) = profile_id);
 
+
+

@@ -105,6 +105,80 @@ export async function upsertSubscription(subscription: Stripe.Subscription, loca
             console.error('Erreur récupération email pour Resend:', err);
         }
 
+        // ✅ NOUVEAU : Activer l'affiliation si elle existe
+        // Activer si : nouvelle souscription OU passage de inactive à active
+        const shouldActivateAffiliation = subscriptionStatus === 'active' && (isNewSubscription || wasInactive);
+        
+        if (shouldActivateAffiliation) {
+            logger.log('🔍 [Affiliation] Vérification activation affiliation:', {
+                profileId,
+                isNewSubscription,
+                wasInactive,
+                subscriptionStatus
+            });
+
+            // Récupérer l'affiliation en attente
+            const { data: affiliation, error: affiliationError } = await locals.supabaseServiceRole
+                .from('affiliations')
+                .select('*')
+                .eq('referred_profile_id', profileId)
+                .eq('status', 'pending')
+                .maybeSingle();
+            
+            if (affiliationError) {
+                logger.log('❌ [Affiliation] Erreur récupération affiliation:', affiliationError);
+            } else if (affiliation) {
+                logger.log('✅ [Affiliation] Affiliation trouvée:', {
+                    affiliationId: affiliation.id,
+                    referrerProfileId: affiliation.referrer_profile_id
+                });
+
+                // Vérifier que le parrain a toujours un compte Stripe Connect actif (requête séparée)
+                const { data: stripeConnect, error: stripeError } = await locals.supabaseServiceRole
+                    .from('stripe_connect_accounts')
+                    .select('stripe_account_id, is_active, charges_enabled, payouts_enabled')
+                    .eq('profile_id', affiliation.referrer_profile_id)
+                    .eq('is_active', true)
+                    .eq('charges_enabled', true)
+                    .eq('payouts_enabled', true)
+                    .maybeSingle();
+                
+                if (stripeError) {
+                    logger.log('❌ [Affiliation] Erreur récupération Stripe Connect:', stripeError);
+                } else if (stripeConnect) {
+                    // Activer l'affiliation
+                    const { error: updateError } = await locals.supabaseServiceRole
+                        .from('affiliations')
+                        .update({
+                            status: 'active',
+                            subscription_started_at: new Date().toISOString()
+                        })
+                        .eq('id', affiliation.id);
+                    
+                    if (updateError) {
+                        logger.log('❌ [Affiliation] Erreur activation affiliation:', updateError);
+                        await ErrorLogger.logCritical(updateError, {
+                            affiliationId: affiliation.id,
+                            profileId
+                        }, {
+                            handler: 'upsertSubscription',
+                            step: 'activate_affiliation'
+                        });
+                    } else {
+                        logger.log('✅ [Affiliation] Affiliation activée avec succès:', affiliation.id);
+                        
+                        // ✅ La commission sera traitée automatiquement par le webhook invoice.payment_succeeded
+                        // Cela évite les doublons et garantit que la commission est créée au bon moment (quand le paiement est confirmé)
+                        logger.log('ℹ️ [Affiliation] La commission sera traitée par le webhook invoice.payment_succeeded');
+                    }
+                } else {
+                    logger.log('⚠️ [Affiliation] Stripe Connect non configuré ou inactif pour le referrer:', affiliation.referrer_profile_id);
+                }
+            } else {
+                logger.log('ℹ️ [Affiliation] Aucune affiliation pending trouvée pour ce profil');
+            }
+        }
+
         // ✅ Tracking: Subscription started (fire-and-forget pour ne pas bloquer le webhook)
         // Logger l'événement si l'abonnement est actif (active ou trialing) ET :
         // 1. C'est une nouvelle souscription (n'existait pas avant)

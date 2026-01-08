@@ -1,5 +1,6 @@
 -- Migration pour ajouter le support Wero comme moyen de paiement
 -- Cette migration ajoute 'wero' aux types de providers autorisés dans payment_links et shop_transfers
+-- Note: La contrainte orders a été ajoutée dans 20250105221300_add_wero_to_orders_constraint.sql
 
 -- 1. Update payment_links constraint to include 'wero'
 ALTER TABLE payment_links 

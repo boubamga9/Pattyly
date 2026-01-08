@@ -99,3 +99,5 @@ Si tu n'es pas sûr qu'une commande SQL est sûre :
 - Utiliser des tokens de design globaux ou variables de style pour les couleurs, polices, etc.
 - Les changements doivent se propager de manière cohérente dans toute l'application
 
+
+

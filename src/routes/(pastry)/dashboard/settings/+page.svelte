@@ -294,20 +294,32 @@
 				<Button
 					variant="ghost"
 					size="sm"
-					class="mx-auto mt-12 block text-xs text-muted-foreground/40"
+					class="mx-auto mt-12 block text-xs text-muted-foreground/40 hover:text-destructive"
 					builders={[builder]}
 				>
 					Supprimer le compte
 				</Button>
 			</Dialog.Trigger>
-			<Dialog.Content class="border-destructive">
-				<Dialog.Header>
-					<Dialog.Title>Êtes-vous absolument sûr ?</Dialog.Title>
-					<Dialog.Description>
-						Cette action ne peut pas être annulée. Cela supprimera
-						définitivement votre compte et supprimera vos données de nos
-						serveurs. Tous vos abonnements actifs seront annulés
-						automatiquement.
+			<Dialog.Content class="border-destructive/50">
+				<Dialog.Header class="space-y-3">
+					<div class="flex items-center gap-3">
+						<div class="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
+							<AlertCircle class="h-5 w-5 text-destructive" />
+						</div>
+						<Dialog.Title class="text-xl font-semibold">
+							Supprimer votre compte
+						</Dialog.Title>
+					</div>
+					<Dialog.Description class="text-sm text-muted-foreground leading-relaxed">
+						Cette action est irréversible et supprimera définitivement :
+						<ul class="mt-3 list-disc space-y-1 pl-5">
+							<li>Votre compte et toutes vos données personnelles</li>
+							<li>Tous vos produits et commandes</li>
+							<li>Votre boutique et son historique</li>
+						</ul>
+						<p class="mt-3 font-medium text-foreground">
+							Tous vos abonnements actifs seront également annulés automatiquement.
+						</p>
 					</Dialog.Description>
 				</Dialog.Header>
 

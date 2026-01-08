@@ -22,7 +22,7 @@ export class ResendContactsService {
             // Préparer les propriétés personnalisées
             // Note: Resend attend visible_in_listing_page comme number (0 ou 1), pas boolean
             const properties: Record<string, string | number> = {};
-            
+
             if (data.current_plan !== undefined) {
                 properties.current_plan = data.current_plan;
             }
@@ -47,7 +47,7 @@ export class ResendContactsService {
 
             if (error) {
                 // Si le contact n'existe pas, le créer
-                if (error.message?.includes('not found') || error.status === 404) {
+                if (error.message?.includes('not found')) {
                     const { data: newContact, error: createError } = await resend.contacts.create({
                         email: data.email,
                         unsubscribed: data.unsubscribed ?? false,
@@ -76,6 +76,36 @@ export class ResendContactsService {
             return { success: true, contact };
         } catch (error) {
             console.error('Erreur ResendContactsService.upsertContact:', error);
+            // Ne pas faire échouer l'opération principale si Resend échoue
+            return { success: false, error };
+        }
+    }
+
+    /**
+     * Supprime un contact de Resend
+     * Utilisé lors de la suppression de compte utilisateur
+     */
+    static async deleteContact(email: string) {
+        try {
+            // Resend accepte soit une string (email) soit un objet { email: string }
+            const { data, error } = await resend.contacts.remove({
+                email: email,
+            });
+
+            if (error) {
+                // Si le contact n'existe pas, ce n'est pas une erreur critique
+                if (error.message?.includes('not found')) {
+                    console.log(`Contact Resend non trouvé pour suppression: ${email}`);
+                    return { success: true, message: 'Contact non trouvé (déjà supprimé ou n\'existe pas)' };
+                }
+
+                console.error('Erreur suppression contact Resend:', error);
+                throw error;
+            }
+
+            return { success: true, data };
+        } catch (error) {
+            console.error('Erreur ResendContactsService.deleteContact:', error);
             // Ne pas faire échouer l'opération principale si Resend échoue
             return { success: false, error };
         }

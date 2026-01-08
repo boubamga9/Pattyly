@@ -184,15 +184,15 @@
 		}
 		
 		// Stocker le provider dans le formulaire
-		if (confirmationForm) {
-			const providerInput = confirmationForm.querySelector('input[name="paymentProvider"]');
-			if (providerInput && providerInput instanceof HTMLInputElement) {
+			if (confirmationForm) {
+				const providerInput = confirmationForm.querySelector('input[name="paymentProvider"]');
+				if (providerInput && providerInput instanceof HTMLInputElement) {
 				providerInput.value = providerToUse.provider_type;
+				}
 			}
-		}
 		
 		// Soumettre le formulaire de confirmation
-		confirmationForm?.requestSubmit();
+			confirmationForm?.requestSubmit();
 		
 		// Nettoyer le localStorage
 		if (typeof localStorage !== 'undefined') {
@@ -787,32 +787,32 @@
 											Copiez la référence de commande
 										</span>
 									</div>
-									<div class="flex items-center gap-2">
-										<code
+						<div class="flex items-center gap-2">
+							<code
 											class="flex-1 rounded-lg bg-white px-3 py-2 text-center font-mono text-sm font-semibold text-neutral-900 shadow-sm"
-											style="font-weight: 600;"
-										>
-											{data.orderData.order_ref}
-										</code>
-										<Button
-											type="button"
-											variant="outline"
-											size="sm"
-											on:click={copyOrderRef}
+								style="font-weight: 600;"
+							>
+								{data.orderData.order_ref}
+							</code>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								on:click={copyOrderRef}
 											class="h-9 shrink-0 rounded-lg transition-all duration-200"
-											style={copySuccess ? customStyles.buttonStyle : ''}
-										>
-											{#if copySuccess}
-												<Check class="h-4 w-4" />
-											{:else}
-												<Copy class="h-4 w-4" />
-											{/if}
-										</Button>
-									</div>
+								style={copySuccess ? customStyles.buttonStyle : ''}
+							>
+								{#if copySuccess}
+									<Check class="h-4 w-4" />
+								{:else}
+									<Copy class="h-4 w-4" />
+								{/if}
+							</Button>
+						</div>
 									<p class="mt-2 text-xs text-neutral-600">
 										Vous devrez coller cette référence lors du paiement
 									</p>
-								</div>
+					</div>
 
 								<!-- Étape 2 : Ouvrir le lien de paiement -->
 								<div class="rounded-lg border-2 border-dashed border-neutral-200 bg-neutral-50 p-4">
@@ -829,32 +829,32 @@
 									</div>
 									<div class="space-y-2">
 										{#each otherProviders as provider}
-											{@const isPaypal = provider.provider_type === 'paypal'}
-											{@const isRevolut = provider.provider_type === 'revolut'}
+								{@const isPaypal = provider.provider_type === 'paypal'}
+								{@const isRevolut = provider.provider_type === 'revolut'}
 											{@const isWero = provider.provider_type === 'wero'}
 											{@const backgroundColor = isPaypal ? '#ffd140' : isRevolut ? '#000000' : isWero ? '#ffffff' : '#6b7280'}
 											{@const textColor = isPaypal ? '#000000' : isWero ? '#000000' : '#ffffff'}
 											{@const borderColor = isWero ? '#e5e7eb' : 'transparent'}
-											
-											<button
-												type="button"
+								
+								<button
+									type="button"
 												on:click={() => handlePaymentLinkClick(provider)}
 												class="flex w-full {isWero && showWeroIdentifier ? 'flex-col' : 'items-center'} justify-center gap-1.5 rounded-lg px-4 {isWero && showWeroIdentifier ? 'py-2.5' : 'h-11'} text-sm font-medium shadow-sm transition-all duration-200 hover:shadow-md"
 												style="font-weight: 500; background-color: {backgroundColor}; color: {textColor}; border: 1px solid {borderColor};"
-												on:mouseenter={(e) => {
+									on:mouseenter={(e) => {
 													if (isPaypal) e.currentTarget.style.backgroundColor = '#e6bc00';
-													else if (isRevolut) e.currentTarget.style.backgroundColor = '#1a1a1a';
+										else if (isRevolut) e.currentTarget.style.backgroundColor = '#1a1a1a';
 													else if (isWero) e.currentTarget.style.backgroundColor = '#f9fafb';
-												}}
-												on:mouseleave={(e) => {
+									}}
+									on:mouseleave={(e) => {
 													if (isPaypal) e.currentTarget.style.backgroundColor = '#ffd140';
-													else if (isRevolut) e.currentTarget.style.backgroundColor = '#000000';
+										else if (isRevolut) e.currentTarget.style.backgroundColor = '#000000';
 													else if (isWero) e.currentTarget.style.backgroundColor = '#ffffff';
 												}}
 											>
 												{#if isPaypal}
 													<img src="/payments_logo/paypal_logo.svg" alt="PayPal" class="h-5 w-auto" />
-												{:else if isRevolut}
+									{:else if isRevolut}
 													<img src="/payments_logo/revolut_logo.svg" alt="Revolut" class="h-4 w-auto" style="filter: brightness(0) invert(1);" />
 												{:else if isWero}
 													<div class="flex flex-col items-center gap-1.5">
@@ -881,14 +881,14 @@
 																		<Check class="h-4 w-4 text-green-600" />
 																	{:else}
 																		<Copy class="h-4 w-4" />
-																	{/if}
+									{/if}
 																</button>
 															</div>
 														{/if}
 													</div>
 												{/if}
-											</button>
-										{/each}
+								</button>
+							{/each}
 									</div>
 								</div>
 

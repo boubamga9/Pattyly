@@ -30,7 +30,7 @@ const brotliCompressAsync = promisify(brotliCompress);
  */
 function shouldCompress(contentType: string | null): boolean {
 	if (!contentType) return false;
-	
+
 	const compressibleTypes = [
 		'text/html',
 		'text/css',
@@ -52,7 +52,7 @@ function shouldCompress(contentType: string | null): boolean {
 		'application/font-woff',
 		'application/font-woff2'
 	];
-	
+
 	return compressibleTypes.some(type => contentType.includes(type));
 }
 
@@ -64,7 +64,7 @@ async function compressResponse(
 	encoding: 'gzip' | 'br'
 ): Promise<Uint8Array> {
 	const buffer = typeof body === 'string' ? Buffer.from(body, 'utf-8') : Buffer.from(body);
-	
+
 	if (encoding === 'br') {
 		return await brotliCompressAsync(buffer);
 	} else {
@@ -96,15 +96,15 @@ function applyPerformanceHeaders(response: Response, pathname: string, hostname?
 	response.headers.set('X-Frame-Options', 'SAMEORIGIN');
 	response.headers.set('X-XSS-Protection', '1; mode=block');
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-	
+
 	// Block indexing for test domain
 	if (hostname && (hostname === 'test.pattyly.com' || hostname.includes('test.pattyly.com'))) {
 		response.headers.set('X-Robots-Tag', 'noindex, nofollow');
 	}
-	
+
 	// Performance headers
 	response.headers.set('X-DNS-Prefetch-Control', 'on');
-	
+
 	// Cache headers for static assets
 	if (pathname.startsWith('/_app/') || pathname.match(/\.(js|css|woff|woff2|png|jpg|jpeg|gif|svg|ico|webp)$/)) {
 		response.headers.set('Cache-Control', 'public, max-age=31536000, immutable');
@@ -187,9 +187,21 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 		/**
 		 * Safe session getter that validates JWT before returning session
+		 * Uses getUser() instead of getSession() to avoid security warnings
 		 */
 		event.locals.safeGetSession = async () => {
 			try {
+				// Use getUser() first to validate the user (this is secure)
+				const {
+					data: { user },
+					error: userError,
+				} = await event.locals.supabase.auth.getUser();
+
+				if (userError || !user) {
+					return { session: null, user: null, amr: null };
+				}
+
+				// Get session after validating user (this is safe because user is already validated)
 				const {
 					data: { session: originalSession },
 				} = await event.locals.supabase.auth.getSession();
@@ -198,16 +210,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 					return { session: null, user: null, amr: null };
 				}
 
-				const {
-					data: { user },
-					error: userError,
-				} = await event.locals.supabase.auth.getUser();
-
-				if (userError) {
-					return { session: null, user: null, amr: null };
-				}
-
-				// Create clean session object
+				// Create clean session object with validated user
 				const session = Object.assign({}, originalSession, { user });
 
 				// Get MFA authentication methods
@@ -225,7 +228,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 		};
 
 		// Validate session early to clean up invalid tokens before response is generated
-		await event.locals.supabase.auth.getSession();
+		// Use getUser() instead of getSession() to avoid security warnings
+		await event.locals.supabase.auth.getUser();
 
 		// Resolve the request
 		const response = await resolve(event, {
@@ -241,29 +245,29 @@ export const handle: Handle = async ({ event, resolve }) => {
 		// Vercel handles compression automatically, so we skip it in production
 		const isVercel = process.env.VERCEL === '1';
 		const isAlreadyCompressed = response.headers.get('content-encoding');
-		
+
 		if (!isVercel && !isAlreadyCompressed) {
 			const acceptEncoding = event.request.headers.get('accept-encoding') || '';
 			const contentType = response.headers.get('content-type');
-			
+
 			// Only compress text-based content
 			if (shouldCompress(contentType) && response.body) {
 				// Prefer Brotli, fallback to Gzip
 				const supportsBrotli = acceptEncoding.includes('br');
 				const supportsGzip = acceptEncoding.includes('gzip');
-				
+
 				if (supportsBrotli || supportsGzip) {
 					try {
 						// Clone response to read body
 						const clonedResponse = response.clone();
 						const bodyText = await clonedResponse.text();
-						
+
 						// Skip compression for very small responses (overhead not worth it)
 						// Only compress responses larger than 2KB to avoid overhead
 						if (bodyText.length > 2048) {
 							const encoding = supportsBrotli ? 'br' : 'gzip';
 							const compressed = await compressResponse(bodyText, encoding);
-							
+
 							// Only compress if we achieve at least 10% reduction
 							if (compressed.length < bodyText.length * 0.9) {
 								// Create new response with compressed body
@@ -272,11 +276,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 									statusText: response.statusText,
 									headers: new Headers(response.headers),
 								});
-								
+
 								compressedResponse.headers.set('Content-Encoding', encoding);
 								compressedResponse.headers.set('Content-Length', compressed.length.toString());
 								compressedResponse.headers.set('Vary', 'Accept-Encoding');
-								
+
 								return compressedResponse;
 							}
 						}
