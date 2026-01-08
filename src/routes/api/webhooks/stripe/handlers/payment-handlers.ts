@@ -281,7 +281,7 @@ export async function processAffiliateCommission(
             subscriptionStartedAt: affiliation.subscription_started_at
         });
 
-        // Vérifier que la période de 3 mois n'est pas dépassée
+        // Vérifier que la période de commission n'est pas dépassée
         if (affiliation.subscription_started_at) {
             const subscriptionStart = new Date(affiliation.subscription_started_at);
             const now = new Date();

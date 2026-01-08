@@ -103,7 +103,7 @@
 	<div class="mb-8">
 		<h1 class="text-3xl font-bold">Programme d'affiliation</h1>
 		<p class="mt-2 text-muted-foreground">
-			Partage ton lien et gagne 30% de l'abonnement de chaque personne parrainée pendant 3 mois
+			Partage ton lien et gagne 30% de l'abonnement de chaque personne parrainée pendant 6 mois
 		</p>
 	</div>
 
@@ -175,7 +175,7 @@
 		<CardHeader>
 			<CardTitle>Ton lien d'affiliation</CardTitle>
 			<CardDescription>
-				Partage ce lien pour gagner 30% de l'abonnement de chaque personne parrainée pendant 3 mois
+				Partage ce lien pour gagner 30% de l'abonnement de chaque personne parrainée pendant 6 mois
 			</CardDescription>
 		</CardHeader>
 		<CardContent class="space-y-4">
