@@ -225,31 +225,47 @@ export const actions: Actions = {
         const newCategoryName = formData.get('newCategoryName') as string;
         let finalCategoryId = category_id;
 
-        // ✅ OPTIMISÉ : Créer la nouvelle catégorie avec ON CONFLICT (évite la vérification préalable)
+        // ✅ OPTIMISÉ : Créer la nouvelle catégorie (vérifier d'abord, puis insérer si nécessaire)
         if (newCategoryName && newCategoryName.trim()) {
             try {
-                const { data: newCategory, error: categoryError } = await locals.supabase
+                // Vérifier si la catégorie existe déjà
+                const { data: existingCategory, error: checkError } = await locals.supabase
                     .from('categories')
-                    .insert({
-                        name: newCategoryName.trim(),
-                        shop_id: shopId
-                    })
-                    .select()
-                    .single()
-                    .onConflict('name,shop_id')
-                    .merge(); // Si existe déjà, on récupère l'existant
+                    .select('id')
+                    .eq('name', newCategoryName.trim())
+                    .eq('shop_id', shopId)
+                    .maybeSingle();
 
-                if (categoryError) {
-                    await ErrorLogger.logCritical(categoryError, {
-                        userId: userId,
-                        shopId: shopId,
-                        productId: productId,
-                        categoryName: newCategoryName,
-                    }, {
-                        action: 'updateProduct',
-                        step: 'create_category',
-                    });
-                    return fail(500, { form, error: 'Erreur lors de la création de la catégorie' });
+                let newCategory;
+
+                if (existingCategory) {
+                    // La catégorie existe déjà, on la réutilise
+                    newCategory = existingCategory;
+                } else {
+                    // Créer la nouvelle catégorie
+                    const { data: insertedCategory, error: insertError } = await locals.supabase
+                        .from('categories')
+                        .insert({
+                            name: newCategoryName.trim(),
+                            shop_id: shopId
+                        })
+                        .select('id')
+                        .single();
+
+                    if (insertError) {
+                        await ErrorLogger.logCritical(insertError, {
+                            userId: userId,
+                            shopId: shopId,
+                            productId: productId,
+                            categoryName: newCategoryName,
+                        }, {
+                            action: 'updateProduct',
+                            step: 'create_category',
+                        });
+                        return fail(500, { form, error: `Erreur lors de la création de la catégorie: ${insertError.message || insertError.code || 'Erreur inconnue'}` });
+                    }
+
+                    newCategory = insertedCategory;
                 }
 
                 finalCategoryId = newCategory.id;

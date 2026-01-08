@@ -378,20 +378,36 @@ export const actions: Actions = {
         const { name: trimmedName } = form.data;
 
         try {
-            // ✅ OPTIMISÉ : Utiliser ON CONFLICT pour éviter la vérification préalable (2 requêtes → 1 requête)
-            const { data: newCategory, error: insertError } = await locals.supabase
+            // ✅ OPTIMISÉ : Créer la nouvelle catégorie (vérifier d'abord, puis insérer si nécessaire)
+            // Vérifier si la catégorie existe déjà
+            const { data: existingCategory, error: checkError } = await locals.supabase
                 .from('categories')
-                .insert({
-                    name: trimmedName,
-                    shop_id: shopId
-                })
                 .select('id, name')
-                .single()
-                .onConflict('name,shop_id')
-                .merge(); // Si existe déjà, on récupère l'existant
+                .eq('name', trimmedName)
+                .eq('shop_id', shopId)
+                .maybeSingle();
 
-            if (insertError) {
-                return fail(500, { form, error: 'Erreur lors de la création de la catégorie' });
+            let newCategory;
+
+            if (existingCategory) {
+                // La catégorie existe déjà, on la réutilise
+                newCategory = existingCategory;
+            } else {
+                // Créer la nouvelle catégorie
+                const { data: insertedCategory, error: insertError } = await locals.supabase
+                    .from('categories')
+                    .insert({
+                        name: trimmedName,
+                        shop_id: shopId
+                    })
+                    .select('id, name')
+                    .single();
+
+                if (insertError) {
+                    return fail(500, { form, error: `Erreur lors de la création de la catégorie: ${insertError.message || insertError.code || 'Erreur inconnue'}` });
+                }
+
+                newCategory = insertedCategory;
             }
 
 

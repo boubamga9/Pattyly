@@ -356,7 +356,7 @@ export const actions: Actions = {
                 .select('id, name')
                 .eq('name', trimmedName)
                 .eq('shop_id', shopId)
-                .single();
+                .maybeSingle();
 
             let newCategory;
 
