@@ -18,6 +18,7 @@ import { ContactConfirmationEmail } from '$lib/emails/contact-confirmation';
 import { ContactNotificationEmail } from '$lib/emails/contact-notification';
 import { PaymentFailedNotificationEmail } from '$lib/emails/payment-failed-notification';
 import { CriticalErrorNotificationEmail } from '$lib/emails/critical-error-notification';
+import { MarketingCampaignEmail } from '$lib/emails/marketing-campaign';
 
 // Initialisation de Resend
 const resend = new Resend(env.RESEND_API_KEY);
@@ -1122,6 +1123,78 @@ export class EmailService {
             return { success: true, messageId: data?.id };
         } catch (error) {
             console.error('Erreur EmailService.sendAffiliateActivationNotification:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Envoie un email de campagne marketing à un destinataire
+     */
+    static async sendMarketingCampaign({
+        recipientEmail,
+        recipientName,
+        subject,
+        content,
+        ctaText,
+        ctaUrl,
+    }: {
+        recipientEmail: string;
+        recipientName?: string;
+        subject: string;
+        content: string;
+        ctaText?: string;
+        ctaUrl?: string;
+    }) {
+        try {
+            // Vérifier si l'utilisateur est désabonné
+            try {
+                const { data: contact, error: contactError } = await resend.contacts.get({ email: recipientEmail });
+                
+                if (!contactError && contact?.unsubscribed === true) {
+                    console.log(`⏭️  ${recipientEmail} est désabonné, email non envoyé`);
+                    return { success: true, skipped: true, messageId: null };
+                }
+            } catch (error) {
+                // Si le contact n'existe pas ou erreur, on continue (première fois qu'on envoie)
+                // Ne pas bloquer l'envoi en cas d'erreur de vérification
+            }
+
+            const date = new Date().toLocaleDateString('fr-FR', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            });
+
+            const siteUrl = env.PUBLIC_SITE_URL || 'https://pattyly.com';
+            const unsubscribeUrl = `${siteUrl}/unsubscribe?email=${encodeURIComponent(recipientEmail)}`;
+
+            const { data, error } = await resend.emails.send({
+                from: 'L\'équipe Pattyly <hello@pattyly.com>',
+                to: [recipientEmail],
+                subject: subject,
+                html: MarketingCampaignEmail({
+                    recipientName,
+                    subject,
+                    content,
+                    ctaText,
+                    ctaUrl,
+                    date,
+                    recipientEmail,
+                }),
+                headers: {
+                    'List-Unsubscribe': `<${unsubscribeUrl}>, <mailto:hello@pattyly.com?subject=Unsubscribe&body=Please%20unsubscribe%20${encodeURIComponent(recipientEmail)}>`,
+                    'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'
+                }
+            });
+
+            if (error) {
+                console.error('Erreur envoi email campagne marketing:', error);
+                throw error;
+            }
+
+            return { success: true, messageId: data?.id };
+        } catch (error) {
+            console.error('Erreur EmailService.sendMarketingCampaign:', error);
             throw error;
         }
     }

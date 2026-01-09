@@ -532,12 +532,8 @@
 				});
 			}
 
-			// Trier : vérifiés en premier, puis par nom de produit
-			filtered.sort((a, b) => {
-				if (a.shop.isPremium && !b.shop.isPremium) return -1;
-				if (!a.shop.isPremium && b.shop.isPremium) return 1;
-				return a.name.localeCompare(b.name);
-			});
+			// L'ordre est déjà préservé depuis la base de données (premium shop products en premier, puis hash aléatoire)
+			// Pas besoin de re-trier côté client
 
 			// Mettre à jour displayedProducts avec les résultats filtrés
 			displayedProducts = Array.isArray(filtered) ? filtered : [];

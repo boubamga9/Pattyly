@@ -81,10 +81,12 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders, url })
         {
             id: 'starter',
             name: 'Starter',
-            price: 14.99,
+            monthlyPrice: 14.99,
+            annualPrice: 149,
+            monthlyStripePriceId: STRIPE_PRICES.BASIC,
+            annualStripePriceId: STRIPE_PRICES.BASIC_ANNUAL,
             originalPrice: 19.99, // Prix barré pour montrer le prix de lancement
             currency: 'EUR',
-            stripePriceId: STRIPE_PRICES.BASIC, // Utilise BASIC pour Starter
             features: [
                 'Tout le plan Gratuit',
                 '20 commandes/mois (au lieu de 5)',
@@ -97,10 +99,12 @@ export const load: PageServerLoad = async ({ locals, request, setHeaders, url })
         {
             id: 'premium',
             name: 'Premium',
-            price: 19.99,
+            monthlyPrice: 19.99,
+            annualPrice: 199,
+            monthlyStripePriceId: STRIPE_PRICES.PREMIUM,
+            annualStripePriceId: STRIPE_PRICES.PREMIUM_ANNUAL,
             originalPrice: 29.99, // Prix barré pour montrer le prix de lancement
             currency: 'EUR',
-            stripePriceId: STRIPE_PRICES.PREMIUM,
             features: [
                 'Tout le plan Starter',
                 'Commandes illimitées',

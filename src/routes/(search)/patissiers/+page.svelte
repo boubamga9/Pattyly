@@ -266,14 +266,8 @@
 			}
 
 			// Mettre à jour displayedShops avec tous les shops
+			// L'ordre est déjà préservé depuis la base de données (premium en premier, puis hash aléatoire)
 			displayedShops = allShops;
-			
-			// Re-trier pour que les premium restent en tête
-			displayedShops.sort((a, b) => {
-				if (a.isPremium && !b.isPremium) return -1;
-				if (!a.isPremium && b.isPremium) return 1;
-				return a.name.localeCompare(b.name);
-			});
 
 			// Marquer que tous les shops sont chargés pour la carte
 			allShopsLoadedForMap = true;
@@ -320,14 +314,8 @@
 			const result = await response.json();
 			
 			// Ajouter les nouveaux shops à la liste
+			// L'ordre est déjà préservé depuis la base de données (premium en premier, puis hash aléatoire)
 			displayedShops = [...displayedShops, ...result.shops];
-			
-			// ✅ Re-trier pour que les premium restent en tête
-			displayedShops.sort((a, b) => {
-				if (a.isPremium && !b.isPremium) return -1;
-				if (!a.isPremium && b.isPremium) return 1;
-				return a.name.localeCompare(b.name);
-			});
 			
 			currentPage = result.pagination.page;
 			hasMore = result.pagination.hasMore;
@@ -587,12 +575,8 @@
 				.map((item) => item.designer);
 		}
 
-		// Trier : vérifiés en premier, puis par nom
-		filtered.sort((a, b) => {
-			if (a.isPremium && !b.isPremium) return -1;
-			if (!a.isPremium && b.isPremium) return 1;
-			return a.name.localeCompare(b.name);
-		});
+		// L'ordre est déjà préservé depuis la base de données (premium en premier, puis hash aléatoire)
+		// Pas besoin de re-trier côté client
 
 		// S'assurer que filtered est toujours un tableau
 		filteredDesignersSync = Array.isArray(filtered) ? filtered : [];

@@ -3,7 +3,9 @@ import type { PageServerLoad } from './$types';
 type Plan = {
     id: string;
     name: string;
-    price: number | 'gratuit';
+    price?: number | 'gratuit'; // Prix mensuel (pour compatibilité)
+    monthlyPrice?: number;
+    annualPrice?: number;
     originalPrice?: number; // Prix barré pour montrer le prix de lancement
     currency: string;
     features: string[];
@@ -39,7 +41,8 @@ export const load: PageServerLoad = async () => {
         {
             id: 'starter',
             name: 'Starter',
-            price: 14.99,
+            monthlyPrice: 14.99,
+            annualPrice: 149,
             originalPrice: 19.99, // Prix barré pour montrer le prix de lancement
             currency: 'EUR',
             features: [
@@ -54,7 +57,8 @@ export const load: PageServerLoad = async () => {
         {
             id: 'premium',
             name: 'Premium',
-            price: 19.99,
+            monthlyPrice: 19.99,
+            annualPrice: 199,
             originalPrice: 29.99, // Prix barré pour montrer le prix de lancement
             currency: 'EUR',
             features: [

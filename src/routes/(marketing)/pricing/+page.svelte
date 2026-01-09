@@ -11,6 +11,9 @@
 	export let data;
 	const { plans } = data;
 
+	// État du toggle mensuel/annuel (par défaut mensuel)
+	let billingPeriod: 'monthly' | 'annual' = 'monthly';
+
 	// ✅ Tracking: Page view côté client (pricing page)
 	onMount(() => {
 		import('$lib/utils/analytics').then(({ logPageView }) => {
@@ -55,6 +58,39 @@
 			return '#FF6F61'; // Rouge/Orange pour Premium
 		}
 		return '';
+	}
+
+	// Fonction pour obtenir le prix actuel selon la période
+	function getCurrentPrice(plan: (typeof plans)[0]): number | 'gratuit' {
+		if (plan.isFree) return 'gratuit';
+		if (billingPeriod === 'annual' && plan.annualPrice) {
+			return plan.annualPrice;
+		}
+		return plan.monthlyPrice || plan.price as number;
+	}
+
+	// Fonction pour calculer l'économie avec l'annuel
+	function getSavings(plan: (typeof plans)[0]): number | null {
+		if (plan.isFree || !plan.annualPrice || !plan.monthlyPrice) return null;
+		const annualCost = plan.monthlyPrice * 12;
+		const savings = annualCost - plan.annualPrice;
+		return savings > 0 ? savings : null;
+	}
+
+	// Fonction pour calculer le pourcentage d'économie
+	function getSavingsPercentage(plan: (typeof plans)[0]): number | null {
+		if (plan.isFree || !plan.annualPrice || !plan.monthlyPrice) return null;
+		const annualCost = plan.monthlyPrice * 12;
+		const savings = annualCost - plan.annualPrice;
+		if (savings <= 0) return null;
+		const percentage = Math.round((savings / annualCost) * 100);
+		return percentage;
+	}
+
+	// Fonction pour calculer l'équivalent mensuel
+	function getMonthlyEquivalent(plan: (typeof plans)[0]): number | null {
+		if (plan.isFree || !plan.annualPrice) return null;
+		return Math.round((plan.annualPrice / 12) * 100) / 100;
 	}
 
 	onMount(async () => {
@@ -107,12 +143,36 @@
 					<div class="h-1.5 w-1.5 rounded-full bg-[#FF6F61]"></div>
 					<div class="h-px w-16 bg-neutral-300"></div>
 				</div>
+
+				<!-- Toggle Mensuel/Annuel -->
+				<div class="mt-12 mb-0 flex items-center justify-center sm:mt-16">
+					<div class="flex items-center gap-2 rounded-full border border-neutral-300 bg-white p-1.5 shadow-sm sm:p-1">
+						<button
+							type="button"
+							on:click={() => billingPeriod = 'monthly'}
+							class="rounded-full px-5 py-2.5 text-sm font-medium transition-all duration-200 sm:px-4 sm:py-2 sm:text-sm {billingPeriod === 'monthly'
+								? 'bg-[#FF6F61] text-white shadow-sm'
+								: 'text-neutral-700 hover:text-neutral-900'}"
+						>
+							Mensuel
+						</button>
+						<button
+							type="button"
+							on:click={() => billingPeriod = 'annual'}
+							class="rounded-full px-5 py-2.5 text-sm font-medium transition-all duration-200 sm:px-4 sm:py-2 sm:text-sm {billingPeriod === 'annual'
+								? 'bg-[#FF6F61] text-white shadow-sm'
+								: 'text-neutral-700 hover:text-neutral-900'}"
+						>
+							Annuel
+						</button>
+					</div>
+				</div>
 			</div>
 		</div>
 	</section>
 
 	<!-- Plans Section avec design awwards -->
-	<section class="relative overflow-hidden bg-white pt-6 pb-24 sm:pt-8 sm:pb-32 md:pt-10 md:pb-40">
+	<section class="relative overflow-hidden bg-white pt-0 pb-24 sm:pt-2 sm:pb-32 md:pt-4 md:pb-40">
 		<div class="absolute inset-0 bg-gradient-to-b from-transparent via-[#FFE8D6]/5 to-transparent"></div>
 		
 		<div class="relative mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
@@ -121,7 +181,7 @@
 				class="grid gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-3 lg:gap-8"
 			>
 				{#each plans as plan}
-					<div class="group relative flex flex-col">
+					<div class="group relative flex flex-col {plan.id === 'free' ? 'order-3 md:order-none' : plan.id === 'starter' ? 'order-1 md:order-none' : plan.id === 'premium' ? 'order-2 md:order-none' : ''}">
 						<Card.Root class="relative h-full rounded-3xl border transition-all duration-500 hover:shadow-2xl {plan.popular 
 							? 'border-2 border-[#FF6F61] bg-gradient-to-br from-white via-[#FFE8D6]/30 to-[#FFE8D6]/40 shadow-xl' 
 							: plan.isFree
@@ -154,7 +214,11 @@
 									</Card.Description>
 								{:else if !plan.isFree}
 									<Card.Description class="text-sm leading-relaxed text-neutral-600 sm:text-base" style="font-weight: 300;">
-										Facturation mensuelle, sans engagement
+										{#if billingPeriod === 'annual'}
+											Facturation annuelle, sans engagement
+										{:else}
+											Facturation mensuelle, sans engagement
+										{/if}
 									</Card.Description>
 								{:else}
 									<Card.Description class="text-sm leading-relaxed text-neutral-600 sm:text-base" style="font-weight: 300;">
@@ -182,7 +246,14 @@
 											</div>
 										{/if}
 										<div class="flex flex-col items-center gap-1">
-											{#if plan.originalPrice}
+											{#if billingPeriod === 'annual' && getSavingsPercentage(plan)}
+												<div class="mb-2">
+													<Badge class="bg-green-100 text-green-700 font-semibold">
+														Économisez {getSavingsPercentage(plan)}%
+													</Badge>
+												</div>
+											{/if}
+											{#if plan.originalPrice && billingPeriod === 'monthly'}
 												<div class="flex flex-col items-center gap-1">
 													<span class="text-xs font-semibold text-[#FF6F61] sm:text-sm">Prix de lancement</span>
 													<div class="flex items-baseline justify-center gap-2">
@@ -192,21 +263,37 @@
 													</div>
 												</div>
 											{/if}
+											{#if billingPeriod === 'annual' && plan.monthlyPrice && plan.annualPrice}
+												<div class="flex flex-col items-center gap-1">
+													<div class="flex items-baseline justify-center gap-2">
+														<span class="text-2xl font-semibold tracking-tight text-neutral-400 line-through sm:text-3xl" style="font-weight: 500; letter-spacing: -0.02em;">
+															{Math.round(plan.monthlyPrice * 12)}€
+														</span>
+													</div>
+												</div>
+											{/if}
 											<div class="flex items-baseline justify-center gap-2">
 												<span class="text-5xl font-bold tracking-tight text-neutral-900 sm:text-6xl" style="font-weight: 700; letter-spacing: -0.04em;">
-													{plan.price}€
+													{billingPeriod === 'annual' && plan.annualPrice ? plan.annualPrice : (plan.monthlyPrice || (typeof plan.price === 'number' ? plan.price : 0))}€
 												</span>
 												{#if !plan.isLifetime}
-													<span class="text-base text-neutral-600 sm:text-lg" style="font-weight: 300;">/mois</span>
+													<span class="text-base text-neutral-600 sm:text-lg" style="font-weight: 300;">
+														/{billingPeriod === 'annual' ? 'an' : 'mois'}
+													</span>
 												{/if}
 											</div>
+											{#if billingPeriod === 'annual' && getMonthlyEquivalent(plan)}
+												<span class="text-sm text-neutral-600" style="font-weight: 400;">
+													Soit {getMonthlyEquivalent(plan)}€/mois
+												</span>
+											{/if}
 										</div>
 										<div class="mt-2 text-center">
 											{#if plan.isLifetime && plan.availableUntil}
 												<span class="text-xs text-neutral-600 sm:text-sm" style="font-weight: 400;">
 													Disponible jusqu'au 31 janvier 2026
 												</span>
-											{:else}
+											{:else if billingPeriod === 'monthly'}
 												<span class="text-xs text-neutral-600 sm:text-sm" style="font-weight: 400;">
 													✔ Rentabilisé dès la première commande
 												</span>
@@ -226,6 +313,7 @@
 									on:click={() => {
 										if (!plan.isFree && plan.id && typeof window !== 'undefined') {
 											localStorage.setItem('selected_plan', plan.id);
+											localStorage.setItem('billing_period', billingPeriod);
 										}
 									}}
 								>

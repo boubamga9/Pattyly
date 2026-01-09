@@ -7,8 +7,24 @@
 	import { Star, Check } from 'lucide-svelte';
 	import type { PageData } from './$types';
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 
 	export let data: PageData;
+
+	// État du toggle mensuel/annuel (récupérer depuis localStorage si présent, sinon mensuel par défaut)
+	let billingPeriod: 'monthly' | 'annual' = 'monthly';
+
+	// Récupérer la période depuis localStorage si elle existe (depuis /pricing)
+	onMount(() => {
+		if (typeof window !== 'undefined') {
+			const savedPeriod = localStorage.getItem('billing_period');
+			if (savedPeriod === 'annual' || savedPeriod === 'monthly') {
+				billingPeriod = savedPeriod;
+				// Nettoyer localStorage après récupération
+				localStorage.removeItem('billing_period');
+			}
+		}
+	});
 
 	// Déterminer le plan à afficher (depuis l'URL)
 	$: displayPlan = data.selectedPlan;
@@ -62,6 +78,42 @@
 		return '';
 	}
 
+	// Fonction pour obtenir le prix actuel selon la période
+	function getCurrentPrice(plan: (typeof data.plans)[0]): number {
+		if (plan.isFree) return 0;
+		return billingPeriod === 'annual' && plan.annualPrice ? plan.annualPrice : plan.monthlyPrice;
+	}
+
+	// Fonction pour obtenir le stripePriceId actuel selon la période
+	function getCurrentStripePriceId(plan: (typeof data.plans)[0]): string {
+		if (plan.isFree) return '';
+		return billingPeriod === 'annual' && plan.annualStripePriceId ? plan.annualStripePriceId : plan.monthlyStripePriceId;
+	}
+
+	// Fonction pour calculer l'économie avec l'annuel
+	function getSavings(plan: (typeof data.plans)[0]): number | null {
+		if (plan.isFree || !plan.annualPrice || !plan.monthlyPrice) return null;
+		const annualCost = plan.monthlyPrice * 12;
+		const savings = annualCost - plan.annualPrice;
+		return savings > 0 ? savings : null;
+	}
+
+	// Fonction pour calculer le pourcentage d'économie
+	function getSavingsPercentage(plan: (typeof data.plans)[0]): number | null {
+		if (plan.isFree || !plan.annualPrice || !plan.monthlyPrice) return null;
+		const annualCost = plan.monthlyPrice * 12;
+		const savings = annualCost - plan.annualPrice;
+		if (savings <= 0) return null;
+		const percentage = Math.round((savings / annualCost) * 100);
+		return percentage;
+	}
+
+	// Fonction pour calculer l'équivalent mensuel
+	function getMonthlyEquivalent(plan: (typeof data.plans)[0]): number | null {
+		if (plan.isFree || !plan.annualPrice) return null;
+		return Math.round((plan.annualPrice / 12) * 100) / 100;
+	}
+
 	// Fonction pour déterminer le texte et l'action du bouton selon le contexte
 	function getButtonConfig(plan: (typeof data.plans)[0]) {
 		const isCurrentPlan = data.currentPlan === plan.id;
@@ -82,7 +134,7 @@
 				text: isSelectedPlan ? 'Souscrire' : `Choisir ${plan.name}`,
 				action: 'checkout',
 				class: `w-full h-12 rounded-lg text-sm font-semibold transition-all duration-300 hover:scale-[1.02] ${isPopular ? 'bg-[#FF6F61] hover:bg-[#e85a4f] text-white shadow-lg hover:shadow-xl' : 'bg-neutral-800 hover:bg-neutral-700 text-white shadow-lg hover:shadow-xl'}`,
-				href: `/checkout/${plan.stripePriceId}`,
+				href: `/checkout/${getCurrentStripePriceId(plan)}`,
 			};
 		}
 	}
@@ -107,6 +159,32 @@
 					? `Vous avez actuellement le plan ${data.currentPlan === 'starter' ? 'Starter' : 'Premium'}. Vous pouvez changer de plan à tout moment.`
 					: 'Démarrez votre activité de pâtissier en ligne avec nos plans flexibles. Créez votre boutique, gérez vos commandes et développez votre activité.'}
 			</Section.Description>
+			
+			<!-- Toggle Mensuel/Annuel -->
+			{#if !data.currentPlan}
+				<div class="mt-12 mb-0 flex items-center justify-center sm:mt-16">
+					<div class="flex items-center gap-2 rounded-full border border-neutral-300 bg-white p-1.5 shadow-sm sm:p-1">
+						<button
+							type="button"
+							on:click={() => billingPeriod = 'monthly'}
+							class="rounded-full px-5 py-2.5 text-sm font-medium transition-all duration-200 sm:px-4 sm:py-2 sm:text-sm {billingPeriod === 'monthly'
+								? 'bg-[#FF6F61] text-white shadow-sm'
+								: 'text-neutral-700 hover:text-neutral-900'}"
+						>
+							Mensuel
+						</button>
+						<button
+							type="button"
+							on:click={() => billingPeriod = 'annual'}
+							class="rounded-full px-5 py-2.5 text-sm font-medium transition-all duration-200 sm:px-4 sm:py-2 sm:text-sm {billingPeriod === 'annual'
+								? 'bg-[#FF6F61] text-white shadow-sm'
+								: 'text-neutral-700 hover:text-neutral-900'}"
+						>
+							Annuel
+						</button>
+					</div>
+				</div>
+			{/if}
 		</Section.Header>
 
 		<div
@@ -135,6 +213,8 @@
 								<Card.Description>
 									{#if plan.isLifetime}
 										Paiement unique, accès à vie
+									{:else if billingPeriod === 'annual'}
+										Facturation annuelle, annulable à tout moment
 									{:else}
 										Facturation mensuelle, annulable à tout moment
 									{/if}
@@ -151,7 +231,14 @@
 										</div>
 									{/if}
 									<div class="flex flex-col items-center gap-1">
-										{#if plan.originalPrice}
+										{#if billingPeriod === 'annual' && getSavingsPercentage(plan)}
+											<div class="mb-2">
+												<Badge class="bg-green-100 text-green-700 font-semibold">
+													Économisez {getSavingsPercentage(plan)}%
+												</Badge>
+											</div>
+										{/if}
+										{#if plan.originalPrice && billingPeriod === 'monthly'}
 											<div class="flex flex-col items-center gap-1">
 												<span class="text-xs font-semibold text-[#FF6F61] sm:text-sm">Prix de lancement</span>
 												<div class="flex items-baseline justify-center gap-2">
@@ -161,21 +248,37 @@
 												</div>
 											</div>
 										{/if}
+										{#if billingPeriod === 'annual' && plan.monthlyPrice && plan.annualPrice}
+											<div class="flex flex-col items-center gap-1">
+												<div class="flex items-baseline justify-center gap-2">
+													<span class="text-2xl font-semibold tracking-tight text-neutral-400 line-through sm:text-3xl" style="font-weight: 500; letter-spacing: -0.02em;">
+														{Math.round(plan.monthlyPrice * 12)}€
+													</span>
+												</div>
+											</div>
+										{/if}
 										<div class="flex items-baseline justify-center gap-1">
 											<span class="text-5xl font-bold tracking-tight">
-												{plan.price}€
+												{billingPeriod === 'annual' && plan.annualPrice ? plan.annualPrice : plan.monthlyPrice}€
 											</span>
 											{#if !plan.isLifetime}
-												<span class="text-muted-foreground">/mois</span>
+												<span class="text-muted-foreground">
+													/{billingPeriod === 'annual' ? 'an' : 'mois'}
+												</span>
 											{/if}
 										</div>
+										{#if billingPeriod === 'annual' && getMonthlyEquivalent(plan)}
+											<span class="text-sm text-neutral-600">
+												Soit {getMonthlyEquivalent(plan)}€/mois
+											</span>
+										{/if}
 									</div>
 									<div class="mt-2 text-center">
 										{#if plan.isLifetime && plan.availableUntil}
 											<span class="text-xs text-muted-foreground">
 												Disponible jusqu'au 31 janvier 2026
 											</span>
-										{:else}
+										{:else if billingPeriod === 'monthly'}
 											<span class="text-xs text-muted-foreground">
 												✔ Rentabilisé dès la première commande
 											</span>
@@ -195,7 +298,15 @@
 									</Button>
 								{:else if buttonConfig.action === 'checkout'}
 									<!-- Bouton checkout Stripe -->
-									<Button class={buttonConfig.class} href={buttonConfig.href}>
+									<Button 
+										class={buttonConfig.class}
+										on:click={() => {
+											const priceId = getCurrentStripePriceId(plan);
+											if (priceId) {
+												goto(`/checkout/${priceId}`);
+											}
+										}}
+									>
 										{buttonConfig.text}
 									</Button>
 								{/if}

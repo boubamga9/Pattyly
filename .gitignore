@@ -15,3 +15,8 @@ supabase/dumps/
 # Documentation et règles Cursor (ne pas déployer)
 docs/
 .cursor/
+
+# Campagnes email marketing (données sensibles - listes d'emails)
+email-campaigns/campaigns/*.json
+!email-campaigns/campaigns/.gitkeep
+!email-campaigns/campaigns/example.json
