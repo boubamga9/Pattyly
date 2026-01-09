@@ -72,11 +72,11 @@
 				start: 'top -100',
 				onEnter: () => {
 					gsap.to(header, {
-						backgroundColor: 'rgba(255, 255, 255, 0.95)',
-						backdropFilter: 'blur(10px)',
+						backgroundColor: 'rgba(255, 255, 255, 0.8)',
+						backdropFilter: 'blur(20px) saturate(180%)',
 						paddingTop: '0.75rem',
 						paddingBottom: '0.75rem',
-						boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+						boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.08)',
 						duration: 0.3,
 						ease: 'power2.out',
 					});

@@ -871,7 +871,7 @@
 
 	<!-- Hero Search Bar style Airbnb -->
 	<section 
-		class="sticky top-0 z-40 border-b border-neutral-200 bg-white pt-20 transition-all duration-500 ease-in-out {isSearchBarVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'}"
+		class="sticky top-0 z-40 border-b border-neutral-200 bg-white pt-20 shadow-sm transition-all duration-500 ease-in-out {isSearchBarVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'}"
 	>
 		<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 xl:px-12 py-3 sm:py-4">
 			<!-- Barre de recherche principale -->
@@ -1123,7 +1123,7 @@
 
 	<!-- Titre et résultats -->
 	<section
-		class="relative overflow-hidden bg-white pt-4 pb-12 sm:pt-6 sm:pb-16 md:pt-8 md:pb-24"
+		class="relative overflow-hidden bg-white pt-8 pb-12 sm:pt-10 sm:pb-16 md:pt-12 md:pb-24"
 	>
 		<div class="relative mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
 			<!-- Div de chargement -->
@@ -1140,7 +1140,7 @@
 			{#if !isInitialLoading}
 				<div
 					bind:this={resultsContainer}
-					class="grid grid-cols-2 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
+					class="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
 				>
 					{#each visibleProducts as product}
 					<a
@@ -1148,7 +1148,7 @@
 						class="group relative flex cursor-pointer flex-col max-w-[280px] mx-auto"
 					>
 						<!-- Image du gâteau -->
-						<div class="relative mb-1.5 aspect-[4/3] w-full overflow-hidden rounded-xl bg-neutral-100 scale-[0.95] origin-top">
+						<div class="relative mb-1.5 aspect-square w-full overflow-hidden rounded-3xl bg-neutral-100">
 							{#if product.image_url}
 								<img
 									src={product.image_url}

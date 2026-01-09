@@ -113,7 +113,7 @@
 			<!-- Grille de résultats compacte -->
 			<div
 				bind:this={resultsContainer}
-				class="grid grid-cols-2 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
+				class="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
 			>
 				{#each filteredDesigners as designer}
 					<a
@@ -121,7 +121,7 @@
 						class="group relative flex cursor-pointer flex-col max-w-[280px] mx-auto"
 					>
 						<!-- Logo du pâtissier -->
-						<div class="relative mb-1.5 aspect-[4/3] w-full overflow-hidden rounded-xl bg-neutral-100 scale-[0.95] origin-top border border-neutral-200">
+						<div class="relative mb-1.5 aspect-square w-full overflow-hidden rounded-3xl bg-neutral-100 border border-neutral-200">
 							<img
 								src={designer.logo}
 								alt={designer.name}

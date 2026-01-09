@@ -17,17 +17,17 @@
 	export let orderStatus: string | undefined = undefined;
 	export let isPendingOrder: boolean = false;
 
-	const MESSAGE_MAX = 500;
+const MESSAGE_MAX = 500;
 
-	// Superforms
-	const form = superForm(data, {
-		validators: zodClient(rejectOrderFormSchema),
-		dataType: 'json',
-	});
+// Superforms
+const form = superForm(data, {
+	validators: zodClient(rejectOrderFormSchema),
+	dataType: 'json',
+});
 
-	const { form: formData, enhance, submitting, message, errors } = form;
+const { form: formData, enhance, submitting, message, errors } = form;
 
-	$: messageLength = ($formData.chef_message || '').length;
+$: messageLength = ($formData.chef_message || '').length;
 
 	// Fermer automatiquement le formulaire en cas de succès
 	$: if ($message) {
