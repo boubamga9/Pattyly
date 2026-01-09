@@ -1,4 +1,5 @@
-import { PUBLIC_SITE_URL } from '$env/static/public';
+import { EmailContainer, EmailHeader, EmailFooter, EmailTitle, EmailParagraph, EmailButton, EmailSection } from './components';
+import { EMAIL_COLORS, EMAIL_SPACING } from './styles';
 
 interface OrderCancelledProps {
     customerName: string;
@@ -7,6 +8,9 @@ interface OrderCancelledProps {
     orderId: string;
     orderUrl: string;
     date: string;
+    chefMessage?: string;
+    willRefund?: boolean;
+    shopColor?: string | null;
 }
 
 export function OrderCancelledEmail({
@@ -16,51 +20,72 @@ export function OrderCancelledEmail({
     orderId,
     orderUrl,
     date,
+    chefMessage,
+    willRefund = false,
+    shopColor,
 }: OrderCancelledProps) {
-    return `
-        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <!-- Logo du pâtissier ou Pattyly -->
-            <div style="text-align: center; margin-bottom: 30px;">
-                <img
-                    src="${shopLogo || `${PUBLIC_SITE_URL}/images/logo_icone.png`}"
-                    alt="${shopName}"
-                    style="height: 40px; margin-bottom: 10px;"
-                />
-                <div style="height: 1px; background-color: #e5e7eb; margin: 20px 0;"></div>
-            </div>
+    const header = EmailHeader({
+        logoUrl: shopLogo,
+        logoAlt: shopName,
+        type: 'customer',
+        shopColor,
+    });
 
-            <div style="margin-bottom: 16px;">
-                <h2 style="color: #f97316; margin-top: 0; font-size: 18px; font-weight: normal;">❌ Commande annulée</h2>
-                <p>Bonjour ${customerName},</p>
-                <p>Votre commande a été annulée. Nous vous remercions de votre compréhension.</p>
-                <p style="margin-bottom: 24px;">Contactez le pâtissier pour plus de détails.</p>
-            </div>
+    const title = EmailTitle('Commande annulée');
 
-            <div style="text-align: center; margin-top: 24px; padding: 16px; background-color: #f8f9fa; border-radius: 6px;">
-                <h3 style="margin-top: 0; color: #333; font-size: 16px; font-weight: bold;">📋 Voir le détail de la commande</h3>
-                <p style="margin-bottom: 20px;">Retrouvez tous les détails de votre commande annulée :</p>
-                <a
-                    href="${orderUrl}"
-                    style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; box-shadow: 0 4px 14px 0 rgba(249, 115, 22, 0.3); transition: all 0.3s ease;"
-                >
-                    📄 Voir le détail de la commande
-                </a>
-            </div>
+    const intro = EmailParagraph(
+        `Bonjour ${customerName},<br /><br />Votre commande a été annulée par le pâtissier. Nous vous remercions de votre compréhension.`
+    );
 
-            <div style="background-color: #f8f9fa; padding: 12px; border-radius: 6px; margin: 16px 0;">
-                <h3 style="margin-top: 0; color: #333; font-size: 16px; font-weight: bold;">📞 Contact du pâtissier</h3>
-                <p style="margin: 5px 0;">Contactez le pâtissier pour plus de détails sur le remboursement.</p>
-            </div>
+    const refundSection = willRefund ? `
+        <div style="margin: ${EMAIL_SPACING.lg} 0; padding: ${EMAIL_SPACING.lg}; border-radius: ${EMAIL_SPACING.md}; border-left: 3px solid ${shopColor || EMAIL_COLORS.accent.primary};">
+            <h3 style="margin: 0 0 ${EMAIL_SPACING.sm} 0; color: ${EMAIL_COLORS.neutral[900]}; font-size: 16px; font-weight: 600;">Remboursement</h3>
+            <p style="margin: 0; color: ${EMAIL_COLORS.neutral[700]}; font-size: 14px;">Votre paiement sera intégralement remboursé dans les plus brefs délais.</p>
+        </div>
+    ` : '';
 
+    const chefMessageSection = chefMessage ? `
+        <div style="margin: ${EMAIL_SPACING.lg} 0; padding: ${EMAIL_SPACING.lg}; border-radius: ${EMAIL_SPACING.md}; background-color: ${EMAIL_COLORS.neutral[50]};">
+            <h3 style="margin: 0 0 ${EMAIL_SPACING.sm} 0; color: ${EMAIL_COLORS.neutral[900]}; font-size: 16px; font-weight: 600;">Message du pâtissier</h3>
+            <p style="margin: 0; color: ${EMAIL_COLORS.neutral[700]}; font-size: 14px; white-space: pre-wrap; line-height: 160%;">${chefMessage.replace(/\n/g, '<br>')}</p>
+        </div>
+    ` : '';
 
-            <div style="text-align: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid #dee2e6;">
-                <p style="color: #666; font-size: 14px;">
-                    <strong>Numéro de commande :</strong> #${orderId}
-                </p>
-                <p style="color: #999; font-size: 12px;">
-                    Commande annulée le ${date}
-                </p>
-            </div>
+    const ctaSection = `
+        <div style="text-align: center; margin: ${EMAIL_SPACING['2xl']} 0;">
+            <p style="margin-bottom: ${EMAIL_SPACING.md}; color: ${EMAIL_COLORS.neutral[700]}; font-size: 14px;">Découvrez nos autres produits disponibles</p>
+            ${EmailButton({
+                href: orderUrl,
+                text: 'Voir le catalogue',
+                variant: 'primary',
+                shopColor,
+            })}
         </div>
     `;
+
+    const contactSection = willRefund ? EmailSection({
+        title: 'Contact',
+        children: 'Si vous avez des questions concernant le remboursement, n\'hésitez pas à contacter le pâtissier.',
+    }) : '';
+
+    const footer = EmailFooter({
+        orderId,
+        date,
+        showOrderId: true,
+        showRequestId: false,
+    });
+
+    return EmailContainer(
+        `
+            ${header}
+            ${title}
+            ${intro}
+            ${refundSection}
+            ${chefMessageSection}
+            ${ctaSection}
+            ${contactSection}
+            ${footer}
+        `,
+        shopColor
+    );
 }

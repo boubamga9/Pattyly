@@ -1,3 +1,6 @@
+import { EmailContainer, EmailHeader, EmailTitle, EmailParagraph, EmailTable } from './components';
+import { EMAIL_SPACING, EMAIL_COLORS, EMAIL_TYPOGRAPHY } from './styles';
+
 export function CriticalErrorNotificationEmail({
     errorMessage,
     errorStack,
@@ -16,59 +19,73 @@ export function CriticalErrorNotificationEmail({
     timestamp: string;
 }) {
     const severityColors = {
-        critical: '#dc2626', // red-600
-        error: '#ea580c', // orange-600
-        warning: '#d97706' // amber-600
+        critical: '#dc2626',
+        error: '#ea580c',
+        warning: '#d97706'
     };
 
     const severityColor = severityColors[severity] || severityColors.error;
+    const severityLabel = severity === 'critical' ? 'Critique' : severity === 'error' ? 'Erreur' : 'Avertissement';
 
-    return `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Erreur ${severity === 'critical' ? 'Critique' : severity === 'error' ? 'Erreur' : 'Avertissement'} - Pattyly</title>
-</head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px;">
-    <div style="background-color: #fee; border-left: 4px solid ${severityColor}; padding: 20px; border-radius: 4px; margin-bottom: 20px;">
-        <h1 style="color: ${severityColor}; margin-top: 0;">🚨 Erreur ${severity === 'critical' ? 'Critique' : severity === 'error' ? 'Erreur' : 'Avertissement'} Détectée</h1>
-        <p style="margin: 0;"><strong>Date:</strong> ${new Date(timestamp).toLocaleString('fr-FR')}</p>
-        <p style="margin: 5px 0 0 0;"><strong>Niveau:</strong> <span style="text-transform: uppercase; font-weight: bold;">${severity}</span></p>
-    </div>
-    
-    <div style="background-color: #f9f9f9; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-        <h2 style="margin-top: 0; color: #333;">Détails de l'erreur</h2>
-        <p><strong>Type:</strong> ${errorName}</p>
-        <p><strong>Message:</strong> ${errorMessage}</p>
-        ${errorStack ? `
-        <details style="margin-top: 15px;">
-            <summary style="cursor: pointer; font-weight: bold; color: #666;">Stack Trace (cliquer pour voir)</summary>
-            <pre style="background-color: #fff; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin-top: 10px; white-space: pre-wrap; word-break: break-all;">${errorStack}</pre>
-        </details>
-        ` : ''}
-    </div>
-    
-    ${Object.keys(context).length > 0 ? `
-    <div style="background-color: #f0f8ff; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-        <h2 style="margin-top: 0; color: #333;">Contexte</h2>
-        <pre style="background-color: #fff; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; white-space: pre-wrap; word-break: break-all;">${JSON.stringify(context, null, 2)}</pre>
-    </div>
-    ` : ''}
-    
-    ${Object.keys(metadata).length > 0 ? `
-    <div style="background-color: #fffbf0; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-        <h2 style="margin-top: 0; color: #333;">Métadonnées</h2>
-        <pre style="background-color: #fff; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; white-space: pre-wrap; word-break: break-all;">${JSON.stringify(metadata, null, 2)}</pre>
-    </div>
-    ` : ''}
-    
-    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 12px;">
-        <p>Cette notification a été envoyée automatiquement par le système de logging d'erreurs de Pattyly.</p>
-    </div>
-</body>
-</html>
+    const header = EmailHeader({
+        logoUrl: undefined,
+        logoAlt: 'Pattyly',
+        type: 'pastry',
+    });
+
+    const title = EmailTitle(`Erreur ${severityLabel} Détectée`, severityColor);
+
+    const severityInfo = EmailTable([
+        { label: 'Date', value: new Date(timestamp).toLocaleString('fr-FR') },
+        { label: 'Niveau', value: `<span style="text-transform: uppercase; font-weight: ${EMAIL_TYPOGRAPHY.fontWeight.bold};">${severity}</span>` },
+        { label: 'Type', value: errorName },
+        { label: 'Message', value: errorMessage },
+    ]);
+
+    const errorDetails = `
+        <div style="margin: ${EMAIL_SPACING.lg} 0; padding: ${EMAIL_SPACING.lg}; border-radius: ${EMAIL_SPACING.md}; background-color: ${EMAIL_COLORS.neutral[50]}; border-left: 3px solid ${severityColor};">
+            <h3 style="margin: 0 0 ${EMAIL_SPACING.md} 0; color: ${EMAIL_COLORS.neutral[900]}; font-size: 16px; font-weight: 600;">Détails de l'erreur</h3>
+            ${errorStack ? `
+            <details style="margin-top: ${EMAIL_SPACING.md};">
+                <summary style="cursor: pointer; font-weight: ${EMAIL_TYPOGRAPHY.fontWeight.medium}; color: ${EMAIL_COLORS.neutral[600]}; font-size: ${EMAIL_TYPOGRAPHY.fontSize.sm};">Stack Trace (cliquer pour voir)</summary>
+                <pre style="margin-top: ${EMAIL_SPACING.sm}; padding: ${EMAIL_SPACING.md}; border-radius: ${EMAIL_SPACING.sm}; background-color: white; border: 1px solid ${EMAIL_COLORS.neutral[200]}; overflow-x: auto; font-size: ${EMAIL_TYPOGRAPHY.fontSize.xs}; white-space: pre-wrap; word-break: break-all; color: ${EMAIL_COLORS.neutral[700]};">${errorStack}</pre>
+            </details>
+            ` : ''}
+        </div>
     `;
+
+    const contextSection = Object.keys(context).length > 0 ? `
+        <div style="margin: ${EMAIL_SPACING.lg} 0; padding: ${EMAIL_SPACING.lg}; border-radius: ${EMAIL_SPACING.md}; background-color: ${EMAIL_COLORS.neutral[50]}; border-left: 3px solid ${EMAIL_COLORS.accent.primary};">
+            <h3 style="margin: 0 0 ${EMAIL_SPACING.md} 0; color: ${EMAIL_COLORS.neutral[900]}; font-size: 16px; font-weight: 600;">Contexte</h3>
+            <pre style="margin: 0; padding: ${EMAIL_SPACING.md}; border-radius: ${EMAIL_SPACING.sm}; background-color: white; border: 1px solid ${EMAIL_COLORS.neutral[200]}; overflow-x: auto; font-size: ${EMAIL_TYPOGRAPHY.fontSize.xs}; white-space: pre-wrap; word-break: break-all; color: ${EMAIL_COLORS.neutral[700]};">${JSON.stringify(context, null, 2)}</pre>
+        </div>
+    ` : '';
+
+    const metadataSection = Object.keys(metadata).length > 0 ? `
+        <div style="margin: ${EMAIL_SPACING.lg} 0; padding: ${EMAIL_SPACING.lg}; border-radius: ${EMAIL_SPACING.md}; background-color: ${EMAIL_COLORS.neutral[50]}; border-left: 3px solid ${EMAIL_COLORS.accent.primary};">
+            <h3 style="margin: 0 0 ${EMAIL_SPACING.md} 0; color: ${EMAIL_COLORS.neutral[900]}; font-size: 16px; font-weight: 600;">Métadonnées</h3>
+            <pre style="margin: 0; padding: ${EMAIL_SPACING.md}; border-radius: ${EMAIL_SPACING.sm}; background-color: white; border: 1px solid ${EMAIL_COLORS.neutral[200]}; overflow-x: auto; font-size: ${EMAIL_TYPOGRAPHY.fontSize.xs}; white-space: pre-wrap; word-break: break-all; color: ${EMAIL_COLORS.neutral[700]};">${JSON.stringify(metadata, null, 2)}</pre>
+        </div>
+    ` : '';
+
+    const footer = `
+        <div style="margin-top: ${EMAIL_SPACING['2xl']}; padding-top: ${EMAIL_SPACING.lg}; border-top: 1px solid ${EMAIL_COLORS.neutral[200]};">
+            <p style="color: ${EMAIL_COLORS.neutral[500]}; font-size: ${EMAIL_TYPOGRAPHY.fontSize.xs};">
+                Cette notification a été envoyée automatiquement par le système de logging d'erreurs de Pattyly.
+            </p>
+        </div>
+    `;
+
+    return EmailContainer(
+        `
+            ${header}
+            ${title}
+            ${severityInfo}
+            ${errorDetails}
+            ${contextSection}
+            ${metadataSection}
+            ${footer}
+        `
+    );
 }
 

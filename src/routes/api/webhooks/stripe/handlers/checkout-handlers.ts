@@ -7,6 +7,7 @@ import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
 import { fetchCurrentUsersSubscription } from '$lib/stripe/client-helpers';
 import { STRIPE_PRODUCTS } from '$lib/config/server';
 import { ErrorLogger } from '$lib/services/error-logging';
+import { getShopColorFromShopId } from '$lib/emails/helpers';
 
 export async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, locals: any): Promise<void> {
     console.log('handleCheckoutSessionCompleted', session);
@@ -154,6 +155,12 @@ export async function handleProductOrderPayment(session: Stripe.Checkout.Session
         }
 
         try {
+            // Récupérer la couleur de la boutique pour l'email
+            const shopColor = await getShopColorFromShopId(
+                locals.supabaseServiceRole,
+                orderData.shopId
+            );
+
             await EmailService.sendOrderConfirmation({
                 customerEmail: orderData.customerEmail,
                 customerName: orderData.customerName,
@@ -168,6 +175,7 @@ export async function handleProductOrderPayment(session: Stripe.Checkout.Session
                 orderId: order.id,
                 orderUrl: `${PUBLIC_SITE_URL}/${product.shops.slug}/orders/${order.id}`,
                 date: new Date().toLocaleDateString("fr-FR"),
+                shopColor,
             });
 
             if (pastryEmail && product.shops?.profile_id) {
@@ -349,6 +357,12 @@ export async function handleProductOrderDeposit(session: Stripe.Checkout.Session
         }
 
         try {
+            // Récupérer la couleur de la boutique pour l'email
+            const shopColor = await getShopColorFromShopId(
+                locals.supabaseServiceRole,
+                orderData.shop_id
+            );
+
             await EmailService.sendOrderConfirmation({
                 customerEmail: orderData.customer_email,
                 customerName: orderData.customer_name,
@@ -362,6 +376,8 @@ export async function handleProductOrderDeposit(session: Stripe.Checkout.Session
                 remainingAmount: remainingAmount,
                 orderId: order.id,
                 orderUrl: `${PUBLIC_SITE_URL}/${product.shops.slug}/order/${order.id}`,
+                date: new Date().toLocaleDateString("fr-FR"),
+                shopColor,
             });
 
             if (pastryEmail && product.shops?.profile_id) {
@@ -500,6 +516,12 @@ export async function handleCustomOrderDepositStripe(session: Stripe.Checkout.Se
         }
 
         try {
+            // Récupérer la couleur de la boutique pour l'email
+            const shopColor = await getShopColorFromShopId(
+                locals.supabaseServiceRole,
+                order.shops.id
+            );
+
             await EmailService.sendOrderConfirmation({
                 customerEmail: order.customer_email,
                 customerName: order.customer_name,
@@ -513,6 +535,8 @@ export async function handleCustomOrderDepositStripe(session: Stripe.Checkout.Se
                 remainingAmount: remainingAmount,
                 orderId: order.id,
                 orderUrl: `${PUBLIC_SITE_URL}/${order.shops.slug}/order/${order.id}`,
+                date: new Date().toLocaleDateString("fr-FR"),
+                shopColor,
             });
 
             if (pastryEmail) {
@@ -607,6 +631,12 @@ export async function handleCustomOrderDeposit(session: Stripe.Checkout.Session,
         }
 
         try {
+            // Récupérer la couleur de la boutique pour l'email
+            const shopColor = await getShopColorFromShopId(
+                locals.supabaseServiceRole,
+                order.shops.id
+            );
+
             await EmailService.sendQuoteConfirmation({
                 customerEmail: order.customer_email,
                 customerName: order.customer_name,
@@ -620,6 +650,7 @@ export async function handleCustomOrderDeposit(session: Stripe.Checkout.Session,
                 orderId: orderId,
                 orderUrl: `${PUBLIC_SITE_URL}/${order.shops.slug}/orders/${orderId}`,
                 date: new Date().toLocaleDateString("fr-FR"),
+                shopColor,
             });
 
             if (pastryEmail) {

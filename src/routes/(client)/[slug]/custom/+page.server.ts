@@ -6,6 +6,7 @@ import { createLocalDynamicSchema } from './schema';
 import { EmailService } from '$lib/services/email-service';
 import { PUBLIC_SITE_URL } from '$env/static/public';
 import { checkOrderLimit } from '$lib/utils/order-limits';
+import { getShopColorFromShopId } from '$lib/emails/helpers';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
     try {
@@ -314,6 +315,12 @@ export const actions: Actions = {
 
                 console.log('📧 [Custom Order] Sending emails...');
 
+                // Récupérer la couleur de la boutique pour l'email
+                const shopColor = await getShopColorFromShopId(
+                    locals.supabase,
+                    shop.id
+                );
+
                 // Email au client
                 await EmailService.sendCustomRequestConfirmation({
                     customerEmail: customer_email,
@@ -322,7 +329,8 @@ export const actions: Actions = {
                     shopLogo: shop.logo_url || undefined,
                     requestId: order.id.slice(0, 8),
                     orderUrl: `${PUBLIC_SITE_URL}/${slug}/order/${order.id}`,
-                    date: new Date().toLocaleDateString("fr-FR")
+                    date: new Date().toLocaleDateString("fr-FR"),
+                    shopColor,
                 });
                 console.log('✅ [Custom Order] Client confirmation email sent');
 

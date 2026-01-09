@@ -818,6 +818,29 @@
 									Valider la commande
 								</Button>
 							</form>
+							
+							<!-- Bouton pour refuser une pending_order -->
+							<Button
+								on:click={() => (showRejectForm = !showRejectForm)}
+								variant="outline"
+								class="w-full gap-2"
+							>
+								<XCircle class="h-4 w-4" />
+								Refuser la commande
+							</Button>
+
+							{#if showRejectForm}
+								<RejectForm
+									data={$page.data.rejectOrderForm}
+									orderStatus="non_finalisee"
+									isPendingOrder={true}
+									onCancel={() => (showRejectForm = false)}
+									onSuccess={() => {
+										showRejectForm = false;
+										goto('/dashboard/orders');
+									}}
+								/>
+							{/if}
 						</div>
 					{:else if order.status === 'pending'}
 						<!-- Actions pour les commandes en attente -->
@@ -853,6 +876,8 @@
 							{#if showRejectForm}
 								<RejectForm
 									data={$page.data.rejectOrderForm}
+									orderStatus="pending"
+									isPendingOrder={false}
 									onCancel={() => (showRejectForm = false)}
 									onSuccess={() => {
 										showRejectForm = false;
@@ -944,6 +969,29 @@
 									J'ai reçu le paiement
 								</Button>
 							</form>
+							
+							<!-- Bouton pour refuser une commande to_verify -->
+							<Button
+								on:click={() => (showRejectForm = !showRejectForm)}
+								variant="outline"
+								class="w-full gap-2"
+							>
+								<XCircle class="h-4 w-4" />
+								Refuser la commande
+							</Button>
+
+							{#if showRejectForm}
+								<RejectForm
+									data={$page.data.rejectOrderForm}
+									orderStatus="to_verify"
+									isPendingOrder={false}
+									onCancel={() => (showRejectForm = false)}
+									onSuccess={() => {
+										showRejectForm = false;
+										goto('/dashboard/orders');
+									}}
+								/>
+							{/if}
 						</div>
 					{:else if order.status === 'confirmed'}
 						<!-- Actions pour les commandes confirmées -->
@@ -1039,8 +1087,8 @@
 							<!-- Mode normal -->
 							<Button
 								type="button"
-								variant="destructive"
-								class="w-full gap-2"
+								variant="ghost"
+								class="w-full gap-2 text-red-700 hover:text-red-800 hover:bg-transparent"
 								on:click={startDeleteOrderConfirmation}
 							>
 								<Trash2 class="h-4 w-4" />

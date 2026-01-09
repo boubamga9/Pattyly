@@ -6,6 +6,7 @@ import { ErrorLogger } from '$lib/services/error-logging';
 import Stripe from 'stripe';
 import { PRIVATE_STRIPE_SECRET_KEY } from '$env/static/private';
 import { createStripeConnectCheckoutSession } from '$lib/stripe/connect-client';
+import { getShopColorFromShopId } from '$lib/emails/helpers';
 
 const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
     apiVersion: '2024-04-10'
@@ -368,6 +369,12 @@ export const actions: Actions = {
             try {
                 console.log('📧 [Confirm Payment] Sending emails...');
 
+                // Récupérer la couleur de la boutique pour l'email
+                const shopColor = await getShopColorFromShopId(
+                    locals.supabaseServiceRole,
+                    orderData.shop_id
+                );
+
                 // Email au client (en attente de vérification)
                 await EmailService.sendOrderPendingVerificationClient({
                     customerEmail: orderData.customer_email,
@@ -383,7 +390,8 @@ export const actions: Actions = {
                     orderId: order.id,
                     orderUrl: `${PUBLIC_SITE_URL}/${product.shops.slug}/order/${order.id}`,
                     orderRef: order_ref,
-                    date: new Date().toLocaleDateString('fr-FR')
+                    date: new Date().toLocaleDateString('fr-FR'),
+                    shopColor,
                 });
 
                 // Email au pâtissier (vérification requise)

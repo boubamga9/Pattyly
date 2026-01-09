@@ -14,18 +14,20 @@
 	export let data: SuperValidated<Infer<RejectOrderForm>>;
 	export let onCancel: () => void;
 	export let onSuccess: () => void;
+	export let orderStatus: string | undefined = undefined;
+	export let isPendingOrder: boolean = false;
 
-const MESSAGE_MAX = 500;
+	const MESSAGE_MAX = 500;
 
-// Superforms
-const form = superForm(data, {
-	validators: zodClient(rejectOrderFormSchema),
-	dataType: 'json',
-});
+	// Superforms
+	const form = superForm(data, {
+		validators: zodClient(rejectOrderFormSchema),
+		dataType: 'json',
+	});
 
-const { form: formData, enhance, submitting, message, errors } = form;
+	const { form: formData, enhance, submitting, message, errors } = form;
 
-$: messageLength = ($formData.chef_message || '').length;
+	$: messageLength = ($formData.chef_message || '').length;
 
 	// Fermer automatiquement le formulaire en cas de succès
 	$: if ($message) {
@@ -48,6 +50,10 @@ $: messageLength = ($formData.chef_message || '').length;
 	<!-- Champs cachés pour shopId et shopSlug (optimisation : éviter getUser + requête shop) -->
 	<input type="hidden" name="shopId" value={$page.data.shop.id} />
 	<input type="hidden" name="shopSlug" value={$page.data.shop.slug} />
+	
+	<!-- Champs cachés pour le statut et le type de commande -->
+	<input type="hidden" name="orderStatus" value={orderStatus || ''} />
+	<input type="hidden" name="isPendingOrder" value={isPendingOrder ? 'true' : 'false'} />
 
 	<!-- Message -->
 	<Form.Field {form} name="chef_message">

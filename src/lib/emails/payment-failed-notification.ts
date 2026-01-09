@@ -1,4 +1,5 @@
-import { PUBLIC_SITE_URL } from '$env/static/public';
+import { EmailContainer, EmailHeader, EmailTitle, EmailParagraph, EmailButton, EmailSection } from './components';
+import { EMAIL_SPACING, EMAIL_COLORS, EMAIL_TYPOGRAPHY } from './styles';
 
 interface PaymentFailedNotificationProps {
     shopName: string;
@@ -11,62 +12,69 @@ export function PaymentFailedNotificationEmail({
     customerPortalUrl,
     date
 }: PaymentFailedNotificationProps) {
-    return `
-        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <!-- Logo Pattyly -->
-            <div style="text-align: center; margin-bottom: 30px;">
-                <img
-                    src="${PUBLIC_SITE_URL}/images/logo_icone.png"
-                    alt="Pattyly"
-                    style="height: 40px; margin-bottom: 10px;"
-                />
-                <div style="height: 1px; background-color: #e5e7eb; margin: 20px 0;"></div>
-            </div>
+    const header = EmailHeader({
+        logoUrl: undefined,
+        logoAlt: 'Pattyly',
+        type: 'pastry',
+    });
 
-            <div style="margin-bottom: 16px;">
-                <h2 style="color: #dc3545; margin-top: 0; font-size: 18px; font-weight: normal;">❌ Paiement échoué</h2>
-                <p>Bonjour,</p>
-                <p>Nous avons rencontré un problème lors du traitement de votre paiement pour votre abonnement.</p>
-            </div>
+    const title = EmailTitle('Paiement échoué');
 
-            <div style="text-align: center; margin-top: 24px; padding: 16px;">
-                <a
-                    href="${customerPortalUrl}"
-                    style="background-color: #f97316; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;"
-                >
-                    💳 Mettre à jour le paiement
-                </a>
-                <p style="margin-top: 16px; color: #666; font-size: 14px;">
-                    Si le lien a expiré, vous pouvez vous rendre dans les paramètres de votre dashboard et cliquer sur le bouton "Gérez votre abonnement".
-                </p>
-            </div>
+    const intro = EmailParagraph(
+        `Bonjour,<br /><br />Nous avons rencontré un problème lors du traitement de votre paiement pour votre abonnement.`
+    );
 
-            <div style="background-color: #fff3cd; padding: 16px; border-radius: 6px; border-left: 4px solid #ffc107; margin: 16px 0;">
-                <h3 style="margin-top: 0; color: #856404; font-size: 16px; font-weight: bold;">⚠️ Impact sur votre boutique</h3>
-                <ul style="margin: 0; padding-left: 20px; color: #856404;">
-                    <li><strong>Les nouvelles commandes risquent d'être bloquées</strong> - Si votre limite mensuelle est atteinte, vous ne pourrez plus recevoir de commandes</li>
-                    <li><strong>Votre visibilité dans l'annuaire risque de baisser</strong> - Les boutiques avec abonnement actif sont mises en avant</li>
-                    <li><strong>Votre badge vérifié sera perdu</strong> - Le badge vérifié est réservé aux abonnements actifs (Starter et Premium)</li>
-                    <li>Vos données et commandes existantes restent en sécurité</li>
-                    <li>Vous pouvez toujours accéder à votre dashboard</li>
-                </ul>
-            </div>
-
-            <div style="background-color: #e7f3ff; padding: 12px; border-radius: 6px; margin: 16px 0;">
-                <h3 style="margin-top: 0; color: #0066cc; font-size: 16px; font-weight: bold;">💬 Besoin d'aide ?</h3>
-                <p style="margin: 0; color: #0066cc; font-size: 14px;">
-                    Notre équipe support est disponible pour vous aider à résoudre ce problème. Contactez-nous si vous avez besoin d'assistance.
-                </p>
-            </div>
-
-            <div style="text-align: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid #dee2e6;">
-                <p style="color: #666; font-size: 14px;">
-                    <strong>Boutique :</strong> ${shopName}
-                </p>
-                <p style="color: #999; font-size: 12px;">
-                    Email envoyé le ${date}
-                </p>
-            </div>
+    const ctaSection = `
+        <div style="text-align: center; margin: ${EMAIL_SPACING['2xl']} 0;">
+            ${EmailButton({
+                href: customerPortalUrl,
+                text: 'Mettre à jour le paiement',
+                variant: 'primary',
+            })}
+            <p style="margin-top: ${EMAIL_SPACING.lg}; color: ${EMAIL_COLORS.neutral[600]}; font-size: ${EMAIL_TYPOGRAPHY.fontSize.sm};">
+                Si le lien a expiré, vous pouvez vous rendre dans les paramètres de votre dashboard et cliquer sur le bouton "Gérez votre abonnement".
+            </p>
         </div>
     `;
+
+    const impact = EmailSection({
+        title: 'Impact sur votre boutique',
+        children: `
+            <ul style="margin: 0; padding-left: 20px; list-style: none; color: ${EMAIL_COLORS.neutral[700]};">
+                <li style="margin-bottom: ${EMAIL_SPACING.sm};">• <strong>Les nouvelles commandes risquent d'être bloquées</strong> - Si votre limite mensuelle est atteinte, vous ne pourrez plus recevoir de commandes</li>
+                <li style="margin-bottom: ${EMAIL_SPACING.sm};">• <strong>Votre visibilité dans l'annuaire risque de baisser</strong> - Les boutiques avec abonnement actif sont mises en avant</li>
+                <li style="margin-bottom: ${EMAIL_SPACING.sm};">• <strong>Votre badge vérifié sera perdu</strong> - Le badge vérifié est réservé aux abonnements actifs (Starter et Premium)</li>
+                <li style="margin-bottom: ${EMAIL_SPACING.sm};">• Vos données et commandes existantes restent en sécurité</li>
+                <li>• Vous pouvez toujours accéder à votre dashboard</li>
+            </ul>
+        `,
+    });
+
+    const helpSection = `
+        <div style="margin: ${EMAIL_SPACING.lg} 0; padding: ${EMAIL_SPACING.lg}; border-radius: ${EMAIL_SPACING.md}; background-color: ${EMAIL_COLORS.neutral[50]}; border-left: 3px solid ${EMAIL_COLORS.accent.primary};">
+            <h3 style="margin: 0 0 ${EMAIL_SPACING.sm} 0; color: ${EMAIL_COLORS.neutral[900]}; font-size: 16px; font-weight: 600;">Besoin d'aide ?</h3>
+            <p style="margin: 0; color: ${EMAIL_COLORS.neutral[700]}; font-size: 14px;">Notre équipe support est disponible pour vous aider à résoudre ce problème. Contactez-nous si vous avez besoin d'assistance.</p>
+        </div>
+    `;
+
+    const footer = `
+        <div style="text-align: center; margin-top: ${EMAIL_SPACING['2xl']}; padding-top: ${EMAIL_SPACING.lg}; border-top: 1px solid ${EMAIL_COLORS.neutral[200]};">
+            <p style="color: ${EMAIL_COLORS.neutral[600]}; font-size: ${EMAIL_TYPOGRAPHY.fontSize.sm}; margin: ${EMAIL_SPACING.xs} 0;"><strong style="font-weight: ${EMAIL_TYPOGRAPHY.fontWeight.medium};">Boutique :</strong> ${shopName}</p>
+            <p style="color: ${EMAIL_COLORS.neutral[500]}; font-size: ${EMAIL_TYPOGRAPHY.fontSize.xs}; margin-top: ${EMAIL_SPACING.sm};">
+                Email envoyé le ${date}
+            </p>
+        </div>
+    `;
+
+    return EmailContainer(
+        `
+            ${header}
+            ${title}
+            ${intro}
+            ${ctaSection}
+            ${impact}
+            ${helpSection}
+            ${footer}
+        `
+    );
 }

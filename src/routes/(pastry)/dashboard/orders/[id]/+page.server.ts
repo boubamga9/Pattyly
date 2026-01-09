@@ -9,6 +9,7 @@ import { zod } from 'sveltekit-superforms/adapters';
 import { makeQuoteFormSchema, rejectOrderFormSchema, personalNoteFormSchema } from './schema.js';
 import { EmailService } from '$lib/services/email-service';
 import { ErrorLogger } from '$lib/services/error-logging';
+import { getShopColorFromShopId } from '$lib/emails/helpers';
 
 
 const stripe = new Stripe(PRIVATE_STRIPE_SECRET_KEY, {
@@ -295,6 +296,12 @@ export const actions: Actions = {
 
             // Envoyer l'email de confirmation uniquement au client
             try {
+                // Récupérer la couleur de la boutique pour l'email
+                const shopColor = await getShopColorFromShopId(
+                    locals.supabaseServiceRole,
+                    orderData.shop_id
+                );
+
                 await EmailService.sendOrderConfirmation({
                     customerEmail: orderData.customer_email,
                     customerName: orderData.customer_name,
@@ -308,7 +315,8 @@ export const actions: Actions = {
                     remainingAmount: remainingAmount,
                     orderId: order.id,
                     orderUrl: `${PUBLIC_SITE_URL}/${product.shops.slug}/order/${order.id}`,
-                    date: new Date().toLocaleDateString('fr-FR')
+                    date: new Date().toLocaleDateString('fr-FR'),
+                    shopColor,
                 });
             } catch (emailError) {
                 console.error('❌ [Validate Pending Order] Email error:', emailError);
@@ -507,6 +515,12 @@ export const actions: Actions = {
             }
 
             try {
+                // Récupérer la couleur de la boutique pour l'email
+                const shopColor = await getShopColorFromShopId(
+                    locals.supabaseServiceRole,
+                    shop.id
+                );
+
                 await Promise.all([
                     EmailService.sendQuote({
                         customerEmail: order.customer_email,
@@ -515,7 +529,8 @@ export const actions: Actions = {
                         shopLogo: shop.logo_url || undefined,
                         quoteId: order.id.slice(0, 8),
                         orderUrl: `${PUBLIC_SITE_URL}/${shopSlug}/custom/checkout/${order_ref}`,
-                        date: new Date().toLocaleDateString("fr-FR")
+                        date: new Date().toLocaleDateString("fr-FR"),
+                        shopColor,
                     })
                 ]);
             } catch (e) {
@@ -547,13 +562,16 @@ export const actions: Actions = {
         }
     },
 
-    // Refuser une commande
+    // Refuser une commande (pending_order ou order normale)
     rejectOrder: async ({ request, params, locals }) => {
         try {
             // ✅ OPTIMISÉ : Lire formData AVANT superValidate (car superValidate consomme le body)
             const formData = await request.formData();
             const shopId = formData.get('shopId') as string;
             const shopSlug = formData.get('shopSlug') as string;
+            const orderStatus = formData.get('orderStatus') as string | null;
+            const isPendingOrderStr = formData.get('isPendingOrder') as string;
+            const isPendingOrder = isPendingOrderStr === 'true';
 
             // ✅ CRÉER LE FORM DÈS LE DÉBUT (obligatoire pour Superforms)
             const form = await superValidate(formData, zod(rejectOrderFormSchema));
@@ -582,10 +600,10 @@ export const actions: Actions = {
 
             const { chef_message: chefMessage } = form.data;
 
-            // ✅ OPTIMISÉ : Récupérer uniquement les infos shop nécessaires (name, logo_url) en une requête
+            // ✅ OPTIMISÉ : Récupérer les infos shop nécessaires
             const { data: shop, error: shopError } = await locals.supabase
                 .from('shops')
-                .select('id, name, logo_url')
+                .select('id, name, logo_url, slug')
                 .eq('id', shopId)
                 .single();
 
@@ -593,8 +611,95 @@ export const actions: Actions = {
                 return fail(404, { form, error: 'Boutique non trouvée' });
             }
 
-            // Mettre à jour la commande
-            const { data: order, error: updateError } = await locals.supabase
+            // ✅ Détecter si c'est une pending_order
+            if (isPendingOrder) {
+                // Pour les pending_orders, le paiement a été fait → remboursement automatique
+                const willRefund = true;
+                const { data: pendingOrder, error: pendingError } = await locals.supabase
+                    .from('pending_orders')
+                    .select('*')
+                    .eq('id', params.id)
+                    .single();
+
+                if (pendingError || !pendingOrder) {
+                    return fail(404, { form, error: 'Commande non trouvée' });
+                }
+
+                const orderData = pendingOrder.order_data as any;
+
+                if (orderData?.shop_id !== shopId) {
+                    return fail(403, { form, error: 'Accès non autorisé' });
+                }
+
+                // Envoyer l'email d'annulation avec remboursement si activé
+                try {
+                    // Récupérer la couleur de la boutique pour l'email
+                    const shopColor = await getShopColorFromShopId(
+                        locals.supabaseServiceRole,
+                        orderData.shop_id
+                    );
+
+                    await EmailService.sendOrderCancelled({
+                        customerEmail: orderData.customer_email,
+                        customerName: orderData.customer_name,
+                        shopName: shop.name,
+                        shopLogo: shop.logo_url || undefined,
+                        orderId: pendingOrder.order_ref || pendingOrder.id.slice(0, 8),
+                        orderUrl: `${PUBLIC_SITE_URL}/${shopSlug}`,
+                        date: new Date().toLocaleDateString('fr-FR'),
+                        chefMessage: chefMessage || undefined,
+                        willRefund: willRefund,
+                        shopColor,
+                    });
+                } catch (emailError) {
+                    await ErrorLogger.logCritical(emailError, {
+                        userId,
+                        shopId,
+                        pendingOrderId: params.id,
+                    }, {
+                        action: 'rejectOrder',
+                        step: 'send_cancellation_email_pending',
+                    });
+                }
+
+                // Supprimer la pending_order
+                const { error: deleteError } = await locals.supabase
+                    .from('pending_orders')
+                    .delete()
+                    .eq('id', params.id);
+
+                if (deleteError) {
+                    await ErrorLogger.logCritical(deleteError, {
+                        userId,
+                        shopId,
+                        pendingOrderId: params.id,
+                    }, {
+                        action: 'rejectOrder',
+                        step: 'delete_pending_order',
+                    });
+                    return fail(500, { form, error: 'Erreur lors de la suppression' });
+                }
+
+                form.message = 'Commande refusée et email envoyé au client';
+                return { form };
+            }
+
+            // ✅ Sinon, c'est une order normale - récupérer la commande pour vérifier le statut
+            const { data: order, error: orderError } = await locals.supabase
+                .from('orders')
+                .select('id, status, customer_email, customer_name')
+                .eq('id', params.id)
+                .eq('shop_id', shopId)
+                .single();
+
+            if (orderError || !order) {
+                return fail(404, { form, error: 'Commande non trouvée' });
+            }
+
+            const currentStatus = orderStatus || order.status;
+
+            // ✅ Mettre à jour la commande
+            const { error: updateError } = await locals.supabase
                 .from('orders')
                 .update({
                     status: 'refused',
@@ -602,14 +707,12 @@ export const actions: Actions = {
                     refused_by: 'pastry_chef'
                 })
                 .eq('id', params.id)
-                .eq('shop_id', shop.id)
-                .select()
-                .single();
+                .eq('shop_id', shop.id);
 
             if (updateError) {
                 await ErrorLogger.logCritical(updateError, {
-                    userId: userId,
-                    shopId: shopId,
+                    userId,
+                    shopId,
                     orderId: params.id,
                 }, {
                     action: 'rejectOrder',
@@ -618,9 +721,33 @@ export const actions: Actions = {
                 return fail(500, { form, error: 'Erreur lors de la mise à jour de la commande' });
             }
 
+            // ✅ Envoyer l'email approprié selon le statut
             try {
-                await Promise.all([
-                    EmailService.sendRequestRejected({
+                // Récupérer la couleur de la boutique pour l'email (une seule fois pour les deux cas)
+                const shopColor = await getShopColorFromShopId(
+                    locals.supabaseServiceRole,
+                    shop.id
+                );
+
+                // Pour les commandes payées (to_verify) : email avec remboursement automatique
+                // Note: non_finalisee est uniquement pour pending_orders, géré dans le bloc précédent
+                if (currentStatus === 'to_verify') {
+                    // Commande payée → remboursement automatique
+                    await EmailService.sendOrderCancelled({
+                        customerEmail: order.customer_email,
+                        customerName: order.customer_name,
+                        shopName: shop.name,
+                        shopLogo: shop.logo_url || undefined,
+                        orderId: order.id.slice(0, 8),
+                        orderUrl: `${PUBLIC_SITE_URL}/${shopSlug}/order/${order.id}`,
+                        date: new Date().toLocaleDateString('fr-FR'),
+                        chefMessage: chefMessage || undefined,
+                        willRefund: true, // Remboursement automatique pour les commandes payées
+                        shopColor,
+                    });
+                } else {
+                    // Pour les commandes non payées (pending) : email de refus de demande
+                    await EmailService.sendRequestRejected({
                         customerEmail: order.customer_email,
                         customerName: order.customer_name,
                         shopName: shop.name,
@@ -628,14 +755,17 @@ export const actions: Actions = {
                         reason: chefMessage,
                         requestId: order.id.slice(0, 8),
                         catalogUrl: `${PUBLIC_SITE_URL}/${shopSlug}`,
-                        date: new Date().toLocaleDateString("fr-FR")
-                    })]);
-            } catch (e) {
-                await ErrorLogger.logCritical(e, {
-                    userId: userId,
-                    shopId: shopId,
+                        date: new Date().toLocaleDateString("fr-FR"),
+                        shopColor,
+                    });
+                }
+            } catch (emailError) {
+                await ErrorLogger.logCritical(emailError, {
+                    userId,
+                    shopId,
                     orderId: params.id,
                     customerEmail: order.customer_email,
+                    orderStatus: currentStatus,
                 }, {
                     action: 'rejectOrder',
                     step: 'send_rejection_email',
@@ -743,6 +873,12 @@ export const actions: Actions = {
                 const paidAmount = order.paid_amount || totalAmount / 2;
                 const remainingAmount = totalAmount - paidAmount;
 
+                // Récupérer la couleur de la boutique pour l'email
+                const shopColor = await getShopColorFromShopId(
+                    locals.supabaseServiceRole,
+                    order.shops.id
+                );
+
                 await EmailService.sendOrderConfirmation({
                     customerEmail: order.customer_email,
                     customerName: order.customer_name,
@@ -756,7 +892,8 @@ export const actions: Actions = {
                     remainingAmount: remainingAmount,
                     orderId: order.id,
                     orderUrl: `${PUBLIC_SITE_URL}/${order.shops.slug}/order/${order.id}`,
-                    date: new Date().toLocaleDateString('fr-FR')
+                    date: new Date().toLocaleDateString('fr-FR'),
+                    shopColor,
                 });
 
                 console.log('✅ Confirmation email sent to client');
@@ -979,6 +1116,12 @@ export const actions: Actions = {
             }
 
             try {
+                // Récupérer la couleur de la boutique pour l'email
+                const shopColor = await getShopColorFromShopId(
+                    locals.supabaseServiceRole,
+                    shop.id
+                );
+
                 await Promise.all([
                     EmailService.sendOrderCancelled({
                         customerEmail: order.customer_email,
@@ -987,7 +1130,8 @@ export const actions: Actions = {
                         shopLogo: shop.logo_url || undefined,
                         orderId: order.id.slice(0, 8),
                         orderUrl: `${PUBLIC_SITE_URL}/${shopSlug}/order/${order.id}`,
-                        date: new Date().toLocaleDateString("fr-FR")
+                        date: new Date().toLocaleDateString("fr-FR"),
+                        shopColor,
                     })]);
             } catch (e) { }
 

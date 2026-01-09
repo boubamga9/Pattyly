@@ -40,6 +40,7 @@ export class EmailService {
         orderId,
         orderUrl,
         date,
+        shopColor,
     }: {
         customerEmail: string;
         customerName: string;
@@ -54,6 +55,7 @@ export class EmailService {
         orderId: string;
         orderUrl: string;
         date: string;
+        shopColor?: string | null;
     }) {
         try {
             const { data, error } = await resend.emails.send({
@@ -73,6 +75,7 @@ export class EmailService {
                     orderId,
                     orderUrl,
                     date,
+                    shopColor,
                 })
             });
 
@@ -106,6 +109,7 @@ export class EmailService {
         orderUrl,
         orderRef,
         date,
+        shopColor,
     }: {
         customerEmail: string;
         customerName: string;
@@ -121,6 +125,7 @@ export class EmailService {
         orderUrl: string;
         orderRef: string;
         date: string;
+        shopColor?: string | null;
     }) {
         try {
             const { data, error } = await resend.emails.send({
@@ -141,6 +146,7 @@ export class EmailService {
                     orderUrl,
                     orderRef,
                     date,
+                    shopColor,
                 })
             });
 
@@ -305,6 +311,7 @@ export class EmailService {
         orderId,
         orderUrl,
         date,
+        shopColor,
     }: {
         customerEmail: string;
         customerName: string;
@@ -318,6 +325,7 @@ export class EmailService {
         orderId: string;
         orderUrl: string;
         date: string;
+        shopColor?: string | null;
     }) {
         try {
             const { data, error } = await resend.emails.send({
@@ -336,6 +344,7 @@ export class EmailService {
                     orderId,
                     orderUrl,
                     date,
+                    shopColor,
                 })
             });
 
@@ -420,7 +429,8 @@ export class EmailService {
         shopLogo,
         quoteId,
         orderUrl,
-        date
+        date,
+        shopColor,
     }: {
         customerEmail: string;
         customerName: string;
@@ -429,7 +439,7 @@ export class EmailService {
         quoteId: string;
         orderUrl: string;
         date: string;
-
+        shopColor?: string | null;
     }) {
         try {
             const { data, error } = await resend.emails.send({
@@ -442,7 +452,8 @@ export class EmailService {
                     shopLogo,
                     quoteId,
                     orderUrl,
-                    date
+                    date,
+                    shopColor,
                 })
             });
 
@@ -513,6 +524,7 @@ export class EmailService {
         requestId,
         orderUrl,
         date,
+        shopColor,
     }: {
         customerEmail: string;
         customerName: string;
@@ -521,6 +533,7 @@ export class EmailService {
         requestId: string;
         orderUrl: string;
         date: string;
+        shopColor?: string | null;
     }) {
         try {
             const { data, error } = await resend.emails.send({
@@ -533,7 +546,8 @@ export class EmailService {
                     shopLogo,
                     requestId,
                     orderUrl,
-                    date
+                    date,
+                    shopColor,
                 })
             });
 
@@ -613,7 +627,8 @@ export class EmailService {
         reason,
         requestId,
         catalogUrl,
-        date
+        date,
+        shopColor,
     }: {
         customerEmail: string;
         customerName: string;
@@ -622,7 +637,8 @@ export class EmailService {
         reason?: string;
         requestId: string;
         catalogUrl: string;
-        date: string
+        date: string;
+        shopColor?: string | null;
     }) {
         try {
             const { data, error } = await resend.emails.send({
@@ -636,7 +652,8 @@ export class EmailService {
                     reason,
                     requestId,
                     catalogUrl,
-                    date
+                    date,
+                    shopColor,
                 })
             });
 
@@ -663,6 +680,9 @@ export class EmailService {
         orderId,
         orderUrl,
         date,
+        chefMessage,
+        willRefund = false,
+        shopColor,
     }: {
         customerEmail: string;
         customerName: string;
@@ -671,7 +691,9 @@ export class EmailService {
         orderId: string;
         orderUrl: string;
         date: string;
-
+        chefMessage?: string;
+        willRefund?: boolean;
+        shopColor?: string | null;
     }) {
         try {
             const { data, error } = await resend.emails.send({
@@ -685,6 +707,9 @@ export class EmailService {
                     orderId,
                     orderUrl,
                     date,
+                    chefMessage,
+                    willRefund,
+                    shopColor,
                 })
             });
 

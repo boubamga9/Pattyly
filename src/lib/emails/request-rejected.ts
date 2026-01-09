@@ -1,4 +1,5 @@
-import { PUBLIC_SITE_URL } from '$env/static/public';
+import { EmailContainer, EmailHeader, EmailFooter, EmailTitle, EmailParagraph, EmailButton, EmailSection } from './components';
+import { EMAIL_SPACING, EMAIL_COLORS } from './styles';
 
 interface RequestRejectedProps {
     customerName: string;
@@ -8,6 +9,7 @@ interface RequestRejectedProps {
     requestId: string;
     catalogUrl: string;
     date: string;
+    shopColor?: string | null;
 }
 
 export function RequestRejectedEmail({
@@ -17,57 +19,57 @@ export function RequestRejectedEmail({
     reason,
     requestId,
     catalogUrl,
-    date
+    date,
+    shopColor,
 }: RequestRejectedProps) {
-    return `
-        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <!-- Logo du pâtissier ou Pattyly -->
-            <div style="text-align: center; margin-bottom: 30px;">
-                <img
-                    src="${shopLogo || `${PUBLIC_SITE_URL}/images/logo_icone.png`}"
-                    alt="${shopName}"
-                    style="height: 40px; margin-bottom: 10px;"
-                />
-                <div style="height: 1px; background-color: #e5e7eb; margin: 20px 0;"></div>
-            </div>
+    const header = EmailHeader({
+        logoUrl: shopLogo,
+        logoAlt: shopName,
+        type: 'customer',
+        shopColor,
+    });
 
-            <div style="margin-bottom: 16px;">
-                <h2 style="color: #f97316; margin-top: 0; font-size: 18px; font-weight: normal;">❌ Demande refusée</h2>
-                <p>Bonjour ${customerName},</p>
-                <p style="margin-bottom: 24px;">Malheureusement, nous ne pouvons pas honorer votre demande pour cette date.</p>
-            </div>
+    const title = EmailTitle('Demande refusée');
 
-            ${reason ? `
-            <div style="background-color: #f8f9fa; padding: 16px; border-radius: 6px; margin: 16px 0;">
-                <h3 style="margin-top: 0; color: #333; font-size: 16px; font-weight: bold;">Raisons du refus</h3>
-                <table style="width: 100%; border-collapse: collapse;">
-                    <tr>
-                        <td style="padding: 8px 0; font-weight: 600; width: 120px;">Raison :</td>
-                        <td style="padding: 8px 0;">${reason}</td>
-                    </tr>
-                </table>
-            </div>
-            ` : ''}
+    const intro = EmailParagraph(
+        `Bonjour ${customerName},<br /><br />Malheureusement, nous ne pouvons pas honorer votre demande pour cette date.`
+    );
 
-            <div style="text-align: center; margin-top: 24px; padding: 16px; background-color: #f8f9fa; border-radius: 6px;">
-                <h3 style="margin-top: 0; color: #333; font-size: 16px; font-weight: bold;">🔄 Alternatives</h3>
-                <p style="margin-bottom: 20px;">Découvrez nos gâteaux disponibles ou proposez une autre date :</p>
-                <a
-                    href="${catalogUrl}"
-                    style="background-color: #f97316; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;"
-                >
-                    🍰 Voir le catalogue
-                </a>
-            </div>
+    const reasonSection = reason ? `
+        <div style="margin: ${EMAIL_SPACING.lg} 0; padding: ${EMAIL_SPACING.lg}; border-radius: ${EMAIL_SPACING.md}; background-color: ${EMAIL_COLORS.neutral[50]};">
+            <h3 style="margin: 0 0 ${EMAIL_SPACING.sm} 0; color: ${EMAIL_COLORS.neutral[900]}; font-size: 16px; font-weight: 600;">Raisons du refus</h3>
+            <p style="margin: 0; color: ${EMAIL_COLORS.neutral[700]}; font-size: 14px; line-height: 160%;">${reason}</p>
+        </div>
+    ` : '';
 
-            <div style="text-align: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid #dee2e6;">
-                <p style="color: #666; font-size: 14px;">
-                    <strong>Numéro de demande :</strong> #${requestId}
-                </p>
-                <p style="color: #999; font-size: 12px;">
-                    Demande refusée le ${date}
-                </p>
-            </div>
+    const ctaSection = `
+        <div style="text-align: center; margin: ${EMAIL_SPACING['2xl']} 0;">
+            <p style="margin-bottom: ${EMAIL_SPACING.md}; color: ${EMAIL_COLORS.neutral[700]}; font-size: 14px;">Découvrez nos gâteaux disponibles ou proposez une autre date</p>
+            ${EmailButton({
+                href: catalogUrl,
+                text: 'Voir le catalogue',
+                variant: 'primary',
+                shopColor,
+            })}
         </div>
     `;
+
+    const footer = EmailFooter({
+        requestId,
+        date,
+        showOrderId: false,
+        showRequestId: true,
+    });
+
+    return EmailContainer(
+        `
+            ${header}
+            ${title}
+            ${intro}
+            ${reasonSection}
+            ${ctaSection}
+            ${footer}
+        `,
+        shopColor
+    );
 }

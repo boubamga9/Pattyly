@@ -1,5 +1,6 @@
-import { PUBLIC_SITE_URL } from '$env/static/public';
-import { formatDateTimeForEmail, generateInstagramEmailRow } from '$lib/utils/email-formatters';
+import { formatDateTimeForEmail } from '$lib/utils/email-formatters';
+import { EmailContainer, EmailHeader, EmailFooter, EmailTitle, EmailParagraph, EmailButton, EmailTable } from './components';
+import { EMAIL_SPACING, EMAIL_COLORS, EMAIL_TYPOGRAPHY } from './styles';
 
 interface OrderPendingVerificationPastryProps {
     customerName: string;
@@ -32,103 +33,81 @@ export function OrderPendingVerificationPastryEmail({
     dashboardUrl,
     date,
 }: OrderPendingVerificationPastryProps) {
-    return `
-        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <!-- Logo Pattyly -->
-            <div style="text-align: center; margin-bottom: 30px;">
-                <img
-                    src="${PUBLIC_SITE_URL}/images/logo_icone.png"
-                    alt="Pattyly"
-                    style="height: 40px; margin-bottom: 10px;"
-                />
-                <div style="height: 1px; background-color: #e5e7eb; margin: 20px 0;"></div>
-            </div>
+    const header = EmailHeader({
+        logoUrl: undefined,
+        logoAlt: 'Pattyly',
+        type: 'pastry',
+    });
 
-            <div style="margin-bottom: 16px;">
-                <h2 style="color: #f97316; margin-top: 0; font-size: 18px; font-weight: normal;">🎂 Nouvelle commande - Action requise</h2>
-                <p>Vous avez reçu une nouvelle commande de <strong>${customerName}</strong>.</p>
-                <p style="margin-bottom: 24px;">⚠️ <strong>Veuillez vérifier le paiement sur PayPal avant de commencer la préparation.</strong></p>
-            </div>
+    const title = EmailTitle('Nouvelle commande - Action requise');
 
-            <div style="background-color: #fff3cd; padding: 16px; border-radius: 6px; margin: 16px 0; border-left: 4px solid #ffc107;">
-                <h3 style="margin-top: 0; color: #856404; font-size: 16px; font-weight: bold;">💳 Vérification du paiement PayPal</h3>
-                <p style="color: #856404; margin-bottom: 12px;">
-                    <strong>1.</strong> Connectez-vous à votre compte PayPal
-                </p>
-                <p style="color: #856404; margin-bottom: 12px;">
-                    <strong>2.</strong> Recherchez un paiement de <strong>${paidAmount}€</strong> avec la référence : <strong style="font-family: monospace; background-color: white; padding: 4px 8px; border-radius: 4px;">${orderRef}</strong>
-                </p>
-                <p style="color: #856404; margin: 0;">
-                    <strong>3.</strong> Une fois vérifié, validez la commande sur votre dashboard Pattyly
-                </p>
-            </div>
+    const intro = EmailParagraph(
+        `Vous avez reçu une nouvelle commande de <strong>${customerName}</strong>.<br /><br /><strong>Veuillez vérifier le paiement sur PayPal avant de commencer la préparation.</strong>`
+    );
 
-            <div style="background-color: #f8f9fa; padding: 16px; border-radius: 6px; margin: 16px 0;">
-                <h3 style="margin-top: 0; color: #333; font-size: 16px; font-weight: bold;">👤 Informations client</h3>
-                <table style="width: 100%; border-collapse: collapse;">
-                    <tr>
-                        <td style="padding: 8px 0; font-weight: 600; width: 120px;">Nom :</td>
-                        <td style="padding: 8px 0;">${customerName}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 8px 0; font-weight: 600;">Email :</td>
-                        <td style="padding: 8px 0;">
-                            <a href="mailto:${customerEmail}" style="color: #f97316;">${customerEmail}</a>
-                        </td>
-                    </tr>
-                    ${generateInstagramEmailRow(customerInstagram)}
-                </table>
-            </div>
-
-            <div style="background-color: #f8f9fa; padding: 16px; border-radius: 6px; margin: 16px 0;">
-                <h3 style="margin-top: 0; color: #333; font-size: 16px; font-weight: bold;">📋 Détails de la commande</h3>
-                <table style="width: 100%; border-collapse: collapse;">
-                    <tr>
-                        <td style="padding: 8px 0; font-weight: 600; width: 150px;">Gâteau :</td>
-                        <td style="padding: 8px 0;">${productName}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 8px 0; font-weight: 600;">Date de retrait :</td>
-                        <td style="padding: 8px 0;">${formatDateTimeForEmail(pickupDate, pickupTime)}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 8px 0; font-weight: 600;">Prix total :</td>
-                        <td style="padding: 8px 0;"><strong>${totalAmount}€</strong></td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 8px 0; font-weight: 600;">Acompte à vérifier :</td>
-                        <td style="padding: 8px 0;"><strong style="color: #0d6efd;">${paidAmount}€</strong></td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 8px 0; font-weight: 600;">Solde restant :</td>
-                        <td style="padding: 8px 0;"><strong style="color: #dc3545;">${remainingAmount}€</strong></td>
-                    </tr>
-                </table>
-            </div>
-
-            <div style="text-align: center; margin-top: 24px; padding: 16px; background-color: #f8f9fa; border-radius: 6px;">
-                <h3 style="margin-top: 0; color: #333; font-size: 16px; font-weight: bold;">⚡ Valider le paiement</h3>
-                <p style="margin-bottom: 20px;">Une fois le paiement vérifié sur PayPal, validez-le sur votre dashboard :</p>
-                <a
-                    href="${dashboardUrl}"
-                    style="background-color: #f97316; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;"
-                >
-                    📊 Valider le paiement
-                </a>
-            </div>
-
-            <div style="text-align: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid #dee2e6;">
-                <p style="color: #666; font-size: 14px;">
-                    <strong>Numéro de commande :</strong> #${orderId}
-                </p>
-                <p style="color: #666; font-size: 14px;">
-                    <strong>Référence de paiement :</strong> ${orderRef}
-                </p>
-                <p style="color: #999; font-size: 12px;">
-                    Commande reçue le ${date}
-                </p>
-            </div>
+    const warning = `
+        <div style="margin: ${EMAIL_SPACING.lg} 0; padding: ${EMAIL_SPACING.lg}; border-radius: ${EMAIL_SPACING.md}; border-left: 3px solid ${EMAIL_COLORS.accent.primary}; background-color: ${EMAIL_COLORS.accent.light50};">
+            <h3 style="margin: 0 0 ${EMAIL_SPACING.md} 0; color: ${EMAIL_COLORS.neutral[900]}; font-size: 16px; font-weight: 600;">Vérification du paiement PayPal</h3>
+            <ol style="margin: 0; padding-left: 20px; list-style: decimal; color: ${EMAIL_COLORS.neutral[700]};">
+                <li style="margin-bottom: ${EMAIL_SPACING.sm};">Connectez-vous à votre compte PayPal</li>
+                <li style="margin-bottom: ${EMAIL_SPACING.sm};">Recherchez un paiement de <strong>${paidAmount.toFixed(2)}€</strong> avec la référence : <code style="font-family: monospace; background-color: white; padding: 4px 8px; border-radius: 4px; font-size: 13px;">${orderRef}</code></li>
+                <li>Une fois vérifié, validez la commande sur votre dashboard Pattyly</li>
+            </ol>
         </div>
     `;
+
+    const customerInfoRows = [
+        { label: 'Nom', value: customerName },
+        { label: 'Email', value: `<a href="mailto:${customerEmail}" style="color: ${EMAIL_COLORS.accent.primary};">${customerEmail}</a>` },
+    ];
+    if (customerInstagram) {
+        customerInfoRows.push({ label: 'Instagram', value: `<a href="https://instagram.com/${customerInstagram.replace('@', '')}" style="color: ${EMAIL_COLORS.accent.primary};">${customerInstagram}</a>` });
+    }
+    const customerInfo = EmailTable(customerInfoRows);
+
+    const orderDetails = EmailTable([
+        { label: 'Gâteau', value: productName },
+        { label: 'Date de retrait', value: formatDateTimeForEmail(pickupDate, pickupTime) },
+        { label: 'Prix total', value: `<strong>${totalAmount.toFixed(2)}€</strong>` },
+        { label: 'Acompte à vérifier', value: `<strong>${paidAmount.toFixed(2)}€</strong>` },
+        { label: 'Solde restant', value: `<strong>${remainingAmount.toFixed(2)}€</strong>` },
+    ]);
+
+    const ctaSection = `
+        <div style="text-align: center; margin: ${EMAIL_SPACING['2xl']} 0;">
+            <p style="margin-bottom: ${EMAIL_SPACING.md}; color: ${EMAIL_COLORS.neutral[700]}; font-size: 14px;">Une fois le paiement vérifié sur PayPal, validez-le sur votre dashboard</p>
+            ${EmailButton({
+                href: dashboardUrl,
+                text: 'Valider le paiement',
+                variant: 'primary',
+            })}
+        </div>
+    `;
+
+    const footer = EmailFooter({
+        orderId,
+        date,
+        showOrderId: true,
+        showRequestId: false,
+    });
+
+    // Ajouter orderRef au footer
+    const footerWithRef = footer.replace(
+        '</div>',
+        `<p style="color: ${EMAIL_COLORS.neutral[600]}; font-size: ${EMAIL_TYPOGRAPHY.fontSize.sm}; margin: ${EMAIL_SPACING.xs} 0;"><strong style="font-weight: ${EMAIL_TYPOGRAPHY.fontWeight.medium};">Référence de paiement :</strong> ${orderRef}</p></div>`
+    );
+
+    return EmailContainer(
+        `
+            ${header}
+            ${title}
+            ${intro}
+            ${warning}
+            ${customerInfo}
+            ${orderDetails}
+            ${ctaSection}
+            ${footerWithRef}
+        `
+    );
 }
 

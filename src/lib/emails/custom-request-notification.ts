@@ -1,5 +1,6 @@
-import { PUBLIC_SITE_URL } from '$env/static/public';
-import { formatDateTimeForEmail, generateInstagramEmailRow } from '$lib/utils/email-formatters';
+import { formatDateTimeForEmail } from '$lib/utils/email-formatters';
+import { EmailContainer, EmailHeader, EmailFooter, EmailTitle, EmailParagraph, EmailButton, EmailTable } from './components';
+import { EMAIL_SPACING, EMAIL_COLORS } from './styles';
 
 interface CustomRequestNotificationProps {
     customerName: string;
@@ -22,71 +23,58 @@ export function CustomRequestNotificationEmail({
     dashboardUrl,
     date
 }: CustomRequestNotificationProps) {
-    return `
-        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <!-- Logo Pattyly -->
-            <div style="text-align: center; margin-bottom: 30px;">
-                <img
-                    src="${PUBLIC_SITE_URL}/images/logo_icone.png"
-                    alt="Pattyly"
-                    style="height: 40px; margin-bottom: 10px;"
-                />
-                <div style="height: 1px; background-color: #e5e7eb; margin: 20px 0;"></div>
-            </div>
+    const header = EmailHeader({
+        logoUrl: undefined,
+        logoAlt: 'Pattyly',
+        type: 'pastry',
+    });
 
-            <div style="margin-bottom: 16px;">
-                <h2 style="color: #f97316; margin-top: 0; font-size: 18px; font-weight: normal;">🎂 Nouvelle demande personnalisée</h2>
-                <p>Vous avez reçu une nouvelle demande personnalisée de ${customerName}.</p>
-                <p style="margin-bottom: 24px;">Action requise : Envoyer un devis sous 24-48h</p>
-            </div>
+    const title = EmailTitle('Nouvelle demande personnalisée');
 
-            <div style="background-color: #f8f9fa; padding: 16px; border-radius: 6px; margin: 16px 0;">
-                <h3 style="margin-top: 0; color: #333; font-size: 16px; font-weight: bold;">👤 Informations client</h3>
-                <table style="width: 100%; border-collapse: collapse;">
-                    <tr>
-                        <td style="padding: 8px 0; font-weight: 600; width: 120px;">Nom :</td>
-                        <td style="padding: 8px 0;">${customerName}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 8px 0; font-weight: 600;">Email :</td>
-                        <td style="padding: 8px 0;">
-                            <a href="mailto:${customerEmail}" style="color: #f97316;">${customerEmail}</a>
-                        </td>
-                    </tr>
+    const intro = EmailParagraph(
+        `Vous avez reçu une nouvelle demande personnalisée de <strong>${customerName}</strong>.<br /><br />Action requise : Envoyer un devis sous 24-48h.`
+    );
 
-                    ${generateInstagramEmailRow(customerInstagram)}
-                </table>
-            </div>
+    const customerInfoRows = [
+        { label: 'Nom', value: customerName },
+        { label: 'Email', value: `<a href="mailto:${customerEmail}" style="color: ${EMAIL_COLORS.accent.primary};">${customerEmail}</a>` },
+    ];
+    if (customerInstagram) {
+        customerInfoRows.push({ label: 'Instagram', value: `<a href="https://instagram.com/${customerInstagram.replace('@', '')}" style="color: ${EMAIL_COLORS.accent.primary};">${customerInstagram}</a>` });
+    }
+    const customerInfo = EmailTable(customerInfoRows);
 
-            <div style="background-color: #f8f9fa; padding: 16px; border-radius: 6px; margin: 16px 0;">
-                <h3 style="margin-top: 0; color: #333; font-size: 16px; font-weight: bold;">📋 Détails de la demande</h3>
-                <table style="width: 100%; border-collapse: collapse;">
-                    <tr>
-                        <td style="padding: 8px 0; font-weight: 600; width: 120px;">Date souhaitée :</td>
-                        <td style="padding: 8px 0;">${formatDateTimeForEmail(pickupDate, pickupTime)}</td>
-                    </tr>
-                </table>
-            </div>
+    const requestDetails = EmailTable([
+        { label: 'Date souhaitée', value: formatDateTimeForEmail(pickupDate, pickupTime) },
+    ]);
 
-            <div style="text-align: center; margin-top: 24px; padding: 16px; background-color: #f8f9fa; border-radius: 6px;">
-                <h3 style="margin-top: 0; color: #333; font-size: 16px; font-weight: bold;">⚡ Action rapide</h3>
-                <p style="margin-bottom: 20px;">Connectez-vous à votre dashboard pour envoyer un devis :</p>
-                <a
-                    href="${dashboardUrl}"
-                    style="background-color: #f97316; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;"
-                >
-                    📊 Accéder au dashboard
-                </a>
-            </div>
-
-            <div style="text-align: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid #dee2e6;">
-                <p style="color: #666; font-size: 14px;">
-                    <strong>Numéro de demande :</strong> #${requestId}
-                </p>
-                <p style="color: #999; font-size: 12px;">
-                    Reçu le ${date}
-                </p>
-            </div>
+    const ctaSection = `
+        <div style="text-align: center; margin: ${EMAIL_SPACING['2xl']} 0;">
+            <p style="margin-bottom: ${EMAIL_SPACING.md}; color: ${EMAIL_COLORS.neutral[700]}; font-size: 14px;">Connectez-vous à votre dashboard pour envoyer un devis</p>
+            ${EmailButton({
+                href: dashboardUrl,
+                text: 'Accéder au dashboard',
+                variant: 'primary',
+            })}
         </div>
     `;
+
+    const footer = EmailFooter({
+        requestId,
+        date,
+        showOrderId: false,
+        showRequestId: true,
+    });
+
+    return EmailContainer(
+        `
+            ${header}
+            ${title}
+            ${intro}
+            ${customerInfo}
+            ${requestDetails}
+            ${ctaSection}
+            ${footer}
+        `
+    );
 }
