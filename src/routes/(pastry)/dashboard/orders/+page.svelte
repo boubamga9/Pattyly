@@ -78,6 +78,19 @@
 		}).format(date);
 	}
 
+	// Fonction pour normaliser une date (extraire uniquement année, mois, jour)
+	// Cela évite les problèmes de fuseau horaire en créant une date locale à minuit
+	function normalizeDate(dateString: string | Date): Date {
+		const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+		// Extraire les composants de date en utilisant les méthodes locales (pas UTC)
+		// pour éviter les problèmes de fuseau horaire
+		const year = date.getFullYear();
+		const month = date.getMonth();
+		const day = date.getDate();
+		// Créer une nouvelle date locale à minuit (pas UTC)
+		return new Date(year, month, day, 0, 0, 0, 0);
+	}
+
 	// Fonction pour obtenir l'icône du statut
 	function getStatusIcon(status: string) {
 		switch (status) {
@@ -169,12 +182,12 @@
 	// Fonction pour grouper les commandes filtrées par date de livraison
 	function groupOrdersByDate(orders: Order[]) {
 		const groups: Record<string, Order[]> = {};
-		const today = new Date();
-		today.setHours(0, 0, 0, 0);
+		// Normaliser la date d'aujourd'hui pour éviter les problèmes de fuseau horaire
+		const today = normalizeDate(new Date());
 
 		orders.forEach((order) => {
-			const pickupDate = new Date(order.pickup_date);
-			pickupDate.setHours(0, 0, 0, 0);
+			// Normaliser la date de récupération pour éviter les problèmes de fuseau horaire
+			const pickupDate = normalizeDate(order.pickup_date);
 
 			const dateKey = getDateKey(pickupDate, today);
 
