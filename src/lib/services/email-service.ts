@@ -3,6 +3,7 @@ import { env } from '$env/dynamic/private';
 
 // Templates d'emails
 import { OrderConfirmationEmail } from '$lib/emails/order-confirmation';
+import { OrderReadyEmail } from '$lib/emails/order-ready';
 import { OrderNotificationEmail } from '$lib/emails/order-notification';
 import { OrderPendingVerificationClientEmail } from '$lib/emails/order-pending-verification-client';
 import { OrderPendingVerificationPastryEmail } from '$lib/emails/order-pending-verification-pastry';
@@ -88,6 +89,74 @@ export class EmailService {
             return { success: true, messageId: data?.id };
         } catch (error) {
             console.error('Erreur EmailService.sendOrderConfirmation:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Envoie un email au client pour une commande prête
+     */
+    static async sendOrderReady({
+        customerEmail,
+        customerName,
+        shopName,
+        shopLogo,
+        productName,
+        pickupDate,
+        pickupTime,
+        totalAmount,
+        paidAmount,
+        remainingAmount,
+        orderId,
+        orderUrl,
+        date,
+        shopColor,
+    }: {
+        customerEmail: string;
+        customerName: string;
+        shopName: string;
+        shopLogo?: string;
+        productName: string;
+        pickupDate: string;
+        pickupTime?: string | null;
+        totalAmount: number;
+        paidAmount: number;
+        remainingAmount: number;
+        orderId: string;
+        orderUrl: string;
+        date: string;
+        shopColor?: string | null;
+    }) {
+        try {
+            const { data, error } = await resend.emails.send({
+                from: 'Pattyly <noreply@pattyly.com>',
+                to: [customerEmail],
+                subject: `Votre commande est prête ! - ${productName}`,
+                html: OrderReadyEmail({
+                    customerName,
+                    shopName,
+                    shopLogo,
+                    productName,
+                    pickupDate,
+                    pickupTime,
+                    totalAmount,
+                    paidAmount,
+                    remainingAmount,
+                    orderId,
+                    orderUrl,
+                    date,
+                    shopColor,
+                })
+            });
+
+            if (error) {
+                console.error('Erreur envoi email commande prête:', error);
+                throw error;
+            }
+
+            return { success: true, messageId: data?.id };
+        } catch (error) {
+            console.error('Erreur EmailService.sendOrderReady:', error);
             throw error;
         }
     }
@@ -1169,7 +1238,7 @@ export class EmailService {
             const unsubscribeUrl = `${siteUrl}/unsubscribe?email=${encodeURIComponent(recipientEmail)}`;
 
             const { data, error } = await resend.emails.send({
-                from: 'L\'équipe Pattyly <hello@pattyly.com>',
+                from: 'Pattyly <hello@pattyly.com>',
                 to: [recipientEmail],
                 subject: subject,
                 html: MarketingCampaignEmail({

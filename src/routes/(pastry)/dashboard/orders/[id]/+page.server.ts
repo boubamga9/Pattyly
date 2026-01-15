@@ -925,6 +925,9 @@ export const actions: Actions = {
 
     // Marquer une commande comme prête
     makeOrderReady: async ({ request, params, locals }) => {
+        let userId: string | undefined;
+        let shopId: string | undefined;
+        
         try {
             // ✅ OPTIMISÉ : Récupérer shopId depuis formData
             if (!request) {
@@ -932,7 +935,7 @@ export const actions: Actions = {
             }
 
             const formData = await request.formData();
-            const shopId = formData.get('shopId') as string;
+            shopId = formData.get('shopId') as string;
 
             if (!shopId) {
                 return fail(400, { error: 'Données de boutique manquantes' });
@@ -940,7 +943,7 @@ export const actions: Actions = {
 
             // ✅ OPTIMISÉ : Utiliser safeGetSession au lieu de getUser()
             const { session } = await locals.safeGetSession();
-            const userId = session?.user.id;
+            userId = session?.user.id;
 
             if (!userId) {
                 return fail(401, { error: 'Non autorisé' });
@@ -950,6 +953,39 @@ export const actions: Actions = {
             const isOwner = await verifyShopOwnership(userId, shopId, locals.supabase);
             if (!isOwner) {
                 return fail(403, { error: 'Accès non autorisé à cette boutique' });
+            }
+
+            // Récupérer les données de la commande et de la boutique avant la mise à jour
+            const { data: orderData, error: orderFetchError } = await locals.supabase
+                .from('orders')
+                .select(`
+                    customer_name,
+                    customer_email,
+                    product_name,
+                    pickup_date,
+                    pickup_time,
+                    total_amount,
+                    paid_amount,
+                    shops!inner(slug, name, logo_url)
+                `)
+                .eq('id', params.id)
+                .eq('shop_id', shopId)
+                .single();
+
+            if (orderFetchError || !orderData) {
+                await ErrorLogger.logCritical(
+                    orderFetchError || new Error('Order not found'),
+                    {
+                        userId: userId,
+                        shopId: shopId,
+                        orderId: params.id,
+                    },
+                    {
+                        action: 'makeOrderReady',
+                        step: 'fetch_order_data',
+                    }
+                );
+                return fail(404, { error: 'Commande non trouvée' });
             }
 
             // Mettre à jour la commande (utiliser shopId directement)
@@ -969,6 +1005,47 @@ export const actions: Actions = {
                     step: 'update_order_status',
                 });
                 return fail(500, { error: 'Erreur lors de la mise à jour de la commande' });
+            }
+
+            // Envoyer l'email au client
+            try {
+                const shop = orderData.shops as any;
+                const totalAmount = orderData.total_amount || 0;
+                const paidAmount = orderData.paid_amount || 0;
+                const remainingAmount = totalAmount - paidAmount;
+
+                // Récupérer la couleur de la boutique
+                const shopColor = await getShopColorFromShopId(locals.supabaseServiceRole, shopId);
+
+                await EmailService.sendOrderReady({
+                    customerEmail: orderData.customer_email,
+                    customerName: orderData.customer_name,
+                    shopName: shop.name,
+                    shopLogo: shop.logo_url || undefined,
+                    productName: orderData.product_name || 'Commande personnalisée',
+                    pickupDate: orderData.pickup_date,
+                    pickupTime: orderData.pickup_time || null,
+                    totalAmount: totalAmount,
+                    paidAmount: paidAmount,
+                    remainingAmount: remainingAmount,
+                    orderId: params.id,
+                    orderUrl: `${PUBLIC_SITE_URL}/${shop.slug}/order/${params.id}`,
+                    date: new Date().toLocaleDateString('fr-FR'),
+                    shopColor,
+                });
+            } catch (emailError) {
+                // Ne pas faire échouer l'action si l'email échoue
+                // La commande est déjà marquée comme prête
+                await ErrorLogger.logCritical(emailError, {
+                    userId: userId,
+                    shopId: shopId,
+                    orderId: params.id,
+                    customerEmail: orderData.customer_email,
+                }, {
+                    action: 'makeOrderReady',
+                    step: 'send_email',
+                });
+                console.error('Failed to send order ready email, but order was marked as ready:', emailError);
             }
 
             return { message: 'Commande marquée comme prête' };
