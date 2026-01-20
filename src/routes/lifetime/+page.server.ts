@@ -10,13 +10,8 @@ export const load: PageServerLoad = async ({ locals }) => {
         throw redirect(303, '/login');
     }
 
-    // Vérifier si le plan à vie est encore disponible (jusqu'à fin janvier 2026)
-    const isLifetimeAvailable = new Date() <= new Date('2026-01-31T23:59:59');
-
-    // Si la période est passée, rediriger vers le dashboard
-    if (!isLifetimeAvailable) {
-        throw redirect(303, '/dashboard');
-    }
+    // L'offre lifetime est terminée (quota atteint) - rediriger vers le dashboard
+    throw redirect(303, '/dashboard');
 
     const userId = session.user.id;
 

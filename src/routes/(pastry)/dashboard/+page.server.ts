@@ -129,9 +129,6 @@ export const load = async ({ locals, parent }) => {
         }
     ];
 
-    // Vérifier si le plan à vie est encore disponible (jusqu'à fin janvier 2026)
-    const isLifetimeAvailable = new Date() <= new Date('2026-01-31T23:59:59');
-
     // Récupérer les abonnements pour vérifier si l'utilisateur a déjà le plan à vie
     let hasLifetimePlan = false;
     if (allSubscriptions && allSubscriptions.length > 0) {
@@ -149,7 +146,6 @@ export const load = async ({ locals, parent }) => {
         permissions,
         plans,
         currentPlan,
-        isLifetimeAvailable,
         hasLifetimePlan,
         metrics: {
             productsCount: permissions.productCount || 0,
