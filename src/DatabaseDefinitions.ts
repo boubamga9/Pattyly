@@ -586,6 +586,7 @@ export type Database = {
       }
       shops: {
         Row: {
+          allow_multiple_pickups_per_slot: boolean
           bio: string | null
           catalog_version: number | null
           created_at: string | null
@@ -602,6 +603,7 @@ export type Database = {
           website: string | null
         }
         Insert: {
+          allow_multiple_pickups_per_slot?: boolean
           bio?: string | null
           catalog_version?: number | null
           created_at?: string | null
@@ -618,6 +620,7 @@ export type Database = {
           website?: string | null
         }
         Update: {
+          allow_multiple_pickups_per_slot?: boolean
           bio?: string | null
           catalog_version?: number | null
           created_at?: string | null
@@ -715,6 +718,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "unavailabilities_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      slot_unavailabilities: {
+        Row: {
+          created_at: string | null
+          end_time: string
+          id: string
+          shop_id: string
+          start_time: string
+          unavailable_date: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          end_time: string
+          id?: string
+          shop_id: string
+          start_time: string
+          unavailable_date: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          end_time?: string
+          id?: string
+          shop_id?: string
+          start_time?: string
+          unavailable_date?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slot_unavailabilities_shop_id_fkey"
             columns: ["shop_id"]
             isOneToOne: false
             referencedRelation: "shops"

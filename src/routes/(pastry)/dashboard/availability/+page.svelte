@@ -8,21 +8,42 @@
 		CardHeader,
 		CardTitle,
 	} from '$lib/components/ui/card';
-	import { Calendar, Plus, Clock, Trash2 } from 'lucide-svelte';
+	import { Calendar, Plus, Clock, Trash2, Users } from 'lucide-svelte';
+	import { Switch } from '$lib/components/ui/switch';
 	import UnavailabilityForm from './unavailability-form.svelte';
 	import AvailabilityList from './availability-list.svelte';
 	import { writable } from 'svelte/store';
 	import { enhance } from '$app/forms';
 
 	// Données de la page
-	$: ({ availabilities, unavailabilities, form } = $page.data);
+	$: ({
+		availabilities,
+		unavailabilities,
+		slotUnavailabilities,
+		form,
+		slotUnavailabilityForm,
+		allowMultiplePickupsPerSlot: initialSlotOption,
+	} = $page.data);
+
+	const slotOptionStore = writable<boolean>(false);
+	$: if (typeof initialSlotOption === 'boolean') {
+		slotOptionStore.set(initialSlotOption);
+	}
+	$: allowMultiplePickupsPerSlot = $slotOptionStore;
+
+	let slotOptionForm: HTMLFormElement;
+	let isSubmittingSlotOption = false;
 
 	// Store local pour les indisponibilités (permet la mise à jour de l'interface)
 	const localUnavailabilities = writable(unavailabilities || []);
+	const localSlotUnavailabilities = writable(slotUnavailabilities || []);
 
-	// Synchroniser le store local avec les données de la page
+	// Synchroniser les stores locaux avec les données de la page
 	$: if (unavailabilities) {
 		localUnavailabilities.set(unavailabilities);
+	}
+	$: if (slotUnavailabilities) {
+		localSlotUnavailabilities.set(slotUnavailabilities);
 	}
 
 	// État local
@@ -66,6 +87,28 @@
 			unavailabilities.filter((u: { id: string }) => u.id !== unavailabilityId),
 		);
 	}
+
+	function handleDeleteSlotSuccess(slotUnavailabilityId: string) {
+		localSlotUnavailabilities.update((list) =>
+			list.filter((s: { id: string }) => s.id !== slotUnavailabilityId),
+		);
+	}
+
+	// Format time for display (HH:MM or HH:MM:SS -> HHhMM)
+	function formatTime(t: string) {
+		if (!t) return '';
+		const [h, m] = t.split(':');
+		return `${h}h${m ?? '00'}`;
+	}
+
+	function handleSlotOptionToggle(e: CustomEvent<boolean>) {
+		const newValue = e.detail;
+		slotOptionStore.set(newValue);
+		const input = slotOptionForm?.querySelector('input[name="allowMultiplePickupsPerSlot"]') as HTMLInputElement;
+		if (input) input.value = newValue ? 'true' : 'false';
+		isSubmittingSlotOption = true;
+		slotOptionForm?.requestSubmit();
+	}
 </script>
 
 <svelte:head>
@@ -82,6 +125,52 @@
 			Configurez vos jours d'ouverture et vos périodes d'indisponibilité
 		</p>
 	</div>
+
+	<!-- Options de créneaux -->
+	<Card class="mb-8">
+		<CardHeader>
+			<div class="flex items-center space-x-3">
+				<Users class="h-6 w-6 text-primary" />
+				<div>
+					<CardTitle>Récupération des commandes</CardTitle>
+					<CardDescription>
+						Autoriser plusieurs clients à choisir le même créneau de récupération (tous les créneaux restent affichés, même déjà réservés).
+					</CardDescription>
+				</div>
+			</div>
+		</CardHeader>
+		<CardContent>
+			<form
+				bind:this={slotOptionForm}
+				method="POST"
+				action="?/updateSlotOption"
+				use:enhance={() => {
+					return async ({ result }) => {
+						isSubmittingSlotOption = false;
+						if (result.type !== 'success') {
+							slotOptionStore.set(!allowMultiplePickupsPerSlot);
+						}
+					};
+				}}
+			>
+				{#if $page.data.shopId}
+					<input type="hidden" name="shopId" value={$page.data.shopId} />
+				{/if}
+				<input type="hidden" name="allowMultiplePickupsPerSlot" value={allowMultiplePickupsPerSlot ? 'true' : 'false'} />
+				<div class="flex items-center justify-between rounded-lg border p-4">
+					<label for="slot-option-switch" class="cursor-pointer text-sm font-medium">
+						Afficher tous les créneaux même déjà réservés
+					</label>
+					<Switch
+						id="slot-option-switch"
+						checked={allowMultiplePickupsPerSlot}
+						disabled={isSubmittingSlotOption}
+						on:change={handleSlotOptionToggle}
+					/>
+				</div>
+			</form>
+		</CardContent>
+	</Card>
 
 	<!-- Weekly Schedule -->
 	<Card class="mb-8">
@@ -130,18 +219,28 @@
 			{#if showUnavailabilityForm}
 				<div class="mb-6 rounded-lg border bg-muted/50 p-4">
 					<h3 class="mb-4 font-medium">Nouvelle indisponibilité</h3>
-					<UnavailabilityForm data={form} {today} onCancel={cancelCreate} />
+					<UnavailabilityForm
+						data={form}
+						slotUnavailabilityFormData={slotUnavailabilityForm}
+						{today}
+						onCancel={cancelCreate}
+					/>
 				</div>
 			{/if}
 
-			{#if $localUnavailabilities.length === 0}
+			{#if $localUnavailabilities.length === 0 && $localSlotUnavailabilities.length === 0}
 				<div class="py-8 text-center text-muted-foreground">
 					<Calendar class="mx-auto mb-4 h-12 w-12 opacity-50" />
 					<p>Aucune indisponibilité programmée</p>
 				</div>
 			{:else}
-				<div class="space-y-3">
-					{#each $localUnavailabilities as unavailability}
+				<div class="space-y-6">
+					<!-- Périodes (jours entiers) -->
+					{#if $localUnavailabilities.length > 0}
+						<div>
+							<h4 class="mb-3 text-sm font-medium text-muted-foreground">Périodes (jours entiers)</h4>
+							<div class="space-y-3">
+								{#each $localUnavailabilities as unavailability}
 						<div
 							class="flex items-center justify-between rounded-lg border p-4"
 						>
@@ -235,6 +334,83 @@
 							{/if}
 						</div>
 					{/each}
+							</div>
+						</div>
+					{/if}
+
+					<!-- Créneaux bloqués -->
+					{#if $localSlotUnavailabilities.length > 0}
+						<div>
+							<h4 class="mb-3 text-sm font-medium text-muted-foreground">Créneaux bloqués</h4>
+							<div class="space-y-3">
+								{#each $localSlotUnavailabilities as slotUnav}
+									<div class="flex items-center justify-between rounded-lg border p-4">
+										<div class="font-medium">
+											{formatDate(slotUnav.unavailable_date)}
+											<span class="text-muted-foreground">
+												— {formatTime(slotUnav.start_time)} – {formatTime(slotUnav.end_time)}
+											</span>
+										</div>
+										{#if confirmingDeleteId === slotUnav.id}
+											<div class="flex gap-2">
+												<form
+													method="POST"
+													action="?/deleteSlotUnavailability"
+													use:enhance={() => {
+														return async ({ result }) => {
+															if (result.type === 'success') {
+																handleDeleteSlotSuccess(slotUnav.id);
+																confirmingDeleteId = null;
+															}
+														};
+													}}
+													class="inline"
+												>
+													{#if $page.data.shopId}
+														<input type="hidden" name="shopId" value={$page.data.shopId} />
+													{/if}
+													<input type="hidden" name="slotUnavailabilityId" value={slotUnav.id} />
+													<Button
+														type="submit"
+														variant="ghost"
+														size="sm"
+														class="bg-red-600 text-white hover:bg-red-700 hover:text-white"
+														title="Confirmer la suppression"
+													>
+														<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+														</svg>
+													</Button>
+												</form>
+												<Button
+													type="button"
+													variant="ghost"
+													size="sm"
+													on:click={cancelDeleteConfirmation}
+													title="Annuler la suppression"
+												>
+													<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+													</svg>
+												</Button>
+											</div>
+										{:else}
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												class="text-red-600 hover:bg-red-50 hover:text-red-700"
+												on:click={() => startDeleteConfirmation(slotUnav.id)}
+												title="Supprimer le créneau bloqué"
+											>
+												<Trash2 class="h-4 w-4" />
+											</Button>
+										{/if}
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
 				</div>
 			{/if}
 		</CardContent>

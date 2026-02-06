@@ -38,6 +38,11 @@ export const dateRangeSchema = z.object({
 
 // ===== DISPONIBILITÉS QUOTIDIENNES =====
 
+// Helper: compare time strings "HH:MM" or "HH:MM:SS" (lexicographic order is valid)
+function timeLessOrEqual(a: string, b: string): boolean {
+    return a <= b;
+}
+
 // Disponibilité d'un jour de la semaine
 export const availabilitySchema = z.object({
     id: uuidSchema,
@@ -47,18 +52,50 @@ export const availabilitySchema = z.object({
     daily_order_limit: z.number().int().nullable(),
     start_time: timeSlotSchema.nullable(),
     end_time: timeSlotSchema.nullable(),
-    interval_time: z.string().nullable() // PostgreSQL INTERVAL as string
+    interval_time: z.string().nullable(), // PostgreSQL INTERVAL as string
+    break_start_time: timeSlotSchema.nullable().optional(),
+    break_end_time: timeSlotSchema.nullable().optional()
 });
 
 // Mise à jour de la disponibilité d'un jour (pour l'action updateAvailability)
-export const updateAvailabilityActionSchema = z.object({
-    availabilityId: uuidSchema,
-    isAvailable: z.string().transform((val) => val === 'true'),
-    dailyOrderLimit: z.number().int().nullable(),
-    startTime: timeSlotSchema.nullable(),
-    endTime: timeSlotSchema.nullable(),
-    intervalTime: z.string().nullable() // PostgreSQL INTERVAL as string (e.g., "00:30:00")
-});
+export const updateAvailabilityActionSchema = z
+    .object({
+        availabilityId: uuidSchema,
+        isAvailable: z.string().transform((val) => val === 'true'),
+        dailyOrderLimit: z.number().int().nullable(),
+        startTime: timeSlotSchema.nullable(),
+        endTime: timeSlotSchema.nullable(),
+        intervalTime: z.string().nullable(), // PostgreSQL INTERVAL as string (e.g., "00:30:00")
+        breakStartTime: z.union([timeSlotSchema, z.literal('')]).optional(),
+        breakEndTime: z.union([timeSlotSchema, z.literal('')]).optional()
+    })
+    .refine(
+        (data) => {
+            const breakStart = (data.breakStartTime && data.breakStartTime !== '') ? data.breakStartTime : null;
+            const breakEnd = (data.breakEndTime && data.breakEndTime !== '') ? data.breakEndTime : null;
+            if (breakStart === null && breakEnd === null) return true;
+            if (breakStart === null || breakEnd === null) return false;
+            return timeLessOrEqual(breakStart, breakEnd);
+        },
+        { message: 'L\'heure de fin de pause doit être après l\'heure de début', path: ['breakEndTime'] }
+    )
+    .refine(
+        (data) => {
+            const breakStart = (data.breakStartTime && data.breakStartTime !== '') ? data.breakStartTime : null;
+            const breakEnd = (data.breakEndTime && data.breakEndTime !== '') ? data.breakEndTime : null;
+            if (breakStart === null || breakEnd === null) return true;
+            const start = data.startTime;
+            const end = data.endTime;
+            if (!start || !end) return true;
+            return timeLessOrEqual(start, breakStart) && timeLessOrEqual(breakStart, breakEnd) && timeLessOrEqual(breakEnd, end);
+        },
+        { message: 'La pause doit être comprise entre l\'heure d\'ouverture et l\'heure de fermeture', path: ['breakEndTime'] }
+    )
+    .transform((data) => ({
+        ...data,
+        breakStartTime: (data.breakStartTime && data.breakStartTime !== '') ? data.breakStartTime : null,
+        breakEndTime: (data.breakEndTime && data.breakEndTime !== '') ? data.breakEndTime : null
+    }));
 
 // ===== PÉRIODES D'INDISPONIBILITÉ =====
 
@@ -127,6 +164,27 @@ export const deleteUnavailabilityActionSchema = z.object({
     unavailabilityId: uuidSchema
 });
 
+// ===== INDISPONIBILITÉS DE CRÉNEAUX (UN JOUR PRÉCIS) =====
+
+// Action pour ajouter une indisponibilité de créneau (date + plage horaire)
+export const addSlotUnavailabilityActionSchema = z
+    .object({
+        shopId: uuidSchema,
+        date: dateStringSchema,
+        startTime: timeSlotSchema,
+        endTime: timeSlotSchema
+    })
+    .refine((data) => timeLessOrEqual(data.startTime, data.endTime) && data.startTime !== data.endTime, {
+        message: 'L\'heure de début doit être strictement avant l\'heure de fin',
+        path: ['endTime']
+    });
+
+// Action pour supprimer une indisponibilité de créneau
+export const deleteSlotUnavailabilityActionSchema = z.object({
+    slotUnavailabilityId: uuidSchema,
+    shopId: uuidSchema
+});
+
 // ===== TYPES EXPORTÉS =====
 
 export type DayOfWeek = z.infer<typeof dayOfWeekSchema>;
@@ -138,3 +196,6 @@ export type Unavailability = z.infer<typeof unavailabilityBaseSchema>;
 export type CreateUnavailabilityForm = z.infer<typeof createUnavailabilityFormSchema>;
 export type AddUnavailabilityAction = z.infer<typeof addUnavailabilityActionSchema>;
 export type DeleteUnavailabilityAction = z.infer<typeof deleteUnavailabilityActionSchema>;
+
+export type AddSlotUnavailabilityAction = z.infer<typeof addSlotUnavailabilityActionSchema>;
+export type DeleteSlotUnavailabilityAction = z.infer<typeof deleteSlotUnavailabilityActionSchema>;
