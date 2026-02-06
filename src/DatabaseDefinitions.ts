@@ -54,30 +54,45 @@ export type Database = {
       }
       availabilities: {
         Row: {
+          break_end_time: string | null
+          break_start_time: string | null
           created_at: string | null
           daily_order_limit: number | null
           day: number
+          end_time: string | null
           id: string
+          interval_time: unknown | null
           is_open: boolean | null
           shop_id: string
+          start_time: string | null
           updated_at: string | null
         }
         Insert: {
+          break_end_time?: string | null
+          break_start_time?: string | null
           created_at?: string | null
           daily_order_limit?: number | null
           day: number
+          end_time?: string | null
           id?: string
+          interval_time?: unknown | null
           is_open?: boolean | null
           shop_id: string
+          start_time?: string | null
           updated_at?: string | null
         }
         Update: {
+          break_end_time?: string | null
+          break_start_time?: string | null
           created_at?: string | null
           daily_order_limit?: number | null
           day?: number
+          end_time?: string | null
           id?: string
+          interval_time?: unknown | null
           is_open?: boolean | null
           shop_id?: string
+          start_time?: string | null
           updated_at?: string | null
         }
         Relationships: [

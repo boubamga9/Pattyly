@@ -11,6 +11,8 @@
 		start_time: string | null;
 		end_time: string | null;
 		interval_time: string | null;
+		break_start_time?: string | null;
+		break_end_time?: string | null;
 	}>;
 
 	// Refs pour les boutons de soumission
@@ -21,7 +23,7 @@
 	let inputValues: Record<string, string> = {};
 	let timeValues: Record<
 		string,
-		{ start: string; end: string; interval: string }
+		{ start: string; end: string; interval: string; breakStart: string; breakEnd: string; breakEnabled: boolean }
 	> = {};
 	let isSubmitting: Record<string, boolean> = {};
 	let showSuccessFeedback: Record<string, boolean> = {};
@@ -35,10 +37,14 @@
 					availability.daily_order_limit?.toString() || '';
 			}
 			if (!(availability.id in timeValues)) {
+				const hasBreak = availability.break_start_time != null && availability.break_end_time != null;
 				timeValues[availability.id] = {
 					start: availability.start_time || '09:00',
 					end: availability.end_time || '18:00',
 					interval: availability.interval_time || '00:30:00',
+					breakStart: availability.break_start_time || '12:00',
+					breakEnd: availability.break_end_time || '14:00',
+					breakEnabled: !!hasBreak,
 				};
 			}
 		});
@@ -85,6 +91,8 @@
 		const dailyLimit = inputValues[availabilityId];
 
 		// Mettre à jour l'état local immédiatement
+		const breakStart = timeConfig.breakEnabled ? timeConfig.breakStart : null;
+		const breakEnd = timeConfig.breakEnabled ? timeConfig.breakEnd : null;
 		availabilities = availabilities.map((a) =>
 			a.id === availabilityId
 				? {
@@ -93,6 +101,8 @@
 						end_time: timeConfig.end,
 						interval_time: timeConfig.interval,
 						daily_order_limit: dailyLimit ? parseInt(dailyLimit) : null,
+						break_start_time: breakStart,
+						break_end_time: breakEnd,
 					}
 				: a,
 		);
@@ -118,11 +128,15 @@
 				const dailyOrderLimitInput = form.querySelector(
 					'input[name="dailyOrderLimit"]',
 				) as HTMLInputElement;
+				const breakStartInput = form.querySelector('input[name="breakStartTime"]') as HTMLInputElement;
+				const breakEndInput = form.querySelector('input[name="breakEndTime"]') as HTMLInputElement;
 
 				if (startTimeInput) startTimeInput.value = timeConfig.start;
 				if (endTimeInput) endTimeInput.value = timeConfig.end;
 				if (intervalTimeInput) intervalTimeInput.value = timeConfig.interval;
 				if (dailyOrderLimitInput) dailyOrderLimitInput.value = dailyLimit || '';
+				if (breakStartInput) breakStartInput.value = timeConfig.breakEnabled ? timeConfig.breakStart : '';
+				if (breakEndInput) breakEndInput.value = timeConfig.breakEnabled ? timeConfig.breakEnd : '';
 			}
 			timeSubmitButton.click();
 		}
@@ -200,11 +214,15 @@
 										inputValues[availability.id] =
 											updatedAvailability.daily_order_limit?.toString() || '';
 
-										// Mettre à jour timeValues (créneaux horaires)
+										// Mettre à jour timeValues (créneaux horaires + pause)
+										const hasBreak = updatedAvailability.break_start_time != null && updatedAvailability.break_end_time != null;
 										timeValues[availability.id] = {
 											start: updatedAvailability.start_time || '09:00',
 											end: updatedAvailability.end_time || '18:00',
 											interval: updatedAvailability.interval_time || '00:30:00',
+											breakStart: updatedAvailability.break_start_time || '12:00',
+											breakEnd: updatedAvailability.break_end_time || '14:00',
+											breakEnabled: !!hasBreak,
 										};
 
 										// Afficher le feedback de succès temporairement
@@ -226,6 +244,8 @@
 														start_time: originalAvailability.start_time,
 														end_time: originalAvailability.end_time,
 														interval_time: originalAvailability.interval_time,
+														break_start_time: originalAvailability.break_start_time,
+														break_end_time: originalAvailability.break_end_time,
 													}
 												: a,
 										);
@@ -263,6 +283,16 @@
 							type="hidden"
 							name="intervalTime"
 							value={availability.interval_time || ''}
+						/>
+						<input
+							type="hidden"
+							name="breakStartTime"
+							value={timeValues[availability.id]?.breakEnabled ? timeValues[availability.id].breakStart : ''}
+						/>
+						<input
+							type="hidden"
+							name="breakEndTime"
+							value={timeValues[availability.id]?.breakEnabled ? timeValues[availability.id].breakEnd : ''}
 						/>
 
 						<!-- Bouton caché pour déclencher la soumission -->
@@ -375,6 +405,48 @@
 											<option value="03:00:00">3h</option>
 										</select>
 									</div>
+								</div>
+								<!-- Pause (optionnelle) -->
+								<div class="space-y-2 rounded-md border border-border/50 bg-muted/30 p-3">
+									<div class="flex items-center justify-between">
+										<label class="text-xs font-medium text-muted-foreground">
+											Pause (ex. déjeuner)
+										</label>
+										<Switch
+											checked={timeValues[availability.id].breakEnabled}
+											on:change={(e) => {
+												timeValues[availability.id] = {
+													...timeValues[availability.id],
+													breakEnabled: e.detail,
+												};
+												timeValues = timeValues;
+											}}
+										/>
+									</div>
+									{#if timeValues[availability.id].breakEnabled}
+										<div class="grid grid-cols-2 gap-2">
+											<div>
+												<label class="mb-1 block text-xs text-muted-foreground">Début pause</label>
+												<input
+													type="time"
+													step="1800"
+													bind:value={timeValues[availability.id].breakStart}
+													disabled={isSubmitting[availability.id]}
+													class="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm focus:border-primary focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+												/>
+											</div>
+											<div>
+												<label class="mb-1 block text-xs text-muted-foreground">Fin pause</label>
+												<input
+													type="time"
+													step="1800"
+													bind:value={timeValues[availability.id].breakEnd}
+													disabled={isSubmitting[availability.id]}
+													class="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm focus:border-primary focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+												/>
+											</div>
+										</div>
+									{/if}
 								</div>
 								<div class="flex justify-end">
 									<button

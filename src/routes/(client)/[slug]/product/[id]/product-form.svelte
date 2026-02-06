@@ -189,11 +189,13 @@
 					'Content-Type': 'application/json',
 				},
 				body: JSON.stringify({
-					shop_id: shop.id, // Utiliser shop.id depuis les props
+					shop_id: shop.id,
 					pickup_date: pickupDate,
 					start_time: availability.start_time,
 					end_time: availability.end_time,
 					interval_time: availability.interval_time,
+					break_start_time: availability.break_start_time ?? null,
+					break_end_time: availability.break_end_time ?? null,
 				}),
 			});
 
